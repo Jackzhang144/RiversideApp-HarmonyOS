@@ -1,0 +1,29 @@
+# DevEco Studio / IntelliJ IDEA
+.idea/
+*.iml
+
+# Build outputs and local package caches
+build/
+**/build/
+.hvigor/
+**/.hvigor/
+oh_modules/
+**/oh_modules/
+
+# Local environment and signing material
+local.properties
+*.p12
+*.pfx
+*.jks
+*.keystore
+*.cer
+*.csr
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Logs and temporary files
+*.log
+*.tmp
+*.swp

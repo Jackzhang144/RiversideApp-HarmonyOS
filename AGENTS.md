@@ -1,0 +1,28 @@
+## Agent skills
+
+### Issue tracker
+
+Issues and specs live as local Markdown files under `.scratch/`. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default triage labels are used. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+This is a single-context repository. See `docs/agents/domain.md`.
+
+## 编码与提交约束
+
+### ArkTS 严格性
+
+- 以 ArkTS 的强化静态检查与类型约束为基线，不将其作为宽松的 TypeScript 使用。
+- 禁止引入 `any`；避免不安全的类型断言。接口返回、可空值、异常与状态分支必须显式建模和处理。
+- 新增代码应保持类型完整性，优先让编译器验证边界，而非依赖运行时兜底。
+
+### 一步一提交
+
+- 每个 Git 提交只解决一个可独立验证的小点。
+- 不得将无关重构、格式化或其他功能改动混入同一提交。
+- 每次提交前，执行与改动风险相匹配的验证（如类型检查、构建、测试或关键路径验证）。
+- 提交信息沿用 `feat(...)`、`fix(...)`、`test(...)`、`refactor(...)`、`chore(...)` 等约定；未经用户明确要求，不推送远程。
