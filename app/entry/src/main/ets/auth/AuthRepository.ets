@@ -1,11 +1,17 @@
 import { RepositoryResult } from '../core/RepositoryResult';
-import { AuthenticatedSession } from './AuthModels';
+import {
+  AuthenticatedSession,
+  AuthorizationCallbackValidator
+} from './AuthModels';
 import {
   AuthenticatedSessionStore,
   SessionLoadKind,
   SessionLoadResult
 } from './HuksAuthenticatedSessionStore';
-import { AuthorizationCryptoFactory } from './RsaAuthorizationCrypto';
+import {
+  AuthorizationCryptoFactory,
+  AuthorizationCryptoSession
+} from './RsaAuthorizationCrypto';
 
 export enum AuthStateKind {
   IDLE = 'idle',
@@ -45,6 +51,22 @@ export class AuthState {
     return new AuthState(AuthStateKind.RESTORING, null, '', '');
   }
 
+  public static generatingRequest(): AuthState {
+    return new AuthState(AuthStateKind.GENERATING_REQUEST, null, '', '');
+  }
+
+  public static authorizing(authorizationUrl: string): AuthState {
+    return new AuthState(AuthStateKind.AUTHORIZING, null, authorizationUrl, '');
+  }
+
+  public static validating(authorizationUrl: string): AuthState {
+    return new AuthState(AuthStateKind.VALIDATING, null, authorizationUrl, '');
+  }
+
+  public static persisting(): AuthState {
+    return new AuthState(AuthStateKind.PERSISTING, null, '', '');
+  }
+
   public static authenticated(session: AuthenticatedSession): AuthState {
     return new AuthState(AuthStateKind.AUTHENTICATED, session, '', '');
   }
@@ -63,6 +85,8 @@ export class AuthRepository {
 
   private readonly store: AuthenticatedSessionStore;
   private readonly cryptoFactory: AuthorizationCryptoFactory;
+  private readonly callbackValidator: AuthorizationCallbackValidator = new AuthorizationCallbackValidator();
+  private pendingCrypto: AuthorizationCryptoSession | null = null;
 
   public constructor(store: AuthenticatedSessionStore, cryptoFactory: AuthorizationCryptoFactory) {
     this.store = store;
@@ -70,6 +94,7 @@ export class AuthRepository {
   }
 
   public async restore(): Promise<void> {
+    this.clearAuthorizationMaterial();
     this.state = AuthState.restoring();
     const result: SessionLoadResult = await this.store.load();
     if (result.kind === SessionLoadKind.EMPTY) {
@@ -88,10 +113,76 @@ export class AuthRepository {
   }
 
   public async logout(): Promise<void> {
+    this.clearAuthorizationMaterial();
     this.state = AuthState.signingOut();
     const result: RepositoryResult<boolean> = await this.store.clear();
     this.state = result.isSuccess()
       ? AuthState.idle()
       : AuthState.error(result.message);
+  }
+
+  public async beginAuthorization(): Promise<void> {
+    this.clearAuthorizationMaterial();
+    this.state = AuthState.generatingRequest();
+    const result: RepositoryResult<AuthorizationCryptoSession> = await this.cryptoFactory.create();
+    if (!result.isSuccess() || result.data === null) {
+      this.state = AuthState.error(result.message);
+      return;
+    }
+    this.pendingCrypto = result.data;
+    this.state = AuthState.authorizing(result.data.request.authorizationUrl);
+  }
+
+  public async handleNavigation(url: string, isMainFrame: boolean): Promise<boolean> {
+    if (!this.callbackValidator.isCallbackUrl(url)) {
+      return false;
+    }
+    const crypto: AuthorizationCryptoSession | null = this.pendingCrypto;
+    if (crypto === null) {
+      this.state = AuthState.error('没有待处理的授权请求');
+      return true;
+    }
+    const payload: RepositoryResult<string> = this.callbackValidator.extractPayload(url, isMainFrame);
+    if (!payload.isSuccess() || payload.data === null) {
+      this.finishAuthorizationWithError(payload.message);
+      return true;
+    }
+
+    this.state = AuthState.validating(crypto.request.authorizationUrl);
+    const decrypted: RepositoryResult<AuthenticatedSession> = await crypto.decryptAndValidate(payload.data);
+    if (!decrypted.isSuccess() || decrypted.data === null) {
+      this.finishAuthorizationWithError(decrypted.message);
+      return true;
+    }
+
+    this.state = AuthState.persisting();
+    const saved: RepositoryResult<boolean> = await this.store.save(decrypted.data);
+    this.clearAuthorizationMaterial();
+    this.state = saved.isSuccess()
+      ? AuthState.authenticated(decrypted.data)
+      : AuthState.error(saved.message);
+    return true;
+  }
+
+  public cancelAuthorization(): void {
+    this.clearAuthorizationMaterial();
+    this.state = AuthState.idle();
+  }
+
+  private finishAuthorizationWithError(message: string): void {
+    this.clearAuthorizationMaterial();
+    this.state = AuthState.error(message);
+  }
+
+  private clearAuthorizationMaterial(): void {
+    const crypto: AuthorizationCryptoSession | null = this.pendingCrypto;
+    this.pendingCrypto = null;
+    if (crypto === null) {
+      return;
+    }
+    try {
+      crypto.clear();
+    } catch (_) {
+    }
   }
 }

@@ -72,13 +72,22 @@ export class AuthorizationRequest {
 }
 
 export class AuthorizationCallbackValidator {
+  public isCallbackUrl(callbackUrl: string): boolean {
+    try {
+      const callback: uri.URI = new uri.URI(callbackUrl);
+      return callback.scheme === 'riverside' && callback.host === 'auth_redirect';
+    } catch (_) {
+      return false;
+    }
+  }
+
   public extractPayload(callbackUrl: string, isMainFrame: boolean): RepositoryResult<string> {
     if (!isMainFrame) {
       return RepositoryResult.failure<string>('登录回调不是主页面导航');
     }
     try {
       const callback: uri.URI = new uri.URI(callbackUrl);
-      if (callback.scheme !== 'riverside' || callback.host !== 'auth_redirect') {
+      if (!this.isCallbackUrl(callbackUrl)) {
         return RepositoryResult.failure<string>('登录回调地址无效');
       }
       const payload: string | null = callback.getQueryValue('payload');
