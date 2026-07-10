@@ -1,7 +1,7 @@
 import { describe, expect, it } from '@ohos/hypium';
 import { JsonObjectReader } from '../../../main/ets/core/JsonObjectReader';
 import { RepositoryResult, RepositoryResultKind } from '../../../main/ets/core/RepositoryResult';
-import { Category, Topic, TopicDetail } from '../../../main/ets/models/ForumModels';
+import { Category, ForumPost, Topic, TopicDetail } from '../../../main/ets/models/ForumModels';
 import { ForumResponseParser } from '../../../main/ets/repositories/ForumResponseParser';
 
 export default function jsonBoundaryTest(): void {
@@ -62,6 +62,22 @@ export default function jsonBoundaryTest(): void {
       expect(result.data.postIds.length).assertEqual(1);
       expect(result.data.posts[0].id).assertEqual(102728);
       expect(result.data.canReply).assertFalse();
+    });
+
+    it('decodes a Post window and removes duplicate Post ids', 0, () => {
+      const parser: ForumResponseParser = new ForumResponseParser();
+      const result: RepositoryResult<Array<ForumPost>> = parser.parseTopicPosts(
+        '{"post_stream":{"posts":[' +
+        '{"id":102729,"user_id":1,"username":"admin","cooked":"<p>第一条 Reply</p>",' +
+        '"raw":"第一条 Reply","post_number":2,"reply_to_post_number":null,"created_at":"2026-01-28T00:00:00Z"},' +
+        '{"id":102729,"user_id":1,"username":"admin","cooked":"<p>重复</p>",' +
+        '"raw":"重复","post_number":2,"reply_to_post_number":null,"created_at":"2026-01-28T00:00:00Z"}' +
+        ']}}'
+      );
+
+      expect(result.kind).assertEqual(RepositoryResultKind.SUCCESS);
+      expect(result.data?.length).assertEqual(1);
+      expect(result.data?.[0].postNumber).assertEqual(2);
     });
   });
 }

@@ -563,4 +563,16 @@ export class ForumResponseParser {
     );
     return RepositoryResult.success<TopicDetail>(detail);
   }
+
+  public parseTopicPosts(text: string): RepositoryResult<Array<ForumPost>> {
+    const envelope: JsonObjectReader | null = JsonObjectReader.parse(text);
+    const postStream: JsonObjectReader | null = envelope?.object('post_stream') ?? null;
+    if (postStream === null) {
+      return RepositoryResult.failure<Array<ForumPost>>('服务器响应缺少 Post 列表');
+    }
+    const posts: Array<ForumPost> | null = decodePosts(postStream);
+    return posts === null
+      ? RepositoryResult.failure<Array<ForumPost>>('服务器响应缺少 Post 列表')
+      : RepositoryResult.success<Array<ForumPost>>(posts);
+  }
 }
