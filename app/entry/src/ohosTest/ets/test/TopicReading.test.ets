@@ -173,6 +173,35 @@ export default function topicReadingTest(): void {
       done();
     });
 
+    it('represents an archived Topic with no Posts as a non-replyable empty state', 0, async (done: Function) => {
+      const repository: TopicReadingRepository = new TopicReadingRepository();
+      repository.topicDetailResults.push(RepositoryResult.success<TopicDetail>(new TopicDetail(
+        2725,
+        '已归档 Topic',
+        10,
+        0,
+        0,
+        false,
+        true,
+        true,
+        [],
+        []
+      )));
+      const model: AppShellModel = new AppShellModel(
+        repository,
+        new MemoryCategoryCache(),
+        CategoryCacheScope.anonymous()
+      );
+
+      await model.openTopic(topic());
+
+      expect(model.topicState.kind).assertEqual(TopicReadStateKind.EMPTY);
+      expect(model.topicState.posts.length).assertEqual(0);
+      expect(model.topicState.canReply).assertFalse();
+      expect(model.topicState.hasMorePosts).assertFalse();
+      done();
+    });
+
     it('preserves visible Posts when pagination fails and retries the same window', 0, async (done: Function) => {
       const repository: TopicReadingRepository = new TopicReadingRepository();
       repository.topicDetailResults.push(RepositoryResult.success<TopicDetail>(new TopicDetail(
