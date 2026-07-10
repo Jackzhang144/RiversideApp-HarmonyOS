@@ -1,6 +1,7 @@
 import { describe, expect, it } from '@ohos/hypium';
 import {
   AppShellModel,
+  AuthenticationLifecycle,
   BrowseStateKind,
   RootDestination
 } from '../../../main/ets/app/AppShellModel';
@@ -38,6 +39,14 @@ class StubForumRepository implements ForumRepository {
 
   public async loadTopicPosts(_topicId: number, _postIds: Array<number>): Promise<RepositoryResult<Array<ForumPost>>> {
     return RepositoryResult.success<Array<ForumPost>>([]);
+  }
+}
+
+class StubAuthenticationLifecycle implements AuthenticationLifecycle {
+  public unauthorizedCallCount: number = 0;
+
+  public async handleUnauthorized(): Promise<void> {
+    this.unauthorizedCallCount += 1;
   }
 }
 
@@ -84,10 +93,12 @@ export default function appShellModelTest(): void {
       const repository: StubForumRepository = new StubForumRepository();
       repository.latestResults.push(RepositoryResult.failure<Array<Topic>>('网络连接失败'));
       repository.latestResults.push(RepositoryResult.success([]));
+      const authentication: StubAuthenticationLifecycle = new StubAuthenticationLifecycle();
       const model: AppShellModel = new AppShellModel(
         repository,
         new MemoryCategoryCache(),
-        CategoryCacheScope.anonymous()
+        CategoryCacheScope.anonymous(),
+        authentication
       );
 
       await model.loadHome();
@@ -97,22 +108,26 @@ export default function appShellModelTest(): void {
       await model.retryHome();
       expect(model.homeState.kind).assertEqual(BrowseStateKind.EMPTY);
       expect(repository.latestCallCount).assertEqual(2);
+      expect(authentication.unauthorizedCallCount).assertEqual(0);
       done();
     });
 
     it('exposes an unauthorized Home response to the AppShell', 0, async (done: Function) => {
       const repository: StubForumRepository = new StubForumRepository();
       repository.latestResults.push(RepositoryResult.unauthorized<Array<Topic>>());
+      const authentication: StubAuthenticationLifecycle = new StubAuthenticationLifecycle();
       const model: AppShellModel = new AppShellModel(
         repository,
         new MemoryCategoryCache(),
-        CategoryCacheScope.anonymous()
+        CategoryCacheScope.anonymous(),
+        authentication
       );
 
       await model.loadHome();
 
       expect(model.requiresAuthentication).assertTrue();
       expect(model.homeState.kind).assertEqual(BrowseStateKind.ERROR);
+      expect(authentication.unauthorizedCallCount).assertEqual(1);
       done();
     });
 

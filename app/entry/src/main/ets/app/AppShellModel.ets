@@ -3,6 +3,10 @@ import { RepositoryResult } from '../core/RepositoryResult';
 import { Category, ForumPost, Topic, TopicDetail } from '../models/ForumModels';
 import { ForumRepository } from '../repositories/ForumRepository';
 
+export interface AuthenticationLifecycle {
+  handleUnauthorized(): Promise<void>;
+}
+
 export enum RootDestination {
   HOME = 0,
   CATEGORY = 1
@@ -194,6 +198,7 @@ export class AppShellModel {
   private readonly repository: ForumRepository;
   private readonly categoryCache: CategoryCache;
   private readonly categoryCacheScope: CategoryCacheScope;
+  private readonly authenticationLifecycle: AuthenticationLifecycle | null;
   private cachedCategories: Array<Category> | null = null;
   private remainingPostIds: Array<number> = [];
   private topicReturnDestination: SecondaryDestination = SecondaryDestination.NONE;
@@ -204,11 +209,13 @@ export class AppShellModel {
   public constructor(
     repository: ForumRepository,
     categoryCache: CategoryCache,
-    categoryCacheScope: CategoryCacheScope
+    categoryCacheScope: CategoryCacheScope,
+    authenticationLifecycle: AuthenticationLifecycle | null = null
   ) {
     this.repository = repository;
     this.categoryCache = categoryCache;
     this.categoryCacheScope = categoryCacheScope;
+    this.authenticationLifecycle = authenticationLifecycle;
   }
 
   public selectRoot(destination: RootDestination): void {
@@ -229,6 +236,7 @@ export class AppShellModel {
     if (!result.isSuccess() || result.data === null) {
       this.requiresAuthentication = result.isUnauthorized();
       this.categoryTopicsState = BrowseState.error<Topic>(result.message);
+      await this.notifyUnauthorized(result.isUnauthorized());
       return;
     }
     this.categoryTopicsState = result.data.length === 0
@@ -262,6 +270,7 @@ export class AppShellModel {
       this.remainingPostIds = [];
       this.requiresAuthentication = result.isUnauthorized();
       this.topicState = TopicReadState.error(topic, result.message);
+      await this.notifyUnauthorized(result.isUnauthorized());
       return;
     }
     const posts: Array<ForumPost> = uniquePosts(result.data.posts);
@@ -312,6 +321,7 @@ export class AppShellModel {
     if (!result.isSuccess() || result.data === null) {
       this.requiresAuthentication = result.isUnauthorized();
       this.topicState = TopicReadState.pagination(this.topicState, false, result.message);
+      await this.notifyUnauthorized(result.isUnauthorized());
       return;
     }
 
@@ -347,6 +357,7 @@ export class AppShellModel {
     if (!result.isSuccess() || result.data === null) {
       this.requiresAuthentication = result.isUnauthorized();
       this.homeState = BrowseState.error<Topic>(result.message);
+      await this.notifyUnauthorized(result.isUnauthorized());
       return;
     }
     this.homeState = result.data.length === 0
@@ -399,6 +410,7 @@ export class AppShellModel {
       } else {
         this.categoryState = BrowseState.content<Category>(this.cachedCategories, false, result.message);
       }
+      await this.notifyUnauthorized(result.isUnauthorized());
       return;
     }
 
@@ -415,5 +427,12 @@ export class AppShellModel {
 
   public async retryCategories(): Promise<void> {
     await this.loadCategories();
+  }
+
+  private async notifyUnauthorized(isUnauthorized: boolean): Promise<void> {
+    if (!isUnauthorized || this.authenticationLifecycle === null) {
+      return;
+    }
+    await this.authenticationLifecycle.handleUnauthorized();
   }
 }
