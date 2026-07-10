@@ -87,6 +87,8 @@ export class AuthRepository {
   private readonly cryptoFactory: AuthorizationCryptoFactory;
   private readonly callbackValidator: AuthorizationCallbackValidator = new AuthorizationCallbackValidator();
   private pendingCrypto: AuthorizationCryptoSession | null = null;
+  private pendingSaveTask: Promise<RepositoryResult<boolean>> | null = null;
+  private logoutTask: Promise<void> | null = null;
   private operationVersion: number = 0;
 
   public constructor(store: AuthenticatedSessionStore, cryptoFactory: AuthorizationCryptoFactory) {
@@ -117,17 +119,38 @@ export class AuthRepository {
     this.state = AuthState.error(result.message);
   }
 
-  public async logout(): Promise<void> {
+  public logout(): Promise<void> {
+    const activeLogout: Promise<void> | null = this.logoutTask;
+    if (activeLogout !== null) {
+      return activeLogout;
+    }
+    const task: Promise<void> = this.performLogout();
+    this.logoutTask = task;
+    return task;
+  }
+
+  private async performLogout(): Promise<void> {
     const operation: number = this.beginOperation();
     this.clearAuthorizationMaterial();
     this.state = AuthState.signingOut();
-    const result: RepositoryResult<boolean> = await this.store.clear();
-    if (!this.isCurrentOperation(operation)) {
-      return;
+    try {
+      const pendingSave: Promise<RepositoryResult<boolean>> | null = this.pendingSaveTask;
+      if (pendingSave !== null) {
+        await pendingSave;
+      }
+      if (!this.isCurrentOperation(operation)) {
+        return;
+      }
+      const result: RepositoryResult<boolean> = await this.store.clear();
+      if (!this.isCurrentOperation(operation)) {
+        return;
+      }
+      this.state = result.isSuccess()
+        ? AuthState.idle()
+        : AuthState.error(result.message);
+    } finally {
+      this.logoutTask = null;
     }
-    this.state = result.isSuccess()
-      ? AuthState.idle()
-      : AuthState.error(result.message);
   }
 
   public currentSession(): AuthenticatedSession | null {
@@ -139,6 +162,10 @@ export class AuthRepository {
   }
 
   public async beginAuthorization(): Promise<void> {
+    const activeLogout: Promise<void> | null = this.logoutTask;
+    if (activeLogout !== null) {
+      await activeLogout;
+    }
     const operation: number = this.beginOperation();
     this.clearAuthorizationMaterial();
     this.state = AuthState.generatingRequest();
@@ -191,7 +218,12 @@ export class AuthRepository {
     }
 
     this.state = AuthState.persisting();
-    const saved: RepositoryResult<boolean> = await this.store.save(decrypted.data);
+    const saveTask: Promise<RepositoryResult<boolean>> = this.store.save(decrypted.data);
+    this.pendingSaveTask = saveTask;
+    const saved: RepositoryResult<boolean> = await saveTask;
+    if (this.pendingSaveTask === saveTask) {
+      this.pendingSaveTask = null;
+    }
     if (!this.isCurrentOperation(operation)) {
       return true;
     }
@@ -203,7 +235,7 @@ export class AuthRepository {
   }
 
   public cancelAuthorization(): void {
-    if (this.state.kind === AuthStateKind.PERSISTING) {
+    if (this.state.kind === AuthStateKind.PERSISTING || this.state.kind === AuthStateKind.SIGNING_OUT) {
       return;
     }
     this.beginOperation();

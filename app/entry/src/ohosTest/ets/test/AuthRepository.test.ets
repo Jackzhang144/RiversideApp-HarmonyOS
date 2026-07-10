@@ -46,6 +46,42 @@ class StubSessionStore implements AuthenticatedSessionStore {
   }
 }
 
+class DeferredSaveSessionStore implements AuthenticatedSessionStore {
+  public saveCallCount: number = 0;
+  public clearCallCount: number = 0;
+  public clearedAfterSave: boolean = false;
+  private saveCompleted: boolean = false;
+  private saveResolver: ((result: RepositoryResult<boolean>) => void) | null = null;
+
+  public async load(): Promise<SessionLoadResult> {
+    return SessionLoadResult.empty();
+  }
+
+  public save(_session: AuthenticatedSession): Promise<RepositoryResult<boolean>> {
+    this.saveCallCount += 1;
+    return new Promise<RepositoryResult<boolean>>(
+      (resolve: (result: RepositoryResult<boolean>) => void): void => {
+        this.saveResolver = resolve;
+      }
+    );
+  }
+
+  public completeSave(): void {
+    const resolve: ((result: RepositoryResult<boolean>) => void) | null = this.saveResolver;
+    this.saveResolver = null;
+    this.saveCompleted = true;
+    if (resolve !== null) {
+      resolve(RepositoryResult.success<boolean>(true));
+    }
+  }
+
+  public async clear(): Promise<RepositoryResult<boolean>> {
+    this.clearCallCount += 1;
+    this.clearedAfterSave = this.saveCompleted;
+    return RepositoryResult.success<boolean>(true);
+  }
+}
+
 class StubCryptoFactory implements AuthorizationCryptoFactory {
   public createResult: RepositoryResult<AuthorizationCryptoSession> =
     RepositoryResult.failure<AuthorizationCryptoSession>('not configured');
@@ -308,6 +344,59 @@ export default function authRepositoryTest(): void {
       expect(repository.state.kind).assertEqual(AuthStateKind.IDLE);
       expect(store.saveCallCount).assertEqual(0);
       expect(crypto.clearCallCount).assertEqual(1);
+      done();
+    });
+
+    it('coalesces concurrent logout cleanup into one store operation', 0, async (done: Function) => {
+      const store: StubSessionStore = new StubSessionStore();
+      const repository: AuthRepository = new AuthRepository(store, new StubCryptoFactory());
+
+      const firstLogout: Promise<void> = repository.logout();
+      const secondLogout: Promise<void> = repository.logout();
+      await firstLogout;
+      await secondLogout;
+
+      expect(store.clearCallCount).assertEqual(1);
+      expect(repository.state.kind).assertEqual(AuthStateKind.IDLE);
+      done();
+    });
+
+    it('waits for an in-flight session save before logout cleanup', 0, async (done: Function) => {
+      const request: AuthorizationRequest | null = createAuthorizationRequest();
+      const authenticated: AuthenticatedSession | null = AuthenticatedSession.create('user-api-key', CLIENT_ID);
+      expect(request === null).assertFalse();
+      expect(authenticated === null).assertFalse();
+      if (request === null || authenticated === null) {
+        done();
+        return;
+      }
+      const store: DeferredSaveSessionStore = new DeferredSaveSessionStore();
+      const crypto: StubCryptoSession = new StubCryptoSession(
+        request,
+        RepositoryResult.success<AuthenticatedSession>(authenticated)
+      );
+      const factory: StubCryptoFactory = new StubCryptoFactory();
+      factory.createResult = RepositoryResult.success<AuthorizationCryptoSession>(crypto);
+      const repository: AuthRepository = new AuthRepository(store, factory);
+      await repository.beginAuthorization();
+
+      const handling: Promise<boolean> = repository.handleNavigation(
+        'riverside://auth_redirect?payload=encrypted-value',
+        true
+      );
+      await Promise.resolve();
+      expect(store.saveCallCount).assertEqual(1);
+      const loggingOut: Promise<void> = repository.logout();
+      expect(repository.state.kind).assertEqual(AuthStateKind.SIGNING_OUT);
+      expect(store.clearCallCount).assertEqual(0);
+
+      store.completeSave();
+      expect(await handling).assertTrue();
+      await loggingOut;
+
+      expect(store.clearCallCount).assertEqual(1);
+      expect(store.clearedAfterSave).assertTrue();
+      expect(repository.state.kind).assertEqual(AuthStateKind.IDLE);
       done();
     });
   });
