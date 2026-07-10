@@ -1,27 +1,28 @@
 # Riverside MVP：HDS 组件 API 23 适配结论
 
 日期：2026-07-10
-范围：只核验 API 23 手机 MVP 所需的 HdsNavigation、HdsTabs、HdsListItem、HdsSnackBar 与 HdsActionBar；不代表完成真机运行验证。
+范围：只核验 API 23 手机 MVP 所需的 HdsNavigation、HdsNavDestination、HdsTabs、HdsListItem、HdsSnackBar 与 HdsActionBar；不代表完成真机运行验证。
 
 ## 结论
 
-五个候选组件的基础接口起始版本均不高于 API 23：HdsNavigation 从 5.1.0(18) 起，其余四个均从 6.0.0(20) 起。因此，在 **Stage 模型、API 23 手机、且处于中国大陆发行范围** 的工程中，它们可以作为 MVP 的 HDS 候选组件。[1][2][3][4][5][6]
+六个候选组件的基础接口起始版本均不高于 API 23：HdsNavigation 与 HdsNavDestination 从 5.1.0(18) 起，其余四个均从 6.0.0(20) 起。因此，在 **Stage 模型、API 23 手机、且处于中国大陆发行范围** 的工程中，它们可以作为 MVP 的 HDS 候选组件。[1][2][3][4][5][6][8]
 
 这不是“所有 HDS 新能力都可不经验证地使用”的结论。部分属性在 6.1.0(23) 才新增；沉浸光感材质也从 6.1.0(23) 才开始支持。MVP 应先仅使用下表的基础能力；任何 API 23 新增属性均须在目标真机单独验证后才能纳入验收基线。[2][3][4][5][7]
 
 ## 共同前提与已核验限制
 
-- **工程模型与导入：** 这五个组件的参考接口均限定为 Stage 模型，且通过系统 Kit `@kit.UIDesignKit` 导入，而非 `ohpm` 三方包。工程应以 API 23 为目标版本，并在首个最小工程中做一次编译验证。[2][3][4][5][6]
+- **工程模型与导入：** 这六个组件的参考接口均限定为 Stage 模型，且通过系统 Kit `@kit.UIDesignKit` 导入，而非 `ohpm` 三方包。工程应以 API 23 为目标版本，并在首个最小工程中做一次编译验证。[2][3][4][5][6][8]
 - **地区：已核验。** 官方说明 UI Design Kit 当前仅支持中国境内，明确排除香港特别行政区、澳门特别行政区和中国台湾；本 MVP 的“中国大陆发行”约束与之相符。[1]
 - **模拟器：已核验。** 官方说明 Kit 可在模拟器开发，但模拟器不支持 HDS 沉浸视效：点光源、按压阴影、各类边缘/背景流光及沉浸光感材质。故模拟器仅用于结构与基础交互回归；涉及 HDS 视觉的验收必须在 API 23 真机执行。[1]
-- **设备：** 五个候选能力在官方设备表中均支持 Phone；本研究不把 TV 差异带入手机 MVP。[1]
+- **设备：** 六个候选能力在官方设备表中均支持 Phone；本研究不把 TV 差异带入手机 MVP。[1]
 - **不应假设的配置：** 本轮查到的组件参考未列出额外的权限、服务开通或 `oh-package.json5` 依赖。是否有工程脚手架/SDK 版本的额外要求，须在创建 API 23 工程并编译首个页面时实测；在此之前标记为未验证，而不是自行补充配置。
 
 ## 组件适配表
 
 | 组件 | 起始版本与导入 | API 23 基础适配 | MVP 用法 | 已知限制与使用边界 | ArkUI 回退 |
 | --- | --- | --- | --- | --- | --- |
-| `HdsNavigation` | 5.1.0(18)；`import { HdsNavigation } from '@kit.UIDesignKit';`。6.0.1(21) 及以前还必须显式导入 `HdsNavigationAttribute`，API 23 对应 6.1.0(23) 不需要。[2] | **可用。** | 应用根导航与话题详情/登录/回复等二级页的标题栏、返回和菜单。配合 ArkUI `NavPathStack`；二级页还需按官方导航模式使用 `HdsNavDestination`（本票未单独核验其 API 细节）。[1][2] | Stage-only；横屏 Stack 模式不能把工具栏并入菜单栏，标题栏默认叠在内容之上。数组工具栏最多显示 5 个图标，且不能以 `SymbolGlyphModifier` 的部分属性修改图标大小或动效。[1][2] | `Navigation` + `NavDestination` + `NavPathStack`；标题栏/工具栏以 `Row`、`Button` 组合。 |
+| `HdsNavigation` | 5.1.0(18)；`import { HdsNavigation } from '@kit.UIDesignKit';`。6.0.1(21) 及以前还必须显式导入 `HdsNavigationAttribute`，API 23 对应 6.1.0(23) 不需要。[2] | **可用。** | 应用根导航，配合 ArkUI `NavPathStack` 承载二级页面。[1][2] | Stage-only；横屏 Stack 模式不能把工具栏并入菜单栏，标题栏默认叠在内容之上。数组工具栏最多显示 5 个图标，且不能以 `SymbolGlyphModifier` 的部分属性修改图标大小或动效。[1][2] | `Navigation` + `NavPathStack`；标题栏/工具栏以 `Row`、`Button` 组合。 |
+| `HdsNavDestination` | 5.1.0(18)；API 23 可直接 `import { HdsNavDestination } from '@kit.UIDesignKit';`，无需手动导入 Attribute。[8] | **可用。** 当前采用的 `titleBar` 从 18 起，`onBackPressed` 从 20 起，均不晚于 API 23。[8] | 话题详情、登录和后续回复等二级页的根容器、标题栏与返回处理；必须配合 `HdsNavigation` 使用。[8] | Stage-only；不能设置 `zIndex`，不建议直接设置位置和大小。当前不启用 API 23 才新增的 `withTheme` 或带原因参数的生命周期重载。[8] | ArkUI `NavDestination`，标题栏以 `Row`、`Button` 组合。 |
 | `HdsTabs` | 6.0.0(20)；`import { HdsTabs, HdsTabsController } from '@kit.UIDesignKit';`。6.0.1(21) 及以前还要导入 `HdsTabsAttribute`。[3] | **可用。** | 若最终信息架构把“首页/分类”做成同级主入口，可作为底部页签容器。 | Stage-only；一个 controller 不能控制多个 `HdsTabs`。悬浮栏/迷你栏等有 API 23 新增能力，首版不采用，待真机核验后再评估。[3][7] | ArkUI `Tabs` + `TabContent` + `TabsController`。 |
 | `HdsListItem` | 6.0.0(20)；`import { HdsListItem } from '@kit.UIDesignKit';`。[4] | **基础接口可用；主题列表首版建议以基础 ArkUI 为默认实现。** | 可在分类或话题列表的视觉探索中试用其卡片承载和横滑效果；不应将横滑删除作为 MVP 需求。 | Stage-only；不支持通用属性和通用事件，需先以可点击的实际主题行验证导航与无障碍行为。预览菜单、`menuBuilder`、选择态等于 API 23 才新增，不纳入首版基线。[4] | `List` + `ListItem` + `Row/Column`，在行内使用 `Button`/点击事件完成进入话题。 |
 | `HdsSnackBar` | 6.0.0(20)；`import { HdsSnackBar } from '@kit.UIDesignKit';`。[5] | **可用。** | 登录跳转失败、回复提交成功/失败、网络可恢复错误的轻量非模态反馈。 | Stage-only；保持一次提示只描述一个结果。API 23 才新增的可选样式字段不进入首版基线。[5] | ArkUI `promptAction.showToast`；需要操作按钮时用自定义 `Popup`/`Overlay`。 |
@@ -39,8 +40,8 @@
 
 ## 实施门槛
 
-1. 创建 API 23 Stage 模型最小工程，分别导入五个组件并进行编译；记录 SDK/DevEco Studio 版本和首个编译结果。
-2. 在 API 23 真机验证 `HdsNavigation`、`HdsTabs`、`HdsSnackBar` 的基础交互与 HDS 视觉；若使用 `HdsListItem`，先验证主题行点击和无障碍；若使用 `HdsActionBar`，先验证 `ComponentV2` 状态更新。
+1. 创建 API 23 Stage 模型最小工程，分别导入六个组件并进行编译；记录 SDK/DevEco Studio 版本和首个编译结果。
+2. 在 API 23 真机验证 `HdsNavigation`、`HdsNavDestination`、`HdsTabs`、`HdsSnackBar` 的基础交互与 HDS 视觉；若使用 `HdsListItem`，先验证主题行点击和无障碍；若使用 `HdsActionBar`，先验证 `ComponentV2` 状态更新。
 3. 在模拟器只回归非沉浸结构和基础交互。不要以模拟器截图判断点光、阴影、流光或沉浸光感材质。[1]
 4. 默认不使用 API 23 新增的悬浮/迷你页签、列表预览菜单及沉浸材质；它们要有单独真机证据才可启用。[3][4][7]
 
@@ -53,3 +54,4 @@
 5. [华为开发者：HdsSnackBar API 参考](https://developer.huawei.com/consumer/cn/doc/harmonyos-references/ui-design-hdssnackbar)（起始版本、导入、Stage 模型与样式字段）。本机检索标识：`API参考/UI_Design_Kit_UI设计套件/ArkTS组件/HdsSnackBar/ui-design-hdssnackbar`。
 6. [华为开发者：HdsActionBar API 参考](https://developer.huawei.com/consumer/cn/doc/harmonyos-references/ui-design-hdsactionbar)（起始版本、导入、`ComponentV2` 与 API 23 新增字段）。本机检索标识：`API参考/UI_Design_Kit_UI设计套件/ArkTS组件/HdsActionBar/ui-design-hdsactionbar`。
 7. [华为开发者：HDS 沉浸光感](https://developer.huawei.com/consumer/cn/doc/harmonyos-guides/ui-design-hds-component-material)（6.1.0(23) 起的导航/页签沉浸材质及按设备能力降级建议）。本机检索标识：`开发指南/UI_Design_Kit_UI设计套件/沉浸光感/ui-design-hds-component-material`。
+8. [华为开发者：HdsNavDestination API 参考](https://developer.huawei.com/consumer/cn/doc/harmonyos-references/ui-design-hdsnavdestination)（起始版本、导入、Stage 模型、`titleBar` 与 `onBackPressed` 版本边界）。本机检索标识：`API参考/UI_Design_Kit_UI设计套件/ArkTS组件/HdsNavDestination/ui-design-hdsnavdestination`。
