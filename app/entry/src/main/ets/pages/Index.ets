@@ -11,18 +11,21 @@ import {
   AppShellModel,
   BrowseState,
   BrowseStateKind,
-  RootDestination
+  RootDestination,
+  TopicReadState
 } from '../app/AppShellModel';
 import { CategoryCacheScope } from '../cache/CategoryCache';
 import { PreferencesCategoryCache } from '../cache/PreferencesCategoryCache';
 import { CategoryBrowsePage } from '../components/CategoryBrowsePage';
 import { CategoryTopicsPage } from '../components/CategoryTopicsPage';
 import { HomeBrowsePage } from '../components/HomeBrowsePage';
+import { TopicDetailPage } from '../components/TopicDetailPage';
 import { Category, Topic } from '../models/ForumModels';
 import { DiscourseHttpClient } from '../network/DiscourseHttpClient';
 import { DiscourseForumRepository } from '../repositories/DiscourseForumRepository';
 
 const CATEGORY_TOPICS_ROUTE: string = 'category-topics';
+const TOPIC_ROUTE: string = 'topic';
 
 @Entry
 @Component
@@ -37,6 +40,8 @@ struct Index {
   @State categoryState: BrowseState<Category> = BrowseState.initial<Category>();
   @State categoryTopicsState: BrowseState<Topic> = BrowseState.initial<Topic>();
   @State categoryTitle: string = 'Category';
+  @State topicState: TopicReadState = TopicReadState.initial();
+  @State topicTitle: string = 'Topic';
 
   aboutToAppear(): void {
     const context: common.Context | undefined = this.getUIContext().getHostContext();
@@ -124,6 +129,41 @@ struct Index {
     this.categoryTopicsState = model.categoryTopicsState;
   }
 
+  private async openTopic(topic: Topic): Promise<void> {
+    const model: AppShellModel | null = this.model;
+    if (model === null) {
+      return;
+    }
+    const task: Promise<void> = model.openTopic(topic);
+    this.topicTitle = topic.title;
+    this.topicState = model.topicState;
+    this.pathStack.pushPath({ name: TOPIC_ROUTE });
+    await task;
+    this.topicState = model.topicState;
+  }
+
+  private async retryTopic(): Promise<void> {
+    const model: AppShellModel | null = this.model;
+    if (model === null) {
+      return;
+    }
+    const task: Promise<void> = model.retryTopic();
+    this.topicState = model.topicState;
+    await task;
+    this.topicState = model.topicState;
+  }
+
+  private async loadMorePosts(): Promise<void> {
+    const model: AppShellModel | null = this.model;
+    if (model === null) {
+      return;
+    }
+    const task: Promise<void> = model.loadMorePosts();
+    this.topicState = model.topicState;
+    await task;
+    this.topicState = model.topicState;
+  }
+
   private handleSecondaryBack(): boolean {
     const model: AppShellModel | null = this.model;
     if (model !== null) {
@@ -141,7 +181,9 @@ struct Index {
           onRefresh: (): void => {
             this.retryCategoryTopics();
           },
-          onOpenTopic: (_topic: Topic): void => {}
+          onOpenTopic: (topic: Topic): void => {
+            this.openTopic(topic);
+          }
         })
       }
       .titleBar({
@@ -149,6 +191,26 @@ struct Index {
         content: {
           title: { mainTitle: this.categoryTitle },
           backIcon: { label: '返回 Category' }
+        }
+      })
+      .onBackPressed((): boolean => this.handleSecondaryBack())
+    } else if (name === TOPIC_ROUTE) {
+      HdsNavDestination() {
+        TopicDetailPage({
+          state: this.topicState,
+          onRetry: (): void => {
+            this.retryTopic();
+          },
+          onLoadMore: (): void => {
+            this.loadMorePosts();
+          }
+        })
+      }
+      .titleBar({
+        enableComponentSafeArea: true,
+        content: {
+          title: { mainTitle: this.topicTitle },
+          backIcon: { label: '返回 Topic 列表' }
         }
       })
       .onBackPressed((): boolean => this.handleSecondaryBack())
@@ -191,6 +253,9 @@ struct Index {
             state: this.homeState,
             onRefresh: (): void => {
               this.loadHome();
+            },
+            onOpenTopic: (topic: Topic): void => {
+              this.openTopic(topic);
             }
           })
         }

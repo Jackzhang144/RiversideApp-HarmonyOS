@@ -5,6 +5,7 @@ import { Topic } from '../models/ForumModels';
 export struct HomeBrowsePage {
   @Prop state: BrowseState<Topic> = BrowseState.initial<Topic>();
   onRefresh: () => void = (): void => {};
+  onOpenTopic: (topic: Topic) => void = (_topic: Topic): void => {};
 
   @Builder
   private LoadingState(): void {
@@ -108,6 +109,9 @@ export struct HomeBrowsePage {
     .padding(16)
     .backgroundColor($r('sys.color.comp_background_tertiary'))
     .borderRadius(16)
+    .onClick((): void => {
+      this.onOpenTopic(topic);
+    })
     .accessibilityText(`${topic.title}，${Math.max(topic.postCount - 1, 0)} 条 Reply`)
   }
 
