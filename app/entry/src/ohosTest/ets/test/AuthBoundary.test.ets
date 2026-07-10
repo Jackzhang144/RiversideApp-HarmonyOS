@@ -5,6 +5,10 @@ import {
   AuthorizationCallbackValidator,
   AuthorizationRequest
 } from '../../../main/ets/auth/AuthModels';
+import {
+  AuthorizationCryptoSession,
+  RsaAuthorizationCryptoFactory
+} from '../../../main/ets/auth/RsaAuthorizationCrypto';
 
 const CLIENT_ID: string = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
 const NONCE: string = '0123456789abcdef0123456789abcdef';
@@ -74,6 +78,18 @@ export default function authBoundaryTest(): void {
       expect(valid.data?.clientId).assertEqual(CLIENT_ID);
       expect(mismatch.kind).assertEqual(RepositoryResultKind.FAILURE);
       expect(missingKey.kind).assertEqual(RepositoryResultKind.FAILURE);
+    });
+
+    it('creates short-lived RSA authorization material on API 23', 0, async (done: Function) => {
+      const factory: RsaAuthorizationCryptoFactory = new RsaAuthorizationCryptoFactory();
+
+      const result: RepositoryResult<AuthorizationCryptoSession> = await factory.create();
+
+      expect(result.kind).assertEqual(RepositoryResultKind.SUCCESS);
+      expect(result.data?.request.publicKeyPem.startsWith('-----BEGIN RSA PUBLIC KEY-----')).assertTrue();
+      expect(result.data?.request.authorizationUrl.includes('padding=pkcs1')).assertTrue();
+      result.data?.clear();
+      done();
     });
   });
 }
