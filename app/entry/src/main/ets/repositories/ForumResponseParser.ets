@@ -22,16 +22,16 @@ interface TopicDto {
   last_posted_at?: string | null;
   bumped_at?: string | null;
   pinned?: boolean;
-  posters?: Array<TopicPosterDto>;
+  posters?: Array<TopicPosterDto | null> | null;
 }
 
 interface TopicListDto {
-  topics?: Array<TopicDto>;
+  topics?: Array<TopicDto | null> | null;
 }
 
 interface LatestTopicsDto {
-  users?: Array<UserDto>;
-  topic_list?: TopicListDto;
+  users?: Array<UserDto | null> | null;
+  topic_list?: TopicListDto | null;
 }
 
 interface CategoryDto {
@@ -44,30 +44,28 @@ interface CategoryDto {
   position?: number;
   parent_category_id?: number | null;
   subcategory_ids?: Array<number> | null;
-  subcategories?: Array<CategoryDto>;
+  subcategories?: Array<CategoryDto | null> | null;
 }
 
 interface CategoryListDto {
-  categories?: Array<CategoryDto>;
-  subcategories?: Array<CategoryDto>;
+  categories?: Array<CategoryDto | null> | null;
+  subcategories?: Array<CategoryDto | null> | null;
 }
 
 interface CategoryEnvelopeDto {
-  categories?: Array<CategoryDto>;
-  subcategories?: Array<CategoryDto>;
-  category_list?: CategoryListDto;
-  subcategory_list?: CategoryListDto;
+  categories?: Array<CategoryDto | null> | null;
+  subcategories?: Array<CategoryDto | null> | null;
+  category_list?: CategoryListDto | null;
+  subcategory_list?: CategoryListDto | null;
 }
 
 function parseLatestEnvelope(text: string): LatestTopicsDto | null {
   try {
-    const value: Object | null = JSON.parse(text);
+    const value: LatestTopicsDto | null = JSON.parse(text);
     if (value === null || Array.isArray(value)) {
       return null;
     }
-    // JSON.parse exposes Object in ArkTS. Keep the assertion at this boundary;
-    // every consumed field is checked before it becomes a domain model.
-    return value as LatestTopicsDto;
+    return value;
   } catch (_) {
     return null;
   }
@@ -75,12 +73,11 @@ function parseLatestEnvelope(text: string): LatestTopicsDto | null {
 
 function parseCategoryEnvelope(text: string): CategoryEnvelopeDto | null {
   try {
-    const value: Object | null = JSON.parse(text);
+    const value: CategoryEnvelopeDto | null = JSON.parse(text);
     if (value === null || Array.isArray(value)) {
       return null;
     }
-    // See parseLatestEnvelope: untrusted fields are validated during mapping.
-    return value as CategoryEnvelopeDto;
+    return value;
   } catch (_) {
     return null;
   }
@@ -94,23 +91,30 @@ function numberOrZero(value: number | undefined): number {
   return typeof value === 'number' && Number.isFinite(value) ? value : 0;
 }
 
-function usernameForTopic(users: Array<UserDto>, posters: Array<TopicPosterDto> | undefined): string {
+function usernameForTopic(
+  users: Array<UserDto | null>,
+  posters: Array<TopicPosterDto | null> | null | undefined
+): string {
   if (!Array.isArray(posters) || posters.length === 0) {
     return '';
   }
-  const userId: number | undefined = posters[posters.length - 1].user_id;
+  const poster: TopicPosterDto | null = posters[posters.length - 1];
+  if (poster === null) {
+    return '';
+  }
+  const userId: number | undefined = poster.user_id;
   if (typeof userId !== 'number') {
     return '';
   }
   for (const user of users) {
-    if (user.id === userId && typeof user.username === 'string') {
+    if (user !== null && user.id === userId && typeof user.username === 'string') {
       return user.username;
     }
   }
   return '';
 }
 
-function topicFromDto(dto: TopicDto, users: Array<UserDto>): Topic | null {
+function topicFromDto(dto: TopicDto, users: Array<UserDto | null>): Topic | null {
   if (typeof dto.id !== 'number') {
     return null;
   }
@@ -141,22 +145,28 @@ function collectCategoryDtos(envelope: CategoryEnvelopeDto): Array<CategoryDto> 
   const collected: Array<CategoryDto> = [];
   appendCategoryDtos(collected, envelope.categories);
   appendCategoryDtos(collected, envelope.subcategories);
-  if (envelope.category_list !== undefined) {
+  if (envelope.category_list !== undefined && envelope.category_list !== null) {
     appendCategoryDtos(collected, envelope.category_list.categories);
     appendCategoryDtos(collected, envelope.category_list.subcategories);
   }
-  if (envelope.subcategory_list !== undefined) {
+  if (envelope.subcategory_list !== undefined && envelope.subcategory_list !== null) {
     appendCategoryDtos(collected, envelope.subcategory_list.categories);
     appendCategoryDtos(collected, envelope.subcategory_list.subcategories);
   }
   return collected;
 }
 
-function appendCategoryDtos(target: Array<CategoryDto>, source: Array<CategoryDto> | undefined): void {
+function appendCategoryDtos(
+  target: Array<CategoryDto>,
+  source: Array<CategoryDto | null> | null | undefined
+): void {
   if (!Array.isArray(source)) {
     return;
   }
   for (const dto of source) {
+    if (dto === null) {
+      continue;
+    }
     target.push(dto);
     appendCategoryDtos(target, dto.subcategories);
   }
@@ -194,15 +204,105 @@ function categoryFromDto(dto: CategoryDto): Category | null {
   );
 }
 
+function compareCategoryPosition(left: Category, right: Category): number {
+  if (left.position !== right.position) {
+    return left.position - right.position;
+  }
+  return left.id - right.id;
+}
+
+function isChildOf(parent: Category, candidate: Category): boolean {
+  return candidate.parentCategoryId === parent.id || parent.subcategoryIds.includes(candidate.id);
+}
+
+function compareChildren(parent: Category, left: Category, right: Category): number {
+  const leftIndex: number = parent.subcategoryIds.indexOf(left.id);
+  const rightIndex: number = parent.subcategoryIds.indexOf(right.id);
+  if (leftIndex >= 0 && rightIndex >= 0 && leftIndex !== rightIndex) {
+    return leftIndex - rightIndex;
+  }
+  if (leftIndex >= 0 && rightIndex < 0) {
+    return -1;
+  }
+  if (leftIndex < 0 && rightIndex >= 0) {
+    return 1;
+  }
+  return compareCategoryPosition(left, right);
+}
+
+function appendCategoryTree(
+  parent: Category,
+  categories: Array<Category>,
+  visited: Set<number>,
+  ordered: Array<Category>
+): void {
+  if (visited.has(parent.id)) {
+    return;
+  }
+  visited.add(parent.id);
+  ordered.push(parent);
+  const children: Array<Category> = categories.filter((candidate: Category): boolean => {
+    return !visited.has(candidate.id) && isChildOf(parent, candidate);
+  });
+  children.sort((left: Category, right: Category): number => compareChildren(parent, left, right));
+  for (const child of children) {
+    appendCategoryTree(child, categories, visited, ordered);
+  }
+}
+
+function orderCategoryTree(categories: Array<Category>): Array<Category> {
+  const categoriesById: Map<number, Category> = new Map<number, Category>();
+  const referencedChildIds: Set<number> = new Set<number>();
+  for (const category of categories) {
+    categoriesById.set(category.id, category);
+  }
+  for (const category of categories) {
+    if (category.parentCategoryId !== null && categoriesById.has(category.parentCategoryId)) {
+      referencedChildIds.add(category.id);
+    }
+    for (const subcategoryId of category.subcategoryIds) {
+      if (categoriesById.has(subcategoryId)) {
+        referencedChildIds.add(subcategoryId);
+      }
+    }
+  }
+
+  const roots: Array<Category> = categories.filter((category: Category): boolean => {
+    return !referencedChildIds.has(category.id);
+  });
+  roots.sort(compareCategoryPosition);
+  const ordered: Array<Category> = [];
+  const visited: Set<number> = new Set<number>();
+  for (const root of roots) {
+    appendCategoryTree(root, categories, visited, ordered);
+  }
+
+  const remaining: Array<Category> = categories.filter((category: Category): boolean => {
+    return !visited.has(category.id);
+  });
+  remaining.sort(compareCategoryPosition);
+  for (const category of remaining) {
+    appendCategoryTree(category, categories, visited, ordered);
+  }
+  return ordered;
+}
+
 export class ForumResponseParser {
   public parseLatestTopics(text: string): RepositoryResult<Array<Topic>> {
     const envelope: LatestTopicsDto | null = parseLatestEnvelope(text);
-    if (envelope === null || envelope.topic_list === undefined || !Array.isArray(envelope.topic_list.topics)) {
+    if (envelope === null || envelope.topic_list === undefined || envelope.topic_list === null) {
       return RepositoryResult.failure<Array<Topic>>('服务器响应缺少 Topic 列表');
     }
-    const users: Array<UserDto> = Array.isArray(envelope.users) ? envelope.users : [];
+    const topicList: TopicListDto = envelope.topic_list;
+    if (!Array.isArray(topicList.topics)) {
+      return RepositoryResult.failure<Array<Topic>>('服务器响应缺少 Topic 列表');
+    }
+    const users: Array<UserDto | null> = Array.isArray(envelope.users) ? envelope.users : [];
     const topics: Array<Topic> = [];
-    for (const dto of envelope.topic_list.topics) {
+    for (const dto of topicList.topics) {
+      if (dto === null) {
+        continue;
+      }
       const topic: Topic | null = topicFromDto(dto, users);
       if (topic !== null) {
         topics.push(topic);
@@ -226,13 +326,6 @@ export class ForumResponseParser {
         categoriesById.set(category.id, category);
       }
     }
-    const categories: Array<Category> = Array.from(categoriesById.values());
-    categories.sort((left: Category, right: Category): number => {
-      if (left.position !== right.position) {
-        return left.position - right.position;
-      }
-      return left.id - right.id;
-    });
-    return RepositoryResult.success(categories);
+    return RepositoryResult.success(orderCategoryTree(Array.from(categoriesById.values())));
   }
 }

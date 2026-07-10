@@ -18,17 +18,16 @@ interface CategoryCacheRecord {
 
 interface CategoryCacheEnvelope {
   version?: number;
-  categories?: Array<CategoryCacheRecord>;
+  categories?: Array<CategoryCacheRecord | null> | null;
 }
 
 function decodeEnvelope(text: string): CategoryCacheEnvelope | null {
   try {
-    const value: Object | null = JSON.parse(text);
+    const value: CategoryCacheEnvelope | null = JSON.parse(text);
     if (value === null || Array.isArray(value)) {
       return null;
     }
-    // Preferences stores untrusted persisted text; mapping validates every field below.
-    return value as CategoryCacheEnvelope;
+    return value;
   } catch (_) {
     return null;
   }
@@ -77,6 +76,9 @@ function decodeCategories(text: string): Array<Category> | null {
   }
   const categories: Array<Category> = [];
   for (const record of envelope.categories) {
+    if (record === null) {
+      return null;
+    }
     const category: Category | null = decodeCategory(record);
     if (category === null) {
       return null;
