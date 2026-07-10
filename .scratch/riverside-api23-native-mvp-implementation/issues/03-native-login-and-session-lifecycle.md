@@ -4,7 +4,7 @@
 
 **Blocked by:** 02 — Topic 与 Post 阅读.
 
-**Status:** ready-for-agent
+**Status:** claimed
 
 - [ ] 登录在内嵌 ArkWeb 内完成，严格校验授权回调、RSA 解密结果与 nonce，不依赖外部浏览器回跳。
 - [ ] Authenticated Session 以 HUKS 加密持久化，应用重启后可恢复；登出会清除相关本地认证材料。
