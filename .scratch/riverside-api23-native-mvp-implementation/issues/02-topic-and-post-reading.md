@@ -4,7 +4,7 @@
 
 **Blocked by:** 01 — API 23 浏览基础.
 
-**Status:** ready-for-agent
+**Status:** claimed
 
 - [ ] Topic 详情作为 AppShell 推入的二级页面，返回时保留根入口浏览上下文。
 - [ ] 首屏 Topic 与 Post 成功显示，长 Topic 可按既有契约分段加载，且 Topic/Post 不重复。
