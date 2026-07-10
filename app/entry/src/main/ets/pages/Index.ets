@@ -9,7 +9,6 @@ import {
 } from '@kit.UIDesignKit';
 import {
   AppShellModel,
-  AuthenticationLifecycle,
   BrowseState,
   BrowseStateKind,
   RootDestination,
@@ -18,6 +17,7 @@ import {
 import { AuthenticatedSession } from '../auth/AuthModels';
 import { AuthRepository, AuthState, AuthStateKind } from '../auth/AuthRepository';
 import { HuksAuthenticatedSessionStore } from '../auth/HuksAuthenticatedSessionStore';
+import { RepositoryAuthenticationLifecycle } from '../auth/RepositoryAuthenticationLifecycle';
 import { RsaAuthorizationCryptoFactory } from '../auth/RsaAuthorizationCrypto';
 import { CategoryCacheScope } from '../cache/CategoryCache';
 import { PreferencesCategoryCache } from '../cache/PreferencesCategoryCache';
@@ -48,21 +48,6 @@ class RepositorySessionProvider implements AuthenticatedSessionProvider {
 
   public currentSession(): AuthenticatedSession | null {
     return this.repository.currentSession();
-  }
-}
-
-class RepositoryAuthenticationLifecycle implements AuthenticationLifecycle {
-  private readonly repository: AuthRepository;
-  private readonly onChanged: () => void;
-
-  public constructor(repository: AuthRepository, onChanged: () => void) {
-    this.repository = repository;
-    this.onChanged = onChanged;
-  }
-
-  public async handleUnauthorized(): Promise<void> {
-    await this.repository.logout();
-    this.onChanged();
   }
 }
 

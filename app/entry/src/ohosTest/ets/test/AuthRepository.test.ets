@@ -8,6 +8,7 @@ import {
   AuthenticatedSession,
   AuthorizationRequest
 } from '../../../main/ets/auth/AuthModels';
+import { RepositoryAuthenticationLifecycle } from '../../../main/ets/auth/RepositoryAuthenticationLifecycle';
 import {
   AuthenticatedSessionStore,
   SessionLoadResult
@@ -396,6 +397,37 @@ export default function authRepositoryTest(): void {
 
       expect(store.clearCallCount).assertEqual(1);
       expect(store.clearedAfterSave).assertTrue();
+      expect(repository.state.kind).assertEqual(AuthStateKind.IDLE);
+      done();
+    });
+
+    it('coalesces overlapping and late 401 notifications across the full lifecycle', 0, async (done: Function) => {
+      const session: AuthenticatedSession | null = AuthenticatedSession.create('user-api-key', CLIENT_ID);
+      expect(session === null).assertFalse();
+      if (session === null) {
+        done();
+        return;
+      }
+      const store: StubSessionStore = new StubSessionStore();
+      store.loadResult = SessionLoadResult.session(session);
+      const repository: AuthRepository = new AuthRepository(store, new StubCryptoFactory());
+      await repository.restore();
+      let changedCallCount: number = 0;
+      const lifecycle: RepositoryAuthenticationLifecycle = new RepositoryAuthenticationLifecycle(
+        repository,
+        (): void => {
+          changedCallCount += 1;
+        }
+      );
+
+      const firstUnauthorized: Promise<void> = lifecycle.handleUnauthorized();
+      const secondUnauthorized: Promise<void> = lifecycle.handleUnauthorized();
+      await firstUnauthorized;
+      await secondUnauthorized;
+      await lifecycle.handleUnauthorized();
+
+      expect(store.clearCallCount).assertEqual(1);
+      expect(changedCallCount).assertEqual(1);
       expect(repository.state.kind).assertEqual(AuthStateKind.IDLE);
       done();
     });
