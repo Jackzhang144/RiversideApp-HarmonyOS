@@ -1,5 +1,6 @@
 import { common } from '@kit.AbilityKit';
 import { preferences } from '@kit.ArkData';
+import { JsonObjectReader } from '../core/JsonObjectReader';
 import { Category } from '../models/ForumModels';
 import { CategoryCache, CategoryCacheScope } from './CategoryCache';
 
@@ -17,65 +18,52 @@ interface CategoryCacheRecord {
 }
 
 interface CategoryCacheEnvelope {
-  version?: number;
-  categories?: Array<CategoryCacheRecord | null> | null;
+  version: number;
+  categories: Array<CategoryCacheRecord>;
 }
 
-function decodeEnvelope(text: string): CategoryCacheEnvelope | null {
-  try {
-    const value: CategoryCacheEnvelope | null = JSON.parse(text);
-    if (value === null || Array.isArray(value)) {
-      return null;
-    }
-    return value;
-  } catch (_) {
-    return null;
-  }
-}
-
-function decodeCategory(record: CategoryCacheRecord): Category | null {
-  if (
-    typeof record.id !== 'number' ||
-    typeof record.name !== 'string' ||
-    typeof record.color !== 'string' ||
-    typeof record.description !== 'string' ||
-    typeof record.position !== 'number' ||
-    !Array.isArray(record.subcategoryIds)
-  ) {
+function decodeCategory(record: JsonObjectReader): Category | null {
+  const id: number | null = record.number('id');
+  const name: string | null = record.string('name');
+  const color: string | null = record.string('color');
+  const description: string | null = record.string('description');
+  const position: number | null = record.number('position');
+  const rawSubcategoryIds: Array<Object | null> | null = record.array('subcategoryIds');
+  if (id === null || name === null || color === null || description === null || position === null ||
+    rawSubcategoryIds === null) {
     return null;
   }
   const subcategoryIds: Array<number> = [];
-  for (const id of record.subcategoryIds) {
-    if (typeof id !== 'number') {
+  for (const subcategoryId of rawSubcategoryIds) {
+    if (typeof subcategoryId !== 'number' || !Number.isFinite(subcategoryId)) {
       return null;
     }
-    subcategoryIds.push(id);
+    subcategoryIds.push(subcategoryId);
   }
-  const parentCategoryId: number | null = typeof record.parentCategoryId === 'number'
-    ? record.parentCategoryId
-    : null;
+  const parentCategoryId: number | null = record.number('parentCategoryId');
   return new Category(
-    record.id,
-    record.name,
-    record.color,
-    record.description,
-    record.position,
+    id,
+    name,
+    color,
+    description,
+    position,
     parentCategoryId,
     subcategoryIds
   );
 }
 
 function decodeCategories(text: string): Array<Category> | null {
-  const envelope: CategoryCacheEnvelope | null = decodeEnvelope(text);
-  if (
-    envelope === null ||
-    envelope.version !== CACHE_SCHEMA_VERSION ||
-    !Array.isArray(envelope.categories)
-  ) {
+  const envelope: JsonObjectReader | null = JsonObjectReader.parse(text);
+  if (envelope === null || envelope.number('version') !== CACHE_SCHEMA_VERSION) {
+    return null;
+  }
+  const records: Array<Object | null> | null = envelope.array('categories');
+  if (records === null) {
     return null;
   }
   const categories: Array<Category> = [];
-  for (const record of envelope.categories) {
+  for (const value of records) {
+    const record: JsonObjectReader | null = JsonObjectReader.fromValue(value);
     if (record === null) {
       return null;
     }

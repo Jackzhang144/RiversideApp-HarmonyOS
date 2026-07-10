@@ -1,99 +1,147 @@
 import { RepositoryResult } from '../core/RepositoryResult';
+import { JsonObjectReader } from '../core/JsonObjectReader';
 import { Category, Topic } from '../models/ForumModels';
 
 interface UserDto {
-  id?: number;
-  username?: string;
+  id: number | null;
+  username: string | null;
 }
 
 interface TopicPosterDto {
-  user_id?: number;
+  user_id: number | null;
 }
 
 interface TopicDto {
-  id?: number;
-  title?: string;
-  fancy_title?: string;
-  category_id?: number;
-  posts_count?: number;
-  views?: number;
-  like_count?: number;
-  excerpt?: string | null;
-  last_posted_at?: string | null;
-  bumped_at?: string | null;
-  pinned?: boolean;
-  posters?: Array<TopicPosterDto | null> | null;
-}
-
-interface TopicListDto {
-  topics?: Array<TopicDto | null> | null;
+  id: number | null;
+  title: string | null;
+  fancy_title: string | null;
+  category_id: number | null;
+  posts_count: number | null;
+  views: number | null;
+  like_count: number | null;
+  excerpt: string | null;
+  last_posted_at: string | null;
+  bumped_at: string | null;
+  pinned: boolean | null;
+  posters: Array<TopicPosterDto | null> | null;
 }
 
 interface LatestTopicsDto {
-  users?: Array<UserDto | null> | null;
-  topic_list?: TopicListDto | null;
+  users: Array<UserDto | null>;
+  topics: Array<TopicDto | null> | null;
 }
 
 interface CategoryDto {
-  id?: number;
-  name?: string;
-  color?: string;
-  description_text?: string | null;
-  description_excerpt?: string | null;
-  description?: string | null;
-  position?: number;
-  parent_category_id?: number | null;
-  subcategory_ids?: Array<number> | null;
-  subcategories?: Array<CategoryDto | null> | null;
-}
-
-interface CategoryListDto {
-  categories?: Array<CategoryDto | null> | null;
-  subcategories?: Array<CategoryDto | null> | null;
-}
-
-interface CategoryEnvelopeDto {
-  categories?: Array<CategoryDto | null> | null;
-  subcategories?: Array<CategoryDto | null> | null;
-  category_list?: CategoryListDto | null;
-  subcategory_list?: CategoryListDto | null;
+  id: number | null;
+  name: string | null;
+  color: string | null;
+  description_text: string | null;
+  description_excerpt: string | null;
+  description: string | null;
+  position: number | null;
+  parent_category_id: number | null;
+  subcategory_ids: Array<number> | null;
+  subcategories: Array<CategoryDto | null> | null;
 }
 
 function parseLatestEnvelope(text: string): LatestTopicsDto | null {
-  try {
-    const value: LatestTopicsDto | null = JSON.parse(text);
-    if (value === null || Array.isArray(value)) {
-      return null;
-    }
-    return value;
-  } catch (_) {
+  const envelope: JsonObjectReader | null = JsonObjectReader.parse(text);
+  if (envelope === null) {
     return null;
   }
-}
-
-function parseCategoryEnvelope(text: string): CategoryEnvelopeDto | null {
-  try {
-    const value: CategoryEnvelopeDto | null = JSON.parse(text);
-    if (value === null || Array.isArray(value)) {
-      return null;
-    }
-    return value;
-  } catch (_) {
+  const users: Array<UserDto | null> = [];
+  const userValues: Array<Object | null> | null = envelope.array('users');
+  if (envelope.has('users') && userValues === null) {
     return null;
   }
+  if (userValues !== null) {
+    for (const value of userValues) {
+      if (value === null) {
+        users.push(null);
+        continue;
+      }
+      const user: JsonObjectReader | null = JsonObjectReader.fromValue(value);
+      if (user === null) {
+        return null;
+      }
+      users.push({
+        id: user.number('id'),
+        username: user.string('username')
+      });
+    }
+  }
+
+  const topicList: JsonObjectReader | null = envelope.object('topic_list');
+  if (topicList === null) {
+    return { users: users, topics: null };
+  }
+  const topicValues: Array<Object | null> | null = topicList.array('topics');
+  if (topicValues === null) {
+    return { users: users, topics: null };
+  }
+  const topics: Array<TopicDto | null> = [];
+  for (const value of topicValues) {
+    if (value === null) {
+      topics.push(null);
+      continue;
+    }
+    const topic: JsonObjectReader | null = JsonObjectReader.fromValue(value);
+    if (topic === null) {
+      return null;
+    }
+    const posters: Array<TopicPosterDto | null> | null = decodePosters(topic);
+    if (topic.has('posters') && posters === null) {
+      return null;
+    }
+    topics.push({
+      id: topic.number('id'),
+      title: topic.string('title'),
+      fancy_title: topic.string('fancy_title'),
+      category_id: topic.number('category_id'),
+      posts_count: topic.number('posts_count'),
+      views: topic.number('views'),
+      like_count: topic.number('like_count'),
+      excerpt: topic.string('excerpt'),
+      last_posted_at: topic.string('last_posted_at'),
+      bumped_at: topic.string('bumped_at'),
+      pinned: topic.boolean('pinned'),
+      posters: posters
+    });
+  }
+  return { users: users, topics: topics };
 }
 
-function textOrEmpty(value: string | null | undefined): string {
+function decodePosters(topic: JsonObjectReader): Array<TopicPosterDto | null> | null {
+  const values: Array<Object | null> | null = topic.array('posters');
+  if (values === null) {
+    return null;
+  }
+  const posters: Array<TopicPosterDto | null> = [];
+  for (const value of values) {
+    if (value === null) {
+      posters.push(null);
+      continue;
+    }
+    const poster: JsonObjectReader | null = JsonObjectReader.fromValue(value);
+    if (poster === null) {
+      return null;
+    }
+    posters.push({ user_id: poster.number('user_id') });
+  }
+  return posters;
+}
+
+function textOrEmpty(value: string | null): string {
   return typeof value === 'string' ? value : '';
 }
 
-function numberOrZero(value: number | undefined): number {
+function numberOrZero(value: number | null): number {
   return typeof value === 'number' && Number.isFinite(value) ? value : 0;
 }
 
 function usernameForTopic(
   users: Array<UserDto | null>,
-  posters: Array<TopicPosterDto | null> | null | undefined
+  posters: Array<TopicPosterDto | null> | null
 ): string {
   if (!Array.isArray(posters) || posters.length === 0) {
     return '';
@@ -102,7 +150,7 @@ function usernameForTopic(
   if (poster === null) {
     return '';
   }
-  const userId: number | undefined = poster.user_id;
+  const userId: number | null = poster.user_id;
   if (typeof userId !== 'number') {
     return '';
   }
@@ -141,35 +189,124 @@ function topicFromDto(dto: TopicDto, users: Array<UserDto | null>): Topic | null
   );
 }
 
-function collectCategoryDtos(envelope: CategoryEnvelopeDto): Array<CategoryDto> {
+function collectCategoryDtos(envelope: JsonObjectReader): Array<CategoryDto> | null {
   const collected: Array<CategoryDto> = [];
-  appendCategoryDtos(collected, envelope.categories);
-  appendCategoryDtos(collected, envelope.subcategories);
-  if (envelope.category_list !== undefined && envelope.category_list !== null) {
-    appendCategoryDtos(collected, envelope.category_list.categories);
-    appendCategoryDtos(collected, envelope.category_list.subcategories);
+  if (!appendCategoryArray(collected, envelope, 'categories') ||
+    !appendCategoryArray(collected, envelope, 'subcategories')) {
+    return null;
   }
-  if (envelope.subcategory_list !== undefined && envelope.subcategory_list !== null) {
-    appendCategoryDtos(collected, envelope.subcategory_list.categories);
-    appendCategoryDtos(collected, envelope.subcategory_list.subcategories);
+  const listNames: Array<string> = ['category_list', 'subcategory_list'];
+  for (const listName of listNames) {
+    const list: JsonObjectReader | null = envelope.object(listName);
+    if (list === null) {
+      if (envelope.has(listName)) {
+        return null;
+      }
+      continue;
+    }
+    if (!appendCategoryArray(collected, list, 'categories') ||
+      !appendCategoryArray(collected, list, 'subcategories')) {
+      return null;
+    }
   }
   return collected;
 }
 
-function appendCategoryDtos(
+function appendCategoryArray(
   target: Array<CategoryDto>,
-  source: Array<CategoryDto | null> | null | undefined
-): void {
-  if (!Array.isArray(source)) {
+  source: JsonObjectReader,
+  name: string
+): boolean {
+  const values: Array<Object | null> | null = source.array(name);
+  if (values === null) {
+    return !source.has(name);
+  }
+  for (const value of values) {
+    if (value === null) {
+      continue;
+    }
+    const dto: CategoryDto | null = decodeCategoryDto(value);
+    if (dto === null) {
+      return false;
+    }
+    target.push(dto);
+    appendNestedCategories(target, dto.subcategories);
+  }
+  return true;
+}
+
+function appendNestedCategories(target: Array<CategoryDto>, source: Array<CategoryDto | null> | null): void {
+  if (source === null) {
     return;
   }
   for (const dto of source) {
-    if (dto === null) {
+    if (dto !== null) {
+      target.push(dto);
+      appendNestedCategories(target, dto.subcategories);
+    }
+  }
+}
+
+function decodeCategoryDto(value: Object): CategoryDto | null {
+  const category: JsonObjectReader | null = JsonObjectReader.fromValue(value);
+  if (category === null) {
+    return null;
+  }
+  const subcategoryIds: Array<number> | null = decodeNumberArray(category, 'subcategory_ids');
+  if (category.has('subcategory_ids') && subcategoryIds === null) {
+    return null;
+  }
+  const subcategories: Array<CategoryDto | null> | null = decodeCategoryArray(category, 'subcategories');
+  if (category.has('subcategories') && subcategories === null) {
+    return null;
+  }
+  return {
+    id: category.number('id'),
+    name: category.string('name'),
+    color: category.string('color'),
+    description_text: category.string('description_text'),
+    description_excerpt: category.string('description_excerpt'),
+    description: category.string('description'),
+    position: category.number('position'),
+    parent_category_id: category.number('parent_category_id'),
+    subcategory_ids: subcategoryIds,
+    subcategories: subcategories
+  };
+}
+
+function decodeNumberArray(source: JsonObjectReader, name: string): Array<number> | null {
+  const values: Array<Object | null> | null = source.array(name);
+  if (values === null) {
+    return null;
+  }
+  const numbers: Array<number> = [];
+  for (const value of values) {
+    if (typeof value !== 'number' || !Number.isFinite(value)) {
+      return null;
+    }
+    numbers.push(value);
+  }
+  return numbers;
+}
+
+function decodeCategoryArray(source: JsonObjectReader, name: string): Array<CategoryDto | null> | null {
+  const values: Array<Object | null> | null = source.array(name);
+  if (values === null) {
+    return null;
+  }
+  const categories: Array<CategoryDto | null> = [];
+  for (const value of values) {
+    if (value === null) {
+      categories.push(null);
       continue;
     }
-    target.push(dto);
-    appendCategoryDtos(target, dto.subcategories);
+    const category: CategoryDto | null = decodeCategoryDto(value);
+    if (category === null) {
+      return null;
+    }
+    categories.push(category);
   }
+  return categories;
 }
 
 function descriptionFor(dto: CategoryDto): string {
@@ -186,7 +323,7 @@ function categoryFromDto(dto: CategoryDto): Category | null {
     return null;
   }
   const subcategoryIds: Array<number> = [];
-  if (Array.isArray(dto.subcategory_ids)) {
+  if (dto.subcategory_ids !== null) {
     for (const id of dto.subcategory_ids) {
       if (typeof id === 'number') {
         subcategoryIds.push(id);
@@ -290,20 +427,15 @@ function orderCategoryTree(categories: Array<Category>): Array<Category> {
 export class ForumResponseParser {
   public parseLatestTopics(text: string): RepositoryResult<Array<Topic>> {
     const envelope: LatestTopicsDto | null = parseLatestEnvelope(text);
-    if (envelope === null || envelope.topic_list === undefined || envelope.topic_list === null) {
+    if (envelope === null || envelope.topics === null) {
       return RepositoryResult.failure<Array<Topic>>('服务器响应缺少 Topic 列表');
     }
-    const topicList: TopicListDto = envelope.topic_list;
-    if (!Array.isArray(topicList.topics)) {
-      return RepositoryResult.failure<Array<Topic>>('服务器响应缺少 Topic 列表');
-    }
-    const users: Array<UserDto | null> = Array.isArray(envelope.users) ? envelope.users : [];
     const topics: Array<Topic> = [];
-    for (const dto of topicList.topics) {
+    for (const dto of envelope.topics) {
       if (dto === null) {
         continue;
       }
-      const topic: Topic | null = topicFromDto(dto, users);
+      const topic: Topic | null = topicFromDto(dto, envelope.users);
       if (topic !== null) {
         topics.push(topic);
       }
@@ -312,14 +444,19 @@ export class ForumResponseParser {
   }
 
   public parseCategories(siteText: string, directoryText: string): RepositoryResult<Array<Category>> {
-    const siteEnvelope: CategoryEnvelopeDto | null = parseCategoryEnvelope(siteText);
-    const directoryEnvelope: CategoryEnvelopeDto | null = parseCategoryEnvelope(directoryText);
+    const siteEnvelope: JsonObjectReader | null = JsonObjectReader.parse(siteText);
+    const directoryEnvelope: JsonObjectReader | null = JsonObjectReader.parse(directoryText);
     if (siteEnvelope === null || directoryEnvelope === null) {
       return RepositoryResult.failure<Array<Category>>('服务器响应缺少 Category 目录');
     }
 
     const categoriesById: Map<number, Category> = new Map<number, Category>();
-    const dtos: Array<CategoryDto> = collectCategoryDtos(siteEnvelope).concat(collectCategoryDtos(directoryEnvelope));
+    const siteDtos: Array<CategoryDto> | null = collectCategoryDtos(siteEnvelope);
+    const directoryDtos: Array<CategoryDto> | null = collectCategoryDtos(directoryEnvelope);
+    if (siteDtos === null || directoryDtos === null) {
+      return RepositoryResult.failure<Array<Category>>('服务器响应缺少 Category 目录');
+    }
+    const dtos: Array<CategoryDto> = siteDtos.concat(directoryDtos);
     for (const dto of dtos) {
       const category: Category | null = categoryFromDto(dto);
       if (category !== null && category.id !== 1 && category.id !== 4) {
