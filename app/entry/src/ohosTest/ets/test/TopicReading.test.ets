@@ -12,10 +12,32 @@ import { Category, ForumPost, Topic, TopicDetail } from '../../../main/ets/model
 import { ForumRepository } from '../../../main/ets/repositories/ForumRepository';
 import { MemoryCategoryCache } from './support/MemoryCategoryCache';
 
+class PendingRepositoryResult<T> {
+  public readonly promise: Promise<RepositoryResult<T>>;
+  private resolver: ((result: RepositoryResult<T>) => void) | null = null;
+
+  public constructor() {
+    this.promise = new Promise<RepositoryResult<T>>((resolve: (result: RepositoryResult<T>) => void): void => {
+      this.resolver = resolve;
+    });
+  }
+
+  public complete(result: RepositoryResult<T>): void {
+    const resolve: ((result: RepositoryResult<T>) => void) | null = this.resolver;
+    if (resolve === null) {
+      return;
+    }
+    this.resolver = null;
+    resolve(result);
+  }
+}
+
 class TopicReadingRepository implements ForumRepository {
   public topicDetailResults: Array<RepositoryResult<TopicDetail>> = [];
   public topicPostResults: Array<RepositoryResult<Array<ForumPost>>> = [];
   public categoryTopicResults: Array<RepositoryResult<Array<Topic>>> = [];
+  public topicDetailTasks: Array<Promise<RepositoryResult<TopicDetail>>> = [];
+  public categoryTopicTasks: Array<Promise<RepositoryResult<Array<Topic>>>> = [];
   public requestedCategoryIds: Array<number> = [];
   public requestedPostIds: Array<Array<number>> = [];
 
@@ -29,11 +51,19 @@ class TopicReadingRepository implements ForumRepository {
 
   public async loadCategoryTopics(categoryId: number): Promise<RepositoryResult<Array<Topic>>> {
     this.requestedCategoryIds.push(categoryId);
+    const task: Promise<RepositoryResult<Array<Topic>>> | undefined = this.categoryTopicTasks.shift();
+    if (task !== undefined) {
+      return await task;
+    }
     const result: RepositoryResult<Array<Topic>> | undefined = this.categoryTopicResults.shift();
     return result ?? RepositoryResult.failure<Array<Topic>>('missing Category Topic result');
   }
 
   public async loadTopicDetail(_topicId: number): Promise<RepositoryResult<TopicDetail>> {
+    const task: Promise<RepositoryResult<TopicDetail>> | undefined = this.topicDetailTasks.shift();
+    if (task !== undefined) {
+      return await task;
+    }
     const result: RepositoryResult<TopicDetail> | undefined = this.topicDetailResults.shift();
     return result ?? RepositoryResult.failure<TopicDetail>('missing Topic detail result');
   }
@@ -47,6 +77,10 @@ class TopicReadingRepository implements ForumRepository {
 
 function topic(): Topic {
   return new Topic(2725, '站务管理区重要主题导航', 60, 1, 1959, 4, '', '', true, 'Co-admin');
+}
+
+function topicWithId(id: number, title: string): Topic {
+  return new Topic(id, title, 60, 1, 10, 0, '', '', false, 'Co-admin');
 }
 
 function category(): Category {
@@ -67,6 +101,47 @@ function thirdPost(): ForumPost {
 
 export default function topicReadingTest(): void {
   describe('AppShell Topic reading', () => {
+    it('keeps the newest Category and Topic when older requests finish later', 0, async (done: Function) => {
+      const repository: TopicReadingRepository = new TopicReadingRepository();
+      const firstCategory: PendingRepositoryResult<Array<Topic>> = new PendingRepositoryResult<Array<Topic>>();
+      const secondCategory: PendingRepositoryResult<Array<Topic>> = new PendingRepositoryResult<Array<Topic>>();
+      repository.categoryTopicTasks.push(firstCategory.promise, secondCategory.promise);
+      const model: AppShellModel = new AppShellModel(
+        repository,
+        new MemoryCategoryCache(),
+        CategoryCacheScope.anonymous()
+      );
+      const firstCategoryLoad: Promise<void> = model.openCategory(category());
+      const otherCategory: Category = new Category(61, '游客公告', '25AAE2', '', 2, null, []);
+      const secondCategoryLoad: Promise<void> = model.openCategory(otherCategory);
+      secondCategory.complete(RepositoryResult.success<Array<Topic>>([topicWithId(3000, '新 Category Topic')]));
+      await secondCategoryLoad;
+      firstCategory.complete(RepositoryResult.success<Array<Topic>>([topic()]));
+      await firstCategoryLoad;
+
+      expect(model.selectedCategory?.id).assertEqual(61);
+      expect(model.categoryTopicsState.items[0].id).assertEqual(3000);
+
+      const firstTopic: PendingRepositoryResult<TopicDetail> = new PendingRepositoryResult<TopicDetail>();
+      const secondTopic: PendingRepositoryResult<TopicDetail> = new PendingRepositoryResult<TopicDetail>();
+      repository.topicDetailTasks.push(firstTopic.promise, secondTopic.promise);
+      const firstTopicLoad: Promise<void> = model.openTopic(topic());
+      const otherTopic: Topic = topicWithId(3000, '新 Topic');
+      const secondTopicLoad: Promise<void> = model.openTopic(otherTopic);
+      secondTopic.complete(RepositoryResult.success<TopicDetail>(new TopicDetail(
+        3000, '新 Topic', 10, 0, 0, false, false, true, [], []
+      )));
+      await secondTopicLoad;
+      firstTopic.complete(RepositoryResult.success<TopicDetail>(new TopicDetail(
+        2725, '旧 Topic', 10, 0, 0, false, false, true, [], []
+      )));
+      await firstTopicLoad;
+
+      expect(model.topicState.topicId).assertEqual(3000);
+      expect(model.topicState.title).assertEqual('新 Topic');
+      done();
+    });
+
     it('opens a Category Topic list as a retryable secondary page', 0, async (done: Function) => {
       const repository: TopicReadingRepository = new TopicReadingRepository();
       repository.categoryTopicResults.push(RepositoryResult.failure<Array<Topic>>('网络连接失败'));

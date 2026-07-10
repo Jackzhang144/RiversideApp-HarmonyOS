@@ -198,6 +198,8 @@ export class AppShellModel {
   private remainingPostIds: Array<number> = [];
   private topicReturnDestination: SecondaryDestination = SecondaryDestination.NONE;
   private selectedTopic: Topic | null = null;
+  private categoryRequestVersion: number = 0;
+  private topicRequestVersion: number = 0;
 
   public constructor(
     repository: ForumRepository,
@@ -214,11 +216,16 @@ export class AppShellModel {
   }
 
   public async openCategory(category: Category): Promise<void> {
+    this.categoryRequestVersion += 1;
+    const requestVersion: number = this.categoryRequestVersion;
     this.requiresAuthentication = false;
     this.activeDestination = SecondaryDestination.CATEGORY_TOPICS;
     this.selectedCategory = category;
     this.categoryTopicsState = BrowseState.loading<Topic>();
     const result: RepositoryResult<Array<Topic>> = await this.repository.loadCategoryTopics(category.id);
+    if (requestVersion !== this.categoryRequestVersion || this.selectedCategory?.id !== category.id) {
+      return;
+    }
     if (!result.isSuccess() || result.data === null) {
       this.requiresAuthentication = result.isUnauthorized();
       this.categoryTopicsState = BrowseState.error<Topic>(result.message);
@@ -238,6 +245,8 @@ export class AppShellModel {
   }
 
   public async openTopic(topic: Topic): Promise<void> {
+    this.topicRequestVersion += 1;
+    const requestVersion: number = this.topicRequestVersion;
     this.requiresAuthentication = false;
     this.selectedTopic = topic;
     this.topicReturnDestination = this.activeDestination === SecondaryDestination.CATEGORY_TOPICS
@@ -246,6 +255,9 @@ export class AppShellModel {
     this.activeDestination = SecondaryDestination.TOPIC;
     this.topicState = TopicReadState.loading(topic);
     const result: RepositoryResult<TopicDetail> = await this.repository.loadTopicDetail(topic.id);
+    if (requestVersion !== this.topicRequestVersion || this.selectedTopic?.id !== topic.id) {
+      return;
+    }
     if (!result.isSuccess() || result.data === null) {
       this.remainingPostIds = [];
       this.requiresAuthentication = result.isUnauthorized();
@@ -271,7 +283,9 @@ export class AppShellModel {
     }
     const returnDestination: SecondaryDestination = this.topicReturnDestination;
     await this.openTopic(topic);
-    this.topicReturnDestination = returnDestination;
+    if (this.activeDestination === SecondaryDestination.TOPIC) {
+      this.topicReturnDestination = returnDestination;
+    }
   }
 
   public async loadMorePosts(): Promise<void> {
@@ -287,11 +301,12 @@ export class AppShellModel {
 
     this.requiresAuthentication = false;
     const requestedPostIds: Array<number> = this.remainingPostIds.slice(0, 20);
+    const requestVersion: number = this.topicRequestVersion;
     const visiblePosts: Array<ForumPost> = this.topicState.posts;
     this.topicState = TopicReadState.pagination(this.topicState, true, '');
     const result: RepositoryResult<Array<ForumPost>> =
       await this.repository.loadTopicPosts(detail.id, requestedPostIds);
-    if (this.topicState.topicId !== detail.id) {
+    if (requestVersion !== this.topicRequestVersion || this.topicState.topicId !== detail.id) {
       return;
     }
     if (!result.isSuccess() || result.data === null) {
@@ -315,9 +330,11 @@ export class AppShellModel {
 
   public closeSecondary(): void {
     if (this.activeDestination === SecondaryDestination.TOPIC) {
+      this.topicRequestVersion += 1;
       this.activeDestination = this.topicReturnDestination;
       this.topicReturnDestination = SecondaryDestination.NONE;
     } else {
+      this.categoryRequestVersion += 1;
       this.activeDestination = SecondaryDestination.NONE;
     }
     this.remainingPostIds = [];
