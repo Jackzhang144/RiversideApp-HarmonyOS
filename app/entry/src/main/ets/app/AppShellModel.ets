@@ -38,6 +38,9 @@ export class TopicReadState {
   public readonly posts: Array<ForumPost>;
   public readonly canReply: boolean;
   public readonly message: string;
+  public readonly hasMorePosts: boolean;
+  public readonly isLoadingMore: boolean;
+  public readonly paginationMessage: string;
 
   private constructor(
     kind: TopicReadStateKind,
@@ -46,7 +49,10 @@ export class TopicReadState {
     detail: TopicDetail | null,
     posts: Array<ForumPost>,
     canReply: boolean,
-    message: string
+    message: string,
+    hasMorePosts: boolean,
+    isLoadingMore: boolean,
+    paginationMessage: string
   ) {
     this.kind = kind;
     this.topicId = topicId;
@@ -55,17 +61,26 @@ export class TopicReadState {
     this.posts = posts;
     this.canReply = canReply;
     this.message = message;
+    this.hasMorePosts = hasMorePosts;
+    this.isLoadingMore = isLoadingMore;
+    this.paginationMessage = paginationMessage;
   }
 
   public static initial(): TopicReadState {
-    return new TopicReadState(TopicReadStateKind.INITIAL, 0, '', null, [], false, '');
+    return new TopicReadState(TopicReadStateKind.INITIAL, 0, '', null, [], false, '', false, false, '');
   }
 
   public static loading(topic: Topic): TopicReadState {
-    return new TopicReadState(TopicReadStateKind.LOADING, topic.id, topic.title, null, [], false, '');
+    return new TopicReadState(TopicReadStateKind.LOADING, topic.id, topic.title, null, [], false, '', false, false, '');
   }
 
-  public static content(detail: TopicDetail, posts: Array<ForumPost>): TopicReadState {
+  public static content(
+    detail: TopicDetail,
+    posts: Array<ForumPost>,
+    hasMorePosts: boolean = false,
+    isLoadingMore: boolean = false,
+    paginationMessage: string = ''
+  ): TopicReadState {
     return new TopicReadState(
       TopicReadStateKind.CONTENT,
       detail.id,
@@ -73,11 +88,19 @@ export class TopicReadState {
       detail,
       posts,
       detail.canReply,
-      ''
+      '',
+      hasMorePosts,
+      isLoadingMore,
+      paginationMessage
     );
   }
 
-  public static empty(detail: TopicDetail): TopicReadState {
+  public static empty(
+    detail: TopicDetail,
+    hasMorePosts: boolean = false,
+    isLoadingMore: boolean = false,
+    paginationMessage: string = ''
+  ): TopicReadState {
     return new TopicReadState(
       TopicReadStateKind.EMPTY,
       detail.id,
@@ -85,12 +108,30 @@ export class TopicReadState {
       detail,
       [],
       detail.canReply,
-      ''
+      '',
+      hasMorePosts,
+      isLoadingMore,
+      paginationMessage
     );
   }
 
   public static error(topic: Topic, message: string): TopicReadState {
-    return new TopicReadState(TopicReadStateKind.ERROR, topic.id, topic.title, null, [], false, message);
+    return new TopicReadState(TopicReadStateKind.ERROR, topic.id, topic.title, null, [], false, message, false, false, '');
+  }
+
+  public static pagination(state: TopicReadState, isLoadingMore: boolean, paginationMessage: string): TopicReadState {
+    return new TopicReadState(
+      state.kind,
+      state.topicId,
+      state.title,
+      state.detail,
+      state.posts,
+      state.canReply,
+      state.message,
+      state.hasMorePosts,
+      isLoadingMore,
+      paginationMessage
+    );
   }
 }
 
@@ -152,6 +193,7 @@ export class AppShellModel {
   private readonly categoryCache: CategoryCache;
   private readonly categoryCacheScope: CategoryCacheScope;
   private cachedCategories: Array<Category> | null = null;
+  private remainingPostIds: Array<number> = [];
 
   public constructor(
     repository: ForumRepository,
@@ -173,18 +215,65 @@ export class AppShellModel {
     this.topicState = TopicReadState.loading(topic);
     const result: RepositoryResult<TopicDetail> = await this.repository.loadTopicDetail(topic.id);
     if (!result.isSuccess() || result.data === null) {
+      this.remainingPostIds = [];
       this.requiresAuthentication = result.isUnauthorized();
       this.topicState = TopicReadState.error(topic, result.message);
       return;
     }
     const posts: Array<ForumPost> = uniquePosts(result.data.posts);
+    const visiblePostIds: Set<number> = new Set<number>();
+    for (const post of posts) {
+      visiblePostIds.add(post.id);
+    }
+    this.remainingPostIds = result.data.postIds.filter((postId: number) => !visiblePostIds.has(postId));
+    const hasMorePosts: boolean = this.remainingPostIds.length > 0;
     this.topicState = posts.length === 0
-      ? TopicReadState.empty(result.data)
-      : TopicReadState.content(result.data, posts);
+      ? TopicReadState.empty(result.data, hasMorePosts)
+      : TopicReadState.content(result.data, posts, hasMorePosts);
+  }
+
+  public async loadMorePosts(): Promise<void> {
+    const detail: TopicDetail | null = this.topicState.detail;
+    if (
+      detail === null ||
+      this.topicState.isLoadingMore ||
+      this.remainingPostIds.length === 0 ||
+      (this.topicState.kind !== TopicReadStateKind.CONTENT && this.topicState.kind !== TopicReadStateKind.EMPTY)
+    ) {
+      return;
+    }
+
+    this.requiresAuthentication = false;
+    const requestedPostIds: Array<number> = this.remainingPostIds.slice(0, 20);
+    const visiblePosts: Array<ForumPost> = this.topicState.posts;
+    this.topicState = TopicReadState.pagination(this.topicState, true, '');
+    const result: RepositoryResult<Array<ForumPost>> =
+      await this.repository.loadTopicPosts(detail.id, requestedPostIds);
+    if (this.topicState.topicId !== detail.id) {
+      return;
+    }
+    if (!result.isSuccess() || result.data === null) {
+      this.requiresAuthentication = result.isUnauthorized();
+      this.topicState = TopicReadState.pagination(this.topicState, false, result.message);
+      return;
+    }
+
+    const requestedIds: Set<number> = new Set<number>(requestedPostIds);
+    this.remainingPostIds = this.remainingPostIds.filter((postId: number) => !requestedIds.has(postId));
+    const posts: Array<ForumPost> = uniquePosts(visiblePosts.concat(result.data));
+    const hasMorePosts: boolean = this.remainingPostIds.length > 0;
+    this.topicState = posts.length === 0
+      ? TopicReadState.empty(detail, hasMorePosts)
+      : TopicReadState.content(detail, posts, hasMorePosts);
+  }
+
+  public async retryTopicPosts(): Promise<void> {
+    await this.loadMorePosts();
   }
 
   public closeSecondary(): void {
     this.activeDestination = SecondaryDestination.NONE;
+    this.remainingPostIds = [];
   }
 
   public async loadHome(): Promise<void> {
