@@ -1,14 +1,14 @@
 import { RepositoryResult } from '../core/RepositoryResult';
 import { Category, ForumPost, Topic, TopicDetail } from '../models/ForumModels';
-import { DiscourseHttpClient, HttpTextResult, HttpTextResultKind } from '../network/DiscourseHttpClient';
+import { ForumHttpClient, HttpTextResult, HttpTextResultKind } from '../network/DiscourseHttpClient';
 import { ForumRepository } from './ForumRepository';
 import { ForumResponseParser } from './ForumResponseParser';
 
 export class DiscourseForumRepository implements ForumRepository {
-  private readonly client: DiscourseHttpClient;
+  private readonly client: ForumHttpClient;
   private readonly parser: ForumResponseParser;
 
-  public constructor(client: DiscourseHttpClient, parser: ForumResponseParser = new ForumResponseParser()) {
+  public constructor(client: ForumHttpClient, parser: ForumResponseParser = new ForumResponseParser()) {
     this.client = client;
     this.parser = parser;
   }
@@ -46,8 +46,18 @@ export class DiscourseForumRepository implements ForumRepository {
     return this.parser.parseCategories(siteResponse.body, directoryResponse.body);
   }
 
-  public async loadCategoryTopics(_categoryId: number): Promise<RepositoryResult<Array<Topic>>> {
-    return RepositoryResult.failure<Array<Topic>>('Category Topic 读取尚未可用');
+  public async loadCategoryTopics(categoryId: number): Promise<RepositoryResult<Array<Topic>>> {
+    if (!Number.isInteger(categoryId) || categoryId <= 0) {
+      return RepositoryResult.failure<Array<Topic>>('Category 标识无效');
+    }
+    const response: HttpTextResult = await this.client.get(`/c/${categoryId}.json`);
+    if (response.kind === HttpTextResultKind.UNAUTHORIZED) {
+      return RepositoryResult.unauthorized<Array<Topic>>();
+    }
+    if (!response.isSuccess()) {
+      return RepositoryResult.failure<Array<Topic>>(response.message);
+    }
+    return this.parser.parseLatestTopics(response.body);
   }
 
   public async loadTopicDetail(_topicId: number): Promise<RepositoryResult<TopicDetail>> {

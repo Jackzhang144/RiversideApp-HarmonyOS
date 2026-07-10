@@ -46,7 +46,11 @@ interface DiscourseHeaders {
   Accept: string;
 }
 
-export class DiscourseHttpClient {
+export interface ForumHttpClient {
+  get(path: string): Promise<HttpTextResult>;
+}
+
+export class DiscourseHttpClient implements ForumHttpClient {
   private readonly baseUrl: string;
 
   public constructor(baseUrl: string = DEFAULT_BASE_URL) {
