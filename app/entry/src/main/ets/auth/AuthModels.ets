@@ -74,8 +74,10 @@ export class AuthorizationRequest {
 export class AuthorizationCallbackValidator {
   public isCallbackUrl(callbackUrl: string): boolean {
     try {
-      const callback: uri.URI = new uri.URI(callbackUrl);
-      return callback.scheme === 'riverside' && callback.host === 'auth_redirect';
+      new uri.URI(callbackUrl);
+      const queryStart: number = callbackUrl.indexOf('?');
+      const callbackBase: string = queryStart < 0 ? callbackUrl : callbackUrl.slice(0, queryStart);
+      return callbackBase === AUTH_REDIRECT && !callbackUrl.includes('#');
     } catch (_) {
       return false;
     }

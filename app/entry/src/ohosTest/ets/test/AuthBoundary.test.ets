@@ -47,12 +47,22 @@ export default function authBoundaryTest(): void {
         'riverside://auth_redirect',
         true
       );
+      const unexpectedPath: RepositoryResult<string> = validator.extractPayload(
+        'riverside://auth_redirect/other?payload=encrypted',
+        true
+      );
+      const unexpectedFragment: RepositoryResult<string> = validator.extractPayload(
+        'riverside://auth_redirect?payload=encrypted#other',
+        true
+      );
 
       expect(valid.kind).assertEqual(RepositoryResultKind.SUCCESS);
       expect(valid.data).assertEqual('encrypted+payload=');
       expect(iframe.kind).assertEqual(RepositoryResultKind.FAILURE);
       expect(wrongHost.kind).assertEqual(RepositoryResultKind.FAILURE);
       expect(missingPayload.kind).assertEqual(RepositoryResultKind.FAILURE);
+      expect(unexpectedPath.kind).assertEqual(RepositoryResultKind.FAILURE);
+      expect(unexpectedFragment.kind).assertEqual(RepositoryResultKind.FAILURE);
     });
 
     it('creates a session only when decrypted key and nonce are valid', 0, () => {
