@@ -87,6 +87,7 @@ export class AuthRepository {
   private readonly cryptoFactory: AuthorizationCryptoFactory;
   private readonly callbackValidator: AuthorizationCallbackValidator = new AuthorizationCallbackValidator();
   private pendingCrypto: AuthorizationCryptoSession | null = null;
+  private operationVersion: number = 0;
 
   public constructor(store: AuthenticatedSessionStore, cryptoFactory: AuthorizationCryptoFactory) {
     this.store = store;
@@ -94,9 +95,13 @@ export class AuthRepository {
   }
 
   public async restore(): Promise<void> {
+    const operation: number = this.beginOperation();
     this.clearAuthorizationMaterial();
     this.state = AuthState.restoring();
     const result: SessionLoadResult = await this.store.load();
+    if (!this.isCurrentOperation(operation)) {
+      return;
+    }
     if (result.kind === SessionLoadKind.EMPTY) {
       this.state = AuthState.idle();
       return;
@@ -113,9 +118,13 @@ export class AuthRepository {
   }
 
   public async logout(): Promise<void> {
+    const operation: number = this.beginOperation();
     this.clearAuthorizationMaterial();
     this.state = AuthState.signingOut();
     const result: RepositoryResult<boolean> = await this.store.clear();
+    if (!this.isCurrentOperation(operation)) {
+      return;
+    }
     this.state = result.isSuccess()
       ? AuthState.idle()
       : AuthState.error(result.message);
@@ -125,14 +134,25 @@ export class AuthRepository {
     return this.state.session;
   }
 
-  public shouldInterceptNavigation(url: string): boolean {
-    return this.callbackValidator.isCallbackUrl(url);
+  public shouldInterceptNavigation(url: string, isMainFrame: boolean): boolean {
+    return this.callbackValidator.extractPayload(url, isMainFrame).isSuccess();
   }
 
   public async beginAuthorization(): Promise<void> {
+    const operation: number = this.beginOperation();
     this.clearAuthorizationMaterial();
     this.state = AuthState.generatingRequest();
     const result: RepositoryResult<AuthorizationCryptoSession> = await this.cryptoFactory.create();
+    if (!this.isCurrentOperation(operation)) {
+      const staleCrypto: AuthorizationCryptoSession | null = result.data;
+      if (staleCrypto !== null) {
+        try {
+          staleCrypto.clear();
+        } catch (_) {
+        }
+      }
+      return;
+    }
     if (!result.isSuccess() || result.data === null) {
       this.state = AuthState.error(result.message);
       return;
@@ -150,6 +170,10 @@ export class AuthRepository {
       this.state = AuthState.error('没有待处理的授权请求');
       return true;
     }
+    if (this.state.kind !== AuthStateKind.AUTHORIZING) {
+      return true;
+    }
+    const operation: number = this.operationVersion;
     const payload: RepositoryResult<string> = this.callbackValidator.extractPayload(url, isMainFrame);
     if (!payload.isSuccess() || payload.data === null) {
       this.finishAuthorizationWithError(payload.message);
@@ -158,6 +182,9 @@ export class AuthRepository {
 
     this.state = AuthState.validating(crypto.request.authorizationUrl);
     const decrypted: RepositoryResult<AuthenticatedSession> = await crypto.decryptAndValidate(payload.data);
+    if (!this.isCurrentOperation(operation)) {
+      return true;
+    }
     if (!decrypted.isSuccess() || decrypted.data === null) {
       this.finishAuthorizationWithError(decrypted.message);
       return true;
@@ -165,6 +192,9 @@ export class AuthRepository {
 
     this.state = AuthState.persisting();
     const saved: RepositoryResult<boolean> = await this.store.save(decrypted.data);
+    if (!this.isCurrentOperation(operation)) {
+      return true;
+    }
     this.clearAuthorizationMaterial();
     this.state = saved.isSuccess()
       ? AuthState.authenticated(decrypted.data)
@@ -173,8 +203,21 @@ export class AuthRepository {
   }
 
   public cancelAuthorization(): void {
+    if (this.state.kind === AuthStateKind.PERSISTING) {
+      return;
+    }
+    this.beginOperation();
     this.clearAuthorizationMaterial();
     this.state = AuthState.idle();
+  }
+
+  private beginOperation(): number {
+    this.operationVersion += 1;
+    return this.operationVersion;
+  }
+
+  private isCurrentOperation(operation: number): boolean {
+    return operation === this.operationVersion;
   }
 
   private finishAuthorizationWithError(message: string): void {

@@ -77,6 +77,56 @@ class StubCryptoSession implements AuthorizationCryptoSession {
   }
 }
 
+class DeferredCryptoFactory implements AuthorizationCryptoFactory {
+  private resolver: ((result: RepositoryResult<AuthorizationCryptoSession>) => void) | null = null;
+
+  public create(): Promise<RepositoryResult<AuthorizationCryptoSession>> {
+    return new Promise<RepositoryResult<AuthorizationCryptoSession>>(
+      (resolve: (result: RepositoryResult<AuthorizationCryptoSession>) => void): void => {
+        this.resolver = resolve;
+      }
+    );
+  }
+
+  public complete(result: RepositoryResult<AuthorizationCryptoSession>): void {
+    const resolve: ((result: RepositoryResult<AuthorizationCryptoSession>) => void) | null = this.resolver;
+    this.resolver = null;
+    if (resolve !== null) {
+      resolve(result);
+    }
+  }
+}
+
+class DeferredCryptoSession implements AuthorizationCryptoSession {
+  public readonly request: AuthorizationRequest;
+  public clearCallCount: number = 0;
+  private resolver: ((result: RepositoryResult<AuthenticatedSession>) => void) | null = null;
+
+  public constructor(request: AuthorizationRequest) {
+    this.request = request;
+  }
+
+  public decryptAndValidate(_encryptedPayload: string): Promise<RepositoryResult<AuthenticatedSession>> {
+    return new Promise<RepositoryResult<AuthenticatedSession>>(
+      (resolve: (result: RepositoryResult<AuthenticatedSession>) => void): void => {
+        this.resolver = resolve;
+      }
+    );
+  }
+
+  public complete(result: RepositoryResult<AuthenticatedSession>): void {
+    const resolve: ((result: RepositoryResult<AuthenticatedSession>) => void) | null = this.resolver;
+    this.resolver = null;
+    if (resolve !== null) {
+      resolve(result);
+    }
+  }
+
+  public clear(): void {
+    this.clearCallCount += 1;
+  }
+}
+
 function createAuthorizationRequest(): AuthorizationRequest | null {
   return AuthorizationRequest.create(PUBLIC_KEY_PEM, CLIENT_ID, NONCE);
 }
@@ -151,8 +201,9 @@ export default function authRepositoryTest(): void {
       await beginning;
       expect(repository.state.kind).assertEqual(AuthStateKind.AUTHORIZING);
       expect(repository.state.authorizationUrl).assertEqual(request.authorizationUrl);
-      expect(repository.shouldInterceptNavigation('https://river-side.cc/latest')).assertFalse();
-      expect(repository.shouldInterceptNavigation('riverside://auth_redirect?payload=value')).assertTrue();
+      expect(repository.shouldInterceptNavigation('https://river-side.cc/latest', true)).assertFalse();
+      expect(repository.shouldInterceptNavigation('riverside://auth_redirect?payload=value', true)).assertTrue();
+      expect(repository.shouldInterceptNavigation('riverside://auth_redirect?payload=value', false)).assertFalse();
 
       const ordinaryNavigationHandled: boolean = await repository.handleNavigation(
         'https://river-side.cc/latest',
@@ -200,6 +251,61 @@ export default function authRepositoryTest(): void {
       expect(callbackHandled).assertTrue();
       expect(repository.state.kind).assertEqual(AuthStateKind.ERROR);
       expect(repository.state.message).assertEqual('授权 nonce 校验失败');
+      expect(store.saveCallCount).assertEqual(0);
+      expect(crypto.clearCallCount).assertEqual(1);
+      done();
+    });
+
+    it('discards RSA material generated after the user cancels', 0, async (done: Function) => {
+      const request: AuthorizationRequest | null = createAuthorizationRequest();
+      expect(request === null).assertFalse();
+      if (request === null) {
+        done();
+        return;
+      }
+      const crypto: StubCryptoSession = new StubCryptoSession(
+        request,
+        RepositoryResult.failure<AuthenticatedSession>('not used')
+      );
+      const factory: DeferredCryptoFactory = new DeferredCryptoFactory();
+      const repository: AuthRepository = new AuthRepository(new StubSessionStore(), factory);
+
+      const beginning: Promise<void> = repository.beginAuthorization();
+      repository.cancelAuthorization();
+      factory.complete(RepositoryResult.success<AuthorizationCryptoSession>(crypto));
+      await beginning;
+
+      expect(repository.state.kind).assertEqual(AuthStateKind.IDLE);
+      expect(crypto.clearCallCount).assertEqual(1);
+      done();
+    });
+
+    it('does not persist a callback decrypted after the user cancels', 0, async (done: Function) => {
+      const request: AuthorizationRequest | null = createAuthorizationRequest();
+      const authenticated: AuthenticatedSession | null = AuthenticatedSession.create('user-api-key', CLIENT_ID);
+      expect(request === null).assertFalse();
+      expect(authenticated === null).assertFalse();
+      if (request === null || authenticated === null) {
+        done();
+        return;
+      }
+      const store: StubSessionStore = new StubSessionStore();
+      const crypto: DeferredCryptoSession = new DeferredCryptoSession(request);
+      const factory: StubCryptoFactory = new StubCryptoFactory();
+      factory.createResult = RepositoryResult.success<AuthorizationCryptoSession>(crypto);
+      const repository: AuthRepository = new AuthRepository(store, factory);
+      await repository.beginAuthorization();
+
+      const handling: Promise<boolean> = repository.handleNavigation(
+        'riverside://auth_redirect?payload=encrypted-value',
+        true
+      );
+      expect(repository.state.kind).assertEqual(AuthStateKind.VALIDATING);
+      repository.cancelAuthorization();
+      crypto.complete(RepositoryResult.success<AuthenticatedSession>(authenticated));
+      expect(await handling).assertTrue();
+
+      expect(repository.state.kind).assertEqual(AuthStateKind.IDLE);
       expect(store.saveCallCount).assertEqual(0);
       expect(crypto.clearCallCount).assertEqual(1);
       done();

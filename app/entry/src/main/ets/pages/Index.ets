@@ -293,7 +293,7 @@ struct Index {
 
   private handleLoginNavigation(url: string, isMainFrame: boolean): boolean {
     const repository: AuthRepository | null = this.authRepository;
-    if (repository === null || !repository.shouldInterceptNavigation(url)) {
+    if (repository === null || !repository.shouldInterceptNavigation(url, isMainFrame)) {
       return false;
     }
     this.completeLoginNavigation(url, isMainFrame);
@@ -319,6 +319,9 @@ struct Index {
 
   private cancelLogin(): boolean {
     const repository: AuthRepository | null = this.authRepository;
+    if (repository?.state.kind === AuthStateKind.PERSISTING) {
+      return true;
+    }
     if (repository !== null && repository.state.kind !== AuthStateKind.AUTHENTICATED) {
       repository.cancelAuthorization();
       this.authState = repository.state;
