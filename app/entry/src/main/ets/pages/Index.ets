@@ -1,5 +1,6 @@
 import { common } from '@kit.AbilityKit';
 import {
+  HdsNavDestination,
   HdsNavigation,
   HdsSnackBar,
   HdsTabs,
@@ -15,10 +16,13 @@ import {
 import { CategoryCacheScope } from '../cache/CategoryCache';
 import { PreferencesCategoryCache } from '../cache/PreferencesCategoryCache';
 import { CategoryBrowsePage } from '../components/CategoryBrowsePage';
+import { CategoryTopicsPage } from '../components/CategoryTopicsPage';
 import { HomeBrowsePage } from '../components/HomeBrowsePage';
 import { Category, Topic } from '../models/ForumModels';
 import { DiscourseHttpClient } from '../network/DiscourseHttpClient';
 import { DiscourseForumRepository } from '../repositories/DiscourseForumRepository';
+
+const CATEGORY_TOPICS_ROUTE: string = 'category-topics';
 
 @Entry
 @Component
@@ -31,6 +35,8 @@ struct Index {
   @State selectedRoot: RootDestination = RootDestination.HOME;
   @State homeState: BrowseState<Topic> = BrowseState.initial<Topic>();
   @State categoryState: BrowseState<Category> = BrowseState.initial<Category>();
+  @State categoryTopicsState: BrowseState<Topic> = BrowseState.initial<Topic>();
+  @State categoryTitle: string = 'Category';
 
   aboutToAppear(): void {
     const context: common.Context | undefined = this.getUIContext().getHostContext();
@@ -94,6 +100,70 @@ struct Index {
     }
   }
 
+  private async openCategory(category: Category): Promise<void> {
+    const model: AppShellModel | null = this.model;
+    if (model === null) {
+      return;
+    }
+    const task: Promise<void> = model.openCategory(category);
+    this.categoryTitle = category.name;
+    this.categoryTopicsState = model.categoryTopicsState;
+    this.pathStack.pushPath({ name: CATEGORY_TOPICS_ROUTE });
+    await task;
+    this.categoryTopicsState = model.categoryTopicsState;
+  }
+
+  private async retryCategoryTopics(): Promise<void> {
+    const model: AppShellModel | null = this.model;
+    if (model === null) {
+      return;
+    }
+    const task: Promise<void> = model.retryCategoryTopics();
+    this.categoryTopicsState = model.categoryTopicsState;
+    await task;
+    this.categoryTopicsState = model.categoryTopicsState;
+  }
+
+  private handleSecondaryBack(): boolean {
+    const model: AppShellModel | null = this.model;
+    if (model !== null) {
+      model.closeSecondary();
+    }
+    return false;
+  }
+
+  @Builder
+  private SecondaryPage(name: string, _param: Object): void {
+    if (name === CATEGORY_TOPICS_ROUTE) {
+      HdsNavDestination() {
+        CategoryTopicsPage({
+          state: this.categoryTopicsState,
+          onRefresh: (): void => {
+            this.retryCategoryTopics();
+          },
+          onOpenTopic: (_topic: Topic): void => {}
+        })
+      }
+      .titleBar({
+        enableComponentSafeArea: true,
+        content: {
+          title: { mainTitle: this.categoryTitle },
+          backIcon: { label: '返回 Category' }
+        }
+      })
+      .onBackPressed((): boolean => this.handleSecondaryBack())
+    } else {
+      HdsNavDestination() {
+        Text('页面不可用')
+      }
+      .titleBar({
+        enableComponentSafeArea: true,
+        content: { title: { mainTitle: 'Riverside' } }
+      })
+      .onBackPressed((): boolean => this.handleSecondaryBack())
+    }
+  }
+
   private showCategoryRefreshMessage(): void {
     if (
       this.categoryState.message.length === 0 ||
@@ -131,6 +201,9 @@ struct Index {
             state: this.categoryState,
             onRefresh: (): void => {
               this.refreshCategories();
+            },
+            onOpenCategory: (category: Category): void => {
+              this.openCategory(category);
             }
           })
         }
@@ -146,6 +219,7 @@ struct Index {
     }
     .hideTitleBar(true)
     .hideBackButton(true)
+    .navDestination(this.SecondaryPage)
     .width('100%')
     .height('100%')
   }

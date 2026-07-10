@@ -1,11 +1,11 @@
 import { BrowseState, BrowseStateKind } from '../app/AppShellModel';
-import { Category } from '../models/ForumModels';
+import { Topic } from '../models/ForumModels';
 
 @Component
-export struct CategoryBrowsePage {
-  @Prop state: BrowseState<Category> = BrowseState.initial<Category>();
+export struct CategoryTopicsPage {
+  @Prop state: BrowseState<Topic> = BrowseState.initial<Topic>();
   onRefresh: () => void = (): void => {};
-  onOpenCategory: (category: Category) => void = (_category: Category): void => {};
+  onOpenTopic: (topic: Topic) => void = (_topic: Topic): void => {};
 
   @Builder
   private LoadingState(): void {
@@ -13,7 +13,7 @@ export struct CategoryBrowsePage {
       LoadingProgress()
         .width(40)
         .height(40)
-      Text('正在加载 Category')
+      Text('正在加载 Topic')
         .fontSize(16)
         .fontColor($r('sys.color.font_secondary'))
     }
@@ -34,7 +34,7 @@ export struct CategoryBrowsePage {
         .textAlign(TextAlign.Center)
       Button('重试')
         .onClick(this.onRefresh)
-        .accessibilityText('重新加载 Category')
+        .accessibilityText('重新加载 Category Topic')
     }
     .padding(32)
     .width('100%')
@@ -45,16 +45,16 @@ export struct CategoryBrowsePage {
   @Builder
   private EmptyState(): void {
     Column({ space: 14 }) {
-      Text('还没有 Category')
+      Text('这个 Category 还没有 Topic')
         .fontSize(22)
         .fontWeight(FontWeight.Bold)
-      Text('刷新后仍没有可展示的 Category。')
+      Text('稍后再来看看，或手动刷新。')
         .fontSize(15)
         .fontColor($r('sys.color.font_secondary'))
         .textAlign(TextAlign.Center)
       Button('刷新')
         .onClick(this.onRefresh)
-        .accessibilityText('刷新 Category')
+        .accessibilityText('刷新 Category Topic')
     }
     .padding(32)
     .width('100%')
@@ -63,57 +63,40 @@ export struct CategoryBrowsePage {
   }
 
   @Builder
-  private ListHeader(): void {
-    Row() {
-      Text(this.state.isRefreshing ? 'Category · 正在刷新' : 'Category')
-        .fontSize(15)
-        .fontColor($r('sys.color.font_secondary'))
-        .layoutWeight(1)
-      Button('刷新', { type: ButtonType.Normal })
-        .onClick(this.onRefresh)
-        .accessibilityText('刷新 Category')
-    }
-    .width('100%')
-    .height(48)
-    .padding({ left: 4, right: 4 })
-  }
-
-  @Builder
-  private CategoryRow(category: Category): void {
-    Row({ space: 12 }) {
-      Blank()
-        .width(4)
-        .height(44)
-        .backgroundColor(`#${category.color}`)
-        .borderRadius(2)
-      Column({ space: 6 }) {
-        Text(category.name)
+  private TopicRow(topic: Topic): void {
+    Column({ space: 8 }) {
+      Row({ space: 8 }) {
+        if (topic.pinned) {
+          Text('置顶')
+            .fontSize(12)
+            .fontColor($r('sys.color.font_emphasize'))
+        }
+        Text(topic.title)
           .fontSize(17)
           .fontWeight(FontWeight.Medium)
-        if (category.description.length > 0) {
-          Text(category.description)
-            .fontSize(14)
-            .fontColor($r('sys.color.font_secondary'))
-            .maxLines(2)
-            .textOverflow({ overflow: TextOverflow.Ellipsis })
-        }
+          .maxLines(2)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+          .layoutWeight(1)
       }
-      .layoutWeight(1)
-      .alignItems(HorizontalAlign.Start)
+      if (topic.excerpt.length > 0) {
+        Text(topic.excerpt)
+          .fontSize(14)
+          .fontColor($r('sys.color.font_secondary'))
+          .maxLines(2)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+      }
+      Text(`${topic.username.length > 0 ? topic.username : '匿名'}  ·  ${Math.max(topic.postCount - 1, 0)} Reply  ·  ${topic.viewCount} 浏览`)
+        .fontSize(12)
+        .fontColor($r('sys.color.font_tertiary'))
     }
     .width('100%')
-    .padding({
-      left: category.parentCategoryId === null ? 16 : 32,
-      right: 16,
-      top: 14,
-      bottom: 14
-    })
+    .padding(16)
     .backgroundColor($r('sys.color.comp_background_tertiary'))
     .borderRadius(16)
     .onClick((): void => {
-      this.onOpenCategory(category);
+      this.onOpenTopic(topic);
     })
-    .accessibilityText(`Category：${category.name}`)
+    .accessibilityText(`${topic.title}，${Math.max(topic.postCount - 1, 0)} 条 Reply`)
   }
 
   build() {
@@ -126,13 +109,24 @@ export struct CategoryBrowsePage {
     } else {
       List({ space: 8 }) {
         ListItem() {
-          this.ListHeader()
-        }
-        ForEach(this.state.items, (category: Category) => {
-          ListItem() {
-            this.CategoryRow(category)
+          Row() {
+            Text('Topic')
+              .fontSize(15)
+              .fontColor($r('sys.color.font_secondary'))
+              .layoutWeight(1)
+            Button('刷新', { type: ButtonType.Normal })
+              .onClick(this.onRefresh)
+              .accessibilityText('刷新 Category Topic')
           }
-        }, (category: Category): string => category.id.toString())
+          .width('100%')
+          .height(48)
+          .padding({ left: 4, right: 4 })
+        }
+        ForEach(this.state.items, (topic: Topic) => {
+          ListItem() {
+            this.TopicRow(topic)
+          }
+        }, (topic: Topic): string => topic.id.toString())
       }
       .width('100%')
       .height('100%')
