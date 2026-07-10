@@ -143,6 +143,36 @@ export default function topicReadingTest(): void {
       done();
     });
 
+    it('retries a failed Topic first screen without losing its identity', 0, async (done: Function) => {
+      const repository: TopicReadingRepository = new TopicReadingRepository();
+      repository.topicDetailResults.push(RepositoryResult.failure<TopicDetail>('网络连接失败'));
+      repository.topicDetailResults.push(RepositoryResult.success<TopicDetail>(new TopicDetail(
+        2725,
+        '站务管理区重要主题导航',
+        1959,
+        1,
+        4,
+        false,
+        false,
+        true,
+        [102728],
+        [firstPost()]
+      )));
+      const model: AppShellModel = new AppShellModel(
+        repository,
+        new MemoryCategoryCache(),
+        CategoryCacheScope.anonymous()
+      );
+
+      await model.openTopic(topic());
+      expect(model.topicState.kind).assertEqual(TopicReadStateKind.ERROR);
+
+      await model.retryTopic();
+      expect(model.topicState.kind).assertEqual(TopicReadStateKind.CONTENT);
+      expect(model.topicState.topicId).assertEqual(2725);
+      done();
+    });
+
     it('preserves visible Posts when pagination fails and retries the same window', 0, async (done: Function) => {
       const repository: TopicReadingRepository = new TopicReadingRepository();
       repository.topicDetailResults.push(RepositoryResult.success<TopicDetail>(new TopicDetail(

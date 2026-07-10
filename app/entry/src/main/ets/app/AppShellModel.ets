@@ -197,6 +197,7 @@ export class AppShellModel {
   private cachedCategories: Array<Category> | null = null;
   private remainingPostIds: Array<number> = [];
   private topicReturnDestination: SecondaryDestination = SecondaryDestination.NONE;
+  private selectedTopic: Topic | null = null;
 
   public constructor(
     repository: ForumRepository,
@@ -238,6 +239,7 @@ export class AppShellModel {
 
   public async openTopic(topic: Topic): Promise<void> {
     this.requiresAuthentication = false;
+    this.selectedTopic = topic;
     this.topicReturnDestination = this.activeDestination === SecondaryDestination.CATEGORY_TOPICS
       ? SecondaryDestination.CATEGORY_TOPICS
       : SecondaryDestination.NONE;
@@ -260,6 +262,16 @@ export class AppShellModel {
     this.topicState = posts.length === 0
       ? TopicReadState.empty(result.data, hasMorePosts)
       : TopicReadState.content(result.data, posts, hasMorePosts);
+  }
+
+  public async retryTopic(): Promise<void> {
+    const topic: Topic | null = this.selectedTopic;
+    if (topic === null) {
+      return;
+    }
+    const returnDestination: SecondaryDestination = this.topicReturnDestination;
+    await this.openTopic(topic);
+    this.topicReturnDestination = returnDestination;
   }
 
   public async loadMorePosts(): Promise<void> {
