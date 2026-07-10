@@ -1,7 +1,6 @@
 import { common } from '@kit.AbilityKit';
 import {
   HdsNavigation,
-  HdsNavigationTitleMode,
   HdsSnackBar,
   HdsTabs,
   HdsTabsController,
@@ -145,15 +144,8 @@ struct Index {
       .width('100%')
       .height('100%')
     }
-    .titleMode(HdsNavigationTitleMode.MINI)
+    .hideTitleBar(true)
     .hideBackButton(true)
-    .titleBar({
-      content: {
-        title: {
-          mainTitle: this.selectedRoot === RootDestination.HOME ? '首页' : 'Category'
-        }
-      }
-    })
     .width('100%')
     .height('100%')
   }
