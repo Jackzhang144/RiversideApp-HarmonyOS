@@ -121,6 +121,10 @@ export class AuthRepository {
       : AuthState.error(result.message);
   }
 
+  public currentSession(): AuthenticatedSession | null {
+    return this.state.session;
+  }
+
   public async beginAuthorization(): Promise<void> {
     this.clearAuthorizationMaterial();
     this.state = AuthState.generatingRequest();

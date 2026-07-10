@@ -1,4 +1,5 @@
 import { http } from '@kit.NetworkKit';
+import { AuthenticatedSession } from '../auth/AuthModels';
 
 const DEFAULT_BASE_URL: string = 'https://river-side.cc';
 const USER_AGENT: string = 'RiversideApp/0.1';
@@ -41,9 +42,60 @@ export class HttpTextResult {
   }
 }
 
-interface DiscourseHeaders {
+interface HttpHeaderValues {
   'User-Agent': string;
   Accept: string;
+  'User-Api-Key'?: string;
+  'User-Api-Client-Id'?: string;
+}
+
+export class DiscourseHeaders {
+  public readonly userAgent: string;
+  public readonly accept: string;
+  public readonly userApiKey: string | null;
+  public readonly userApiClientId: string | null;
+
+  public constructor(userApiKey: string | null, userApiClientId: string | null) {
+    this.userAgent = USER_AGENT;
+    this.accept = 'application/json';
+    this.userApiKey = userApiKey;
+    this.userApiClientId = userApiClientId;
+  }
+
+  public toHttpHeaderValues(): HttpHeaderValues {
+    if (this.userApiKey === null || this.userApiClientId === null) {
+      return {
+        'User-Agent': this.userAgent,
+        Accept: this.accept
+      };
+    }
+    return {
+      'User-Agent': this.userAgent,
+      Accept: this.accept,
+      'User-Api-Key': this.userApiKey,
+      'User-Api-Client-Id': this.userApiClientId
+    };
+  }
+}
+
+export interface AuthenticatedSessionProvider {
+  currentSession(): AuthenticatedSession | null;
+}
+
+export class DiscourseRequestHeadersFactory {
+  private readonly sessionProvider: AuthenticatedSessionProvider | null;
+
+  public constructor(sessionProvider: AuthenticatedSessionProvider | null) {
+    this.sessionProvider = sessionProvider;
+  }
+
+  public create(): DiscourseHeaders {
+    const session: AuthenticatedSession | null = this.sessionProvider?.currentSession() ?? null;
+    if (session === null) {
+      return new DiscourseHeaders(null, null);
+    }
+    return new DiscourseHeaders(session.key, session.clientId);
+  }
 }
 
 export interface ForumHttpClient {
@@ -52,9 +104,14 @@ export interface ForumHttpClient {
 
 export class DiscourseHttpClient implements ForumHttpClient {
   private readonly baseUrl: string;
+  private readonly headersFactory: DiscourseRequestHeadersFactory;
 
-  public constructor(baseUrl: string = DEFAULT_BASE_URL) {
+  public constructor(
+    baseUrl: string = DEFAULT_BASE_URL,
+    sessionProvider: AuthenticatedSessionProvider | null = null
+  ) {
     this.baseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+    this.headersFactory = new DiscourseRequestHeadersFactory(sessionProvider);
   }
 
   public async get(path: string): Promise<HttpTextResult> {
@@ -63,13 +120,10 @@ export class DiscourseHttpClient implements ForumHttpClient {
     }
 
     const request: http.HttpRequest = http.createHttp();
-    const headers: DiscourseHeaders = {
-      'User-Agent': USER_AGENT,
-      Accept: 'application/json'
-    };
+    const headers: DiscourseHeaders = this.headersFactory.create();
     const options: http.HttpRequestOptions = {
       method: http.RequestMethod.GET,
-      header: headers,
+      header: headers.toHttpHeaderValues(),
       expectDataType: http.HttpDataType.STRING,
       connectTimeout: CONNECT_TIMEOUT_MS,
       readTimeout: READ_TIMEOUT_MS,
