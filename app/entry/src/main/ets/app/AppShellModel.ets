@@ -196,6 +196,7 @@ export class AppShellModel {
   private readonly categoryCacheScope: CategoryCacheScope;
   private cachedCategories: Array<Category> | null = null;
   private remainingPostIds: Array<number> = [];
+  private topicReturnDestination: SecondaryDestination = SecondaryDestination.NONE;
 
   public constructor(
     repository: ForumRepository,
@@ -237,6 +238,9 @@ export class AppShellModel {
 
   public async openTopic(topic: Topic): Promise<void> {
     this.requiresAuthentication = false;
+    this.topicReturnDestination = this.activeDestination === SecondaryDestination.CATEGORY_TOPICS
+      ? SecondaryDestination.CATEGORY_TOPICS
+      : SecondaryDestination.NONE;
     this.activeDestination = SecondaryDestination.TOPIC;
     this.topicState = TopicReadState.loading(topic);
     const result: RepositoryResult<TopicDetail> = await this.repository.loadTopicDetail(topic.id);
@@ -298,7 +302,12 @@ export class AppShellModel {
   }
 
   public closeSecondary(): void {
-    this.activeDestination = SecondaryDestination.NONE;
+    if (this.activeDestination === SecondaryDestination.TOPIC) {
+      this.activeDestination = this.topicReturnDestination;
+      this.topicReturnDestination = SecondaryDestination.NONE;
+    } else {
+      this.activeDestination = SecondaryDestination.NONE;
+    }
     this.remainingPostIds = [];
   }
 

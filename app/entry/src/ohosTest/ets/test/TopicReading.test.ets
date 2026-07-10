@@ -87,6 +87,22 @@ export default function topicReadingTest(): void {
       expect(repository.requestedCategoryIds.join(',')).assertEqual('60,60');
       expect(model.categoryTopicsState.kind).assertEqual(BrowseStateKind.CONTENT);
       expect(model.categoryTopicsState.items[0].id).assertEqual(2725);
+
+      repository.topicDetailResults.push(RepositoryResult.success<TopicDetail>(new TopicDetail(
+        2725,
+        '站务管理区重要主题导航',
+        1959,
+        1,
+        4,
+        false,
+        false,
+        true,
+        [102728],
+        [firstPost()]
+      )));
+      await model.openTopic(topic());
+      model.closeSecondary();
+      expect(model.activeDestination).assertEqual(SecondaryDestination.CATEGORY_TOPICS);
       done();
     });
 
