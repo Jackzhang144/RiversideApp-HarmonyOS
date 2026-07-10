@@ -58,6 +58,7 @@ export class AppShellModel {
   private readonly repository: ForumRepository;
   private readonly categoryCache: CategoryCache;
   private readonly categoryCacheScope: CategoryCacheScope;
+  private cachedCategories: Array<Category> | null = null;
 
   public constructor(
     repository: ForumRepository,
@@ -90,33 +91,48 @@ export class AppShellModel {
   }
 
   public async loadCategories(): Promise<void> {
-    let cachedCategories: Array<Category> | null = null;
+    await this.restoreCategories();
+    await this.refreshCategories();
+  }
+
+  public async restoreCategories(): Promise<void> {
+    this.cachedCategories = null;
     try {
-      cachedCategories = await this.categoryCache.read(this.categoryCacheScope);
+      this.cachedCategories = await this.categoryCache.read(this.categoryCacheScope);
     } catch (_) {
-      cachedCategories = null;
+      this.cachedCategories = null;
     }
 
-    if (cachedCategories === null) {
+    if (this.cachedCategories === null) {
       this.categoryState = BrowseState.loading<Category>();
-    } else if (cachedCategories.length === 0) {
+    } else if (this.cachedCategories.length === 0) {
       this.categoryState = BrowseState.empty<Category>(true);
     } else {
-      this.categoryState = BrowseState.content<Category>(cachedCategories, true);
+      this.categoryState = BrowseState.content<Category>(this.cachedCategories, true);
     }
+  }
 
+  public async refreshCategories(): Promise<void> {
+    if (this.categoryState.kind === BrowseStateKind.CONTENT) {
+      this.categoryState = BrowseState.content<Category>(this.categoryState.items, true);
+    } else if (this.categoryState.kind === BrowseStateKind.EMPTY) {
+      this.categoryState = BrowseState.empty<Category>(true);
+    } else {
+      this.categoryState = BrowseState.loading<Category>();
+    }
     const result: RepositoryResult<Array<Category>> = await this.repository.loadCategories();
     if (!result.isSuccess() || result.data === null) {
-      if (cachedCategories === null) {
+      if (this.cachedCategories === null) {
         this.categoryState = BrowseState.error<Category>(result.message);
-      } else if (cachedCategories.length === 0) {
+      } else if (this.cachedCategories.length === 0) {
         this.categoryState = BrowseState.empty<Category>(false, result.message);
       } else {
-        this.categoryState = BrowseState.content<Category>(cachedCategories, false, result.message);
+        this.categoryState = BrowseState.content<Category>(this.cachedCategories, false, result.message);
       }
       return;
     }
 
+    this.cachedCategories = result.data;
     this.categoryState = result.data.length === 0
       ? BrowseState.empty<Category>()
       : BrowseState.content<Category>(result.data);
