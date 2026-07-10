@@ -52,6 +52,7 @@ export class BrowseState<T> {
 
 export class AppShellModel {
   public selectedRoot: RootDestination = RootDestination.HOME;
+  public requiresAuthentication: boolean = false;
   public homeState: BrowseState<Topic> = BrowseState.initial<Topic>();
   public categoryState: BrowseState<Category> = BrowseState.initial<Category>();
 
@@ -75,9 +76,11 @@ export class AppShellModel {
   }
 
   public async loadHome(): Promise<void> {
+    this.requiresAuthentication = false;
     this.homeState = BrowseState.loading<Topic>();
     const result: RepositoryResult<Array<Topic>> = await this.repository.loadLatestTopics();
     if (!result.isSuccess() || result.data === null) {
+      this.requiresAuthentication = result.isUnauthorized();
       this.homeState = BrowseState.error<Topic>(result.message);
       return;
     }
@@ -113,6 +116,7 @@ export class AppShellModel {
   }
 
   public async refreshCategories(): Promise<void> {
+    this.requiresAuthentication = false;
     if (this.categoryState.kind === BrowseStateKind.CONTENT) {
       this.categoryState = BrowseState.content<Category>(this.categoryState.items, true);
     } else if (this.categoryState.kind === BrowseStateKind.EMPTY) {
@@ -122,6 +126,7 @@ export class AppShellModel {
     }
     const result: RepositoryResult<Array<Category>> = await this.repository.loadCategories();
     if (!result.isSuccess() || result.data === null) {
+      this.requiresAuthentication = result.isUnauthorized();
       if (this.cachedCategories === null) {
         this.categoryState = BrowseState.error<Category>(result.message);
       } else if (this.cachedCategories.length === 0) {

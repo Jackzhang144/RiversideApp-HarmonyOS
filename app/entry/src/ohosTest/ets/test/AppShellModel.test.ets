@@ -103,6 +103,44 @@ export default function appShellModelTest(): void {
       done();
     });
 
+    it('exposes an unauthorized Home response to the AppShell', 0, async (done: Function) => {
+      const repository: StubForumRepository = new StubForumRepository();
+      repository.latestResults.push(RepositoryResult.unauthorized<Array<Topic>>());
+      const model: AppShellModel = new AppShellModel(
+        repository,
+        new MemoryCategoryCache(),
+        CategoryCacheScope.anonymous()
+      );
+
+      await model.loadHome();
+
+      expect(model.requiresAuthentication).assertTrue();
+      expect(model.homeState.kind).assertEqual(BrowseStateKind.ERROR);
+      done();
+    });
+
+    it('distinguishes Category loading, failure, retry and empty states', 0, async (done: Function) => {
+      const repository: StubForumRepository = new StubForumRepository();
+      repository.categoryResults.push(RepositoryResult.failure<Array<Category>>('网络连接失败'));
+      repository.categoryResults.push(RepositoryResult.success([]));
+      const model: AppShellModel = new AppShellModel(
+        repository,
+        new MemoryCategoryCache(),
+        CategoryCacheScope.anonymous()
+      );
+
+      const loading: Promise<void> = model.loadCategories();
+      await Promise.resolve();
+      expect(model.categoryState.kind).assertEqual(BrowseStateKind.LOADING);
+      await loading;
+      expect(model.categoryState.kind).assertEqual(BrowseStateKind.ERROR);
+
+      await model.retryCategories();
+      expect(model.categoryState.kind).assertEqual(BrowseStateKind.EMPTY);
+      expect(repository.categoryCallCount).assertEqual(2);
+      done();
+    });
+
     it('keeps cached Category content when background refresh fails', 0, async (done: Function) => {
       const repository: StubForumRepository = new StubForumRepository();
       repository.categoryResults.push(RepositoryResult.failure<Array<Category>>('刷新失败'));
@@ -128,7 +166,12 @@ export default function appShellModelTest(): void {
       const repository: StubForumRepository = new StubForumRepository();
       repository.categoryResults.push(RepositoryResult.success([category(60, '站务管理')]));
       const cache: MemoryCategoryCache = new MemoryCategoryCache();
-      const scope: CategoryCacheScope = CategoryCacheScope.authenticated('client-123');
+      const scope: CategoryCacheScope | null = CategoryCacheScope.authenticated('client-123');
+      expect(scope === null).assertFalse();
+      if (scope === null) {
+        done();
+        return;
+      }
       const model: AppShellModel = new AppShellModel(repository, cache, scope);
 
       await model.loadCategories();
@@ -137,6 +180,10 @@ export default function appShellModelTest(): void {
       expect(cache.writeScope?.key).assertEqual('authenticated:client-123');
       expect(cache.stored?.length).assertEqual(1);
       done();
+    });
+
+    it('rejects an empty authenticated cache identity', 0, () => {
+      expect(CategoryCacheScope.authenticated('')).assertNull();
     });
   });
 }

@@ -11,11 +11,12 @@ export class CategoryCacheScope {
     return new CategoryCacheScope('anonymous');
   }
 
-  public static authenticated(clientId: string): CategoryCacheScope {
-    if (clientId.trim().length === 0) {
-      return CategoryCacheScope.anonymous();
+  public static authenticated(clientId: string): CategoryCacheScope | null {
+    const normalizedClientId: string = clientId.trim();
+    if (normalizedClientId.length === 0) {
+      return null;
     }
-    return new CategoryCacheScope(`authenticated:${clientId}`);
+    return new CategoryCacheScope(`authenticated:${normalizedClientId}`);
   }
 }
 

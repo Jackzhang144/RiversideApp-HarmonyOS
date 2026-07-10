@@ -1,5 +1,6 @@
 export enum RepositoryResultKind {
   SUCCESS = 'success',
+  UNAUTHORIZED = 'unauthorized',
   FAILURE = 'failure'
 }
 
@@ -22,7 +23,15 @@ export class RepositoryResult<T> {
     return new RepositoryResult<T>(RepositoryResultKind.FAILURE, null, message);
   }
 
+  public static unauthorized<T>(): RepositoryResult<T> {
+    return new RepositoryResult<T>(RepositoryResultKind.UNAUTHORIZED, null, '登录已失效');
+  }
+
   public isSuccess(): boolean {
     return this.kind === RepositoryResultKind.SUCCESS && this.data !== null;
+  }
+
+  public isUnauthorized(): boolean {
+    return this.kind === RepositoryResultKind.UNAUTHORIZED;
   }
 }

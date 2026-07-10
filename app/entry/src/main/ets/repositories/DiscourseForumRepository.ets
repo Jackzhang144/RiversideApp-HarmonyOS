@@ -1,6 +1,6 @@
 import { RepositoryResult } from '../core/RepositoryResult';
 import { Category, Topic } from '../models/ForumModels';
-import { DiscourseHttpClient, HttpTextResult } from '../network/DiscourseHttpClient';
+import { DiscourseHttpClient, HttpTextResult, HttpTextResultKind } from '../network/DiscourseHttpClient';
 import { ForumRepository } from './ForumRepository';
 import { ForumResponseParser } from './ForumResponseParser';
 
@@ -15,6 +15,9 @@ export class DiscourseForumRepository implements ForumRepository {
 
   public async loadLatestTopics(): Promise<RepositoryResult<Array<Topic>>> {
     const response: HttpTextResult = await this.client.get('/latest.json');
+    if (response.kind === HttpTextResultKind.UNAUTHORIZED) {
+      return RepositoryResult.unauthorized<Array<Topic>>();
+    }
     if (!response.isSuccess()) {
       return RepositoryResult.failure<Array<Topic>>(response.message);
     }
@@ -28,6 +31,12 @@ export class DiscourseForumRepository implements ForumRepository {
     ]);
     const siteResponse: HttpTextResult = responses[0];
     const directoryResponse: HttpTextResult = responses[1];
+    if (
+      siteResponse.kind === HttpTextResultKind.UNAUTHORIZED ||
+      directoryResponse.kind === HttpTextResultKind.UNAUTHORIZED
+    ) {
+      return RepositoryResult.unauthorized<Array<Category>>();
+    }
     if (!siteResponse.isSuccess()) {
       return RepositoryResult.failure<Array<Category>>(siteResponse.message);
     }
