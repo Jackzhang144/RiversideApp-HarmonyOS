@@ -31,6 +31,20 @@ export default function jsonBoundaryTest(): void {
       expect(result.data).assertNull();
     });
 
+    it('removes duplicate Topic ids at the response boundary', 0, () => {
+      const parser: ForumResponseParser = new ForumResponseParser();
+      const result: RepositoryResult<Array<Topic>> = parser.parseLatestTopics(
+        '{"users":[],"topic_list":{"topics":[' +
+        '{"id":2725,"title":"站务管理区重要主题导航"},' +
+        '{"id":2725,"title":"重复 Topic"}' +
+        ']}}'
+      );
+
+      expect(result.kind).assertEqual(RepositoryResultKind.SUCCESS);
+      expect(result.data?.length).assertEqual(1);
+      expect(result.data?.[0].title).assertEqual('站务管理区重要主题导航');
+    });
+
     it('rejects a non-object Category entry', 0, () => {
       const parser: ForumResponseParser = new ForumResponseParser();
       const result: RepositoryResult<Array<Category>> = parser.parseCategories(

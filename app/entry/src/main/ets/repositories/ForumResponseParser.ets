@@ -495,12 +495,14 @@ export class ForumResponseParser {
       return RepositoryResult.failure<Array<Topic>>('服务器响应缺少 Topic 列表');
     }
     const topics: Array<Topic> = [];
+    const seenTopicIds: Set<number> = new Set<number>();
     for (const dto of envelope.topics) {
       if (dto === null) {
         continue;
       }
       const topic: Topic | null = topicFromDto(dto, envelope.users);
-      if (topic !== null) {
+      if (topic !== null && !seenTopicIds.has(topic.id)) {
+        seenTopicIds.add(topic.id);
         topics.push(topic);
       }
     }
