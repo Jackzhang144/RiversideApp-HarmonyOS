@@ -74,7 +74,28 @@ export class DiscourseForumRepository implements ForumRepository {
     return this.parser.parseTopicDetail(response.body);
   }
 
-  public async loadTopicPosts(_topicId: number, _postIds: Array<number>): Promise<RepositoryResult<Array<ForumPost>>> {
-    return RepositoryResult.failure<Array<ForumPost>>('Post 分段读取尚未可用');
+  public async loadTopicPosts(topicId: number, postIds: Array<number>): Promise<RepositoryResult<Array<ForumPost>>> {
+    if (!Number.isInteger(topicId) || topicId <= 0) {
+      return RepositoryResult.failure<Array<ForumPost>>('Topic 标识无效');
+    }
+    if (postIds.length === 0) {
+      return RepositoryResult.success<Array<ForumPost>>([]);
+    }
+    for (const postId of postIds) {
+      if (!Number.isInteger(postId) || postId <= 0) {
+        return RepositoryResult.failure<Array<ForumPost>>('Post 标识无效');
+      }
+    }
+    const postQuery: string = postIds.map((postId: number) => `post_ids[]=${postId}`).join('&');
+    const response: HttpTextResult = await this.client.get(
+      `/t/${topicId}/posts.json?${postQuery}&include_suggested=true`
+    );
+    if (response.kind === HttpTextResultKind.UNAUTHORIZED) {
+      return RepositoryResult.unauthorized<Array<ForumPost>>();
+    }
+    if (!response.isSuccess()) {
+      return RepositoryResult.failure<Array<ForumPost>>(response.message);
+    }
+    return this.parser.parseTopicPosts(response.body);
   }
 }

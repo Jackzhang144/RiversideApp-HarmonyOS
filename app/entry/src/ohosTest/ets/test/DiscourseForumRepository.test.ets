@@ -1,6 +1,6 @@
 import { describe, expect, it } from '@ohos/hypium';
 import { RepositoryResult, RepositoryResultKind } from '../../../main/ets/core/RepositoryResult';
-import { Topic, TopicDetail } from '../../../main/ets/models/ForumModels';
+import { ForumPost, Topic, TopicDetail } from '../../../main/ets/models/ForumModels';
 import { ForumHttpClient, HttpTextResult } from '../../../main/ets/network/DiscourseHttpClient';
 import { DiscourseForumRepository } from '../../../main/ets/repositories/DiscourseForumRepository';
 
@@ -51,6 +51,30 @@ export default function discourseForumRepositoryTest(): void {
       expect(client.paths[0]).assertEqual('/t/2725.json?track_visit=true');
       expect(result.kind).assertEqual(RepositoryResultKind.SUCCESS);
       expect(result.data?.id).assertEqual(2725);
+      done();
+    });
+
+    it('loads a Post window in the requested id order', 0, async (done: Function) => {
+      const client: StubForumHttpClient = new StubForumHttpClient();
+      client.results.push(HttpTextResult.success(200,
+        '{"post_stream":{"posts":[' +
+        '{"id":102729,"user_id":1,"username":"admin","cooked":"<p>第一条 Reply</p>",' +
+        '"raw":"第一条 Reply","post_number":2,"reply_to_post_number":null,"created_at":"2026-01-28T00:00:00Z"},' +
+        '{"id":102730,"user_id":24,"username":"Co-admin","cooked":"<p>第二条 Reply</p>",' +
+        '"raw":"第二条 Reply","post_number":3,"reply_to_post_number":2,"created_at":"2026-01-28T00:01:00Z"}' +
+        ']}}'
+      ));
+      const repository: DiscourseForumRepository = new DiscourseForumRepository(client);
+
+      const result: RepositoryResult<Array<ForumPost>> =
+        await repository.loadTopicPosts(2725, [102729, 102730]);
+
+      expect(client.paths[0]).assertEqual(
+        '/t/2725/posts.json?post_ids[]=102729&post_ids[]=102730&include_suggested=true'
+      );
+      expect(result.kind).assertEqual(RepositoryResultKind.SUCCESS);
+      expect(result.data?.length).assertEqual(2);
+      expect(result.data?.[1].postNumber).assertEqual(3);
       done();
     });
   });
