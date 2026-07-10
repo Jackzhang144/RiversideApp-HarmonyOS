@@ -162,6 +162,28 @@ export default function appShellModelTest(): void {
       done();
     });
 
+    it('keeps fresh Category content when a manual refresh fails', 0, async (done: Function) => {
+      const repository: StubForumRepository = new StubForumRepository();
+      repository.categoryResults.push(RepositoryResult.success([category(60, '站务管理')]));
+      repository.categoryResults.push(RepositoryResult.failure<Array<Category>>('刷新失败'));
+      const model: AppShellModel = new AppShellModel(
+        repository,
+        new MemoryCategoryCache(),
+        CategoryCacheScope.anonymous()
+      );
+      await model.loadCategories();
+
+      const refreshing: Promise<void> = model.refreshCategories();
+      expect(model.categoryState.kind).assertEqual(BrowseStateKind.CONTENT);
+      expect(model.categoryState.isRefreshing).assertTrue();
+      await refreshing;
+
+      expect(model.categoryState.kind).assertEqual(BrowseStateKind.CONTENT);
+      expect(model.categoryState.items[0].id).assertEqual(60);
+      expect(model.categoryState.message).assertEqual('刷新失败');
+      done();
+    });
+
     it('writes fresh Category data into the active identity partition', 0, async (done: Function) => {
       const repository: StubForumRepository = new StubForumRepository();
       repository.categoryResults.push(RepositoryResult.success([category(60, '站务管理')]));

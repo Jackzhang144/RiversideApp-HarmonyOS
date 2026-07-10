@@ -72,6 +72,18 @@ struct Index {
     this.showCategoryRefreshMessage();
   }
 
+  private async refreshCategories(): Promise<void> {
+    const model: AppShellModel | null = this.model;
+    if (model === null) {
+      return;
+    }
+    const task: Promise<void> = model.refreshCategories();
+    this.categoryState = model.categoryState;
+    await task;
+    this.categoryState = model.categoryState;
+    this.showCategoryRefreshMessage();
+  }
+
   private selectRoot(index: number): void {
     const destination: RootDestination = index === RootDestination.CATEGORY
       ? RootDestination.CATEGORY
@@ -143,17 +155,17 @@ struct Index {
       this.LoadingState('正在加载 Category')
     } else if (this.categoryState.kind === BrowseStateKind.ERROR) {
       this.RetryableState(this.categoryState.message, (): void => {
-        this.loadCategories();
+        this.refreshCategories();
       })
     } else if (this.categoryState.kind === BrowseStateKind.EMPTY) {
       this.EmptyState('还没有 Category', '刷新后仍没有可展示的 Category。', (): void => {
-        this.loadCategories();
+        this.refreshCategories();
       })
     } else {
       List({ space: 8 }) {
         ListItem() {
           this.ListHeader(this.categoryState.isRefreshing ? 'Category · 正在刷新' : 'Category', (): void => {
-            this.loadCategories();
+            this.refreshCategories();
           })
         }
         ForEach(this.categoryState.items, (category: Category) => {
