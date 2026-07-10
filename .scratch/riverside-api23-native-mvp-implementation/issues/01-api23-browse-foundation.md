@@ -16,5 +16,5 @@
 
 - 2026-07-10: API 23 Stage 工程、AppShell 状态、真实 RiverSide 契约、Preferences Category 缓存和 HDS 浏览 UI 已实现并分步提交。
 - `devecocli build clean && devecocli build` 通过；`HdsNavigation`/`HdsTabs`/`HdsSnackBar` 已在 API 23 SDK 编译通过。
-- AppShell 的 5 个 ohosTest 用例及测试 HAP 编译通过，但因无活动设备未实际执行。
+- AppShell 的 9 个 ohosTest 用例及测试 HAP 编译通过，但因无活动设备未实际执行。
 - 本机旧模拟器缺少绑定镜像；新 API 23 实例底层报告创建成功但未出现在列表。需人工在 DevEco Studio Device Manager 确认实例并配置调试签名，然后完成模拟器交互、测试执行和 API 23 真机 HDS 视觉验收。

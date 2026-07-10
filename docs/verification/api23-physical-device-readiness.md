@@ -10,7 +10,7 @@ Date: 2026-07-10
 - Creating `Riverside API 23` against the downloaded image reports `Device create success`, but the instance does not appear in the emulator list before the tool timeout. DevEco Studio Device Manager must confirm or repair the instance before another CLI start attempt.
 - The Stage project now exists under `app/` with bundle name `cc.river_side.app`; both `targetSdkVersion` and `compatibleSdkVersion` are `6.1.0(23)`.
 - `devecocli build` completes ArkTS compilation and HAP packaging. `HdsNavigation`, `HdsTabs`, and `HdsSnackBar` compile against the API 23 SDK. HDS visual behavior remains unverified until a device can run the app.
-- ArkTS Instrument Test compiles the application and `ohosTest` HAP, then stops at device coverage because there is no active device. The tests have not been executed.
+- ArkTS Instrument Test compiles the application and `ohosTest` HAP containing nine AppShell behavior cases, then stops at device coverage because there is no active device. The tests have not been executed.
 - The emulator is suitable only for structural and basic-interaction regression. It is not acceptable evidence for HDS immersion effects, User API Key authorization, HUKS persistence, or final visual acceptance.
 
 ## Human preparation checklist
