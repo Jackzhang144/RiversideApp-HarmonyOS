@@ -100,6 +100,7 @@ export default function jsonBoundaryTest(): void {
         '{"post_stream":{"posts":[{' +
         '"id":102729,"user_id":1,"username":"admin",' +
         '"cooked":"<h1>站务公告</h1><p>第一段<br>第二行 &amp; 更多</p>",' +
+        '"raw":"# 原始 Markdown",' +
         '"post_number":2,"reply_to_post_number":null,"created_at":"2026-01-28T00:00:00Z"' +
         '}]}}'
       );

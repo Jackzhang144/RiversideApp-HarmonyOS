@@ -64,11 +64,11 @@ export class Category {
 }
 
 function readablePostText(raw: string, cooked: string): string {
-  const source: string = raw.trim();
-  if (source.length > 0) {
-    return source;
+  const source: string = cooked.trim();
+  if (source.length === 0) {
+    return raw.trim();
   }
-  return cooked
+  return source
     .replace(/<script[\s\S]*?<\/script>/gi, '')
     .replace(/<style[\s\S]*?<\/style>/gi, '')
     .replace(/<br\s*\/?>/gi, '\n')
