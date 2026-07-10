@@ -124,9 +124,13 @@ export class PreferencesCategoryCache implements CategoryCache {
   }
 
   public async write(scope: CategoryCacheScope, categories: Array<Category>): Promise<void> {
-    const store: preferences.Preferences = await preferences.getPreferences(this.context, PREFERENCES_NAME);
-    await store.put(this.storageKey(scope), encodeCategories(categories));
-    await store.flush();
+    try {
+      const store: preferences.Preferences = await preferences.getPreferences(this.context, PREFERENCES_NAME);
+      await store.put(this.storageKey(scope), encodeCategories(categories));
+      await store.flush();
+    } catch (_) {
+      // Cache writes are best effort and never invalidate fresh network content.
+    }
   }
 
   private storageKey(scope: CategoryCacheScope): string {
