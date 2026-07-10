@@ -62,3 +62,71 @@ export class Category {
     this.subcategoryIds = subcategoryIds;
   }
 }
+
+export class ForumPost {
+  public readonly id: number;
+  public readonly userId: number;
+  public readonly username: string;
+  public readonly cooked: string;
+  public readonly raw: string;
+  public readonly postNumber: number;
+  public readonly replyToPostNumber: number | null;
+  public readonly createdAt: string;
+
+  public constructor(
+    id: number,
+    userId: number,
+    username: string,
+    cooked: string,
+    raw: string,
+    postNumber: number,
+    replyToPostNumber: number | null,
+    createdAt: string
+  ) {
+    this.id = id;
+    this.userId = userId;
+    this.username = username;
+    this.cooked = cooked;
+    this.raw = raw;
+    this.postNumber = postNumber;
+    this.replyToPostNumber = replyToPostNumber;
+    this.createdAt = createdAt;
+  }
+}
+
+export class TopicDetail {
+  public readonly id: number;
+  public readonly title: string;
+  public readonly viewCount: number;
+  public readonly postCount: number;
+  public readonly likeCount: number;
+  public readonly closed: boolean;
+  public readonly archived: boolean;
+  public readonly canReply: boolean;
+  public readonly postIds: Array<number>;
+  public readonly posts: Array<ForumPost>;
+
+  public constructor(
+    id: number,
+    title: string,
+    viewCount: number,
+    postCount: number,
+    likeCount: number,
+    closed: boolean,
+    archived: boolean,
+    canReply: boolean,
+    postIds: Array<number>,
+    posts: Array<ForumPost>
+  ) {
+    this.id = id;
+    this.title = title;
+    this.viewCount = viewCount;
+    this.postCount = postCount;
+    this.likeCount = likeCount;
+    this.closed = closed;
+    this.archived = archived;
+    this.canReply = !closed && !archived && canReply;
+    this.postIds = postIds;
+    this.posts = posts;
+  }
+}

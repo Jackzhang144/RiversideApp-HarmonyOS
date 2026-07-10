@@ -1,6 +1,6 @@
 import { CategoryCache, CategoryCacheScope } from '../cache/CategoryCache';
 import { RepositoryResult } from '../core/RepositoryResult';
-import { Category, Topic } from '../models/ForumModels';
+import { Category, ForumPost, Topic, TopicDetail } from '../models/ForumModels';
 import { ForumRepository } from '../repositories/ForumRepository';
 
 export enum RootDestination {
@@ -14,6 +14,96 @@ export enum BrowseStateKind {
   CONTENT = 'content',
   EMPTY = 'empty',
   ERROR = 'error'
+}
+
+export enum SecondaryDestination {
+  NONE = 'none',
+  CATEGORY_TOPICS = 'category-topics',
+  TOPIC = 'topic'
+}
+
+export enum TopicReadStateKind {
+  INITIAL = 'initial',
+  LOADING = 'loading',
+  CONTENT = 'content',
+  EMPTY = 'empty',
+  ERROR = 'error'
+}
+
+export class TopicReadState {
+  public readonly kind: TopicReadStateKind;
+  public readonly topicId: number;
+  public readonly title: string;
+  public readonly detail: TopicDetail | null;
+  public readonly posts: Array<ForumPost>;
+  public readonly canReply: boolean;
+  public readonly message: string;
+
+  private constructor(
+    kind: TopicReadStateKind,
+    topicId: number,
+    title: string,
+    detail: TopicDetail | null,
+    posts: Array<ForumPost>,
+    canReply: boolean,
+    message: string
+  ) {
+    this.kind = kind;
+    this.topicId = topicId;
+    this.title = title;
+    this.detail = detail;
+    this.posts = posts;
+    this.canReply = canReply;
+    this.message = message;
+  }
+
+  public static initial(): TopicReadState {
+    return new TopicReadState(TopicReadStateKind.INITIAL, 0, '', null, [], false, '');
+  }
+
+  public static loading(topic: Topic): TopicReadState {
+    return new TopicReadState(TopicReadStateKind.LOADING, topic.id, topic.title, null, [], false, '');
+  }
+
+  public static content(detail: TopicDetail, posts: Array<ForumPost>): TopicReadState {
+    return new TopicReadState(
+      TopicReadStateKind.CONTENT,
+      detail.id,
+      detail.title,
+      detail,
+      posts,
+      detail.canReply,
+      ''
+    );
+  }
+
+  public static empty(detail: TopicDetail): TopicReadState {
+    return new TopicReadState(
+      TopicReadStateKind.EMPTY,
+      detail.id,
+      detail.title,
+      detail,
+      [],
+      detail.canReply,
+      ''
+    );
+  }
+
+  public static error(topic: Topic, message: string): TopicReadState {
+    return new TopicReadState(TopicReadStateKind.ERROR, topic.id, topic.title, null, [], false, message);
+  }
+}
+
+function uniquePosts(posts: Array<ForumPost>): Array<ForumPost> {
+  const seenIds: Set<number> = new Set<number>();
+  const unique: Array<ForumPost> = [];
+  for (const post of posts) {
+    if (!seenIds.has(post.id)) {
+      seenIds.add(post.id);
+      unique.push(post);
+    }
+  }
+  return unique;
 }
 
 export class BrowseState<T> {
@@ -52,9 +142,11 @@ export class BrowseState<T> {
 
 export class AppShellModel {
   public selectedRoot: RootDestination = RootDestination.HOME;
+  public activeDestination: SecondaryDestination = SecondaryDestination.NONE;
   public requiresAuthentication: boolean = false;
   public homeState: BrowseState<Topic> = BrowseState.initial<Topic>();
   public categoryState: BrowseState<Category> = BrowseState.initial<Category>();
+  public topicState: TopicReadState = TopicReadState.initial();
 
   private readonly repository: ForumRepository;
   private readonly categoryCache: CategoryCache;
@@ -73,6 +165,26 @@ export class AppShellModel {
 
   public selectRoot(destination: RootDestination): void {
     this.selectedRoot = destination;
+  }
+
+  public async openTopic(topic: Topic): Promise<void> {
+    this.requiresAuthentication = false;
+    this.activeDestination = SecondaryDestination.TOPIC;
+    this.topicState = TopicReadState.loading(topic);
+    const result: RepositoryResult<TopicDetail> = await this.repository.loadTopicDetail(topic.id);
+    if (!result.isSuccess() || result.data === null) {
+      this.requiresAuthentication = result.isUnauthorized();
+      this.topicState = TopicReadState.error(topic, result.message);
+      return;
+    }
+    const posts: Array<ForumPost> = uniquePosts(result.data.posts);
+    this.topicState = posts.length === 0
+      ? TopicReadState.empty(result.data)
+      : TopicReadState.content(result.data, posts);
+  }
+
+  public closeSecondary(): void {
+    this.activeDestination = SecondaryDestination.NONE;
   }
 
   public async loadHome(): Promise<void> {

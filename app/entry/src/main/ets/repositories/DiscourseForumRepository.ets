@@ -1,5 +1,5 @@
 import { RepositoryResult } from '../core/RepositoryResult';
-import { Category, Topic } from '../models/ForumModels';
+import { Category, ForumPost, Topic, TopicDetail } from '../models/ForumModels';
 import { DiscourseHttpClient, HttpTextResult, HttpTextResultKind } from '../network/DiscourseHttpClient';
 import { ForumRepository } from './ForumRepository';
 import { ForumResponseParser } from './ForumResponseParser';
@@ -44,5 +44,17 @@ export class DiscourseForumRepository implements ForumRepository {
       return RepositoryResult.failure<Array<Category>>(directoryResponse.message);
     }
     return this.parser.parseCategories(siteResponse.body, directoryResponse.body);
+  }
+
+  public async loadCategoryTopics(_categoryId: number): Promise<RepositoryResult<Array<Topic>>> {
+    return RepositoryResult.failure<Array<Topic>>('Category Topic 读取尚未可用');
+  }
+
+  public async loadTopicDetail(_topicId: number): Promise<RepositoryResult<TopicDetail>> {
+    return RepositoryResult.failure<TopicDetail>('Topic 详情读取尚未可用');
+  }
+
+  public async loadTopicPosts(_topicId: number, _postIds: Array<number>): Promise<RepositoryResult<Array<ForumPost>>> {
+    return RepositoryResult.failure<Array<ForumPost>>('Post 分段读取尚未可用');
   }
 }

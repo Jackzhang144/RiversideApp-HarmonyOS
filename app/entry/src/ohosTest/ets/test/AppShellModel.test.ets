@@ -4,10 +4,11 @@ import {
   BrowseStateKind,
   RootDestination
 } from '../../../main/ets/app/AppShellModel';
-import { CategoryCache, CategoryCacheScope } from '../../../main/ets/cache/CategoryCache';
+import { CategoryCacheScope } from '../../../main/ets/cache/CategoryCache';
 import { RepositoryResult } from '../../../main/ets/core/RepositoryResult';
-import { Category, Topic } from '../../../main/ets/models/ForumModels';
+import { Category, ForumPost, Topic, TopicDetail } from '../../../main/ets/models/ForumModels';
 import { ForumRepository } from '../../../main/ets/repositories/ForumRepository';
+import { MemoryCategoryCache } from './support/MemoryCategoryCache';
 
 class StubForumRepository implements ForumRepository {
   public latestResults: Array<RepositoryResult<Array<Topic>>> = [];
@@ -26,21 +27,17 @@ class StubForumRepository implements ForumRepository {
     const result: RepositoryResult<Array<Category>> | undefined = this.categoryResults.shift();
     return result ?? RepositoryResult.failure<Array<Category>>('missing category result');
   }
-}
 
-class MemoryCategoryCache implements CategoryCache {
-  public stored: Array<Category> | null = null;
-  public readScope: CategoryCacheScope | null = null;
-  public writeScope: CategoryCacheScope | null = null;
-
-  public async read(scope: CategoryCacheScope): Promise<Array<Category> | null> {
-    this.readScope = scope;
-    return this.stored;
+  public async loadCategoryTopics(_categoryId: number): Promise<RepositoryResult<Array<Topic>>> {
+    return RepositoryResult.success<Array<Topic>>([]);
   }
 
-  public async write(scope: CategoryCacheScope, categories: Array<Category>): Promise<void> {
-    this.writeScope = scope;
-    this.stored = categories;
+  public async loadTopicDetail(_topicId: number): Promise<RepositoryResult<TopicDetail>> {
+    return RepositoryResult.failure<TopicDetail>('missing Topic detail result');
+  }
+
+  public async loadTopicPosts(_topicId: number, _postIds: Array<number>): Promise<RepositoryResult<Array<ForumPost>>> {
+    return RepositoryResult.success<Array<ForumPost>>([]);
   }
 }
 
