@@ -63,12 +63,36 @@ export class Category {
   }
 }
 
+function readablePostText(raw: string, cooked: string): string {
+  const source: string = raw.trim();
+  if (source.length > 0) {
+    return source;
+  }
+  return cooked
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/<style[\s\S]*?<\/style>/gi, '')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<li[^>]*>/gi, '• ')
+    .replace(/<\/(p|div|h[1-6]|li|blockquote)>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/\n[ \t]+/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
 export class ForumPost {
   public readonly id: number;
   public readonly userId: number;
   public readonly username: string;
   public readonly cooked: string;
   public readonly raw: string;
+  public readonly displayText: string;
   public readonly postNumber: number;
   public readonly replyToPostNumber: number | null;
   public readonly createdAt: string;
@@ -88,6 +112,7 @@ export class ForumPost {
     this.username = username;
     this.cooked = cooked;
     this.raw = raw;
+    this.displayText = readablePostText(raw, cooked);
     this.postNumber = postNumber;
     this.replyToPostNumber = replyToPostNumber;
     this.createdAt = createdAt;

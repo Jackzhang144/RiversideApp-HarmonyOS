@@ -79,5 +79,19 @@ export default function jsonBoundaryTest(): void {
       expect(result.data?.length).assertEqual(1);
       expect(result.data?.[0].postNumber).assertEqual(2);
     });
+
+    it('provides readable Post text when the response only contains cooked HTML', 0, () => {
+      const parser: ForumResponseParser = new ForumResponseParser();
+      const result: RepositoryResult<Array<ForumPost>> = parser.parseTopicPosts(
+        '{"post_stream":{"posts":[{' +
+        '"id":102729,"user_id":1,"username":"admin",' +
+        '"cooked":"<h1>站务公告</h1><p>第一段<br>第二行 &amp; 更多</p>",' +
+        '"post_number":2,"reply_to_post_number":null,"created_at":"2026-01-28T00:00:00Z"' +
+        '}]}}'
+      );
+
+      expect(result.kind).assertEqual(RepositoryResultKind.SUCCESS);
+      expect(result.data?.[0].displayText).assertEqual('站务公告\n第一段\n第二行 & 更多');
+    });
   });
 }
