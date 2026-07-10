@@ -7,6 +7,8 @@ build/
 **/build/
 .hvigor/
 **/.hvigor/
+.test/
+**/.test/
 oh_modules/
 **/oh_modules/
 
