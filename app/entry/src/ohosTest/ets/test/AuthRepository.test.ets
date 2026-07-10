@@ -151,6 +151,8 @@ export default function authRepositoryTest(): void {
       await beginning;
       expect(repository.state.kind).assertEqual(AuthStateKind.AUTHORIZING);
       expect(repository.state.authorizationUrl).assertEqual(request.authorizationUrl);
+      expect(repository.shouldInterceptNavigation('https://river-side.cc/latest')).assertFalse();
+      expect(repository.shouldInterceptNavigation('riverside://auth_redirect?payload=value')).assertTrue();
 
       const ordinaryNavigationHandled: boolean = await repository.handleNavigation(
         'https://river-side.cc/latest',

@@ -68,6 +68,8 @@ export default function appShellModelTest(): void {
       expect(model.selectedRoot).assertEqual(RootDestination.HOME);
       model.selectRoot(RootDestination.CATEGORY);
       expect(model.selectedRoot).assertEqual(RootDestination.CATEGORY);
+      model.selectRoot(RootDestination.ACCOUNT);
+      expect(model.selectedRoot).assertEqual(RootDestination.ACCOUNT);
     });
 
     it('shows Home loading then content from the repository', 0, async (done: Function) => {
@@ -218,6 +220,29 @@ export default function appShellModelTest(): void {
 
     it('rejects an empty authenticated cache identity', 0, () => {
       expect(CategoryCacheScope.authenticated('')).assertNull();
+    });
+
+    it('resets Category presentation when the authentication cache partition changes', 0, async (done: Function) => {
+      const repository: StubForumRepository = new StubForumRepository();
+      repository.categoryResults.push(RepositoryResult.success([category(60, '站务管理')]));
+      const model: AppShellModel = new AppShellModel(
+        repository,
+        new MemoryCategoryCache(),
+        CategoryCacheScope.anonymous()
+      );
+      await model.loadCategories();
+      expect(model.categoryState.kind).assertEqual(BrowseStateKind.CONTENT);
+      const authenticated: CategoryCacheScope | null = CategoryCacheScope.authenticated('client-123');
+      expect(authenticated === null).assertFalse();
+      if (authenticated === null) {
+        done();
+        return;
+      }
+
+      model.updateCategoryCacheScope(authenticated);
+
+      expect(model.categoryState.kind).assertEqual(BrowseStateKind.INITIAL);
+      done();
     });
   });
 }

@@ -9,7 +9,8 @@ export interface AuthenticationLifecycle {
 
 export enum RootDestination {
   HOME = 0,
-  CATEGORY = 1
+  CATEGORY = 1,
+  ACCOUNT = 2
 }
 
 export enum BrowseStateKind {
@@ -197,7 +198,7 @@ export class AppShellModel {
 
   private readonly repository: ForumRepository;
   private readonly categoryCache: CategoryCache;
-  private readonly categoryCacheScope: CategoryCacheScope;
+  private categoryCacheScope: CategoryCacheScope;
   private readonly authenticationLifecycle: AuthenticationLifecycle | null;
   private cachedCategories: Array<Category> | null = null;
   private remainingPostIds: Array<number> = [];
@@ -220,6 +221,15 @@ export class AppShellModel {
 
   public selectRoot(destination: RootDestination): void {
     this.selectedRoot = destination;
+  }
+
+  public updateCategoryCacheScope(scope: CategoryCacheScope): void {
+    if (this.categoryCacheScope.key === scope.key) {
+      return;
+    }
+    this.categoryCacheScope = scope;
+    this.cachedCategories = null;
+    this.categoryState = BrowseState.initial<Category>();
   }
 
   public async openCategory(category: Category): Promise<void> {

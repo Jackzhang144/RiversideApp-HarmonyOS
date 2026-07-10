@@ -125,6 +125,10 @@ export class AuthRepository {
     return this.state.session;
   }
 
+  public shouldInterceptNavigation(url: string): boolean {
+    return this.callbackValidator.isCallbackUrl(url);
+  }
+
   public async beginAuthorization(): Promise<void> {
     this.clearAuthorizationMaterial();
     this.state = AuthState.generatingRequest();
