@@ -1,6 +1,6 @@
 import { RepositoryResult } from '../core/RepositoryResult';
 import { JsonObjectReader } from '../core/JsonObjectReader';
-import { Category, Topic } from '../models/ForumModels';
+import { Category, ForumPost, Topic, TopicDetail } from '../models/ForumModels';
 
 interface UserDto {
   id: number | null;
@@ -424,6 +424,70 @@ function orderCategoryTree(categories: Array<Category>): Array<Category> {
   return ordered;
 }
 
+function decodePost(value: Object): ForumPost | null {
+  const post: JsonObjectReader | null = JsonObjectReader.fromValue(value);
+  if (post === null) {
+    return null;
+  }
+  const id: number | null = post.number('id');
+  const postNumber: number | null = post.number('post_number');
+  if (id === null || id <= 0 || postNumber === null || postNumber <= 0) {
+    return null;
+  }
+  return new ForumPost(
+    id,
+    numberOrZero(post.number('user_id')),
+    textOrEmpty(post.string('username')),
+    textOrEmpty(post.string('cooked')),
+    textOrEmpty(post.string('raw')),
+    postNumber,
+    post.number('reply_to_post_number'),
+    textOrEmpty(post.string('created_at'))
+  );
+}
+
+function decodePosts(postStream: JsonObjectReader): Array<ForumPost> | null {
+  const values: Array<Object | null> | null = postStream.array('posts');
+  if (values === null) {
+    return null;
+  }
+  const posts: Array<ForumPost> = [];
+  const seenIds: Set<number> = new Set<number>();
+  for (const value of values) {
+    if (value === null) {
+      continue;
+    }
+    const post: ForumPost | null = decodePost(value);
+    if (post === null) {
+      return null;
+    }
+    if (!seenIds.has(post.id)) {
+      seenIds.add(post.id);
+      posts.push(post);
+    }
+  }
+  return posts;
+}
+
+function firstReplyPermission(envelope: JsonObjectReader, details: JsonObjectReader | null): boolean {
+  const names: Array<string> = ['can_reply', 'can_create_post', 'can_create_reply'];
+  if (details !== null) {
+    for (const name of names) {
+      const value: boolean | null = details.boolean(name);
+      if (value !== null) {
+        return value;
+      }
+    }
+  }
+  for (const name of names) {
+    const value: boolean | null = envelope.boolean(name);
+    if (value !== null) {
+      return value;
+    }
+  }
+  return true;
+}
+
 export class ForumResponseParser {
   public parseLatestTopics(text: string): RepositoryResult<Array<Topic>> {
     const envelope: LatestTopicsDto | null = parseLatestEnvelope(text);
@@ -464,5 +528,39 @@ export class ForumResponseParser {
       }
     }
     return RepositoryResult.success(orderCategoryTree(Array.from(categoriesById.values())));
+  }
+
+  public parseTopicDetail(text: string): RepositoryResult<TopicDetail> {
+    const envelope: JsonObjectReader | null = JsonObjectReader.parse(text);
+    if (envelope === null) {
+      return RepositoryResult.failure<TopicDetail>('服务器响应缺少 Topic 详情');
+    }
+    const id: number | null = envelope.number('id');
+    const directTitle: string = textOrEmpty(envelope.string('title'));
+    const title: string = directTitle.length > 0 ? directTitle : textOrEmpty(envelope.string('fancy_title'));
+    const postStream: JsonObjectReader | null = envelope.object('post_stream');
+    if (id === null || id <= 0 || title.length === 0 || postStream === null) {
+      return RepositoryResult.failure<TopicDetail>('服务器响应缺少 Topic 详情');
+    }
+    const postIds: Array<number> | null = decodeNumberArray(postStream, 'stream');
+    const posts: Array<ForumPost> | null = decodePosts(postStream);
+    if (postIds === null || posts === null) {
+      return RepositoryResult.failure<TopicDetail>('服务器响应缺少 Post 列表');
+    }
+    const closed: boolean = envelope.boolean('closed') === true;
+    const archived: boolean = envelope.boolean('archived') === true;
+    const detail: TopicDetail = new TopicDetail(
+      id,
+      title,
+      numberOrZero(envelope.number('views')),
+      numberOrZero(envelope.number('posts_count')),
+      numberOrZero(envelope.number('like_count')),
+      closed,
+      archived,
+      firstReplyPermission(envelope, envelope.object('details')),
+      postIds,
+      posts
+    );
+    return RepositoryResult.success<TopicDetail>(detail);
   }
 }
