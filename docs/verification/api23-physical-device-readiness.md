@@ -4,13 +4,13 @@ Date: 2026-07-10
 
 ## Current machine evidence
 
-- `devecocli device list` reports **no active devices**.
-- `devecocli emulator list` reports a stopped `Mate 70 RS` phone emulator on HarmonyOS 6.1.0(23), but starting it fails because that instance's system image is missing.
-- `devecocli emulator image list --device-type phone --format json` reports a downloaded HarmonyOS 6.0.31(23) phone image.
-- Creating `Riverside API 23` against the downloaded image reports `Device create success`, but the instance does not appear in the emulator list before the tool timeout. DevEco Studio Device Manager must confirm or repair the instance before another CLI start attempt.
+- `devecocli device list` reports a running `Riverside API 23` phone emulator at `127.0.0.1:5555`, HarmonyOS 6.1.0(23).
 - The Stage project now exists under `app/` with bundle name `cc.river_side.app`; both `targetSdkVersion` and `compatibleSdkVersion` are `6.1.0(23)`.
-- `devecocli build` completes ArkTS compilation and HAP packaging. `HdsNavigation`, `HdsTabs`, and `HdsSnackBar` compile against the API 23 SDK. HDS visual behavior remains unverified until a device can run the app.
-- ArkTS Instrument Test compiles the application and `ohosTest` HAP containing nine AppShell behavior cases and three JSON boundary cases, then stops at device coverage because there is no active device. The tests have not been executed.
+- DevEco automatic debug signing was applied locally for verification. The local signing paths and passwords are not committed to Git.
+- `devecocli run` builds, signs, installs, and launches the app on the emulator. `HdsNavigation`, `HdsTabs`, and `HdsSnackBar` compile against the API 23 SDK.
+- Home and Category render real RiverSide data. HdsTabs switching works, and Category manual refresh completes two real requests with HTTP 200 responses.
+- Simulator verification exposed overlapping HDS/page titles; the navigation title bar was then hidden and both Home and Category were visually rechecked without overlap.
+- ArkTS Instrument Test executes nine AppShell behavior cases and three JSON boundary cases on the API 23 emulator: `Tests run: 12, Failure: 0, Error: 0, Pass: 12, Ignore: 0`.
 - The emulator is suitable only for structural and basic-interaction regression. It is not acceptable evidence for HDS immersion effects, User API Key authorization, HUKS persistence, or final visual acceptance.
 
 ## Human preparation checklist
@@ -31,9 +31,7 @@ Date: 2026-07-10
 
 ## Human-only blockers today
 
-- No API 23 physical device is connected.
-- The API 23 project and bundle name now exist, but no debug signing configuration exists, so deployment cannot be attempted.
-- The local API 23 emulator needs manual confirmation in DevEco Studio Device Manager before it can be used for structure and basic-interaction regression.
+- No API 23 physical device is connected, so HDS immersion and final visual acceptance remain blocked.
 - No designated disposable RiverSide test account has been supplied.
 
 These are readiness conditions, not reasons to weaken the MVP acceptance bar. The implementation plan must retain all five physical-device cases.
