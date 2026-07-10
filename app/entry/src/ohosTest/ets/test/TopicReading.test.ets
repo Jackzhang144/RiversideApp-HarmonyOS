@@ -1,6 +1,7 @@
 import { describe, expect, it } from '@ohos/hypium';
 import {
   AppShellModel,
+  BrowseStateKind,
   RootDestination,
   SecondaryDestination,
   TopicReadStateKind
@@ -14,6 +15,8 @@ import { MemoryCategoryCache } from './support/MemoryCategoryCache';
 class TopicReadingRepository implements ForumRepository {
   public topicDetailResults: Array<RepositoryResult<TopicDetail>> = [];
   public topicPostResults: Array<RepositoryResult<Array<ForumPost>>> = [];
+  public categoryTopicResults: Array<RepositoryResult<Array<Topic>>> = [];
+  public requestedCategoryIds: Array<number> = [];
   public requestedPostIds: Array<Array<number>> = [];
 
   public async loadLatestTopics(): Promise<RepositoryResult<Array<Topic>>> {
@@ -24,8 +27,10 @@ class TopicReadingRepository implements ForumRepository {
     return RepositoryResult.success<Array<Category>>([]);
   }
 
-  public async loadCategoryTopics(_categoryId: number): Promise<RepositoryResult<Array<Topic>>> {
-    return RepositoryResult.success<Array<Topic>>([]);
+  public async loadCategoryTopics(categoryId: number): Promise<RepositoryResult<Array<Topic>>> {
+    this.requestedCategoryIds.push(categoryId);
+    const result: RepositoryResult<Array<Topic>> | undefined = this.categoryTopicResults.shift();
+    return result ?? RepositoryResult.failure<Array<Topic>>('missing Category Topic result');
   }
 
   public async loadTopicDetail(_topicId: number): Promise<RepositoryResult<TopicDetail>> {
@@ -44,6 +49,10 @@ function topic(): Topic {
   return new Topic(2725, '站务管理区重要主题导航', 60, 1, 1959, 4, '', '', true, 'Co-admin');
 }
 
+function category(): Category {
+  return new Category(60, '站务管理', '25AAE2', '站务与公告', 1, null, []);
+}
+
 function firstPost(): ForumPost {
   return new ForumPost(102728, 24, 'Co-admin', '<h1>站务公告</h1>', '站务公告', 1, null, '2026-01-27T14:46:08.722Z');
 }
@@ -58,6 +67,29 @@ function thirdPost(): ForumPost {
 
 export default function topicReadingTest(): void {
   describe('AppShell Topic reading', () => {
+    it('opens a Category Topic list as a retryable secondary page', 0, async (done: Function) => {
+      const repository: TopicReadingRepository = new TopicReadingRepository();
+      repository.categoryTopicResults.push(RepositoryResult.failure<Array<Topic>>('网络连接失败'));
+      repository.categoryTopicResults.push(RepositoryResult.success<Array<Topic>>([topic()]));
+      const model: AppShellModel = new AppShellModel(
+        repository,
+        new MemoryCategoryCache(),
+        CategoryCacheScope.anonymous()
+      );
+
+      const loading: Promise<void> = model.openCategory(category());
+      expect(model.activeDestination).assertEqual(SecondaryDestination.CATEGORY_TOPICS);
+      expect(model.categoryTopicsState.kind).assertEqual(BrowseStateKind.LOADING);
+      await loading;
+      expect(model.categoryTopicsState.kind).assertEqual(BrowseStateKind.ERROR);
+
+      await model.retryCategoryTopics();
+      expect(repository.requestedCategoryIds.join(',')).assertEqual('60,60');
+      expect(model.categoryTopicsState.kind).assertEqual(BrowseStateKind.CONTENT);
+      expect(model.categoryTopicsState.items[0].id).assertEqual(2725);
+      done();
+    });
+
     it('opens a Topic as a secondary page and preserves the selected root when closed', 0, async (done: Function) => {
       const repository: TopicReadingRepository = new TopicReadingRepository();
       repository.topicDetailResults.push(RepositoryResult.success<TopicDetail>(new TopicDetail(

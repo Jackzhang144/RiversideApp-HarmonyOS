@@ -187,6 +187,8 @@ export class AppShellModel {
   public requiresAuthentication: boolean = false;
   public homeState: BrowseState<Topic> = BrowseState.initial<Topic>();
   public categoryState: BrowseState<Category> = BrowseState.initial<Category>();
+  public selectedCategory: Category | null = null;
+  public categoryTopicsState: BrowseState<Topic> = BrowseState.initial<Topic>();
   public topicState: TopicReadState = TopicReadState.initial();
 
   private readonly repository: ForumRepository;
@@ -207,6 +209,30 @@ export class AppShellModel {
 
   public selectRoot(destination: RootDestination): void {
     this.selectedRoot = destination;
+  }
+
+  public async openCategory(category: Category): Promise<void> {
+    this.requiresAuthentication = false;
+    this.activeDestination = SecondaryDestination.CATEGORY_TOPICS;
+    this.selectedCategory = category;
+    this.categoryTopicsState = BrowseState.loading<Topic>();
+    const result: RepositoryResult<Array<Topic>> = await this.repository.loadCategoryTopics(category.id);
+    if (!result.isSuccess() || result.data === null) {
+      this.requiresAuthentication = result.isUnauthorized();
+      this.categoryTopicsState = BrowseState.error<Topic>(result.message);
+      return;
+    }
+    this.categoryTopicsState = result.data.length === 0
+      ? BrowseState.empty<Topic>()
+      : BrowseState.content<Topic>(result.data);
+  }
+
+  public async retryCategoryTopics(): Promise<void> {
+    const category: Category | null = this.selectedCategory;
+    if (category === null) {
+      return;
+    }
+    await this.openCategory(category);
   }
 
   public async openTopic(topic: Topic): Promise<void> {
