@@ -60,8 +60,18 @@ export class DiscourseForumRepository implements ForumRepository {
     return this.parser.parseLatestTopics(response.body);
   }
 
-  public async loadTopicDetail(_topicId: number): Promise<RepositoryResult<TopicDetail>> {
-    return RepositoryResult.failure<TopicDetail>('Topic 详情读取尚未可用');
+  public async loadTopicDetail(topicId: number): Promise<RepositoryResult<TopicDetail>> {
+    if (!Number.isInteger(topicId) || topicId <= 0) {
+      return RepositoryResult.failure<TopicDetail>('Topic 标识无效');
+    }
+    const response: HttpTextResult = await this.client.get(`/t/${topicId}.json?track_visit=true`);
+    if (response.kind === HttpTextResultKind.UNAUTHORIZED) {
+      return RepositoryResult.unauthorized<TopicDetail>();
+    }
+    if (!response.isSuccess()) {
+      return RepositoryResult.failure<TopicDetail>(response.message);
+    }
+    return this.parser.parseTopicDetail(response.body);
   }
 
   public async loadTopicPosts(_topicId: number, _postIds: Array<number>): Promise<RepositoryResult<Array<ForumPost>>> {

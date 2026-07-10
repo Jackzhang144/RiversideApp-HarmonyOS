@@ -1,6 +1,6 @@
 import { describe, expect, it } from '@ohos/hypium';
 import { RepositoryResult, RepositoryResultKind } from '../../../main/ets/core/RepositoryResult';
-import { Topic } from '../../../main/ets/models/ForumModels';
+import { Topic, TopicDetail } from '../../../main/ets/models/ForumModels';
 import { ForumHttpClient, HttpTextResult } from '../../../main/ets/network/DiscourseHttpClient';
 import { DiscourseForumRepository } from '../../../main/ets/repositories/DiscourseForumRepository';
 
@@ -31,6 +31,26 @@ export default function discourseForumRepositoryTest(): void {
       expect(client.paths[0]).assertEqual('/c/60.json');
       expect(result.kind).assertEqual(RepositoryResultKind.SUCCESS);
       expect(result.data?.[0].id).assertEqual(2725);
+      done();
+    });
+
+    it('loads Topic detail with visit tracking enabled', 0, async (done: Function) => {
+      const client: StubForumHttpClient = new StubForumHttpClient();
+      client.results.push(HttpTextResult.success(200,
+        '{"id":2725,"title":"站务管理区重要主题导航","views":1959,"posts_count":1,"like_count":4,' +
+        '"closed":false,"archived":false,"details":{"can_reply":true},' +
+        '"post_stream":{"stream":[102728],"posts":[{' +
+        '"id":102728,"user_id":24,"username":"Co-admin","cooked":"<h1>站务公告</h1>",' +
+        '"raw":"站务公告","post_number":1,"reply_to_post_number":null,' +
+        '"created_at":"2026-01-27T14:46:08.722Z"}]}}'
+      ));
+      const repository: DiscourseForumRepository = new DiscourseForumRepository(client);
+
+      const result: RepositoryResult<TopicDetail> = await repository.loadTopicDetail(2725);
+
+      expect(client.paths[0]).assertEqual('/t/2725.json?track_visit=true');
+      expect(result.kind).assertEqual(RepositoryResultKind.SUCCESS);
+      expect(result.data?.id).assertEqual(2725);
       done();
     });
   });
