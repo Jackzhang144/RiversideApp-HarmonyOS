@@ -455,6 +455,17 @@ export class AppShellModel {
     );
   }
 
+  public resumeReplyAfterAuthentication(): void {
+    if (this.replyState.kind !== ReplyComposerStateKind.REAUTHENTICATE) {
+      return;
+    }
+    this.requiresAuthentication = false;
+    this.replyState = ReplyComposerState.editing(
+      this.replyState.draft,
+      this.replyState.replyToPostNumber
+    );
+  }
+
   public async submitReply(): Promise<void> {
     const detail: TopicDetail | null = this.topicState.detail;
     if (detail === null || !this.topicState.canReply || this.replyState.isBusy()) {

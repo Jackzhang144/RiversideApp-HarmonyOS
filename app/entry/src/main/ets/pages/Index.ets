@@ -132,6 +132,10 @@ struct Index {
       return;
     }
     model.updateCategoryCacheScope(this.categoryCacheScope(repository));
+    if (repository.state.kind === AuthStateKind.AUTHENTICATED) {
+      model.resumeReplyAfterAuthentication();
+      this.replyState = model.replyState;
+    }
     this.categoryState = model.categoryState;
     if (reloadCategories) {
       this.loadCategories();

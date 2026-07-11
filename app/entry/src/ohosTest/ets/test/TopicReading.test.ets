@@ -479,6 +479,9 @@ export default function topicReadingTest(): void {
       expect(model.replyState.kind).assertEqual(ReplyComposerStateKind.REAUTHENTICATE);
       expect(model.replyState.draft).assertEqual('登录后继续');
       expect(lifecycle.unauthorizedCallCount).assertEqual(1);
+      model.resumeReplyAfterAuthentication();
+      expect(model.replyState.kind).assertEqual(ReplyComposerStateKind.EDITING);
+      expect(model.replyState.draft).assertEqual('登录后继续');
       model.dismissReply();
       expect(model.replyState.kind).assertEqual(ReplyComposerStateKind.CLOSED);
       model.openReply(3);
