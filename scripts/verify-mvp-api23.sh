@@ -13,7 +13,7 @@ readonly PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 readonly APP_DIR="$PROJECT_ROOT/app"
 readonly BUNDLE_NAME="cc.river_side.app"
 readonly TEST_MODULE="entry_test"
-readonly REDACTOR="$PROJECT_ROOT/scripts/redact-sensitive-output.sh"
+readonly LOG_COLLECTOR="$PROJECT_ROOT/scripts/collect-sanitized-app-log.sh"
 readonly TEST_REPORT_VALIDATOR="$PROJECT_ROOT/scripts/validate-ohos-test-report.sh"
 
 if ! command -v devecocli >/dev/null 2>&1; then
@@ -70,13 +70,12 @@ grep -E 'OHOS_REPORT_RESULT:|OHOS_REPORT_CODE:|TestFinished-ResultCode:' <<<"$TE
 
 devecocli build --modules entry
 devecocli run --module entry --device "$DEVICE_SERIAL" --skip-build
-devecocli log \
-  --device "$DEVICE_SERIAL" \
-  --bundle-name "$BUNDLE_NAME" \
-  --crash \
-  --from 2m \
-  --tail 80 \
-  2>&1 | "$REDACTOR"
+readonly CRASH_OUTPUT="$("$LOG_COLLECTOR" "$DEVICE_SERIAL" 2m crash)"
+if [[ -n "${CRASH_OUTPUT//[[:space:]]/}" ]]; then
+  printf '%s\n' "$CRASH_OUTPUT"
+  printf 'Application crash output was detected after the regression launch.\n' >&2
+  exit 1
+fi
 
 printf 'MVP API 23 automated regression passed on %s (%s).\n' \
   "$DEVICE_SERIAL" "$EXPECTED_DEVICE_KIND"

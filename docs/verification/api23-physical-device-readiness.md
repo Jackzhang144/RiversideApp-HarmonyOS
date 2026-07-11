@@ -53,6 +53,12 @@ scripts/verify-mvp-api23.sh <device-serial> <device-kind>
 scripts/collect-sanitized-app-log.sh <device-serial> 5m
 ```
 
+只查看崩溃日志时追加 `crash`：
+
+```bash
+scripts/collect-sanitized-app-log.sh <device-serial> 5m crash
+```
+
 采集结果在输出前遮盖：
 
 - `User-Api-Key`、`User-Api-Client-Id`
