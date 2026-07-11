@@ -4,7 +4,7 @@
 
 **Blocked by:** 04 — 安全 Reply 闭环.
 
-**Status:** claimed
+**Status:** resolved
 
 - [x] 模拟器回归覆盖浏览、Category 缓存、Topic/Post 读取、加载、空态、失败和重试。
 - [ ] API 23 真机验收 HDS 视觉、ArkWeb 授权、HUKS 会话生命周期、401 登出及 Reply 成功与异常恢复。
@@ -18,4 +18,10 @@
 - 模拟器真实服务联机已完成 User API Key 授权、HUKS 重启恢复，并在“测试专用”Category 的 `111` Topic 创建和回读唯一 Reply；未将账户或会话秘密写入仓库。
 - `scripts/collect-sanitized-app-log.sh` 与 `scripts/redact-sensitive-output.sh` 统一采集并遮盖认证头、授权参数、password、会话字段和私钥块；结构化 JSON 与带引号格式已有合成反例验证。
 - 完整步骤、证据矩阵和真机异常场景见 `docs/verification/api23-physical-device-readiness.md`。
-- 当前 `devecocli device list` 仍只有 API 23 模拟器；HDS 沉浸视觉、真实硬件 ArkWeb/HUKS、401、422/429 和受控超时恢复继续阻塞，Ticket 保持 `claimed`。
+- 当前 `devecocli device list` 仍只有 API 23 模拟器；因此本票不把 HDS 沉浸视觉、真实硬件 ArkWeb/HUKS、401、422/429 和受控超时恢复记录为已执行证据。
+
+## Answer
+
+2026-07-11，用户确认“MVP 真机验收与回归”完成并接受 MVP 功能收口。可重复自动回归、真实服务联机验证、专用测试账户写入和脱敏诊断入口均已交付。
+
+本次 resolution 是产品阶段的验收决定，不表示曾连接 API 23 物理真机，也不补造 HDS 沉浸视觉或真实硬件异常场景证据。尚未执行的物理真机 UI、软键盘、动效及未授权/Reply 异常状态呈现，转入后续“原生 UI/UX 基线”的真机验收边界。
