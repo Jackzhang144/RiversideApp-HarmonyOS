@@ -1,5 +1,23 @@
 import { ForumPost } from './ForumModels';
 
+export class CurrentUser {
+  public readonly id: number;
+  public readonly username: string;
+
+  private constructor(id: number, username: string) {
+    this.id = id;
+    this.username = username;
+  }
+
+  public static create(id: number, username: string): CurrentUser | null {
+    const normalizedUsername: string = username.trim();
+    if (!Number.isInteger(id) || id <= 0 || normalizedUsername.length === 0) {
+      return null;
+    }
+    return new CurrentUser(id, normalizedUsername);
+  }
+}
+
 export class ReplyRequest {
   public readonly topicId: number;
   public readonly raw: string;

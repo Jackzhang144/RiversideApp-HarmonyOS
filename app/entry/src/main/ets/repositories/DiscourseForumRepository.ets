@@ -1,6 +1,6 @@
 import { RepositoryResult } from '../core/RepositoryResult';
 import { Category, ForumPost, Topic, TopicDetail } from '../models/ForumModels';
-import { ReplyRequest, ReplySubmitResult } from '../models/ReplyModels';
+import { CurrentUser, ReplyRequest, ReplySubmitResult } from '../models/ReplyModels';
 import { ForumHttpClient, HttpTextResult, HttpTextResultKind } from '../network/DiscourseHttpClient';
 import { ForumRepository } from './ForumRepository';
 import { ForumResponseParser } from './ForumResponseParser';
@@ -115,5 +115,16 @@ export class DiscourseForumRepository implements ForumRepository {
       return ReplySubmitResult.uncertain(parsed.message);
     }
     return ReplySubmitResult.created(parsed.data);
+  }
+
+  public async loadCurrentUser(): Promise<RepositoryResult<CurrentUser>> {
+    const response: HttpTextResult = await this.client.get('/session/current.json');
+    if (response.kind === HttpTextResultKind.UNAUTHORIZED) {
+      return RepositoryResult.unauthorized<CurrentUser>();
+    }
+    if (!response.isSuccess()) {
+      return RepositoryResult.failure<CurrentUser>(response.message);
+    }
+    return this.parser.parseCurrentUser(response.body);
   }
 }

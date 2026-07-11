@@ -1,6 +1,7 @@
 import { RepositoryResult } from '../core/RepositoryResult';
 import { JsonObjectReader } from '../core/JsonObjectReader';
 import { Category, ForumPost, Topic, TopicDetail } from '../models/ForumModels';
+import { CurrentUser } from '../models/ReplyModels';
 
 interface UserDto {
   id: number | null;
@@ -490,6 +491,22 @@ function firstReplyPermission(envelope: JsonObjectReader, details: JsonObjectRea
 }
 
 export class ForumResponseParser {
+  public parseCurrentUser(text: string): RepositoryResult<CurrentUser> {
+    const envelope: JsonObjectReader | null = JsonObjectReader.parse(text);
+    const user: JsonObjectReader | null = envelope?.object('current_user') ?? null;
+    if (user === null) {
+      return RepositoryResult.failure<CurrentUser>('服务器响应缺少当前用户');
+    }
+    const id: number | null = user.number('id');
+    const username: string | null = user.string('username');
+    const currentUser: CurrentUser | null = id === null || username === null
+      ? null
+      : CurrentUser.create(id, username);
+    return currentUser === null
+      ? RepositoryResult.failure<CurrentUser>('服务器响应缺少当前用户')
+      : RepositoryResult.success<CurrentUser>(currentUser);
+  }
+
   public parseLatestTopics(text: string): RepositoryResult<Array<Topic>> {
     const envelope: LatestTopicsDto | null = parseLatestEnvelope(text);
     if (envelope === null || envelope.topics === null) {

@@ -9,7 +9,7 @@ import {
 import { CategoryCacheScope } from '../../../main/ets/cache/CategoryCache';
 import { RepositoryResult } from '../../../main/ets/core/RepositoryResult';
 import { Category, ForumPost, Topic, TopicDetail } from '../../../main/ets/models/ForumModels';
-import { ReplyRequest, ReplySubmitResult } from '../../../main/ets/models/ReplyModels';
+import { CurrentUser, ReplyRequest, ReplySubmitResult } from '../../../main/ets/models/ReplyModels';
 import { ForumRepository } from '../../../main/ets/repositories/ForumRepository';
 import { MemoryCategoryCache } from './support/MemoryCategoryCache';
 
@@ -77,6 +77,10 @@ class TopicReadingRepository implements ForumRepository {
 
   public async submitReply(_request: ReplyRequest): Promise<ReplySubmitResult> {
     return ReplySubmitResult.rejected('missing Reply result');
+  }
+
+  public async loadCurrentUser(): Promise<RepositoryResult<CurrentUser>> {
+    return RepositoryResult.failure<CurrentUser>('missing current user result');
   }
 }
 

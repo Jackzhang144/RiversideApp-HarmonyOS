@@ -1,7 +1,12 @@
 import { describe, expect, it } from '@ohos/hypium';
 import { RepositoryResult, RepositoryResultKind } from '../../../main/ets/core/RepositoryResult';
 import { ForumPost, Topic, TopicDetail } from '../../../main/ets/models/ForumModels';
-import { ReplyRequest, ReplySubmitKind, ReplySubmitResult } from '../../../main/ets/models/ReplyModels';
+import {
+  CurrentUser,
+  ReplyRequest,
+  ReplySubmitKind,
+  ReplySubmitResult
+} from '../../../main/ets/models/ReplyModels';
 import { ForumHttpClient, HttpTextResult } from '../../../main/ets/network/DiscourseHttpClient';
 import { DiscourseForumRepository } from '../../../main/ets/repositories/DiscourseForumRepository';
 
@@ -134,6 +139,22 @@ export default function discourseForumRepositoryTest(): void {
       expect(rejected.message).assertEqual('回复内容不符合要求');
       expect(interrupted.kind).assertEqual(ReplySubmitKind.UNCERTAIN);
       expect(malformed.kind).assertEqual(ReplySubmitKind.UNCERTAIN);
+      done();
+    });
+
+    it('loads the current authenticated identity required for safe recovery', 0, async (done: Function) => {
+      const client: StubForumHttpClient = new StubForumHttpClient();
+      client.results.push(HttpTextResult.success(200,
+        '{"current_user":{"id":24,"username":"Co-admin"}}'
+      ));
+      const repository: DiscourseForumRepository = new DiscourseForumRepository(client);
+
+      const result: RepositoryResult<CurrentUser> = await repository.loadCurrentUser();
+
+      expect(client.paths[0]).assertEqual('/session/current.json');
+      expect(result.kind).assertEqual(RepositoryResultKind.SUCCESS);
+      expect(result.data?.id).assertEqual(24);
+      expect(result.data?.username).assertEqual('Co-admin');
       done();
     });
   });
