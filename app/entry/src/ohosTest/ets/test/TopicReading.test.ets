@@ -404,7 +404,7 @@ export default function topicReadingTest(): void {
       const repository: TopicReadingRepository = new TopicReadingRepository();
       repository.topicDetailResults.push(RepositoryResult.success<TopicDetail>(new TopicDetail(
         2725, '站务管理区重要主题导航', 1959, 3, 4, false, false, true,
-        [102728, 102729, 102730], [firstPost(), secondPost(), thirdPost()]
+        [102728, 102729, 102730], [firstPost(), secondPost(), thirdPost()], 7
       )));
       repository.currentUserResults.push(authenticatedUserResult());
       repository.replySubmitResults.push(ReplySubmitResult.uncertain('连接中断'));
@@ -420,7 +420,7 @@ export default function topicReadingTest(): void {
 
       expect(repository.submittedReplies.length).assertEqual(1);
       expect(repository.recoveryRequests.length).assertEqual(1);
-      expect(repository.recoveryRequests[0].expectedPostNumber).assertEqual(4);
+      expect(repository.recoveryRequests[0].expectedPostNumber).assertEqual(8);
       expect(model.replyState.kind).assertEqual(ReplyComposerStateKind.SUCCESS);
       expect(model.topicState.posts.length).assertEqual(4);
       done();

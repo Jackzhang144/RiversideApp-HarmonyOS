@@ -130,6 +130,7 @@ export class TopicDetail {
   public readonly canReply: boolean;
   public readonly postIds: Array<number>;
   public readonly posts: Array<ForumPost>;
+  public readonly highestPostNumber: number;
 
   public constructor(
     id: number,
@@ -141,7 +142,8 @@ export class TopicDetail {
     archived: boolean,
     canReply: boolean,
     postIds: Array<number>,
-    posts: Array<ForumPost>
+    posts: Array<ForumPost>,
+    highestPostNumber: number = 0
   ) {
     this.id = id;
     this.title = title;
@@ -153,5 +155,10 @@ export class TopicDetail {
     this.canReply = !closed && !archived && canReply;
     this.postIds = postIds;
     this.posts = posts;
+    let observedHighestPostNumber: number = Math.max(postCount, highestPostNumber);
+    for (const post of posts) {
+      observedHighestPostNumber = Math.max(observedHighestPostNumber, post.postNumber);
+    }
+    this.highestPostNumber = observedHighestPostNumber;
   }
 }

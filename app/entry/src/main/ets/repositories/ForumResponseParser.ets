@@ -593,7 +593,8 @@ export class ForumResponseParser {
       archived,
       firstReplyPermission(envelope, envelope.object('details')),
       postIds,
-      posts
+      posts,
+      numberOrZero(envelope.number('highest_post_number'))
     );
     return RepositoryResult.success<TopicDetail>(detail);
   }

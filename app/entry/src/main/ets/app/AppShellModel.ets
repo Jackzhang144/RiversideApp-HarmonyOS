@@ -563,7 +563,7 @@ export class AppShellModel {
   }
 
   private nextExpectedPostNumber(detail: TopicDetail): number {
-    let highestPostNumber: number = detail.postCount;
+    let highestPostNumber: number = detail.highestPostNumber;
     for (const post of this.topicState.posts) {
       highestPostNumber = Math.max(highestPostNumber, post.postNumber);
     }
@@ -599,7 +599,8 @@ export class AppShellModel {
       detail.archived,
       detail.canReply,
       postIds,
-      detailPosts
+      detailPosts,
+      Math.max(detail.highestPostNumber, post.postNumber)
     );
     const visiblePosts: Array<ForumPost> = uniquePosts(this.topicState.posts.concat([post]));
     this.topicState = TopicReadState.content(
