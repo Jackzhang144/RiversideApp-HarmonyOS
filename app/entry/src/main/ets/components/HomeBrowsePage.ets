@@ -138,10 +138,15 @@ export struct HomeBrowsePage {
             })
           }
         }, (topic: Topic): string => topic.id.toString())
+        ListItem() {
+          Column()
+            .width('100%')
+            .height(92)
+        }
       }
       .width('100%')
       .height('100%')
-      .padding({ left: 12, right: 12, top: 10, bottom: 104 })
+      .padding({ left: 12, right: 12, top: 10, bottom: 12 })
       .backgroundColor('#F5F6F8')
       .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
     }
@@ -219,11 +224,9 @@ export struct HomeBrowsePage {
       })
       .width('100%')
       .layoutWeight(1)
-      .ignoreLayoutSafeArea([LayoutSafeAreaType.SYSTEM], [LayoutSafeAreaEdge.BOTTOM])
     }
     .width('100%')
     .height('100%')
     .backgroundColor('#FFFFFF')
-    .ignoreLayoutSafeArea([LayoutSafeAreaType.SYSTEM], [LayoutSafeAreaEdge.BOTTOM])
   }
 }

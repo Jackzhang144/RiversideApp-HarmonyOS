@@ -690,10 +690,6 @@ struct Index {
         barSideMargin: 12,
         barBottomMargin: 28,
         adaptToHandedness: true,
-        gradientMask: {
-          maskColor: Color.Transparent,
-          maskHeight: 92
-        },
         systemMaterialEffect: {
           materialType: hdsMaterial.MaterialType.ADAPTIVE,
           materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE
