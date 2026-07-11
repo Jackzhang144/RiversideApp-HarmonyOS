@@ -45,6 +45,7 @@ const TOPIC_ROUTE: string = 'topic';
 const LOGIN_ROUTE: string = 'login';
 const UI_PROTOTYPE_ROUTE: string = 'ui-prototype';
 const RIVERSIDE_BASE_URL: string = 'https://river-side.cc';
+const ROOT_TAB_SELECTED_COLOR: string = '#317AF7';
 
 class RepositorySessionProvider implements AuthenticatedSessionProvider {
   private readonly repository: AuthRepository;
@@ -182,46 +183,37 @@ struct Index {
   }
 
   private selectRoot(index: number): void {
+    const model: AppShellModel | null = this.model;
+    if (model !== null) {
+      if (!model.selectRootTab(index)) {
+        return;
+      }
+      this.selectedRoot = model.selectedRoot;
+      return;
+    }
     const destination: RootDestination | null = rootDestinationForTabIndex(index);
     if (destination === null) {
       return;
     }
     this.selectedRoot = destination;
-    const model: AppShellModel | null = this.model;
-    if (model !== null) {
-      model.selectRootTab(index);
-    }
   }
 
-  private rootTabStyle(label: string, icon: Resource): BottomTabBarStyle {
+  private rootTabStyle(label: string, icon: Resource, available: boolean = true): BottomTabBarStyle {
+    const normalColor: ResourceColor = available
+      ? $r('sys.color.font_secondary')
+      : $r('sys.color.font_tertiary');
+    const selectedColor: ResourceColor = available ? ROOT_TAB_SELECTED_COLOR : normalColor;
     const normal: SymbolGlyphModifier = new SymbolGlyphModifier(icon)
       .fontSize(21)
-      .fontColor([$r('sys.color.font_secondary')]);
+      .fontColor([normalColor]);
     const selected: SymbolGlyphModifier = new SymbolGlyphModifier(icon)
       .fontSize(21)
-      .fontColor(['#317AF7']);
+      .fontColor([selectedColor]);
     return BottomTabBarStyle.of({ normal: normal, selected: selected }, label)
       .labelStyle({
         maxLines: 1,
-        unselectedColor: $r('sys.color.font_secondary'),
-        selectedColor: '#317AF7',
-        font: { size: 11 }
-      })
-      .padding({ left: 4, right: 4, top: 4, bottom: 4 });
-  }
-
-  private unavailableRootTabStyle(label: string, icon: Resource): BottomTabBarStyle {
-    const normal: SymbolGlyphModifier = new SymbolGlyphModifier(icon)
-      .fontSize(21)
-      .fontColor([$r('sys.color.font_tertiary')]);
-    const selected: SymbolGlyphModifier = new SymbolGlyphModifier(icon)
-      .fontSize(21)
-      .fontColor([$r('sys.color.font_tertiary')]);
-    return BottomTabBarStyle.of({ normal: normal, selected: selected }, label)
-      .labelStyle({
-        maxLines: 1,
-        unselectedColor: $r('sys.color.font_tertiary'),
-        selectedColor: $r('sys.color.font_tertiary'),
+        unselectedColor: normalColor,
+        selectedColor: selectedColor,
         font: { size: 11 }
       })
       .padding({ left: 4, right: 4, top: 4, bottom: 4 });
@@ -621,7 +613,7 @@ struct Index {
             .width('100%')
             .height('100%')
         }
-        .tabBar(this.unavailableRootTabStyle('聊天', $r('sys.symbol.message')))
+        .tabBar(this.rootTabStyle('聊天', $r('sys.symbol.message'), false))
         .accessibilityText('聊天，未实现')
 
         TabContent() {
@@ -629,7 +621,7 @@ struct Index {
             .width('100%')
             .height('100%')
         }
-        .tabBar(this.unavailableRootTabStyle('消息', $r('sys.symbol.bell')))
+        .tabBar(this.rootTabStyle('消息', $r('sys.symbol.bell'), false))
         .accessibilityText('消息，未实现')
 
         TabContent() {
@@ -676,5 +668,6 @@ struct Index {
     .navDestination(this.SecondaryPage)
     .width('100%')
     .height('100%')
+    .ignoreLayoutSafeArea([LayoutSafeAreaType.SYSTEM], [LayoutSafeAreaEdge.BOTTOM])
   }
 }

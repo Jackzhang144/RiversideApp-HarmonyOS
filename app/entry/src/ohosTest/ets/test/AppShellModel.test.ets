@@ -109,8 +109,10 @@ export default function appShellModelTest(): void {
 
       expect(model.selectRootTab(RootTabIndex.ACCOUNT)).assertTrue();
       expect(model.selectedRoot).assertEqual(RootDestination.ACCOUNT);
+      expect(model.selectRootTab(RootTabIndex.HOME)).assertTrue();
+      expect(model.selectedRoot).assertEqual(RootDestination.HOME);
       expect(model.selectRootTab(-1)).assertFalse();
-      expect(model.selectedRoot).assertEqual(RootDestination.ACCOUNT);
+      expect(model.selectedRoot).assertEqual(RootDestination.HOME);
     });
 
     it('shows Home loading then content from the repository', 0, async (done: Function) => {
