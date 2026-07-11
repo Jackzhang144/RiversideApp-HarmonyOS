@@ -38,6 +38,11 @@ export enum PrototypeViewState {
   UNAUTHORIZED = 4
 }
 
+enum PrototypeComposerKind {
+  REPLY = 0,
+  TOPIC = 1
+}
+
 @Component
 export struct UiPrototypePage {
   private snackBar: HdsSnackBar | null = null;
@@ -51,6 +56,10 @@ export struct UiPrototypePage {
   @State chatMode: number = 0;
   @State notificationMode: number = 1;
   @State replyDraft: string = '';
+  @State topicTitleDraft: string = '';
+  @State topicBodyDraft: string = '';
+  @State composerKind: PrototypeComposerKind = PrototypeComposerKind.REPLY;
+  @State composerSheetVisible: boolean = false;
   @State controlsVisible: boolean = false;
   @State homeRefreshing: boolean = false;
   @State notificationsRefreshing: boolean = false;
@@ -75,6 +84,25 @@ export struct UiPrototypePage {
       .accessibilityText(`查看${label}设计原型`)
   }
 
+  private openComposer(kind: PrototypeComposerKind): void {
+    this.composerKind = kind;
+    this.composerSheetVisible = true;
+    this.controlsVisible = false;
+  }
+
+  @Builder
+  private ComposerLaunchButton(label: string, kind: PrototypeComposerKind): void {
+    Button(label, { type: ButtonType.Normal })
+      .fontSize(12)
+      .fontColor($r('sys.color.font_primary'))
+      .backgroundColor('#EEF1F5')
+      .borderRadius(8)
+      .height(36)
+      .layoutWeight(1)
+      .onClick((): void => this.openComposer(kind))
+      .accessibilityText(`打开${label}半模态设计原型`)
+  }
+
   @Builder
   private SurfaceSwitcher(): void {
     Column({ space: 6 }) {
@@ -91,8 +119,8 @@ export struct UiPrototypePage {
       }
       .width('100%')
       Row({ space: 6 }) {
-        this.SurfaceButton('Reply', PrototypeSurface.REPLY)
-        Blank().layoutWeight(1)
+        this.ComposerLaunchButton('Reply 半模态', PrototypeComposerKind.REPLY)
+        this.ComposerLaunchButton('发帖半模态', PrototypeComposerKind.TOPIC)
         Blank().layoutWeight(1)
       }
       .width('100%')
@@ -372,7 +400,8 @@ export struct UiPrototypePage {
           .width(40)
           .height(40)
           .borderRadius(20)
-          .accessibilityText('创建 Topic')
+          .onClick((): void => this.openComposer(PrototypeComposerKind.TOPIC))
+          .accessibilityText('打开创建 Topic 半模态原型')
       }
     }
     .width('100%')
@@ -1145,7 +1174,7 @@ export struct UiPrototypePage {
   }
 
   @Builder
-  private TopicContent(showComposer: boolean): void {
+  private TopicContent(): void {
     Column() {
       this.AppHeader('主题详情', false)
       List({ space: 10 }) {
@@ -1180,27 +1209,21 @@ export struct UiPrototypePage {
       .backgroundColor('#F5F6F8')
       .edgeEffect(EdgeEffect.Spring)
 
-      if (showComposer) {
-        this.ReplyComposer()
-      } else {
-        Row({ space: 8 }) {
-          Text('输入 Reply 内容')
-            .fontSize(13)
-            .fontColor($r('sys.color.font_tertiary'))
-            .layoutWeight(1)
-            .padding({ left: 12, top: 10, bottom: 10 })
-            .backgroundColor('#F4F5F7')
-            .borderRadius(8)
-          Button('Reply Topic')
-            .fontSize(13)
-            .onClick((): void => {
-              this.surface = PrototypeSurface.REPLY;
-            })
-        }
-        .width('100%')
-        .padding({ left: 12, right: 12, top: 8, bottom: 8 })
-        .border({ width: { top: 1 }, color: '#E7E9ED' })
+      Row({ space: 8 }) {
+        Text(this.replyDraft.length > 0 ? '继续编辑 Reply 草稿' : '输入 Reply 内容')
+          .fontSize(13)
+          .fontColor($r('sys.color.font_tertiary'))
+          .layoutWeight(1)
+          .padding({ left: 12, top: 10, bottom: 10 })
+          .backgroundColor('#F4F5F7')
+          .borderRadius(8)
+        Button('Reply Topic')
+          .fontSize(13)
+          .onClick((): void => this.openComposer(PrototypeComposerKind.REPLY))
       }
+      .width('100%')
+      .padding({ left: 12, right: 12, top: 8, bottom: 8 })
+      .border({ width: { top: 1 }, color: '#E7E9ED' })
     }
     .width('100%')
     .height('100%')
@@ -1335,14 +1358,44 @@ export struct UiPrototypePage {
     .accessibilityText(`${label}${detail.length > 0 ? `，${detail}` : ''}`)
   }
 
-  private publishReply(): void {
-    if (this.replyDraft.trim().length === 0 || this.snackBar === null) {
+  private composerBodyDraft(): string {
+    return this.composerKind === PrototypeComposerKind.REPLY ? this.replyDraft : this.topicBodyDraft;
+  }
+
+  private updateComposerBody(value: string): void {
+    if (this.composerKind === PrototypeComposerKind.REPLY) {
+      this.replyDraft = value;
+    } else {
+      this.topicBodyDraft = value;
+    }
+  }
+
+  private composerKindLabel(): string {
+    return this.composerKind === PrototypeComposerKind.REPLY ? 'Reply' : '发帖';
+  }
+
+  private canPublishComposer(): boolean {
+    if (this.composerBodyDraft().trim().length === 0) {
+      return false;
+    }
+    return this.composerKind === PrototypeComposerKind.REPLY || this.topicTitleDraft.trim().length > 0;
+  }
+
+  private publishComposer(): void {
+    if (!this.canPublishComposer() || this.snackBar === null) {
       return;
     }
-    this.replyDraft = '';
+    const kindLabel: string = this.composerKindLabel();
+    if (this.composerKind === PrototypeComposerKind.REPLY) {
+      this.replyDraft = '';
+    } else {
+      this.topicTitleDraft = '';
+      this.topicBodyDraft = '';
+    }
+    this.composerSheetVisible = false;
     this.snackBar.show(
       { icon: $r('sys.symbol.checkmark_circle') },
-      { title: 'Reply 已发布', content: '这是设计原型，不会写入论坛。' },
+      { title: `${kindLabel} 已模拟发布`, content: '这是设计原型，不会写入论坛。' },
       {
         operationType: SnackBarOperationType.CLOSE_BUTTON_ONLY,
         closeButtonAccessibilityText: '关闭提示'
@@ -1352,59 +1405,121 @@ export struct UiPrototypePage {
   }
 
   @Builder
-  private ReplyComposer(): void {
-    Column({ space: 8 }) {
-      Row() {
-        Text('Reply Topic')
-          .fontSize(15)
+  private ComposerContext(): void {
+    Row({ space: 8 }) {
+      SymbolGlyph(this.composerKind === PrototypeComposerKind.REPLY
+        ? $r('sys.symbol.message')
+        : $r('sys.symbol.square_and_pencil'))
+        .fontSize(18)
+        .fontColor(['#317AF7'])
+      Column({ space: 2 }) {
+        Text(this.composerKind === PrototypeComposerKind.REPLY ? '回复 Topic #2725' : '发布到 RiverSide')
+          .fontSize(13)
           .fontWeight(FontWeight.Medium)
-          .layoutWeight(1)
-        Text(`${this.replyDraft.length}/1000`)
+        Text(this.composerKind === PrototypeComposerKind.REPLY ? '图书馆座位预约系统使用体验优化建议' : '选择 Category 后公开发布')
           .fontSize(11)
           .fontColor($r('sys.color.font_tertiary'))
       }
-      TextArea({ text: this.replyDraft, placeholder: '输入 Reply 内容' })
-        .height(86)
-        .maxLength(1000)
-        .backgroundColor('#F4F5F7')
-        .borderRadius(8)
-        .onChange((value: string): void => {
-          this.replyDraft = value;
-        })
-        .accessibilityText('Reply 内容，最多 1000 个字符')
-      Row({ space: 10 }) {
-        Button() {
-          SymbolGlyph($r('sys.symbol.ohos_photo'))
-            .fontSize(20)
-            .fontColor([$r('sys.color.font_secondary')])
-            .hitTestBehavior(HitTestMode.None)
-        }
-        .width(40)
-        .height(40)
-        .backgroundColor(Color.Transparent)
-        .accessibilityText('添加图片，设计原型中不可用')
-        Button() {
-          SymbolGlyph($r('sys.symbol.at'))
-            .fontSize(20)
-            .fontColor([$r('sys.color.font_secondary')])
-            .hitTestBehavior(HitTestMode.None)
-        }
-        .width(40)
-        .height(40)
-        .backgroundColor(Color.Transparent)
-        .accessibilityText('提及用户，设计原型中不可用')
-        Blank()
-        Button('发布 Reply')
-          .fontSize(13)
-          .enabled(this.replyDraft.trim().length > 0)
-          .onClick((): void => this.publishReply())
-          .accessibilityText('发布 Reply，仅更新设计原型状态')
+      .alignItems(HorizontalAlign.Start)
+      .layoutWeight(1)
+      if (this.composerKind === PrototypeComposerKind.TOPIC) {
+        Text('水手之家')
+          .fontSize(11)
+          .fontColor('#2068C9')
+          .padding({ left: 8, right: 8, top: 5, bottom: 5 })
+          .backgroundColor('#EAF2FF')
+          .borderRadius(10)
       }
     }
     .width('100%')
-    .padding({ left: 12, right: 12, top: 10, bottom: 10 })
-    .backgroundColor('#FFFFFF')
-    .border({ width: { top: 1 }, color: '#E7E9ED' })
+    .padding(12)
+    .backgroundColor('#F5F7FA')
+    .borderRadius(12)
+  }
+
+  @Builder
+  private ComposerTools(): void {
+    Row({ space: 10 }) {
+      Button() {
+        SymbolGlyph($r('sys.symbol.ohos_photo'))
+          .fontSize(20)
+          .fontColor([$r('sys.color.font_tertiary')])
+          .hitTestBehavior(HitTestMode.None)
+      }
+      .width(40)
+      .height(40)
+      .enabled(false)
+      .backgroundColor('#F1F2F4')
+      .accessibilityText('图片，未实现')
+      Button() {
+        SymbolGlyph($r('sys.symbol.at'))
+          .fontSize(20)
+          .fontColor([$r('sys.color.font_tertiary')])
+          .hitTestBehavior(HitTestMode.None)
+      }
+      .width(40)
+      .height(40)
+      .enabled(false)
+      .backgroundColor('#F1F2F4')
+      .accessibilityText('提及用户，未实现')
+      Text('图片 / @ · 未实现')
+        .fontSize(11)
+        .fontColor($r('sys.color.font_tertiary'))
+    }
+  }
+
+  @Builder
+  private ComposerPublishButton(fullWidth: boolean): void {
+    Button(this.composerKind === PrototypeComposerKind.REPLY ? '发布 Reply' : '发布 Topic')
+      .fontSize(13)
+      .enabled(this.canPublishComposer())
+      .width(fullWidth ? '100%' : 112)
+      .height(42)
+      .onClick((): void => this.publishComposer())
+      .accessibilityText(`模拟发布${this.composerKindLabel()}，仅更新原型状态`)
+  }
+
+  @Builder
+  private QuickComposerContent(): void {
+    Scroll() {
+      Column({ space: 12 }) {
+        this.ComposerContext()
+        if (this.composerKind === PrototypeComposerKind.TOPIC) {
+          TextInput({ text: this.topicTitleDraft, placeholder: 'Topic 标题' })
+            .height(44)
+            .backgroundColor('#F5F6F8')
+            .onChange((value: string): void => {
+              this.topicTitleDraft = value;
+            })
+        }
+        TextArea({ text: this.composerBodyDraft(), placeholder: this.composerKind === PrototypeComposerKind.REPLY
+          ? '输入纯文本或 Markdown Reply'
+          : '分享内容、问题或想法' })
+          .height(150)
+          .backgroundColor('#F5F6F8')
+          .borderRadius(10)
+          .onChange((value: string): void => this.updateComposerBody(value))
+        Row() {
+          Text(`${this.composerBodyDraft().length} 字符 · 草稿仅保存在内存中`)
+            .fontSize(11)
+            .fontColor($r('sys.color.font_tertiary'))
+            .layoutWeight(1)
+          this.ComposerTools()
+        }
+        this.ComposerPublishButton(true)
+      }
+      .width('100%')
+      .constraintSize({ minHeight: '100%' })
+      .padding({ left: 16, right: 16, top: 8 })
+    }
+    .width('100%')
+    .height('100%')
+    .edgeEffect(EdgeEffect.Spring)
+  }
+
+  @Builder
+  private PrototypeComposerSheet(): void {
+    this.QuickComposerContent()
   }
 
   @Builder
@@ -1418,11 +1533,11 @@ export struct UiPrototypePage {
     } else if (this.surface === PrototypeSurface.NOTIFICATIONS) {
       this.NotificationsContent()
     } else if (this.surface === PrototypeSurface.TOPIC) {
-      this.TopicContent(false)
+      this.TopicContent()
     } else if (this.surface === PrototypeSurface.ACCOUNT) {
       this.AccountContent()
     } else {
-      this.TopicContent(true)
+      this.TopicContent()
     }
   }
 
@@ -1503,6 +1618,20 @@ export struct UiPrototypePage {
     .width('100%')
     .height('100%')
     .backgroundColor('#F5F6F8')
+    .bindSheet($$this.composerSheetVisible, this.PrototypeComposerSheet(), {
+      detents: [SheetSize.MEDIUM, SheetSize.LARGE],
+      detentSelection: this.composerKind === PrototypeComposerKind.REPLY ? SheetSize.MEDIUM : SheetSize.LARGE,
+      showClose: true,
+      dragBar: true,
+      title: {
+        title: `${this.composerKindLabel()} 编辑器`,
+        subtitle: '快速输入 · 原型不会连接后端'
+      },
+      keyboardAvoidMode: SheetKeyboardAvoidMode.TRANSLATE_AND_RESIZE,
+      onDisappear: (): void => {
+        this.composerSheetVisible = false;
+      }
+    })
     .ignoreLayoutSafeArea([LayoutSafeAreaType.SYSTEM], [LayoutSafeAreaEdge.BOTTOM])
   }
 }
