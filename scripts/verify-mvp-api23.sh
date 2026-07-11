@@ -2,12 +2,13 @@
 
 set -Eeuo pipefail
 
-if [[ $# -ne 1 || -z "${1// }" ]]; then
-  printf 'Usage: %s <device-serial>\n' "$0" >&2
+if [[ $# -ne 2 || -z "${1// }" || ! "$2" =~ ^[a-z]+$ ]]; then
+  printf 'Usage: %s <device-serial> <device-kind>\n' "$0" >&2
   exit 2
 fi
 
 readonly DEVICE_SERIAL="$1"
+readonly EXPECTED_DEVICE_KIND="$2"
 readonly PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 readonly APP_DIR="$PROJECT_ROOT/app"
 readonly BUNDLE_NAME="cc.river_side.app"
@@ -27,7 +28,28 @@ fi
 
 cd "$APP_DIR"
 
-devecocli device view -t "$DEVICE_SERIAL"
+readonly DEVICE_LIST_OUTPUT="$(devecocli device list)"
+readonly DEVICE_ROW="$(grep -F "$DEVICE_SERIAL" <<<"$DEVICE_LIST_OUTPUT" | head -1 || true)"
+if [[ -z "$DEVICE_ROW" ]]; then
+  printf 'Target device is not connected: %s\n' "$DEVICE_SERIAL" >&2
+  exit 1
+fi
+if ! grep -Eq "[[:space:]]${EXPECTED_DEVICE_KIND}[[:space:]]+phone([[:space:]]|$)" <<<"$DEVICE_ROW"; then
+  printf 'Target must be a phone whose Kind is %s: %s\n' "$EXPECTED_DEVICE_KIND" "$DEVICE_ROW" >&2
+  exit 1
+fi
+
+readonly DEVICE_VIEW_OUTPUT="$(devecocli device view -t "$DEVICE_SERIAL")"
+printf '%s\n' "$DEVICE_VIEW_OUTPUT"
+if ! grep -Eq 'Device Type:[[:space:]]+phone' <<<"$DEVICE_VIEW_OUTPUT"; then
+  printf 'Target is not a phone.\n' >&2
+  exit 1
+fi
+if ! grep -Eq 'OS Version:[[:space:]]+API 23([[:space:]]|\()' <<<"$DEVICE_VIEW_OUTPUT"; then
+  printf 'Target is not running API 23.\n' >&2
+  exit 1
+fi
+
 devecocli build --modules entry@ohosTest
 devecocli run --module entry@ohosTest --device "$DEVICE_SERIAL" --skip-build
 
@@ -56,4 +78,5 @@ devecocli log \
   --tail 80 \
   2>&1 | "$REDACTOR"
 
-printf 'MVP API 23 automated regression passed on %s.\n' "$DEVICE_SERIAL"
+printf 'MVP API 23 automated regression passed on %s (%s).\n' \
+  "$DEVICE_SERIAL" "$EXPECTED_DEVICE_KIND"

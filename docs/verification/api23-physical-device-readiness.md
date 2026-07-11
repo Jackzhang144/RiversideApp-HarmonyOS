@@ -21,8 +21,10 @@
 从仓库根目录执行：
 
 ```bash
-scripts/verify-mvp-api23.sh <device-serial>
+scripts/verify-mvp-api23.sh <device-serial> <device-kind>
 ```
+
+`device-kind` 必须与 `devecocli device list` 的 Kind 列一致；当前模拟器使用 `emulator`，物理真机使用其实际显示值。脚本会拒绝 Kind 不匹配、非 Phone 或非 API 23 的目标。
 
 脚本会依次：
 
