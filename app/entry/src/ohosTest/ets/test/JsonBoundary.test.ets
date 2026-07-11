@@ -94,6 +94,19 @@ export default function jsonBoundaryTest(): void {
       expect(result.data?.[0].postNumber).assertEqual(2);
     });
 
+    it('keeps Reply creation aliases out of ordinary Post windows', 0, () => {
+      const parser: ForumResponseParser = new ForumResponseParser();
+      const result: RepositoryResult<Array<ForumPost>> = parser.parseTopicPosts(
+        '{"post_stream":{"posts":[{' +
+        '"post_id":102729,"user_id":1,"username":"admin","raw":"Reply",' +
+        '"target_post_number":2,"reply_to_post_number":null' +
+        '}]}}'
+      );
+
+      expect(result.kind).assertEqual(RepositoryResultKind.FAILURE);
+      expect(result.data).assertNull();
+    });
+
     it('provides readable Post text when the response only contains cooked HTML', 0, () => {
       const parser: ForumResponseParser = new ForumResponseParser();
       const result: RepositoryResult<Array<ForumPost>> = parser.parseTopicPosts(

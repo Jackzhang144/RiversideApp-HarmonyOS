@@ -425,9 +425,11 @@ function orderCategoryTree(categories: Array<Category>): Array<Category> {
   return ordered;
 }
 
-function decodePostReader(post: JsonObjectReader): ForumPost | null {
-  const id: number | null = post.number('id') ?? post.number('post_id');
-  const postNumber: number | null = post.number('post_number') ?? post.number('target_post_number');
+function forumPostFromReader(
+  post: JsonObjectReader,
+  id: number | null,
+  postNumber: number | null
+): ForumPost | null {
   if (id === null || id <= 0 || postNumber === null || postNumber <= 0) {
     return null;
   }
@@ -440,6 +442,18 @@ function decodePostReader(post: JsonObjectReader): ForumPost | null {
     postNumber,
     post.number('reply_to_post_number'),
     textOrEmpty(post.string('created_at'))
+  );
+}
+
+function decodePostReader(post: JsonObjectReader): ForumPost | null {
+  return forumPostFromReader(post, post.number('id'), post.number('post_number'));
+}
+
+function decodeCreatedPostReader(post: JsonObjectReader): ForumPost | null {
+  return forumPostFromReader(
+    post,
+    post.number('id') ?? post.number('post_id'),
+    post.number('post_number') ?? post.number('target_post_number')
   );
 }
 
@@ -602,7 +616,7 @@ export class ForumResponseParser {
       return RepositoryResult.failure<ForumPost>('服务器响应缺少已创建的 Reply');
     }
     const nestedPost: JsonObjectReader | null = envelope.object('post');
-    const post: ForumPost | null = decodePostReader(nestedPost ?? envelope);
+    const post: ForumPost | null = decodeCreatedPostReader(nestedPost ?? envelope);
     return post === null
       ? RepositoryResult.failure<ForumPost>('服务器响应缺少已创建的 Reply')
       : RepositoryResult.success<ForumPost>(post);
