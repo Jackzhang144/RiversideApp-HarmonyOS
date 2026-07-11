@@ -29,6 +29,7 @@ import { CategoryTopicsPage } from '../components/CategoryTopicsPage';
 import { HomeBrowsePage } from '../components/HomeBrowsePage';
 import { LoginPage } from '../components/LoginPage';
 import { TopicDetailPage } from '../components/TopicDetailPage';
+import { UiPrototypePage } from '../components/prototype/UiPrototypePage';
 import { Category, Topic } from '../models/ForumModels';
 import {
   AuthenticatedSessionProvider,
@@ -39,6 +40,7 @@ import { DiscourseForumRepository } from '../repositories/DiscourseForumReposito
 const CATEGORY_TOPICS_ROUTE: string = 'category-topics';
 const TOPIC_ROUTE: string = 'topic';
 const LOGIN_ROUTE: string = 'login';
+const UI_PROTOTYPE_ROUTE: string = 'ui-prototype';
 const RIVERSIDE_BASE_URL: string = 'https://river-side.cc';
 
 class RepositorySessionProvider implements AuthenticatedSessionProvider {
@@ -315,6 +317,18 @@ struct Index {
     await this.beginAuthorization();
   }
 
+  private openUiPrototype(): void {
+    this.pathStack.pushPath({ name: UI_PROTOTYPE_ROUTE });
+  }
+
+  private closeUiPrototype(): void {
+    const model: AppShellModel | null = this.model;
+    if (model !== null) {
+      model.closeSecondary();
+    }
+    this.pathStack.pop();
+  }
+
   private async beginAuthorization(): Promise<void> {
     const repository: AuthRepository | null = this.authRepository;
     if (repository === null) {
@@ -456,6 +470,17 @@ struct Index {
         }
       })
       .onBackPressed((): boolean => this.cancelLogin())
+    } else if (name === UI_PROTOTYPE_ROUTE) {
+      HdsNavDestination() {
+        UiPrototypePage({
+          onExit: (): void => {
+            this.closeUiPrototype();
+          }
+        })
+      }
+      .hideTitleBar(true)
+      .ignoreLayoutSafeArea([LayoutSafeAreaType.SYSTEM], [LayoutSafeAreaEdge.BOTTOM])
+      .onBackPressed((): boolean => this.handleSecondaryBack())
     } else {
       HdsNavDestination() {
         Text('页面不可用')
@@ -563,6 +588,9 @@ struct Index {
             },
             onLogout: (): void => {
               this.logout();
+            },
+            onOpenUiPrototype: (): void => {
+              this.openUiPrototype();
             }
           })
         }

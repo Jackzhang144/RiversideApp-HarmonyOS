@@ -5,6 +5,27 @@ export struct AccountPage {
   @Prop state: AuthState = AuthState.idle();
   onLogin: () => void = (): void => {};
   onLogout: () => void = (): void => {};
+  onOpenUiPrototype: () => void = (): void => {};
+
+  @Builder
+  private PrototypeEntry(): void {
+    Column({ space: 8 }) {
+      Text('原生 UI/UX 设计原型')
+        .fontSize(16)
+        .fontWeight(FontWeight.Medium)
+      Text('使用静态数据在 API 23 设备上评审页面密度、状态和 Reply 键盘体验。')
+        .fontSize(13)
+        .fontColor($r('sys.color.font_secondary'))
+        .textAlign(TextAlign.Center)
+      Button('查看 UI 原型', { type: ButtonType.Normal })
+        .onClick(this.onOpenUiPrototype)
+        .accessibilityText('打开原生 UI UX 设计原型')
+    }
+    .width('100%')
+    .padding({ left: 24, right: 24, top: 18, bottom: 18 })
+    .backgroundColor($r('sys.color.comp_background_tertiary'))
+    .borderRadius(12)
+  }
 
   @Builder
   private LoadingState(message: string): void {
@@ -40,6 +61,7 @@ export struct AccountPage {
       Button('登录 RiverSide')
         .onClick(this.onLogin)
         .accessibilityText('登录 RiverSide 账户')
+      this.PrototypeEntry()
     }
     .padding(32)
     .width('100%')
@@ -60,6 +82,7 @@ export struct AccountPage {
       Button('退出登录')
         .onClick(this.onLogout)
         .accessibilityText('退出 RiverSide 账户')
+      this.PrototypeEntry()
     }
     .padding(32)
     .width('100%')
