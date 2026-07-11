@@ -448,6 +448,7 @@ struct Index {
       HdsNavDestination() {
         CategoryTopicsPage({
           state: this.categoryTopicsState,
+          categories: this.categoryState.items,
           onRefresh: (): void => {
             this.retryCategoryTopics();
           },

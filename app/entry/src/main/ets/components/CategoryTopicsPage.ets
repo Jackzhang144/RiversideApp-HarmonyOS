@@ -1,9 +1,11 @@
 import { BrowseState, BrowseStateKind } from '../app/AppShellModel';
-import { Topic } from '../models/ForumModels';
+import { Category, Topic } from '../models/ForumModels';
+import { TopicCard } from './TopicCard';
 
 @Component
 export struct CategoryTopicsPage {
   @Prop state: BrowseState<Topic> = BrowseState.initial<Topic>();
+  @Prop categories: Array<Category> = [];
   onRefresh: () => void = (): void => {};
   onOpenTopic: (topic: Topic) => void = (_topic: Topic): void => {};
 
@@ -20,6 +22,7 @@ export struct CategoryTopicsPage {
     .width('100%')
     .height('100%')
     .justifyContent(FlexAlign.Center)
+    .backgroundColor('#F5F6F8')
   }
 
   @Builder
@@ -40,6 +43,7 @@ export struct CategoryTopicsPage {
     .width('100%')
     .height('100%')
     .justifyContent(FlexAlign.Center)
+    .backgroundColor('#F5F6F8')
   }
 
   @Builder
@@ -60,43 +64,67 @@ export struct CategoryTopicsPage {
     .width('100%')
     .height('100%')
     .justifyContent(FlexAlign.Center)
+    .backgroundColor('#F5F6F8')
   }
 
   @Builder
-  private TopicRow(topic: Topic): void {
-    Column({ space: 8 }) {
-      Row({ space: 8 }) {
-        if (topic.pinned) {
-          Text('置顶')
-            .fontSize(12)
-            .fontColor($r('sys.color.font_emphasize'))
-        }
-        Text(topic.title)
-          .fontSize(17)
-          .fontWeight(FontWeight.Medium)
-          .maxLines(2)
-          .textOverflow({ overflow: TextOverflow.Ellipsis })
-          .layoutWeight(1)
-      }
-      if (topic.excerpt.length > 0) {
-        Text(topic.excerpt)
-          .fontSize(14)
-          .fontColor($r('sys.color.font_secondary'))
-          .maxLines(2)
-          .textOverflow({ overflow: TextOverflow.Ellipsis })
-      }
-      Text(`${topic.username.length > 0 ? topic.username : '匿名'}  ·  ${Math.max(topic.postCount - 1, 0)} Reply  ·  ${topic.viewCount} 浏览`)
-        .fontSize(12)
-        .fontColor($r('sys.color.font_tertiary'))
+  private ListHeader(): void {
+    Row() {
+      Text(`${this.state.items.length} 个 Topic`)
+        .fontSize(14)
+        .fontColor($r('sys.color.font_secondary'))
+        .layoutWeight(1)
+      Button('刷新', { type: ButtonType.Normal })
+        .height(40)
+        .backgroundColor(Color.Transparent)
+        .fontColor('#317AF7')
+        .onClick(this.onRefresh)
+        .accessibilityText('刷新 Category Topic')
     }
     .width('100%')
-    .padding(16)
-    .backgroundColor($r('sys.color.comp_background_tertiary'))
-    .borderRadius(16)
-    .onClick((): void => {
-      this.onOpenTopic(topic);
+    .height(48)
+    .padding({ left: 4, right: 4 })
+  }
+
+  @Builder
+  private TopicList(): void {
+    Refresh({ refreshing: this.state.isRefreshing }) {
+      List({ space: 10 }) {
+        ListItem() {
+          this.ListHeader()
+        }
+        ForEach(this.state.items, (topic: Topic) => {
+          ListItem() {
+            TopicCard({
+              topic: topic,
+              categories: this.categories,
+              onOpen: (selected: Topic): void => {
+                this.onOpenTopic(selected);
+              }
+            })
+          }
+        }, (topic: Topic): string => topic.id.toString())
+        ListItem() {
+          Column()
+            .width('100%')
+            .height(32)
+        }
+      }
+      .width('100%')
+      .height('100%')
+      .padding({ left: 12, right: 12 })
+      .backgroundColor('#F5F6F8')
+      .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
+    }
+    .width('100%')
+    .height('100%')
+    .backgroundColor('#F5F6F8')
+    .refreshOffset(64)
+    .pullToRefresh(true)
+    .pullUpToCancelRefresh(false)
+    .onRefreshing((): void => {
+      this.onRefresh();
     })
-    .accessibilityText(`${topic.title}，${Math.max(topic.postCount - 1, 0)} 条 Reply`)
   }
 
   build() {
@@ -107,31 +135,7 @@ export struct CategoryTopicsPage {
     } else if (this.state.kind === BrowseStateKind.EMPTY) {
       this.EmptyState()
     } else {
-      List({ space: 8 }) {
-        ListItem() {
-          Row() {
-            Text('Topic')
-              .fontSize(15)
-              .fontColor($r('sys.color.font_secondary'))
-              .layoutWeight(1)
-            Button('刷新', { type: ButtonType.Normal })
-              .onClick(this.onRefresh)
-              .accessibilityText('刷新 Category Topic')
-          }
-          .width('100%')
-          .height(48)
-          .padding({ left: 4, right: 4 })
-        }
-        ForEach(this.state.items, (topic: Topic) => {
-          ListItem() {
-            this.TopicRow(topic)
-          }
-        }, (topic: Topic): string => topic.id.toString())
-      }
-      .width('100%')
-      .height('100%')
-      .padding({ left: 12, right: 12, bottom: 12 })
-      .edgeEffect(EdgeEffect.Spring)
+      this.TopicList()
     }
   }
 }

@@ -72,6 +72,25 @@ export default function jsonBoundaryTest(): void {
       expect(result.data).assertNull();
     });
 
+    it('orders the real Category tree by root position and server child order', 0, () => {
+      const parser: ForumResponseParser = new ForumResponseParser();
+      const result: RepositoryResult<Array<Category>> = parser.parseCategories(
+        '{"categories":[{' +
+        '"id":60,"name":"站务管理","position":2,"subcategory_ids":[62,61]' +
+        '}]}',
+        '{"category_list":{"categories":[' +
+        '{"id":61,"name":"游客公告","position":1,"parent_category_id":60},' +
+        '{"id":50,"name":"社区讨论","position":1},' +
+        '{"id":62,"name":"测试专用","position":2,"parent_category_id":60}' +
+        ']}}'
+      );
+
+      expect(result.kind).assertEqual(RepositoryResultKind.SUCCESS);
+      expect(result.data?.map((category: Category): number => category.id).join(','))
+        .assertEqual('50,60,62,61');
+      expect(result.data?.[2].parentCategoryId).assertEqual(60);
+    });
+
     it('decodes Topic detail and applies closed Reply restrictions', 0, () => {
       const parser: ForumResponseParser = new ForumResponseParser();
       const result: RepositoryResult<TopicDetail> = parser.parseTopicDetail(
