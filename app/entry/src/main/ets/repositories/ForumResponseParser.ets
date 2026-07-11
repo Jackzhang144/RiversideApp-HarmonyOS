@@ -426,8 +426,8 @@ function orderCategoryTree(categories: Array<Category>): Array<Category> {
 }
 
 function decodePostReader(post: JsonObjectReader): ForumPost | null {
-  const id: number | null = post.number('id');
-  const postNumber: number | null = post.number('post_number');
+  const id: number | null = post.number('id') ?? post.number('post_id');
+  const postNumber: number | null = post.number('post_number') ?? post.number('target_post_number');
   if (id === null || id <= 0 || postNumber === null || postNumber <= 0) {
     return null;
   }

@@ -118,6 +118,29 @@ export default function discourseForumRepositoryTest(): void {
       done();
     });
 
+    it('accepts the direct Reply response fallback field names', 0, async (done: Function) => {
+      const client: StubForumHttpClient = new StubForumHttpClient();
+      client.replyResults.push(HttpTextResult.success(200,
+        '{"post_id":102732,"user_id":24,"username":"Co-admin","cooked":"<p>继续</p>",' +
+        '"raw":"继续","target_post_number":5,"reply_to_post_number":null,' +
+        '"created_at":"2026-01-28T00:03:00Z"}'
+      ));
+      const repository: DiscourseForumRepository = new DiscourseForumRepository(client);
+      const request: ReplyRequest | null = ReplyRequest.create(2725, '继续', null);
+      if (request === null) {
+        expect(false).assertTrue();
+        done();
+        return;
+      }
+
+      const result: ReplySubmitResult = await repository.submitReply(request);
+
+      expect(result.kind).assertEqual(ReplySubmitKind.CREATED);
+      expect(result.post?.id).assertEqual(102732);
+      expect(result.post?.postNumber).assertEqual(5);
+      done();
+    });
+
     it('classifies unauthorized, rejected, and uncertain Reply outcomes', 0, async (done: Function) => {
       const client: StubForumHttpClient = new StubForumHttpClient();
       client.replyResults.push(HttpTextResult.unauthorized());
