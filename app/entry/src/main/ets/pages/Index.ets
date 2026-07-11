@@ -8,7 +8,7 @@ import {
   HdsTabsController,
   SnackBarOperationType
 } from '@kit.UIDesignKit';
-import { SymbolGlyphModifier } from '@kit.ArkUI';
+import { SymbolGlyphModifier, window } from '@kit.ArkUI';
 import {
   AppShellModel,
   BrowseState,
@@ -69,6 +69,7 @@ struct Index {
   private authRepository: AuthRepository | null = null;
   private snackBar: HdsSnackBar | null = null;
 
+  @Env(SystemProperties.WINDOW_AVOID_AREA) avoidAreasVp: window.UIEnvWindowAvoidAreaInfoVP;
   @State selectedRoot: RootDestination = RootDestination.HOME;
   @State homeState: BrowseState<Topic> = BrowseState.initial<Topic>();
   @State categoryState: BrowseState<Category> = BrowseState.initial<Category>();
@@ -78,6 +79,14 @@ struct Index {
   @State replyState: ReplyComposerState = ReplyComposerState.closed();
   @State topicTitle: string = 'Topic';
   @State authState: AuthState = AuthState.idle();
+
+  private topAvoidHeight(): number {
+    const statusBarBottom: number =
+      this.avoidAreasVp.statusBar.topRect.top + this.avoidAreasVp.statusBar.topRect.height;
+    const cutoutBottom: number =
+      this.avoidAreasVp.cutout.topRect.top + this.avoidAreasVp.cutout.topRect.height;
+    return Math.max(statusBarBottom, cutoutBottom);
+  }
 
   aboutToAppear(): void {
     const context: common.Context | undefined = this.getUIContext().getHostContext();
@@ -710,6 +719,7 @@ struct Index {
     .navDestination(this.SecondaryPage)
     .width('100%')
     .height('100%')
+    .padding({ top: this.topAvoidHeight() })
     .ignoreLayoutSafeArea([LayoutSafeAreaType.SYSTEM], [LayoutSafeAreaEdge.BOTTOM])
   }
 }

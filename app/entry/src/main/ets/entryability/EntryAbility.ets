@@ -40,10 +40,24 @@ export default class EntryAbility extends UIAbility {
     // Main window is created, set main page for this ability
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onWindowStageCreate');
 
-    windowStage.loadContent('pages/Index', (err) => {
+    windowStage.loadContent('pages/Index', async (err): Promise<void> => {
       if (err.code) {
         hilog.error(DOMAIN, 'testTag', 'Failed to load the content. Cause: %{public}s', JSON.stringify(err));
         return;
+      }
+      try {
+        const mainWindow: window.Window = windowStage.getMainWindowSync();
+        await mainWindow.setWindowLayoutFullScreen(true);
+        const systemBarProperties: window.SystemBarProperties = {
+          statusBarColor: '#00000000',
+          navigationBarColor: '#00000000',
+          statusBarContentColor: '#1F1F1F',
+          navigationBarContentColor: '#606060'
+        };
+        await mainWindow.setWindowSystemBarProperties(systemBarProperties);
+        hilog.info(DOMAIN, 'testTag', 'Succeeded in enabling immersive main-window layout.');
+      } catch (err) {
+        hilog.error(DOMAIN, 'testTag', 'Failed to configure the main window. Cause: %{public}s', JSON.stringify(err));
       }
       hilog.info(DOMAIN, 'testTag', 'Succeeded in loading the content.');
     });
