@@ -45,6 +45,22 @@ export default function jsonBoundaryTest(): void {
       expect(result.data?.[0].title).assertEqual('站务管理区重要主题导航');
     });
 
+    it('uses the original poster as the Topic author when later repliers are present', 0, () => {
+      const parser: ForumResponseParser = new ForumResponseParser();
+      const result: RepositoryResult<Array<Topic>> = parser.parseLatestTopics(
+        '{"users":[' +
+        '{"id":24,"username":"topic-author"},' +
+        '{"id":99,"username":"latest-replier"}' +
+        '],"topic_list":{"topics":[{' +
+        '"id":2725,"title":"作者映射回归",' +
+        '"posters":[{"user_id":24},{"user_id":99}]' +
+        '}]}}'
+      );
+
+      expect(result.kind).assertEqual(RepositoryResultKind.SUCCESS);
+      expect(result.data?.[0].username).assertEqual('topic-author');
+    });
+
     it('rejects a non-object Category entry', 0, () => {
       const parser: ForumResponseParser = new ForumResponseParser();
       const result: RepositoryResult<Array<Category>> = parser.parseCategories(

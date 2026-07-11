@@ -147,7 +147,7 @@ function usernameForTopic(
   if (!Array.isArray(posters) || posters.length === 0) {
     return '';
   }
-  const poster: TopicPosterDto | null = posters[posters.length - 1];
+  const poster: TopicPosterDto | null = posters[0];
   if (poster === null) {
     return '';
   }

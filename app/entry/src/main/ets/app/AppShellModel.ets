@@ -30,6 +30,14 @@ export enum RootTabIndex {
   ACCOUNT = 4
 }
 
+export enum HomeSortTabIndex {
+  LATEST_REPLIES = 0,
+  LATEST_CREATED = 1,
+  UNREAD = 2,
+  HOT = 3,
+  FEATURED = 4
+}
+
 export function rootDestinationForTabIndex(index: number): RootDestination | null {
   if (index === RootTabIndex.HOME) {
     return RootDestination.HOME;
@@ -332,6 +340,10 @@ export class AppShellModel {
     }
     this.selectRoot(destination);
     return true;
+  }
+
+  public canSelectHomeSortTab(index: number): boolean {
+    return index === HomeSortTabIndex.LATEST_REPLIES;
   }
 
   public updateCategoryCacheScope(scope: CategoryCacheScope): void {
@@ -650,6 +662,32 @@ export class AppShellModel {
     if (!result.isSuccess() || result.data === null) {
       this.requiresAuthentication = result.isUnauthorized();
       this.homeState = BrowseState.error<Topic>(result.message);
+      await this.notifyUnauthorized(result.isUnauthorized());
+      return;
+    }
+    this.homeState = result.data.length === 0
+      ? BrowseState.empty<Topic>()
+      : BrowseState.content<Topic>(result.data);
+  }
+
+  public async refreshHome(): Promise<void> {
+    this.requiresAuthentication = false;
+    const previousState: BrowseState<Topic> = this.homeState;
+    if (previousState.kind === BrowseStateKind.CONTENT) {
+      this.homeState = BrowseState.content<Topic>(previousState.items, true);
+    } else if (previousState.kind === BrowseStateKind.EMPTY) {
+      this.homeState = BrowseState.empty<Topic>(true);
+    } else {
+      await this.loadHome();
+      return;
+    }
+
+    const result: RepositoryResult<Array<Topic>> = await this.repository.loadLatestTopics();
+    if (!result.isSuccess() || result.data === null) {
+      this.requiresAuthentication = result.isUnauthorized();
+      this.homeState = previousState.kind === BrowseStateKind.CONTENT
+        ? BrowseState.content<Topic>(previousState.items, false, result.message)
+        : BrowseState.empty<Topic>(false, result.message);
       await this.notifyUnauthorized(result.isUnauthorized());
       return;
     }

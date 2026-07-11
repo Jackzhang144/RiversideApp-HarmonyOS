@@ -13,6 +13,7 @@ import {
   AppShellModel,
   BrowseState,
   BrowseStateKind,
+  HomeSortTabIndex,
   ReplyComposerState,
   ReplyComposerStateKind,
   rootDestinationForTabIndex,
@@ -158,6 +159,18 @@ struct Index {
     this.homeState = model.homeState;
     await task;
     this.homeState = model.homeState;
+  }
+
+  private async refreshHome(): Promise<void> {
+    const model: AppShellModel | null = this.model;
+    if (model === null) {
+      return;
+    }
+    const task: Promise<void> = model.refreshHome();
+    this.homeState = model.homeState;
+    await task;
+    this.homeState = model.homeState;
+    this.showHomeRefreshMessage();
   }
 
   private async loadCategories(): Promise<void> {
@@ -540,6 +553,25 @@ struct Index {
     );
   }
 
+  private showHomeRefreshMessage(): void {
+    if (
+      this.homeState.message.length === 0 ||
+      this.homeState.kind === BrowseStateKind.ERROR ||
+      this.snackBar === null
+    ) {
+      return;
+    }
+    this.snackBar.show(
+      { icon: $r('sys.symbol.exclamationmark_circle') },
+      { title: '暂时无法刷新', content: this.homeState.message },
+      {
+        operationType: SnackBarOperationType.CLOSE_BUTTON_ONLY,
+        closeButtonAccessibilityText: '关闭提示'
+      },
+      { duration: 5000 }
+    );
+  }
+
   private showAuthenticationMessage(title: string, content: string): void {
     if (this.snackBar === null) {
       return;
@@ -585,11 +617,21 @@ struct Index {
         TabContent() {
           HomeBrowsePage({
             state: this.homeState,
-            onRefresh: (): void => {
+            categories: this.categoryState.items,
+            onRetry: (): void => {
               this.loadHome();
+            },
+            onRefresh: (): void => {
+              this.refreshHome();
             },
             onOpenTopic: (topic: Topic): void => {
               this.openTopic(topic);
+            },
+            canChangeSortTab: (index: number): boolean => {
+              const model: AppShellModel | null = this.model;
+              return model === null
+                ? index === HomeSortTabIndex.LATEST_REPLIES
+                : model.canSelectHomeSortTab(index);
             }
           })
         }

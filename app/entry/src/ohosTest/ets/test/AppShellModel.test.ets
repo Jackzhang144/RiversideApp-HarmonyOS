@@ -3,8 +3,10 @@ import {
   AppShellModel,
   AuthenticationLifecycle,
   BrowseStateKind,
+  HomeSortTabIndex,
   RootDestination,
-  RootTabIndex
+  RootTabIndex,
+  SecondaryDestination
 } from '../../../main/ets/app/AppShellModel';
 import { CategoryCacheScope } from '../../../main/ets/cache/CategoryCache';
 import { RepositoryResult } from '../../../main/ets/core/RepositoryResult';
@@ -134,6 +136,23 @@ export default function appShellModelTest(): void {
       done();
     });
 
+    it('keeps unavailable Home sorts outside navigation and network work', 0, () => {
+      const repository: StubForumRepository = new StubForumRepository();
+      const model: AppShellModel = new AppShellModel(
+        repository,
+        new MemoryCategoryCache(),
+        CategoryCacheScope.anonymous()
+      );
+
+      expect(model.canSelectHomeSortTab(HomeSortTabIndex.LATEST_REPLIES)).assertTrue();
+      expect(model.canSelectHomeSortTab(HomeSortTabIndex.LATEST_CREATED)).assertFalse();
+      expect(model.canSelectHomeSortTab(HomeSortTabIndex.UNREAD)).assertFalse();
+      expect(model.canSelectHomeSortTab(HomeSortTabIndex.HOT)).assertFalse();
+      expect(model.canSelectHomeSortTab(HomeSortTabIndex.FEATURED)).assertFalse();
+      expect(repository.latestCallCount).assertEqual(0);
+      expect(model.activeDestination).assertEqual(SecondaryDestination.NONE);
+    });
+
     it('distinguishes Home empty and retryable failure states', 0, async (done: Function) => {
       const repository: StubForumRepository = new StubForumRepository();
       repository.latestResults.push(RepositoryResult.failure<Array<Topic>>('网络连接失败'));
@@ -154,6 +173,38 @@ export default function appShellModelTest(): void {
       expect(model.homeState.kind).assertEqual(BrowseStateKind.EMPTY);
       expect(repository.latestCallCount).assertEqual(2);
       expect(authentication.unauthorizedCallCount).assertEqual(0);
+      done();
+    });
+
+    it('keeps visible Home content when a refresh fails and replaces it on success', 0, async (done: Function) => {
+      const repository: StubForumRepository = new StubForumRepository();
+      repository.latestResults.push(
+        RepositoryResult.success([topic(2725, '已有 Topic')]),
+        RepositoryResult.failure<Array<Topic>>('刷新失败'),
+        RepositoryResult.success([topic(3000, '新 Topic')])
+      );
+      const model: AppShellModel = new AppShellModel(
+        repository,
+        new MemoryCategoryCache(),
+        CategoryCacheScope.anonymous()
+      );
+      await model.loadHome();
+
+      const failingRefresh: Promise<void> = model.refreshHome();
+      expect(model.homeState.kind).assertEqual(BrowseStateKind.CONTENT);
+      expect(model.homeState.isRefreshing).assertTrue();
+      expect(model.homeState.items[0].id).assertEqual(2725);
+      await failingRefresh;
+
+      expect(model.homeState.kind).assertEqual(BrowseStateKind.CONTENT);
+      expect(model.homeState.isRefreshing).assertFalse();
+      expect(model.homeState.items[0].id).assertEqual(2725);
+      expect(model.homeState.message).assertEqual('刷新失败');
+
+      await model.refreshHome();
+      expect(model.homeState.kind).assertEqual(BrowseStateKind.CONTENT);
+      expect(model.homeState.items[0].id).assertEqual(3000);
+      expect(model.homeState.message).assertEqual('');
       done();
     });
 
