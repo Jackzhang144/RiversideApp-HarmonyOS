@@ -4,7 +4,7 @@
 
 **Blocked by:** 04 — 安全 Reply 闭环.
 
-**Status:** ready-for-agent
+**Status:** claimed
 
 - [ ] 模拟器回归覆盖浏览、Category 缓存、Topic/Post 读取、加载、空态、失败和重试。
 - [ ] API 23 真机验收 HDS 视觉、ArkWeb 授权、HUKS 会话生命周期、401 登出及 Reply 成功与异常恢复。
