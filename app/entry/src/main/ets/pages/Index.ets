@@ -11,6 +11,8 @@ import {
   AppShellModel,
   BrowseState,
   BrowseStateKind,
+  ReplyComposerState,
+  ReplyComposerStateKind,
   RootDestination,
   TopicReadState
 } from '../app/AppShellModel';
@@ -66,6 +68,7 @@ struct Index {
   @State categoryTopicsState: BrowseState<Topic> = BrowseState.initial<Topic>();
   @State categoryTitle: string = 'Category';
   @State topicState: TopicReadState = TopicReadState.initial();
+  @State replyState: ReplyComposerState = ReplyComposerState.closed();
   @State topicTitle: string = 'Topic';
   @State authState: AuthState = AuthState.idle();
 
@@ -214,9 +217,11 @@ struct Index {
     const task: Promise<void> = model.openTopic(topic);
     this.topicTitle = topic.title;
     this.topicState = model.topicState;
+    this.replyState = model.replyState;
     this.pathStack.pushPath({ name: TOPIC_ROUTE });
     await task;
     this.topicState = model.topicState;
+    this.replyState = model.replyState;
   }
 
   private async retryTopic(): Promise<void> {
@@ -228,6 +233,7 @@ struct Index {
     this.topicState = model.topicState;
     await task;
     this.topicState = model.topicState;
+    this.replyState = model.replyState;
   }
 
   private async loadMorePosts(): Promise<void> {
@@ -239,6 +245,46 @@ struct Index {
     this.topicState = model.topicState;
     await task;
     this.topicState = model.topicState;
+  }
+
+  private openReply(postNumber: number | null): void {
+    const model: AppShellModel | null = this.model;
+    if (model === null) {
+      return;
+    }
+    model.openReply(postNumber);
+    this.replyState = model.replyState;
+  }
+
+  private updateReplyDraft(draft: string): void {
+    const model: AppShellModel | null = this.model;
+    if (model === null) {
+      return;
+    }
+    model.updateReplyDraft(draft);
+    this.replyState = model.replyState;
+  }
+
+  private dismissReply(): void {
+    const model: AppShellModel | null = this.model;
+    if (model === null) {
+      return;
+    }
+    model.dismissReply();
+    this.replyState = model.replyState;
+  }
+
+  private async submitReply(): Promise<void> {
+    const model: AppShellModel | null = this.model;
+    if (model === null) {
+      return;
+    }
+    const task: Promise<void> = model.submitReply();
+    this.replyState = model.replyState;
+    await task;
+    this.replyState = model.replyState;
+    this.topicState = model.topicState;
+    this.showReplyMessage();
   }
 
   private handleSecondaryBack(): boolean {
@@ -354,11 +400,27 @@ struct Index {
       HdsNavDestination() {
         TopicDetailPage({
           state: this.topicState,
+          replyState: this.replyState,
           onRetry: (): void => {
             this.retryTopic();
           },
           onLoadMore: (): void => {
             this.loadMorePosts();
+          },
+          onOpenReply: (postNumber: number | null): void => {
+            this.openReply(postNumber);
+          },
+          onReplyDraftChange: (draft: string): void => {
+            this.updateReplyDraft(draft);
+          },
+          onSubmitReply: (): void => {
+            this.submitReply();
+          },
+          onDismissReply: (): void => {
+            this.dismissReply();
+          },
+          onLoginForReply: (): void => {
+            this.openLogin();
           }
         })
       }
@@ -433,6 +495,30 @@ struct Index {
         closeButtonAccessibilityText: '关闭提示'
       },
       { duration: 4000 }
+    );
+  }
+
+  private showReplyMessage(): void {
+    if (
+      this.snackBar === null ||
+      (this.replyState.kind !== ReplyComposerStateKind.SUCCESS &&
+        this.replyState.kind !== ReplyComposerStateKind.ERROR)
+    ) {
+      return;
+    }
+    this.snackBar.show(
+      { icon: this.replyState.kind === ReplyComposerStateKind.SUCCESS
+        ? $r('sys.symbol.checkmark_circle')
+        : $r('sys.symbol.exclamationmark_circle') },
+      {
+        title: this.replyState.kind === ReplyComposerStateKind.SUCCESS ? 'Reply 已发布' : 'Reply 未发布',
+        content: this.replyState.message
+      },
+      {
+        operationType: SnackBarOperationType.CLOSE_BUTTON_ONLY,
+        closeButtonAccessibilityText: '关闭提示'
+      },
+      { duration: 5000 }
     );
   }
 

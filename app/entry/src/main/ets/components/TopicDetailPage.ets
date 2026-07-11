@@ -1,11 +1,22 @@
-import { TopicReadState, TopicReadStateKind } from '../app/AppShellModel';
+import {
+  ReplyComposerState,
+  ReplyComposerStateKind,
+  TopicReadState,
+  TopicReadStateKind
+} from '../app/AppShellModel';
 import { ForumPost, TopicDetail } from '../models/ForumModels';
 
 @Component
 export struct TopicDetailPage {
   @Prop state: TopicReadState = TopicReadState.initial();
+  @Prop replyState: ReplyComposerState = ReplyComposerState.closed();
   onRetry: () => void = (): void => {};
   onLoadMore: () => void = (): void => {};
+  onOpenReply: (postNumber: number | null) => void = (_postNumber: number | null): void => {};
+  onReplyDraftChange: (draft: string) => void = (_draft: string): void => {};
+  onSubmitReply: () => void = (): void => {};
+  onDismissReply: () => void = (): void => {};
+  onLoginForReply: () => void = (): void => {};
 
   @Builder
   private LoadingState(): void {
@@ -64,6 +75,10 @@ export struct TopicDetailPage {
           .fontSize(14)
           .fontColor($r('sys.color.font_secondary'))
           .width('100%')
+      } else {
+        Button(this.replyState.draft.trim().length > 0 ? '继续 Reply' : 'Reply Topic')
+          .onClick((): void => this.onOpenReply(null))
+          .accessibilityText('回复当前 Topic')
       }
     }
     .width('100%')
@@ -96,12 +111,73 @@ export struct TopicDetailPage {
           .fontColor($r('sys.color.font_tertiary'))
           .width('100%')
       }
+      if (this.state.canReply) {
+        Button(`Reply #${post.postNumber}`)
+          .fontSize(13)
+          .onClick((): void => this.onOpenReply(post.postNumber))
+          .accessibilityText(`回复第 ${post.postNumber} 条 Post`)
+      }
     }
     .width('100%')
     .padding(16)
     .backgroundColor($r('sys.color.comp_background_tertiary'))
     .borderRadius(16)
     .accessibilityText(`${post.username} 的第 ${post.postNumber} 条 Post`)
+  }
+
+  @Builder
+  private ReplyComposer(): void {
+    Column({ space: 12 }) {
+      Row() {
+        Text(this.replyState.replyToPostNumber === null
+          ? 'Reply Topic'
+          : `Reply #${this.replyState.replyToPostNumber}`)
+          .fontSize(18)
+          .fontWeight(FontWeight.Bold)
+          .layoutWeight(1)
+        Button('收起')
+          .enabled(!this.replyState.isBusy())
+          .onClick(this.onDismissReply)
+          .accessibilityText('收起 Reply 编辑器并保留草稿')
+      }
+      .width('100%')
+      TextArea({ text: this.replyState.draft, placeholder: '输入 Reply 内容' })
+        .height(140)
+        .width('100%')
+        .enabled(!this.replyState.isBusy())
+        .onChange((value: string): void => this.onReplyDraftChange(value))
+      Text(`${this.replyState.draft.trim().length} 字符 · 草稿仅保存在本次运行内存中`)
+        .fontSize(12)
+        .fontColor($r('sys.color.font_tertiary'))
+        .width('100%')
+      if (this.replyState.message.length > 0) {
+        Text(this.replyState.message)
+          .fontSize(14)
+          .fontColor(this.replyState.kind === ReplyComposerStateKind.ERROR ||
+            this.replyState.kind === ReplyComposerStateKind.REAUTHENTICATE
+            ? $r('sys.color.font_emphasize')
+            : $r('sys.color.font_secondary'))
+          .width('100%')
+      }
+      if (this.replyState.kind === ReplyComposerStateKind.REAUTHENTICATE) {
+        Button('重新登录后继续')
+          .onClick(this.onLoginForReply)
+          .accessibilityText('重新登录并保留 Reply 草稿')
+          .width('100%')
+      } else {
+        Button(this.replyState.kind === ReplyComposerStateKind.ERROR ? '显式重试' : '发布 Reply')
+          .enabled(this.replyState.draft.trim().length > 0 && !this.replyState.isBusy())
+          .onClick(this.onSubmitReply)
+          .accessibilityText(this.replyState.kind === ReplyComposerStateKind.ERROR
+            ? '再次确认后显式重试 Reply'
+            : '发布 Reply')
+          .width('100%')
+      }
+    }
+    .width('100%')
+    .padding(16)
+    .backgroundColor($r('sys.color.comp_background_tertiary'))
+    .borderRadius(16)
   }
 
   @Builder
@@ -163,6 +239,14 @@ export struct TopicDetailPage {
           this.PostRow(post)
         }
       }, (post: ForumPost): string => post.id.toString())
+      if (
+        this.replyState.kind !== ReplyComposerStateKind.CLOSED &&
+        this.replyState.kind !== ReplyComposerStateKind.SUCCESS
+      ) {
+        ListItem() {
+          this.ReplyComposer()
+        }
+      }
       ListItem() {
         this.PaginationFooter()
       }
