@@ -4,6 +4,7 @@ import authBoundaryTest from './AuthBoundary.test';
 import authRepositoryTest from './AuthRepository.test';
 import discourseForumRepositoryTest from './DiscourseForumRepository.test';
 import discourseHttpHeadersTest from './DiscourseHttpHeaders.test';
+import forumCardPresentationTest from './ForumCardPresentation.test';
 import forumComposerPresentationTest from './ForumComposerPresentation.test';
 import jsonBoundaryTest from './JsonBoundary.test';
 import replyBoundaryTest from './ReplyBoundary.test';
@@ -18,6 +19,7 @@ export default function tests(): void {
   authRepositoryTest();
   discourseForumRepositoryTest();
   discourseHttpHeadersTest();
+  forumCardPresentationTest();
   forumComposerPresentationTest();
   jsonBoundaryTest();
   replyBoundaryTest();

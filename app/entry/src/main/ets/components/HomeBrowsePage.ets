@@ -1,7 +1,8 @@
 import { HdsTabs } from '@kit.UIDesignKit';
 import { BrowseState, BrowseStateKind, isHomeSortTabAvailable } from '../app/AppShellModel';
 import { Category, Topic } from '../models/ForumModels';
-import { TopicCard } from './TopicCard';
+import { ForumCardPresentation } from './ForumCardPresentation';
+import { ForumContentCard } from './ForumContentCard';
 
 @Component
 export struct HomeBrowsePage {
@@ -129,11 +130,10 @@ export struct HomeBrowsePage {
       List({ space: 10 }) {
         ForEach(this.state.items, (topic: Topic) => {
           ListItem() {
-            TopicCard({
-              topic: topic,
-              categories: this.categories,
-              onOpen: (selected: Topic): void => {
-                this.onOpenTopic(selected);
+            ForumContentCard({
+              presentation: ForumCardPresentation.topicPreview(topic, this.categories),
+              onOpenTopic: (): void => {
+                this.onOpenTopic(topic);
               }
             })
           }

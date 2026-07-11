@@ -1,6 +1,7 @@
 import { BrowseState, BrowseStateKind } from '../app/AppShellModel';
 import { Category, Topic } from '../models/ForumModels';
-import { TopicCard } from './TopicCard';
+import { ForumCardPresentation } from './ForumCardPresentation';
+import { ForumContentCard } from './ForumContentCard';
 
 @Component
 export struct CategoryTopicsPage {
@@ -95,11 +96,10 @@ export struct CategoryTopicsPage {
         }
         ForEach(this.state.items, (topic: Topic) => {
           ListItem() {
-            TopicCard({
-              topic: topic,
-              categories: this.categories,
-              onOpen: (selected: Topic): void => {
-                this.onOpenTopic(selected);
+            ForumContentCard({
+              presentation: ForumCardPresentation.topicPreview(topic, this.categories),
+              onOpenTopic: (): void => {
+                this.onOpenTopic(topic);
               }
             })
           }
