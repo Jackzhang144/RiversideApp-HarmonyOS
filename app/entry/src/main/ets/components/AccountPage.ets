@@ -1,4 +1,12 @@
-import { AuthState, AuthStateKind } from '../auth/AuthRepository';
+import { AuthState } from '../auth/AuthRepository';
+import {
+  AccountPlaceholder,
+  AccountPlaceholderKind,
+  AccountPlaceholderSection,
+  AccountPresentation,
+  AccountPrimaryAction,
+  accountPresentationFor
+} from './AccountPresentation';
 
 @Component
 export struct AccountPage {
@@ -7,98 +15,190 @@ export struct AccountPage {
   onLogout: () => void = (): void => {};
   onOpenUiPrototype: () => void = (): void => {};
 
-  @Builder
-  private PrototypeEntry(): void {
-    Column({ space: 8 }) {
-      Text('原生 UI/UX 设计原型')
-        .fontSize(16)
-        .fontWeight(FontWeight.Medium)
-      Text('使用静态数据在 API 23 设备上评审页面密度、状态和 Reply 键盘体验。')
-        .fontSize(13)
-        .fontColor($r('sys.color.font_secondary'))
-        .textAlign(TextAlign.Center)
-      Button('查看 UI 原型', { type: ButtonType.Normal })
-        .onClick(this.onOpenUiPrototype)
-        .accessibilityText('打开原生 UI UX 设计原型')
+  private placeholderIcon(kind: AccountPlaceholderKind): Resource {
+    if (kind === AccountPlaceholderKind.PERSONAL_INFORMATION) {
+      return $r('sys.symbol.person_text_rectangle');
     }
-    .width('100%')
-    .padding({ left: 24, right: 24, top: 18, bottom: 18 })
-    .backgroundColor($r('sys.color.comp_background_tertiary'))
-    .borderRadius(12)
+    if (kind === AccountPlaceholderKind.RSC_WALLET) {
+      return $r('sys.symbol.wallet');
+    }
+    if (kind === AccountPlaceholderKind.MY_TOPICS) {
+      return $r('sys.symbol.folder');
+    }
+    if (kind === AccountPlaceholderKind.MY_REPLIES) {
+      return $r('sys.symbol.message');
+    }
+    if (kind === AccountPlaceholderKind.MY_DRAFTS) {
+      return $r('sys.symbol.doc_plaintext_and_pencil');
+    }
+    if (kind === AccountPlaceholderKind.MY_BOOKMARKS) {
+      return $r('sys.symbol.bookmark');
+    }
+    if (kind === AccountPlaceholderKind.APP_SETTINGS) {
+      return $r('sys.symbol.gearshape');
+    }
+    return $r('sys.symbol.info_circle');
   }
 
   @Builder
-  private LoadingState(message: string): void {
+  private AccountHeader(presentation: AccountPresentation): void {
     Column({ space: 16 }) {
-      LoadingProgress()
-        .width(40)
-        .height(40)
-      Text(message)
-        .fontSize(16)
-        .fontColor($r('sys.color.font_secondary'))
-    }
-    .width('100%')
-    .height('100%')
-    .justifyContent(FlexAlign.Center)
-  }
+      Row({ space: 14 }) {
+        Stack() {
+          SymbolGlyph($r('sys.symbol.person_crop_circle_fill_1'))
+            .fontSize(42)
+            .fontColor(['#317AF7'])
+        }
+        .width(64)
+        .height(64)
+        .backgroundColor('#EAF2FF')
+        .borderRadius(32)
 
-  @Builder
-  private SignedOutState(): void {
-    Column({ space: 18 }) {
-      Text('RiverSide 账户')
-        .fontSize(26)
-        .fontWeight(FontWeight.Bold)
-      Text('登录后可使用 RiverSide User API Key 访问需要身份的功能。授权过程会在应用内完成。')
-        .fontSize(15)
-        .fontColor($r('sys.color.font_secondary'))
-        .textAlign(TextAlign.Center)
-      if (this.state.kind === AuthStateKind.ERROR && this.state.message.length > 0) {
-        Text(this.state.message)
-          .fontSize(14)
-          .fontColor($r('sys.color.font_emphasize'))
-          .textAlign(TextAlign.Center)
+        Column({ space: 6 }) {
+          Row({ space: 8 }) {
+            Text(presentation.title)
+              .fontSize(19)
+              .fontWeight(FontWeight.Bold)
+              .fontColor('#24262B')
+            if (presentation.busy) {
+              LoadingProgress()
+                .width(18)
+                .height(18)
+                .color('#317AF7')
+            }
+          }
+          Text(presentation.detail)
+            .fontSize(13)
+            .fontColor(presentation.error ? '#C62828' : $r('sys.color.font_secondary'))
+            .lineHeight(19)
+        }
+        .alignItems(HorizontalAlign.Start)
+        .layoutWeight(1)
       }
-      Button('登录 RiverSide')
-        .onClick(this.onLogin)
-        .accessibilityText('登录 RiverSide 账户')
-      this.PrototypeEntry()
+      .width('100%')
+
+      if (presentation.primaryAction === AccountPrimaryAction.LOGIN) {
+        Button('登录 RiverSide', { type: ButtonType.Normal })
+          .width('100%')
+          .height(44)
+          .borderRadius(12)
+          .onClick(this.onLogin)
+          .accessibilityText('登录 RiverSide 账户')
+      } else if (presentation.primaryAction === AccountPrimaryAction.LOGOUT) {
+        Button('退出登录', { type: ButtonType.Normal })
+          .width('100%')
+          .height(44)
+          .fontColor('#C62828')
+          .backgroundColor('#FFFFFF')
+          .border({ width: 1, color: '#E3E5E8' })
+          .borderRadius(12)
+          .onClick(this.onLogout)
+          .accessibilityText('退出 RiverSide 账户')
+      }
     }
-    .padding(32)
     .width('100%')
-    .height('100%')
-    .justifyContent(FlexAlign.Center)
+    .padding(16)
+    .backgroundColor('#FFFFFF')
+    .borderRadius(14)
+    .border({ width: 1, color: '#E8EBF0' })
   }
 
   @Builder
-  private SignedInState(): void {
-    Column({ space: 18 }) {
-      Text('已登录')
-        .fontSize(26)
-        .fontWeight(FontWeight.Bold)
-      Text('Authenticated Session 已通过 HUKS 加密保存在本机。')
+  private PlaceholderRow(placeholder: AccountPlaceholder): void {
+    Row({ space: 12 }) {
+      SymbolGlyph(this.placeholderIcon(placeholder.kind))
+        .fontSize(21)
+        .fontColor([$r('sys.color.font_tertiary')])
+      Text(placeholder.label)
         .fontSize(15)
         .fontColor($r('sys.color.font_secondary'))
-        .textAlign(TextAlign.Center)
-      Button('退出登录')
-        .onClick(this.onLogout)
-        .accessibilityText('退出 RiverSide 账户')
-      this.PrototypeEntry()
+        .layoutWeight(1)
+      Text('未实现')
+        .fontSize(11)
+        .fontColor($r('sys.color.font_tertiary'))
+        .padding({ left: 8, right: 8, top: 4, bottom: 4 })
+        .backgroundColor('#F0F1F3')
+        .borderRadius(10)
     }
-    .padding(32)
+    .width('100%')
+    .height(52)
+    .padding({ left: 16, right: 16 })
+    .opacity(0.72)
+    .enabled(placeholder.available)
+    .hitTestBehavior(HitTestMode.None)
+    .accessibilityText(placeholder.accessibilityText)
+  }
+
+  @Builder
+  private PlaceholderGroup(section: AccountPlaceholderSection): void {
+    Column() {
+      ForEach(section.placeholders, (placeholder: AccountPlaceholder, index: number) => {
+        this.PlaceholderRow(placeholder)
+        if (index < section.placeholders.length - 1) {
+          Divider()
+            .margin({ left: 52 })
+            .color('#ECEEF2')
+        }
+      }, (placeholder: AccountPlaceholder): string => placeholder.kind)
+    }
+    .width('100%')
+    .backgroundColor('#FFFFFF')
+    .borderRadius(14)
+    .border({ width: 1, color: '#E8EBF0' })
+  }
+
+  @Builder
+  private PrototypeCapsule(): void {
+    Button('UI 原型', { type: ButtonType.Normal })
+      .fontSize(12)
+      .fontWeight(FontWeight.Medium)
+      .fontColor('#FFFFFF')
+      .backgroundColor('#24262B')
+      .borderRadius(16)
+      .height(32)
+      .padding({ left: 16, right: 16 })
+      .margin({ right: 12, bottom: 92 })
+      .onClick(this.onOpenUiPrototype)
+      .accessibilityText('打开原生 UI UX 设计原型')
+  }
+
+  @Builder
+  private AccountContent(presentation: AccountPresentation): void {
+    Stack({ alignContent: Alignment.BottomEnd }) {
+      Scroll() {
+        Column({ space: 12 }) {
+          Text('我的')
+            .fontSize(24)
+            .fontWeight(FontWeight.Bold)
+            .fontColor('#24262B')
+            .width('100%')
+          this.AccountHeader(presentation)
+          ForEach(presentation.placeholderSections, (section: AccountPlaceholderSection) => {
+            this.PlaceholderGroup(section)
+          }, (section: AccountPlaceholderSection): string => section.kind)
+          Text('RiverSide')
+            .fontSize(11)
+            .fontColor($r('sys.color.font_tertiary'))
+            .width('100%')
+            .textAlign(TextAlign.Center)
+        }
+        .width('100%')
+        .padding({ left: 12, right: 12, top: 12, bottom: 196 })
+      }
+      .width('100%')
+      .height('100%')
+      .edgeEffect(EdgeEffect.Spring)
+
+      if (presentation.prototypeEntryVisible) {
+        this.PrototypeCapsule()
+      }
+    }
     .width('100%')
     .height('100%')
-    .justifyContent(FlexAlign.Center)
+    .backgroundColor('#F4F5F7')
   }
 
   build() {
-    if (this.state.kind === AuthStateKind.RESTORING) {
-      this.LoadingState('正在恢复认证会话')
-    } else if (this.state.kind === AuthStateKind.SIGNING_OUT) {
-      this.LoadingState('正在退出登录')
-    } else if (this.state.kind === AuthStateKind.AUTHENTICATED) {
-      this.SignedInState()
-    } else {
-      this.SignedOutState()
-    }
+    this.AccountContent(accountPresentationFor(this.state))
   }
 }
