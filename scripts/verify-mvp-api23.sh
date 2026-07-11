@@ -13,6 +13,7 @@ readonly APP_DIR="$PROJECT_ROOT/app"
 readonly BUNDLE_NAME="cc.river_side.app"
 readonly TEST_MODULE="entry_test"
 readonly REDACTOR="$PROJECT_ROOT/scripts/redact-sensitive-output.sh"
+readonly TEST_REPORT_VALIDATOR="$PROJECT_ROOT/scripts/validate-ohos-test-report.sh"
 
 if ! command -v devecocli >/dev/null 2>&1; then
   printf 'devecocli is required but was not found in PATH.\n' >&2
@@ -38,15 +39,8 @@ readonly TEST_OUTPUT="$(
     -s timeout 60000
 )"
 
-if ! grep -Fq 'OHOS_REPORT_CODE: 0' <<<"$TEST_OUTPUT"; then
+if ! "$TEST_REPORT_VALIDATOR" <<<"$TEST_OUTPUT"; then
   printf '%s\n' "$TEST_OUTPUT"
-  printf 'Device tests did not report OHOS_REPORT_CODE: 0.\n' >&2
-  exit 1
-fi
-
-if ! grep -Eq 'Tests run: [0-9]+, Failure: 0, Error: 0, Pass: [0-9]+, Ignore: 0' <<<"$TEST_OUTPUT"; then
-  printf '%s\n' "$TEST_OUTPUT"
-  printf 'Device test summary is missing or contains a failure, error, or ignored test.\n' >&2
   exit 1
 fi
 
