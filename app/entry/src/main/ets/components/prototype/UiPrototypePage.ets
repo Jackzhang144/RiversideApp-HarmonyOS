@@ -594,7 +594,7 @@ export struct UiPrototypePage {
   private refreshHomeTopics(): void {
     setTimeout((): void => {
       this.homeRefreshing = false;
-      this.showRefreshResult('帖子列表已刷新');
+      this.showRefreshResult('Topic 列表已刷新');
     }, 800);
   }
 
