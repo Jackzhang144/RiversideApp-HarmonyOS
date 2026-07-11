@@ -12,6 +12,7 @@ readonly PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 readonly APP_DIR="$PROJECT_ROOT/app"
 readonly BUNDLE_NAME="cc.river_side.app"
 readonly TEST_MODULE="entry_test"
+readonly REDACTOR="$PROJECT_ROOT/scripts/redact-sensitive-output.sh"
 
 if ! command -v devecocli >/dev/null 2>&1; then
   printf 'devecocli is required but was not found in PATH.\n' >&2
@@ -58,6 +59,7 @@ devecocli log \
   --bundle-name "$BUNDLE_NAME" \
   --crash \
   --from 2m \
-  --tail 80
+  --tail 80 \
+  2>&1 | "$REDACTOR"
 
 printf 'MVP API 23 automated regression passed on %s.\n' "$DEVICE_SERIAL"
