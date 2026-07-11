@@ -1,5 +1,6 @@
 import { common } from '@kit.AbilityKit';
 import {
+  hdsMaterial,
   HdsNavDestination,
   HdsNavigation,
   HdsSnackBar,
@@ -7,12 +8,14 @@ import {
   HdsTabsController,
   SnackBarOperationType
 } from '@kit.UIDesignKit';
+import { SymbolGlyphModifier } from '@kit.ArkUI';
 import {
   AppShellModel,
   BrowseState,
   BrowseStateKind,
   ReplyComposerState,
   ReplyComposerStateKind,
+  rootDestinationForTabIndex,
   RootDestination,
   TopicReadState
 } from '../app/AppShellModel';
@@ -109,6 +112,7 @@ struct Index {
       this.categoryCacheScope(authRepository),
       authenticationLifecycle
     );
+    model.selectRoot(this.selectedRoot);
     this.model = model;
     this.loadHome();
     this.loadCategories();
@@ -178,17 +182,49 @@ struct Index {
   }
 
   private selectRoot(index: number): void {
-    let destination: RootDestination = RootDestination.HOME;
-    if (index === RootDestination.CATEGORY) {
-      destination = RootDestination.CATEGORY;
-    } else if (index === RootDestination.ACCOUNT) {
-      destination = RootDestination.ACCOUNT;
+    const destination: RootDestination | null = rootDestinationForTabIndex(index);
+    if (destination === null) {
+      return;
     }
     this.selectedRoot = destination;
     const model: AppShellModel | null = this.model;
     if (model !== null) {
-      model.selectRoot(destination);
+      model.selectRootTab(index);
     }
+  }
+
+  private rootTabStyle(label: string, icon: Resource): BottomTabBarStyle {
+    const normal: SymbolGlyphModifier = new SymbolGlyphModifier(icon)
+      .fontSize(21)
+      .fontColor([$r('sys.color.font_secondary')]);
+    const selected: SymbolGlyphModifier = new SymbolGlyphModifier(icon)
+      .fontSize(21)
+      .fontColor(['#317AF7']);
+    return BottomTabBarStyle.of({ normal: normal, selected: selected }, label)
+      .labelStyle({
+        maxLines: 1,
+        unselectedColor: $r('sys.color.font_secondary'),
+        selectedColor: '#317AF7',
+        font: { size: 11 }
+      })
+      .padding({ left: 4, right: 4, top: 4, bottom: 4 });
+  }
+
+  private unavailableRootTabStyle(label: string, icon: Resource): BottomTabBarStyle {
+    const normal: SymbolGlyphModifier = new SymbolGlyphModifier(icon)
+      .fontSize(21)
+      .fontColor([$r('sys.color.font_tertiary')]);
+    const selected: SymbolGlyphModifier = new SymbolGlyphModifier(icon)
+      .fontSize(21)
+      .fontColor([$r('sys.color.font_tertiary')]);
+    return BottomTabBarStyle.of({ normal: normal, selected: selected }, label)
+      .labelStyle({
+        maxLines: 1,
+        unselectedColor: $r('sys.color.font_tertiary'),
+        selectedColor: $r('sys.color.font_tertiary'),
+        font: { size: 11 }
+      })
+      .padding({ left: 4, right: 4, top: 4, bottom: 4 });
   }
 
   private async openCategory(category: Category): Promise<void> {
@@ -565,7 +601,7 @@ struct Index {
             }
           })
         }
-        .tabBar({ icon: $r('app.media.startIcon'), text: '首页' })
+        .tabBar(this.rootTabStyle('首页', $r('sys.symbol.house')))
 
         TabContent() {
           CategoryBrowsePage({
@@ -578,7 +614,23 @@ struct Index {
             }
           })
         }
-        .tabBar({ icon: $r('app.media.startIcon'), text: 'Category' })
+        .tabBar(this.rootTabStyle('Category', $r('sys.symbol.square_grid_2x2')))
+
+        TabContent() {
+          Column()
+            .width('100%')
+            .height('100%')
+        }
+        .tabBar(this.unavailableRootTabStyle('聊天', $r('sys.symbol.message')))
+        .accessibilityText('聊天，未实现')
+
+        TabContent() {
+          Column()
+            .width('100%')
+            .height('100%')
+        }
+        .tabBar(this.unavailableRootTabStyle('消息', $r('sys.symbol.bell')))
+        .accessibilityText('消息，未实现')
 
         TabContent() {
           AccountPage({
@@ -594,15 +646,30 @@ struct Index {
             }
           })
         }
-        .tabBar({ icon: $r('app.media.startIcon'), text: '我的' })
+        .tabBar(this.rootTabStyle('我的', $r('sys.symbol.person_crop_circle_fill_1')))
       }
+      .scrollable(false)
       .barPosition(BarPosition.End)
       .vertical(false)
+      .barOverlap(true)
+      .barFloatingStyle({
+        barSideMargin: 12,
+        barBottomMargin: 28,
+        adaptToHandedness: true,
+        systemMaterialEffect: {
+          materialType: hdsMaterial.MaterialType.ADAPTIVE,
+          materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE
+        }
+      })
+      .onContentWillChange((_currentIndex: number, comingIndex: number): boolean => {
+        return rootDestinationForTabIndex(comingIndex) !== null;
+      })
       .onChange((index: number): void => {
         this.selectRoot(index);
       })
       .width('100%')
       .height('100%')
+      .ignoreLayoutSafeArea([LayoutSafeAreaType.SYSTEM], [LayoutSafeAreaEdge.BOTTOM])
     }
     .hideTitleBar(true)
     .hideBackButton(true)

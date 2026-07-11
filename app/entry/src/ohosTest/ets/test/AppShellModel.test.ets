@@ -3,7 +3,8 @@ import {
   AppShellModel,
   AuthenticationLifecycle,
   BrowseStateKind,
-  RootDestination
+  RootDestination,
+  RootTabIndex
 } from '../../../main/ets/app/AppShellModel';
 import { CategoryCacheScope } from '../../../main/ets/cache/CategoryCache';
 import { RepositoryResult } from '../../../main/ets/core/RepositoryResult';
@@ -88,6 +89,27 @@ export default function appShellModelTest(): void {
       model.selectRoot(RootDestination.CATEGORY);
       expect(model.selectedRoot).assertEqual(RootDestination.CATEGORY);
       model.selectRoot(RootDestination.ACCOUNT);
+      expect(model.selectedRoot).assertEqual(RootDestination.ACCOUNT);
+    });
+
+    it('selects only available destinations from the five visible root tabs', 0, () => {
+      const model: AppShellModel = new AppShellModel(
+        new StubForumRepository(),
+        new MemoryCategoryCache(),
+        CategoryCacheScope.anonymous()
+      );
+
+      expect(model.selectRootTab(RootTabIndex.CATEGORY)).assertTrue();
+      expect(model.selectedRoot).assertEqual(RootDestination.CATEGORY);
+
+      expect(model.selectRootTab(RootTabIndex.CHAT)).assertFalse();
+      expect(model.selectedRoot).assertEqual(RootDestination.CATEGORY);
+      expect(model.selectRootTab(RootTabIndex.NOTIFICATIONS)).assertFalse();
+      expect(model.selectedRoot).assertEqual(RootDestination.CATEGORY);
+
+      expect(model.selectRootTab(RootTabIndex.ACCOUNT)).assertTrue();
+      expect(model.selectedRoot).assertEqual(RootDestination.ACCOUNT);
+      expect(model.selectRootTab(-1)).assertFalse();
       expect(model.selectedRoot).assertEqual(RootDestination.ACCOUNT);
     });
 

@@ -22,6 +22,27 @@ export enum RootDestination {
   ACCOUNT = 2
 }
 
+export enum RootTabIndex {
+  HOME = 0,
+  CATEGORY = 1,
+  CHAT = 2,
+  NOTIFICATIONS = 3,
+  ACCOUNT = 4
+}
+
+export function rootDestinationForTabIndex(index: number): RootDestination | null {
+  if (index === RootTabIndex.HOME) {
+    return RootDestination.HOME;
+  }
+  if (index === RootTabIndex.CATEGORY) {
+    return RootDestination.CATEGORY;
+  }
+  if (index === RootTabIndex.ACCOUNT) {
+    return RootDestination.ACCOUNT;
+  }
+  return null;
+}
+
 export enum BrowseStateKind {
   INITIAL = 'initial',
   LOADING = 'loading',
@@ -302,6 +323,15 @@ export class AppShellModel {
 
   public selectRoot(destination: RootDestination): void {
     this.selectedRoot = destination;
+  }
+
+  public selectRootTab(index: number): boolean {
+    const destination: RootDestination | null = rootDestinationForTabIndex(index);
+    if (destination === null) {
+      return false;
+    }
+    this.selectRoot(destination);
+    return true;
   }
 
   public updateCategoryCacheScope(scope: CategoryCacheScope): void {
