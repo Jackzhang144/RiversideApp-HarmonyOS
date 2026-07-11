@@ -1,5 +1,6 @@
 import { http } from '@kit.NetworkKit';
 import { AuthenticatedSession } from '../auth/AuthModels';
+import { ReplyRequest } from '../models/ReplyModels';
 
 const DEFAULT_BASE_URL: string = 'https://river-side.cc';
 const USER_AGENT: string = 'RiversideApp/0.1';
@@ -47,6 +48,42 @@ interface HttpHeaderValues {
   Accept: string;
   'User-Api-Key'?: string;
   'User-Api-Client-Id'?: string;
+  'Content-Type'?: string;
+}
+
+interface TopicReplyPayloadValues {
+  topic_id: number;
+  raw: string;
+}
+
+interface TargetedReplyPayloadValues {
+  topic_id: number;
+  raw: string;
+  reply_to_post_number: number;
+}
+
+export class DiscourseReplyPayload {
+  private readonly request: ReplyRequest;
+
+  public constructor(request: ReplyRequest) {
+    this.request = request;
+  }
+
+  public toHttpExtraData(): Object {
+    if (this.request.replyToPostNumber === null) {
+      const payload: TopicReplyPayloadValues = {
+        topic_id: this.request.topicId,
+        raw: this.request.raw
+      };
+      return payload;
+    }
+    const payload: TargetedReplyPayloadValues = {
+      topic_id: this.request.topicId,
+      raw: this.request.raw,
+      reply_to_post_number: this.request.replyToPostNumber
+    };
+    return payload;
+  }
 }
 
 export class DiscourseHeaders {
@@ -62,18 +99,34 @@ export class DiscourseHeaders {
     this.userApiClientId = userApiClientId;
   }
 
-  public toHttpHeaderValues(): HttpHeaderValues {
+  public toHttpHeaderValues(contentType: string | null = null): HttpHeaderValues {
     if (this.userApiKey === null || this.userApiClientId === null) {
+      if (contentType === null) {
+        return {
+          'User-Agent': this.userAgent,
+          Accept: this.accept
+        };
+      }
       return {
         'User-Agent': this.userAgent,
-        Accept: this.accept
+        Accept: this.accept,
+        'Content-Type': contentType
+      };
+    }
+    if (contentType === null) {
+      return {
+        'User-Agent': this.userAgent,
+        Accept: this.accept,
+        'User-Api-Key': this.userApiKey,
+        'User-Api-Client-Id': this.userApiClientId
       };
     }
     return {
       'User-Agent': this.userAgent,
       Accept: this.accept,
       'User-Api-Key': this.userApiKey,
-      'User-Api-Client-Id': this.userApiClientId
+      'User-Api-Client-Id': this.userApiClientId,
+      'Content-Type': contentType
     };
   }
 }
@@ -100,6 +153,8 @@ export class DiscourseRequestHeadersFactory {
 
 export interface ForumHttpClient {
   get(path: string): Promise<HttpTextResult>;
+
+  postReply(request: ReplyRequest): Promise<HttpTextResult>;
 }
 
 export class DiscourseHttpClient implements ForumHttpClient {
@@ -115,6 +170,23 @@ export class DiscourseHttpClient implements ForumHttpClient {
   }
 
   public async get(path: string): Promise<HttpTextResult> {
+    return await this.requestText(path, http.RequestMethod.GET, null);
+  }
+
+  public async postReply(reply: ReplyRequest): Promise<HttpTextResult> {
+    const payload: DiscourseReplyPayload = new DiscourseReplyPayload(reply);
+    return await this.requestText(
+      '/posts.json',
+      http.RequestMethod.POST,
+      JSON.stringify(payload.toHttpExtraData())
+    );
+  }
+
+  private async requestText(
+    path: string,
+    method: http.RequestMethod,
+    requestBody: string | null
+  ): Promise<HttpTextResult> {
     if (!path.startsWith('/')) {
       return HttpTextResult.failure(0, '请求路径无效');
     }
@@ -122,13 +194,16 @@ export class DiscourseHttpClient implements ForumHttpClient {
     const request: http.HttpRequest = http.createHttp();
     const headers: DiscourseHeaders = this.headersFactory.create();
     const options: http.HttpRequestOptions = {
-      method: http.RequestMethod.GET,
-      header: headers.toHttpHeaderValues(),
+      method: method,
+      header: headers.toHttpHeaderValues(requestBody === null ? null : 'application/json'),
       expectDataType: http.HttpDataType.STRING,
       connectTimeout: CONNECT_TIMEOUT_MS,
       readTimeout: READ_TIMEOUT_MS,
       usingCache: false
     };
+    if (requestBody !== null) {
+      options.extraData = requestBody;
+    }
 
     try {
       const response: http.HttpResponse = await request.request(`${this.baseUrl}${path}`, options);

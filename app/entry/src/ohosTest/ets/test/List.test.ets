@@ -5,6 +5,7 @@ import discourseForumRepositoryTest from './DiscourseForumRepository.test';
 import discourseHttpHeadersTest from './DiscourseHttpHeaders.test';
 import jsonBoundaryTest from './JsonBoundary.test';
 import replyBoundaryTest from './ReplyBoundary.test';
+import replyTransportTest from './ReplyTransport.test';
 import sessionStoreTest from './SessionStore.test';
 import topicReadingTest from './TopicReading.test';
 
@@ -16,6 +17,7 @@ export default function tests(): void {
   discourseHttpHeadersTest();
   jsonBoundaryTest();
   replyBoundaryTest();
+  replyTransportTest();
   sessionStoreTest();
   topicReadingTest();
 }

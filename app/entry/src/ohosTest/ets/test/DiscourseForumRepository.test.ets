@@ -1,6 +1,7 @@
 import { describe, expect, it } from '@ohos/hypium';
 import { RepositoryResult, RepositoryResultKind } from '../../../main/ets/core/RepositoryResult';
 import { ForumPost, Topic, TopicDetail } from '../../../main/ets/models/ForumModels';
+import { ReplyRequest } from '../../../main/ets/models/ReplyModels';
 import { ForumHttpClient, HttpTextResult } from '../../../main/ets/network/DiscourseHttpClient';
 import { DiscourseForumRepository } from '../../../main/ets/repositories/DiscourseForumRepository';
 
@@ -12,6 +13,10 @@ class StubForumHttpClient implements ForumHttpClient {
     this.paths.push(path);
     const result: HttpTextResult | undefined = this.results.shift();
     return result ?? HttpTextResult.failure(0, 'missing HTTP result');
+  }
+
+  public async postReply(_request: ReplyRequest): Promise<HttpTextResult> {
+    return HttpTextResult.failure(0, 'missing Reply result');
   }
 }
 
