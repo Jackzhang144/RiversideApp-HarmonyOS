@@ -1,5 +1,6 @@
 import { describe, expect, it } from '@ohos/hypium';
-import { ReplyRequest } from '../../../main/ets/models/ReplyModels';
+import { ForumPost } from '../../../main/ets/models/ForumModels';
+import { CurrentUser, ReplyRecoveryRequest, ReplyRequest } from '../../../main/ets/models/ReplyModels';
 
 export default function replyBoundaryTest(): void {
   describe('Reply request boundary', () => {
@@ -27,6 +28,27 @@ export default function replyBoundaryTest(): void {
 
       expect(request === null).assertFalse();
       expect(request?.replyToPostNumber).assertEqual(3);
+    });
+
+    it('does not recover a Topic Reply from a Post-targeted candidate', 0, () => {
+      const reply: ReplyRequest | null = ReplyRequest.create(2725, '收到', null);
+      const user: CurrentUser | null = CurrentUser.create(24, 'Co-admin');
+      const recovery: ReplyRecoveryRequest | null = reply === null || user === null
+        ? null
+        : ReplyRecoveryRequest.create(reply, 4, user);
+      if (recovery === null) {
+        expect(false).assertTrue();
+        return;
+      }
+      const targeted: ForumPost = new ForumPost(
+        102731, 24, 'Co-admin', '<p>收到</p>', '收到', 4, 3, '2026-01-28T00:02:00Z'
+      );
+      const topicReply: ForumPost = new ForumPost(
+        102732, 24, 'Co-admin', '<p>收到</p>', '收到', 5, null, '2026-01-28T00:03:00Z'
+      );
+
+      expect(recovery.matches(targeted)).assertFalse();
+      expect(recovery.matches(topicReply)).assertTrue();
     });
   });
 }

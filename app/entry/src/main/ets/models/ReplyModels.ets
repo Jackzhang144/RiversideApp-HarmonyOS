@@ -112,8 +112,7 @@ export class ReplyRecoveryRequest {
     ) {
       return false;
     }
-    return this.reply.replyToPostNumber === null ||
-      post.replyToPostNumber === this.reply.replyToPostNumber;
+    return post.replyToPostNumber === this.reply.replyToPostNumber;
   }
 }
 
