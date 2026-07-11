@@ -16,8 +16,11 @@ awk '
   }
   { print }
 ' | sed -E \
-  -e 's/(User-Api-Key[[:space:]:=]+)[^[:space:],;"]+/\1<redacted>/g' \
-  -e 's/(User-Api-Client-Id[[:space:]:=]+)[^[:space:],;"]+/\1<redacted>/g' \
+  -e 's/("?User-Api-Key"?[[:space:]]*[:=][[:space:]]*")[^"]*/\1<redacted>/g' \
+  -e 's/(User-Api-Key[[:space:]]*[:=][[:space:]]*)[^[:space:],;"]+/\1<redacted>/g' \
+  -e 's/("?User-Api-Client-Id"?[[:space:]]*[:=][[:space:]]*")[^"]*/\1<redacted>/g' \
+  -e 's/(User-Api-Client-Id[[:space:]]*[:=][[:space:]]*)[^[:space:],;"]+/\1<redacted>/g' \
   -e 's/([?&](payload|nonce|client_id|public_key)=)[^&[:space:]]+/\1<redacted>/g' \
   -e 's/("(key|ciphertext|encryptedSession)"[[:space:]]*:[[:space:]]*")[^"]+/\1<redacted>/g' \
-  -e 's/((password|Password)[[:space:]:=]+)[^[:space:],;"]+/\1<redacted>/g'
+  -e 's/("?[Pp]assword"?[[:space:]]*[:=][[:space:]]*")[^"]*/\1<redacted>/g' \
+  -e 's/([Pp]assword[[:space:]]*[:=][[:space:]]*)[^[:space:],;"]+/\1<redacted>/g'
