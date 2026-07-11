@@ -4,7 +4,7 @@
 
 **Blocked by:** 02 — Topic 与 Post 阅读; 03 — 原生登录与会话生命周期.
 
-**Status:** ready-for-agent
+**Status:** claimed
 
 - [ ] 空白输入不会提交；用户可对 Topic 或指定 Post 创建 Reply，并得到成功或失败反馈。
 - [ ] 会话在编辑中失效时，当前 Reply 仅在内存中保留以支持立即重新登录；应用退出后不恢复草稿。
