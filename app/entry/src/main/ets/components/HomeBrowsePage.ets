@@ -219,9 +219,11 @@ export struct HomeBrowsePage {
       })
       .width('100%')
       .layoutWeight(1)
+      .ignoreLayoutSafeArea([LayoutSafeAreaType.SYSTEM], [LayoutSafeAreaEdge.BOTTOM])
     }
     .width('100%')
     .height('100%')
     .backgroundColor('#FFFFFF')
+    .ignoreLayoutSafeArea([LayoutSafeAreaType.SYSTEM], [LayoutSafeAreaEdge.BOTTOM])
   }
 }
