@@ -1,6 +1,15 @@
 import { CategoryCache, CategoryCacheScope } from '../cache/CategoryCache';
 import { RepositoryResult } from '../core/RepositoryResult';
 import { Category, ForumPost, Topic, TopicDetail } from '../models/ForumModels';
+import {
+  CurrentUser,
+  ReplyRecoveryKind,
+  ReplyRecoveryRequest,
+  ReplyRecoveryResult,
+  ReplyRequest,
+  ReplySubmitKind,
+  ReplySubmitResult
+} from '../models/ReplyModels';
 import { ForumRepository } from '../repositories/ForumRepository';
 
 export interface AuthenticationLifecycle {
@@ -33,6 +42,76 @@ export enum TopicReadStateKind {
   CONTENT = 'content',
   EMPTY = 'empty',
   ERROR = 'error'
+}
+
+export enum ReplyComposerStateKind {
+  CLOSED = 'closed',
+  EDITING = 'editing',
+  SUBMITTING = 'submitting',
+  CHECKING = 'checking',
+  ERROR = 'error',
+  REAUTHENTICATE = 'reauthenticate',
+  SUCCESS = 'success'
+}
+
+export class ReplyComposerState {
+  public readonly kind: ReplyComposerStateKind;
+  public readonly draft: string;
+  public readonly replyToPostNumber: number | null;
+  public readonly message: string;
+
+  private constructor(
+    kind: ReplyComposerStateKind,
+    draft: string,
+    replyToPostNumber: number | null,
+    message: string
+  ) {
+    this.kind = kind;
+    this.draft = draft;
+    this.replyToPostNumber = replyToPostNumber;
+    this.message = message;
+  }
+
+  public static closed(draft: string = '', replyToPostNumber: number | null = null): ReplyComposerState {
+    return new ReplyComposerState(ReplyComposerStateKind.CLOSED, draft, replyToPostNumber, '');
+  }
+
+  public static editing(draft: string, replyToPostNumber: number | null): ReplyComposerState {
+    return new ReplyComposerState(ReplyComposerStateKind.EDITING, draft, replyToPostNumber, '');
+  }
+
+  public static submitting(draft: string, replyToPostNumber: number | null): ReplyComposerState {
+    return new ReplyComposerState(ReplyComposerStateKind.SUBMITTING, draft, replyToPostNumber, '正在提交 Reply');
+  }
+
+  public static checking(draft: string, replyToPostNumber: number | null): ReplyComposerState {
+    return new ReplyComposerState(
+      ReplyComposerStateKind.CHECKING,
+      draft,
+      replyToPostNumber,
+      '正在确认 Reply 是否已创建'
+    );
+  }
+
+  public static error(draft: string, replyToPostNumber: number | null, message: string): ReplyComposerState {
+    return new ReplyComposerState(ReplyComposerStateKind.ERROR, draft, replyToPostNumber, message);
+  }
+
+  public static reauthenticate(
+    draft: string,
+    replyToPostNumber: number | null,
+    message: string = '登录已失效，重新登录后可继续提交'
+  ): ReplyComposerState {
+    return new ReplyComposerState(ReplyComposerStateKind.REAUTHENTICATE, draft, replyToPostNumber, message);
+  }
+
+  public static success(message: string): ReplyComposerState {
+    return new ReplyComposerState(ReplyComposerStateKind.SUCCESS, '', null, message);
+  }
+
+  public isBusy(): boolean {
+    return this.kind === ReplyComposerStateKind.SUBMITTING || this.kind === ReplyComposerStateKind.CHECKING;
+  }
 }
 
 export class TopicReadState {
@@ -195,6 +274,7 @@ export class AppShellModel {
   public selectedCategory: Category | null = null;
   public categoryTopicsState: BrowseState<Topic> = BrowseState.initial<Topic>();
   public topicState: TopicReadState = TopicReadState.initial();
+  public replyState: ReplyComposerState = ReplyComposerState.closed();
 
   private readonly repository: ForumRepository;
   private readonly categoryCache: CategoryCache;
@@ -206,6 +286,7 @@ export class AppShellModel {
   private selectedTopic: Topic | null = null;
   private categoryRequestVersion: number = 0;
   private topicRequestVersion: number = 0;
+  private replyRequestVersion: number = 0;
 
   public constructor(
     repository: ForumRepository,
@@ -266,6 +347,8 @@ export class AppShellModel {
     this.topicRequestVersion += 1;
     const requestVersion: number = this.topicRequestVersion;
     this.requiresAuthentication = false;
+    this.replyRequestVersion += 1;
+    this.replyState = ReplyComposerState.closed();
     this.selectedTopic = topic;
     this.topicReturnDestination = this.activeDestination === SecondaryDestination.CATEGORY_TOPICS
       ? SecondaryDestination.CATEGORY_TOPICS
@@ -348,9 +431,117 @@ export class AppShellModel {
     await this.loadMorePosts();
   }
 
+  public openReply(replyToPostNumber: number | null): void {
+    if (!this.topicState.canReply || this.topicState.detail === null || this.replyState.isBusy()) {
+      return;
+    }
+    this.replyState = ReplyComposerState.editing(this.replyState.draft, replyToPostNumber);
+  }
+
+  public updateReplyDraft(draft: string): void {
+    if (this.replyState.isBusy()) {
+      return;
+    }
+    this.replyState = ReplyComposerState.editing(draft, this.replyState.replyToPostNumber);
+  }
+
+  public dismissReply(): void {
+    if (this.replyState.isBusy()) {
+      return;
+    }
+    this.replyState = ReplyComposerState.closed(
+      this.replyState.draft,
+      this.replyState.replyToPostNumber
+    );
+  }
+
+  public async submitReply(): Promise<void> {
+    const detail: TopicDetail | null = this.topicState.detail;
+    if (detail === null || !this.topicState.canReply || this.replyState.isBusy()) {
+      return;
+    }
+    const request: ReplyRequest | null = ReplyRequest.create(
+      detail.id,
+      this.replyState.draft,
+      this.replyState.replyToPostNumber
+    );
+    if (request === null) {
+      this.replyState = ReplyComposerState.error(
+        this.replyState.draft,
+        this.replyState.replyToPostNumber,
+        '请输入 Reply 内容'
+      );
+      return;
+    }
+
+    this.replyRequestVersion += 1;
+    const requestVersion: number = this.replyRequestVersion;
+    const replyToPostNumber: number | null = request.replyToPostNumber;
+    const expectedPostNumber: number = this.nextExpectedPostNumber(detail);
+    this.requiresAuthentication = false;
+    this.replyState = ReplyComposerState.submitting(request.raw, replyToPostNumber);
+
+    const userResult: RepositoryResult<CurrentUser> = await this.repository.loadCurrentUser();
+    if (!this.isCurrentReplyRequest(requestVersion, detail.id)) {
+      return;
+    }
+    if (!userResult.isSuccess() || userResult.data === null) {
+      if (userResult.isUnauthorized()) {
+        await this.handleReplyUnauthorized(request.raw, replyToPostNumber);
+      } else {
+        this.replyState = ReplyComposerState.error(request.raw, replyToPostNumber, userResult.message);
+      }
+      return;
+    }
+
+    const submitResult: ReplySubmitResult = await this.repository.submitReply(request);
+    if (!this.isCurrentReplyRequest(requestVersion, detail.id)) {
+      return;
+    }
+    if (submitResult.kind === ReplySubmitKind.CREATED && submitResult.post !== null) {
+      this.completeReply(submitResult.post);
+      return;
+    }
+    if (submitResult.kind === ReplySubmitKind.UNAUTHORIZED) {
+      await this.handleReplyUnauthorized(request.raw, replyToPostNumber);
+      return;
+    }
+    if (submitResult.kind === ReplySubmitKind.REJECTED) {
+      this.replyState = ReplyComposerState.error(request.raw, replyToPostNumber, submitResult.message);
+      return;
+    }
+
+    const recoveryRequest: ReplyRecoveryRequest | null = ReplyRecoveryRequest.create(
+      request,
+      expectedPostNumber,
+      userResult.data
+    );
+    if (recoveryRequest === null) {
+      this.replyState = ReplyComposerState.error(
+        request.raw,
+        replyToPostNumber,
+        '无法确认 Reply 是否已创建，请检查 Topic 后再显式重试'
+      );
+      return;
+    }
+    this.replyState = ReplyComposerState.checking(request.raw, replyToPostNumber);
+    const recoveryResult: ReplyRecoveryResult = await this.repository.recoverReply(recoveryRequest);
+    if (!this.isCurrentReplyRequest(requestVersion, detail.id)) {
+      return;
+    }
+    if (recoveryResult.kind === ReplyRecoveryKind.CONFIRMED && recoveryResult.post !== null) {
+      this.completeReply(recoveryResult.post);
+    } else if (recoveryResult.kind === ReplyRecoveryKind.UNAUTHORIZED) {
+      await this.handleReplyUnauthorized(request.raw, replyToPostNumber);
+    } else {
+      this.replyState = ReplyComposerState.error(request.raw, replyToPostNumber, recoveryResult.message);
+    }
+  }
+
   public closeSecondary(): void {
     if (this.activeDestination === SecondaryDestination.TOPIC) {
       this.topicRequestVersion += 1;
+      this.replyRequestVersion += 1;
       this.activeDestination = this.topicReturnDestination;
       this.topicReturnDestination = SecondaryDestination.NONE;
     } else {
@@ -358,6 +549,56 @@ export class AppShellModel {
       this.activeDestination = SecondaryDestination.NONE;
     }
     this.remainingPostIds = [];
+  }
+
+  private nextExpectedPostNumber(detail: TopicDetail): number {
+    let highestPostNumber: number = detail.postCount;
+    for (const post of this.topicState.posts) {
+      highestPostNumber = Math.max(highestPostNumber, post.postNumber);
+    }
+    return highestPostNumber + 1;
+  }
+
+  private isCurrentReplyRequest(requestVersion: number, topicId: number): boolean {
+    return requestVersion === this.replyRequestVersion && this.topicState.topicId === topicId;
+  }
+
+  private async handleReplyUnauthorized(draft: string, replyToPostNumber: number | null): Promise<void> {
+    this.requiresAuthentication = true;
+    this.replyState = ReplyComposerState.reauthenticate(draft, replyToPostNumber);
+    await this.notifyUnauthorized(true);
+  }
+
+  private completeReply(post: ForumPost): void {
+    const detail: TopicDetail | null = this.topicState.detail;
+    if (detail === null) {
+      return;
+    }
+    const postIds: Array<number> = detail.postIds.includes(post.id)
+      ? detail.postIds
+      : detail.postIds.concat([post.id]);
+    const detailPosts: Array<ForumPost> = uniquePosts(detail.posts.concat([post]));
+    const updatedDetail: TopicDetail = new TopicDetail(
+      detail.id,
+      detail.title,
+      detail.viewCount,
+      Math.max(detail.postCount, post.postNumber),
+      detail.likeCount,
+      detail.closed,
+      detail.archived,
+      detail.canReply,
+      postIds,
+      detailPosts
+    );
+    const visiblePosts: Array<ForumPost> = uniquePosts(this.topicState.posts.concat([post]));
+    this.topicState = TopicReadState.content(
+      updatedDetail,
+      visiblePosts,
+      this.topicState.hasMorePosts,
+      false,
+      this.topicState.paginationMessage
+    );
+    this.replyState = ReplyComposerState.success('Reply 已发布');
   }
 
   public async loadHome(): Promise<void> {

@@ -1,7 +1,9 @@
 import { describe, expect, it } from '@ohos/hypium';
 import {
   AppShellModel,
+  AuthenticationLifecycle,
   BrowseStateKind,
+  ReplyComposerStateKind,
   RootDestination,
   SecondaryDestination,
   TopicReadStateKind
@@ -47,6 +49,11 @@ class TopicReadingRepository implements ForumRepository {
   public categoryTopicTasks: Array<Promise<RepositoryResult<Array<Topic>>>> = [];
   public requestedCategoryIds: Array<number> = [];
   public requestedPostIds: Array<Array<number>> = [];
+  public currentUserResults: Array<RepositoryResult<CurrentUser>> = [];
+  public replySubmitResults: Array<ReplySubmitResult> = [];
+  public replyRecoveryResults: Array<ReplyRecoveryResult> = [];
+  public submittedReplies: Array<ReplyRequest> = [];
+  public recoveryRequests: Array<ReplyRecoveryRequest> = [];
 
   public async loadLatestTopics(): Promise<RepositoryResult<Array<Topic>>> {
     return RepositoryResult.success<Array<Topic>>([]);
@@ -81,16 +88,29 @@ class TopicReadingRepository implements ForumRepository {
     return result ?? RepositoryResult.failure<Array<ForumPost>>('missing Post result');
   }
 
-  public async submitReply(_request: ReplyRequest): Promise<ReplySubmitResult> {
-    return ReplySubmitResult.rejected('missing Reply result');
+  public async submitReply(request: ReplyRequest): Promise<ReplySubmitResult> {
+    this.submittedReplies.push(request);
+    const result: ReplySubmitResult | undefined = this.replySubmitResults.shift();
+    return result ?? ReplySubmitResult.rejected('missing Reply result');
   }
 
   public async loadCurrentUser(): Promise<RepositoryResult<CurrentUser>> {
-    return RepositoryResult.failure<CurrentUser>('missing current user result');
+    const result: RepositoryResult<CurrentUser> | undefined = this.currentUserResults.shift();
+    return result ?? RepositoryResult.failure<CurrentUser>('missing current user result');
   }
 
-  public async recoverReply(_request: ReplyRecoveryRequest): Promise<ReplyRecoveryResult> {
-    return ReplyRecoveryResult.failed('missing Reply recovery result');
+  public async recoverReply(request: ReplyRecoveryRequest): Promise<ReplyRecoveryResult> {
+    this.recoveryRequests.push(request);
+    const result: ReplyRecoveryResult | undefined = this.replyRecoveryResults.shift();
+    return result ?? ReplyRecoveryResult.failed('missing Reply recovery result');
+  }
+}
+
+class TopicAuthenticationLifecycle implements AuthenticationLifecycle {
+  public unauthorizedCallCount: number = 0;
+
+  public async handleUnauthorized(): Promise<void> {
+    this.unauthorizedCallCount += 1;
   }
 }
 
@@ -116,6 +136,17 @@ function secondPost(): ForumPost {
 
 function thirdPost(): ForumPost {
   return new ForumPost(102730, 24, 'Co-admin', '<p>第二条 Reply</p>', '第二条 Reply', 3, 2, '2026-01-28T00:01:00Z');
+}
+
+function fourthPost(): ForumPost {
+  return new ForumPost(102731, 24, 'Co-admin', '<p>收到</p>', '收到', 4, 3, '2026-01-28T00:02:00Z');
+}
+
+function authenticatedUserResult(): RepositoryResult<CurrentUser> {
+  const user: CurrentUser | null = CurrentUser.create(24, 'Co-admin');
+  return user === null
+    ? RepositoryResult.failure<CurrentUser>('invalid test user')
+    : RepositoryResult.success<CurrentUser>(user);
 }
 
 export default function topicReadingTest(): void {
@@ -338,6 +369,120 @@ export default function topicReadingTest(): void {
       expect(model.topicState.posts.length).assertEqual(3);
       expect(model.topicState.hasMorePosts).assertFalse();
       expect(model.topicState.paginationMessage).assertEqual('');
+      done();
+    });
+
+    it('submits a targeted Reply once and appends the created Post', 0, async (done: Function) => {
+      const repository: TopicReadingRepository = new TopicReadingRepository();
+      repository.topicDetailResults.push(RepositoryResult.success<TopicDetail>(new TopicDetail(
+        2725, '站务管理区重要主题导航', 1959, 3, 4, false, false, true,
+        [102728, 102729, 102730], [firstPost(), secondPost(), thirdPost()]
+      )));
+      repository.currentUserResults.push(authenticatedUserResult());
+      repository.replySubmitResults.push(ReplySubmitResult.created(fourthPost()));
+      const model: AppShellModel = new AppShellModel(
+        repository, new MemoryCategoryCache(), CategoryCacheScope.anonymous()
+      );
+      await model.openTopic(topic());
+      model.openReply(3);
+      model.updateReplyDraft('  收到  ');
+
+      const submitting: Promise<void> = model.submitReply();
+      expect(model.replyState.kind).assertEqual(ReplyComposerStateKind.SUBMITTING);
+      await submitting;
+
+      expect(repository.submittedReplies.length).assertEqual(1);
+      expect(repository.submittedReplies[0].replyToPostNumber).assertEqual(3);
+      expect(model.replyState.kind).assertEqual(ReplyComposerStateKind.SUCCESS);
+      expect(model.replyState.draft).assertEqual('');
+      expect(model.topicState.posts.length).assertEqual(4);
+      expect(model.topicState.posts[3].id).assertEqual(102731);
+      done();
+    });
+
+    it('confirms an uncertain Reply without sending a second POST', 0, async (done: Function) => {
+      const repository: TopicReadingRepository = new TopicReadingRepository();
+      repository.topicDetailResults.push(RepositoryResult.success<TopicDetail>(new TopicDetail(
+        2725, '站务管理区重要主题导航', 1959, 3, 4, false, false, true,
+        [102728, 102729, 102730], [firstPost(), secondPost(), thirdPost()]
+      )));
+      repository.currentUserResults.push(authenticatedUserResult());
+      repository.replySubmitResults.push(ReplySubmitResult.uncertain('连接中断'));
+      repository.replyRecoveryResults.push(ReplyRecoveryResult.confirmed(fourthPost()));
+      const model: AppShellModel = new AppShellModel(
+        repository, new MemoryCategoryCache(), CategoryCacheScope.anonymous()
+      );
+      await model.openTopic(topic());
+      model.openReply(3);
+      model.updateReplyDraft('收到');
+
+      await model.submitReply();
+
+      expect(repository.submittedReplies.length).assertEqual(1);
+      expect(repository.recoveryRequests.length).assertEqual(1);
+      expect(repository.recoveryRequests[0].expectedPostNumber).assertEqual(4);
+      expect(model.replyState.kind).assertEqual(ReplyComposerStateKind.SUCCESS);
+      expect(model.topicState.posts.length).assertEqual(4);
+      done();
+    });
+
+    it('preserves a rejected draft and only retries after another explicit submit', 0, async (done: Function) => {
+      const repository: TopicReadingRepository = new TopicReadingRepository();
+      repository.topicDetailResults.push(RepositoryResult.success<TopicDetail>(new TopicDetail(
+        2725, '站务管理区重要主题导航', 1959, 3, 4, false, false, true,
+        [102728, 102729, 102730], [firstPost(), secondPost(), thirdPost()]
+      )));
+      repository.currentUserResults.push(authenticatedUserResult(), authenticatedUserResult());
+      repository.replySubmitResults.push(
+        ReplySubmitResult.rejected('操作过于频繁'),
+        ReplySubmitResult.created(fourthPost())
+      );
+      const model: AppShellModel = new AppShellModel(
+        repository, new MemoryCategoryCache(), CategoryCacheScope.anonymous()
+      );
+      await model.openTopic(topic());
+      model.openReply(null);
+      model.updateReplyDraft('收到');
+
+      await model.submitReply();
+      expect(repository.submittedReplies.length).assertEqual(1);
+      expect(model.replyState.kind).assertEqual(ReplyComposerStateKind.ERROR);
+      expect(model.replyState.draft).assertEqual('收到');
+
+      await model.submitReply();
+      expect(repository.submittedReplies.length).assertEqual(2);
+      expect(model.replyState.kind).assertEqual(ReplyComposerStateKind.SUCCESS);
+      done();
+    });
+
+    it('keeps the in-memory draft when authentication expires or the composer closes', 0, async (done: Function) => {
+      const repository: TopicReadingRepository = new TopicReadingRepository();
+      repository.topicDetailResults.push(RepositoryResult.success<TopicDetail>(new TopicDetail(
+        2725, '站务管理区重要主题导航', 1959, 3, 4, false, false, true,
+        [102728, 102729, 102730], [firstPost(), secondPost(), thirdPost()]
+      )));
+      repository.currentUserResults.push(RepositoryResult.unauthorized<CurrentUser>());
+      const lifecycle: TopicAuthenticationLifecycle = new TopicAuthenticationLifecycle();
+      const model: AppShellModel = new AppShellModel(
+        repository,
+        new MemoryCategoryCache(),
+        CategoryCacheScope.anonymous(),
+        lifecycle
+      );
+      await model.openTopic(topic());
+      model.openReply(3);
+      model.updateReplyDraft('登录后继续');
+
+      await model.submitReply();
+
+      expect(repository.submittedReplies.length).assertEqual(0);
+      expect(model.replyState.kind).assertEqual(ReplyComposerStateKind.REAUTHENTICATE);
+      expect(model.replyState.draft).assertEqual('登录后继续');
+      expect(lifecycle.unauthorizedCallCount).assertEqual(1);
+      model.dismissReply();
+      expect(model.replyState.kind).assertEqual(ReplyComposerStateKind.CLOSED);
+      model.openReply(3);
+      expect(model.replyState.draft).assertEqual('登录后继续');
       done();
     });
   });
