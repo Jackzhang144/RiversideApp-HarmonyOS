@@ -70,7 +70,8 @@ grep -E 'OHOS_REPORT_RESULT:|OHOS_REPORT_CODE:|TestFinished-ResultCode:' <<<"$TE
 
 devecocli build --modules entry
 devecocli run --module entry --device "$DEVICE_SERIAL" --skip-build
-readonly CRASH_OUTPUT="$("$LOG_COLLECTOR" "$DEVICE_SERIAL" 2m crash)"
+CRASH_OUTPUT="$("$LOG_COLLECTOR" "$DEVICE_SERIAL" 2m crash)"
+readonly CRASH_OUTPUT
 if [[ -n "${CRASH_OUTPUT//[[:space:]]/}" ]]; then
   printf '%s\n' "$CRASH_OUTPUT"
   printf 'Application crash output was detected after the regression launch.\n' >&2
