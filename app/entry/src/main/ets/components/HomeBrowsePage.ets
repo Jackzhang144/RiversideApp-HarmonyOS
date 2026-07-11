@@ -146,7 +146,7 @@ export struct HomeBrowsePage {
       }
       .width('100%')
       .height('100%')
-      .padding({ left: 12, right: 12, top: 10, bottom: 12 })
+      .padding({ left: 12, right: 12, top: 10 })
       .backgroundColor('#F5F6F8')
       .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
     }
