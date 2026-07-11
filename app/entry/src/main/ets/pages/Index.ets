@@ -77,7 +77,6 @@ struct Index {
   @State categoryTitle: string = 'Category';
   @State topicState: TopicReadState = TopicReadState.initial();
   @State replyState: ReplyComposerState = ReplyComposerState.closed();
-  @State topicTitle: string = 'Topic';
   @State authState: AuthState = AuthState.idle();
 
   private topAvoidHeight(): number {
@@ -271,7 +270,6 @@ struct Index {
       return;
     }
     const task: Promise<void> = model.openTopic(topic);
-    this.topicTitle = topic.title;
     this.topicState = model.topicState;
     this.replyState = model.replyState;
     this.pathStack.pushPath({ name: TOPIC_ROUTE });
@@ -496,7 +494,7 @@ struct Index {
       .titleBar({
         enableComponentSafeArea: true,
         content: {
-          title: { mainTitle: this.topicTitle },
+          title: { mainTitle: 'Topic 详情' },
           backIcon: { label: '返回 Topic 列表' }
         }
       })

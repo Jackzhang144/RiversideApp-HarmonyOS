@@ -261,6 +261,8 @@ export default function topicReadingTest(): void {
       expect(model.topicState.posts.length).assertEqual(1);
       expect(model.topicState.posts[0].id).assertEqual(102728);
       expect(model.topicState.canReply).assertFalse();
+      model.openReply(null);
+      expect(model.replyState.kind).assertEqual(ReplyComposerStateKind.CLOSED);
 
       model.closeSecondary();
       expect(model.activeDestination).assertEqual(SecondaryDestination.NONE);
@@ -324,6 +326,8 @@ export default function topicReadingTest(): void {
       expect(model.topicState.posts.length).assertEqual(0);
       expect(model.topicState.canReply).assertFalse();
       expect(model.topicState.hasMorePosts).assertFalse();
+      model.openReply(null);
+      expect(model.replyState.kind).assertEqual(ReplyComposerStateKind.CLOSED);
       done();
     });
 
@@ -369,6 +373,41 @@ export default function topicReadingTest(): void {
       expect(model.topicState.posts.length).assertEqual(3);
       expect(model.topicState.hasMorePosts).assertFalse();
       expect(model.topicState.paginationMessage).assertEqual('');
+      done();
+    });
+
+    it('keeps the server Post order across the first screen and appended window', 0, async (done: Function) => {
+      const repository: TopicReadingRepository = new TopicReadingRepository();
+      repository.topicDetailResults.push(RepositoryResult.success<TopicDetail>(new TopicDetail(
+        2725,
+        '站务管理区重要主题导航',
+        1959,
+        4,
+        4,
+        false,
+        false,
+        true,
+        [102729, 102728, 102731, 102730],
+        [secondPost(), firstPost()]
+      )));
+      repository.topicPostResults.push(RepositoryResult.success<Array<ForumPost>>([
+        fourthPost(),
+        thirdPost()
+      ]));
+      const model: AppShellModel = new AppShellModel(
+        repository,
+        new MemoryCategoryCache(),
+        CategoryCacheScope.anonymous()
+      );
+
+      await model.openTopic(topic());
+      expect(model.topicState.posts.map((post: ForumPost): number => post.postNumber).join(','))
+        .assertEqual('2,1');
+
+      await model.loadMorePosts();
+
+      expect(model.topicState.posts.map((post: ForumPost): number => post.postNumber).join(','))
+        .assertEqual('2,1,4,3');
       done();
     });
 

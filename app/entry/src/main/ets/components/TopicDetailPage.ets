@@ -18,6 +18,33 @@ export struct TopicDetailPage {
   onDismissReply: () => void = (): void => {};
   onLoginForReply: () => void = (): void => {};
 
+  private authorName(post: ForumPost): string {
+    return post.username.length > 0 ? post.username : '匿名';
+  }
+
+  private authorInitial(post: ForumPost): string {
+    const author: string = this.authorName(post);
+    return author === '匿名' ? '匿' : author.slice(0, 1).toUpperCase();
+  }
+
+  private publishedAt(post: ForumPost): string {
+    const timestamp: string = post.createdAt.trim();
+    if (timestamp.length >= 16 && timestamp.includes('T')) {
+      return timestamp.slice(0, 16).replace('T', ' ');
+    }
+    return timestamp.length > 0 ? timestamp : '时间未知';
+  }
+
+  private replyRestriction(detail: TopicDetail): string {
+    if (detail.archived) {
+      return '此 Topic 已归档，不可 Reply';
+    }
+    if (detail.closed) {
+      return '此 Topic 已关闭，不可 Reply';
+    }
+    return detail.canReply ? '' : '当前会话不可 Reply';
+  }
+
   @Builder
   private LoadingState(): void {
     Column({ space: 16 }) {
@@ -31,6 +58,7 @@ export struct TopicDetailPage {
     .width('100%')
     .height('100%')
     .justifyContent(FlexAlign.Center)
+    .backgroundColor('#F5F6F8')
   }
 
   @Builder
@@ -51,78 +79,169 @@ export struct TopicDetailPage {
     .width('100%')
     .height('100%')
     .justifyContent(FlexAlign.Center)
+    .backgroundColor('#F5F6F8')
   }
 
   @Builder
   private TopicSummary(detail: TopicDetail): void {
-    Column({ space: 10 }) {
+    Column({ space: 12 }) {
       Text(detail.title)
-        .fontSize(22)
+        .fontSize(18)
         .fontWeight(FontWeight.Bold)
+        .lineHeight(25)
         .width('100%')
-      Text(`${detail.postCount} Post  ·  ${detail.viewCount} 浏览  ·  ${detail.likeCount} 赞`)
-        .fontSize(13)
-        .fontColor($r('sys.color.font_secondary'))
-        .width('100%')
-      if (detail.closed || detail.archived) {
-        Text(detail.archived ? '此 Topic 已归档，不可 Reply' : '此 Topic 已关闭，不可 Reply')
+      Row({ space: 5 }) {
+        SymbolGlyph($r('sys.symbol.message'))
           .fontSize(14)
+          .fontColor([$r('sys.color.font_tertiary')])
+        Text(Math.max(detail.postCount - 1, 0).toString())
+          .fontSize(11)
+          .fontColor($r('sys.color.font_tertiary'))
+        SymbolGlyph($r('sys.symbol.eye'))
+          .fontSize(14)
+          .fontColor([$r('sys.color.font_tertiary')])
+          .margin({ left: 8 })
+        Text(detail.viewCount.toString())
+          .fontSize(11)
+          .fontColor($r('sys.color.font_tertiary'))
+        SymbolGlyph($r('sys.symbol.heart'))
+          .fontSize(14)
+          .fontColor([$r('sys.color.font_tertiary')])
+          .margin({ left: 8 })
+        Text(detail.likeCount.toString())
+          .fontSize(11)
+          .fontColor($r('sys.color.font_tertiary'))
+      }
+      .width('100%')
+      if (this.replyRestriction(detail).length > 0) {
+        Text(this.replyRestriction(detail))
+          .fontSize(13)
           .fontWeight(FontWeight.Medium)
-          .fontColor($r('sys.color.font_emphasize'))
-          .width('100%')
-      } else if (!detail.canReply) {
-        Text('当前会话不可 Reply')
-          .fontSize(14)
-          .fontColor($r('sys.color.font_secondary'))
+          .fontColor('#C62828')
+          .padding({ left: 10, right: 10, top: 7, bottom: 7 })
+          .backgroundColor('#FDECEC')
+          .borderRadius(8)
           .width('100%')
       } else {
         Button(this.replyState.draft.trim().length > 0 ? '继续 Reply' : 'Reply Topic')
+          .height(40)
+          .fontSize(13)
           .onClick((): void => this.onOpenReply(null))
           .accessibilityText('回复当前 Topic')
       }
     }
+    .alignItems(HorizontalAlign.Start)
     .width('100%')
-    .padding(16)
-    .backgroundColor($r('sys.color.comp_background_tertiary'))
-    .borderRadius(16)
+    .padding(14)
+    .backgroundColor('#FFFFFF')
+    .borderRadius(12)
+    .border({ width: 1, color: '#E8EBF0' })
+    .accessibilityText(
+      `${detail.title}，${Math.max(detail.postCount - 1, 0)} 条 Reply，` +
+      `${detail.viewCount} 浏览，${detail.likeCount} 赞`
+    )
+  }
+
+  @Builder
+  private PostSectionHeader(detail: TopicDetail): void {
+    Row() {
+      Text(`全部 Post（${detail.postCount}）`)
+        .fontSize(15)
+        .fontWeight(FontWeight.Medium)
+        .layoutWeight(1)
+      if (this.state.hasMorePosts) {
+        Text(`已加载 ${this.state.posts.length}`)
+          .fontSize(12)
+          .fontColor($r('sys.color.font_tertiary'))
+      }
+    }
+    .width('100%')
+    .padding({ left: 4, right: 4, top: 8, bottom: 2 })
   }
 
   @Builder
   private PostRow(post: ForumPost): void {
-    Column({ space: 12 }) {
-      Row() {
-        Text(post.username.length > 0 ? post.username : '匿名')
-          .fontSize(15)
-          .fontWeight(FontWeight.Medium)
-          .layoutWeight(1)
-        Text(`#${post.postNumber}`)
+    Column({ space: 10 }) {
+      Row({ space: 9 }) {
+        Text(this.authorInitial(post))
           .fontSize(13)
-          .fontColor($r('sys.color.font_secondary'))
+          .fontWeight(FontWeight.Bold)
+          .fontColor('#317AF7')
+          .width(36)
+          .height(36)
+          .textAlign(TextAlign.Center)
+          .backgroundColor('#EAF2FF')
+          .borderRadius(18)
+        Column({ space: 2 }) {
+          Text(this.authorName(post))
+            .fontSize(14)
+            .fontWeight(FontWeight.Medium)
+          Text(this.publishedAt(post))
+            .fontSize(11)
+            .fontColor($r('sys.color.font_tertiary'))
+        }
+        .alignItems(HorizontalAlign.Start)
+        .layoutWeight(1)
+        Text(`#${post.postNumber}`)
+          .fontSize(11)
+          .fontWeight(FontWeight.Medium)
+          .fontColor('#2068C9')
+          .padding({ left: 8, right: 8, top: 4, bottom: 4 })
+          .backgroundColor('#EAF2FF')
+          .borderRadius(10)
       }
       .width('100%')
       Text(post.displayText)
-        .fontSize(16)
-        .lineHeight(25)
+        .fontSize(14)
+        .lineHeight(22)
         .fontColor($r('sys.color.font_primary'))
         .width('100%')
-      if (post.createdAt.length > 0) {
-        Text(post.createdAt)
-          .fontSize(12)
-          .fontColor($r('sys.color.font_tertiary'))
-          .width('100%')
-      }
       if (this.state.canReply) {
-        Button(`Reply #${post.postNumber}`)
-          .fontSize(13)
+        Row() {
+          Blank()
+          Button() {
+            Row({ space: 4 }) {
+              SymbolGlyph($r('sys.symbol.message'))
+                .fontSize(14)
+                .fontColor(['#317AF7'])
+              Text('Reply')
+                .fontSize(12)
+                .fontColor('#317AF7')
+            }
+          }
+          .height(36)
+          .backgroundColor(Color.Transparent)
           .onClick((): void => this.onOpenReply(post.postNumber))
           .accessibilityText(`回复第 ${post.postNumber} 条 Post`)
+        }
+        .width('100%')
       }
     }
+    .alignItems(HorizontalAlign.Start)
     .width('100%')
-    .padding(16)
-    .backgroundColor($r('sys.color.comp_background_tertiary'))
-    .borderRadius(16)
-    .accessibilityText(`${post.username} 的第 ${post.postNumber} 条 Post`)
+    .padding(14)
+    .backgroundColor('#FFFFFF')
+    .borderRadius(12)
+    .border({ width: 1, color: '#E8EBF0' })
+    .accessibilityText(`${this.authorName(post)} 的第 ${post.postNumber} 条 Post`)
+  }
+
+  @Builder
+  private EmptyPostState(): void {
+    Column({ space: 12 }) {
+      Text('首屏还没有可展示的 Post')
+        .fontSize(18)
+        .fontWeight(FontWeight.Bold)
+      Text(this.state.hasMorePosts ? '可以继续加载后续 Post。' : '这个 Topic 暂无内容。')
+        .fontSize(14)
+        .fontColor($r('sys.color.font_secondary'))
+        .textAlign(TextAlign.Center)
+    }
+    .width('100%')
+    .padding(28)
+    .backgroundColor('#FFFFFF')
+    .borderRadius(12)
+    .border({ width: 1, color: '#E8EBF0' })
   }
 
   @Builder
@@ -145,6 +264,8 @@ export struct TopicDetailPage {
         .height(140)
         .width('100%')
         .enabled(!this.replyState.isBusy())
+        .backgroundColor('#F5F6F8')
+        .borderRadius(8)
         .onChange((value: string): void => this.onReplyDraftChange(value))
       Text(`${this.replyState.draft.trim().length} 字符 · 草稿仅保存在本次运行内存中`)
         .fontSize(12)
@@ -175,9 +296,10 @@ export struct TopicDetailPage {
       }
     }
     .width('100%')
-    .padding(16)
-    .backgroundColor($r('sys.color.comp_background_tertiary'))
-    .borderRadius(16)
+    .padding(14)
+    .backgroundColor('#FFFFFF')
+    .borderRadius(12)
+    .border({ width: 1, color: '#E8EBF0' })
   }
 
   @Builder
@@ -193,23 +315,28 @@ export struct TopicDetailPage {
       } else if (this.state.paginationMessage.length > 0) {
         Text(this.state.paginationMessage)
           .fontSize(14)
-          .fontColor($r('sys.color.font_secondary'))
+          .fontColor('#C62828')
           .textAlign(TextAlign.Center)
         Button('重试加载更多')
+          .height(40)
+          .fontSize(13)
           .onClick(this.onLoadMore)
           .accessibilityText('重试加载更多 Post')
       } else if (this.state.hasMorePosts) {
         Button('加载更多 Post')
+          .height(40)
+          .fontSize(13)
           .onClick(this.onLoadMore)
           .accessibilityText('加载更多 Post')
       } else if (this.state.posts.length > 0) {
         Text('已显示全部 Post')
-          .fontSize(14)
+          .fontSize(13)
           .fontColor($r('sys.color.font_tertiary'))
       }
     }
     .width('100%')
     .padding(20)
+    .justifyContent(FlexAlign.Center)
   }
 
   @Builder
@@ -219,19 +346,13 @@ export struct TopicDetailPage {
         ListItem() {
           this.TopicSummary(this.state.detail)
         }
+        ListItem() {
+          this.PostSectionHeader(this.state.detail)
+        }
       }
       if (this.state.kind === TopicReadStateKind.EMPTY) {
         ListItem() {
-          Column({ space: 12 }) {
-            Text('首屏还没有可展示的 Post')
-              .fontSize(20)
-              .fontWeight(FontWeight.Bold)
-            Text(this.state.hasMorePosts ? '可以继续加载后续 Post。' : '这个 Topic 暂无内容。')
-              .fontSize(14)
-              .fontColor($r('sys.color.font_secondary'))
-          }
-          .width('100%')
-          .padding(28)
+          this.EmptyPostState()
         }
       }
       ForEach(this.state.posts, (post: ForumPost) => {
@@ -250,11 +371,17 @@ export struct TopicDetailPage {
       ListItem() {
         this.PaginationFooter()
       }
+      ListItem() {
+        Column()
+          .width('100%')
+          .height(32)
+      }
     }
     .width('100%')
     .height('100%')
-    .padding({ left: 12, right: 12, bottom: 12 })
-    .edgeEffect(EdgeEffect.Spring)
+    .padding({ left: 12, right: 12, top: 10 })
+    .backgroundColor('#F5F6F8')
+    .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
   }
 
   build() {
