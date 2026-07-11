@@ -13,7 +13,7 @@ import {
   AppShellModel,
   BrowseState,
   BrowseStateKind,
-  HomeSortTabIndex,
+  isHomeSortTabAvailable,
   ReplyComposerState,
   ReplyComposerStateKind,
   rootDestinationForTabIndex,
@@ -630,8 +630,8 @@ struct Index {
             canChangeSortTab: (index: number): boolean => {
               const model: AppShellModel | null = this.model;
               return model === null
-                ? index === HomeSortTabIndex.LATEST_REPLIES
-                : model.canSelectHomeSortTab(index);
+                ? isHomeSortTabAvailable(index)
+                : model.selectHomeSortTab(index);
             }
           })
         }

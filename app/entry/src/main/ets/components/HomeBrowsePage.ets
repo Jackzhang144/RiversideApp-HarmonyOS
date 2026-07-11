@@ -1,5 +1,5 @@
 import { HdsTabs } from '@kit.UIDesignKit';
-import { BrowseState, BrowseStateKind, HomeSortTabIndex } from '../app/AppShellModel';
+import { BrowseState, BrowseStateKind, isHomeSortTabAvailable } from '../app/AppShellModel';
 import { Category, Topic } from '../models/ForumModels';
 import { TopicCard } from './TopicCard';
 
@@ -11,7 +11,7 @@ export struct HomeBrowsePage {
   onRefresh: () => void = (): void => {};
   onOpenTopic: (topic: Topic) => void = (_topic: Topic): void => {};
   canChangeSortTab: (index: number) => boolean = (index: number): boolean => {
-    return index === HomeSortTabIndex.LATEST_REPLIES;
+    return isHomeSortTabAvailable(index);
   };
 
   @Builder
@@ -188,22 +188,22 @@ export struct HomeBrowsePage {
         TabContent() {
           this.unavailableContent()
         }
-        .tabBar(this.sortTabStyle('最新发表', false))
+        .tabBar(this.sortTabStyle('最新发表 · 未实现', false))
         .accessibilityText('最新发表，未实现')
         TabContent() {
           this.unavailableContent()
         }
-        .tabBar(this.sortTabStyle('未读', false))
+        .tabBar(this.sortTabStyle('未读 · 未实现', false))
         .accessibilityText('未读，未实现')
         TabContent() {
           this.unavailableContent()
         }
-        .tabBar(this.sortTabStyle('热门', false))
+        .tabBar(this.sortTabStyle('热门 · 未实现', false))
         .accessibilityText('热门，未实现')
         TabContent() {
           this.unavailableContent()
         }
-        .tabBar(this.sortTabStyle('精华', false))
+        .tabBar(this.sortTabStyle('精华 · 未实现', false))
         .accessibilityText('精华，未实现')
       }
       .barPosition(BarPosition.Start)

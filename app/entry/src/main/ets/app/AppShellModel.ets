@@ -38,6 +38,10 @@ export enum HomeSortTabIndex {
   FEATURED = 4
 }
 
+export function isHomeSortTabAvailable(index: number): boolean {
+  return index === HomeSortTabIndex.LATEST_REPLIES;
+}
+
 export function rootDestinationForTabIndex(index: number): RootDestination | null {
   if (index === RootTabIndex.HOME) {
     return RootDestination.HOME;
@@ -342,8 +346,8 @@ export class AppShellModel {
     return true;
   }
 
-  public canSelectHomeSortTab(index: number): boolean {
-    return index === HomeSortTabIndex.LATEST_REPLIES;
+  public selectHomeSortTab(index: number): boolean {
+    return isHomeSortTabAvailable(index);
   }
 
   public updateCategoryCacheScope(scope: CategoryCacheScope): void {

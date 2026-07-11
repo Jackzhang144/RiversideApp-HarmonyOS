@@ -144,11 +144,11 @@ export default function appShellModelTest(): void {
         CategoryCacheScope.anonymous()
       );
 
-      expect(model.canSelectHomeSortTab(HomeSortTabIndex.LATEST_REPLIES)).assertTrue();
-      expect(model.canSelectHomeSortTab(HomeSortTabIndex.LATEST_CREATED)).assertFalse();
-      expect(model.canSelectHomeSortTab(HomeSortTabIndex.UNREAD)).assertFalse();
-      expect(model.canSelectHomeSortTab(HomeSortTabIndex.HOT)).assertFalse();
-      expect(model.canSelectHomeSortTab(HomeSortTabIndex.FEATURED)).assertFalse();
+      expect(model.selectHomeSortTab(HomeSortTabIndex.LATEST_REPLIES)).assertTrue();
+      expect(model.selectHomeSortTab(HomeSortTabIndex.LATEST_CREATED)).assertFalse();
+      expect(model.selectHomeSortTab(HomeSortTabIndex.UNREAD)).assertFalse();
+      expect(model.selectHomeSortTab(HomeSortTabIndex.HOT)).assertFalse();
+      expect(model.selectHomeSortTab(HomeSortTabIndex.FEATURED)).assertFalse();
       expect(repository.latestCallCount).assertEqual(0);
       expect(model.activeDestination).assertEqual(SecondaryDestination.NONE);
     });
