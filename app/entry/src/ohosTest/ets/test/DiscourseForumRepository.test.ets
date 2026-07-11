@@ -145,6 +145,7 @@ export default function discourseForumRepositoryTest(): void {
       const client: StubForumHttpClient = new StubForumHttpClient();
       client.replyResults.push(HttpTextResult.unauthorized());
       client.replyResults.push(HttpTextResult.failure(422, '回复内容不符合要求'));
+      client.replyResults.push(HttpTextResult.failure(500, '服务器返回 500'));
       client.replyResults.push(HttpTextResult.failure(0, '连接中断'));
       client.replyResults.push(HttpTextResult.success(200, '{"post":{"id":102731}}'));
       const repository: DiscourseForumRepository = new DiscourseForumRepository(client);
@@ -157,12 +158,14 @@ export default function discourseForumRepositoryTest(): void {
 
       const unauthorized: ReplySubmitResult = await repository.submitReply(request);
       const rejected: ReplySubmitResult = await repository.submitReply(request);
+      const serverFailure: ReplySubmitResult = await repository.submitReply(request);
       const interrupted: ReplySubmitResult = await repository.submitReply(request);
       const malformed: ReplySubmitResult = await repository.submitReply(request);
 
       expect(unauthorized.kind).assertEqual(ReplySubmitKind.UNAUTHORIZED);
       expect(rejected.kind).assertEqual(ReplySubmitKind.REJECTED);
       expect(rejected.message).assertEqual('回复内容不符合要求');
+      expect(serverFailure.kind).assertEqual(ReplySubmitKind.UNCERTAIN);
       expect(interrupted.kind).assertEqual(ReplySubmitKind.UNCERTAIN);
       expect(malformed.kind).assertEqual(ReplySubmitKind.UNCERTAIN);
       done();

@@ -112,9 +112,12 @@ export class DiscourseForumRepository implements ForumRepository {
       return ReplySubmitResult.unauthorized();
     }
     if (!response.isSuccess()) {
-      return response.statusCode > 0
-        ? ReplySubmitResult.rejected(response.message)
-        : ReplySubmitResult.uncertain(response.message);
+      const resultIsUncertain: boolean = response.statusCode === 0 ||
+        response.statusCode === 408 ||
+        response.statusCode >= 500;
+      return resultIsUncertain
+        ? ReplySubmitResult.uncertain(response.message)
+        : ReplySubmitResult.rejected(response.message);
     }
     const parsed: RepositoryResult<ForumPost> = this.parser.parseCreatedReply(response.body);
     if (!parsed.isSuccess() || parsed.data === null) {
