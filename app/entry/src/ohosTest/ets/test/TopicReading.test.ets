@@ -3,6 +3,7 @@ import {
   AppShellModel,
   AuthenticationLifecycle,
   BrowseStateKind,
+  ReplyComposerState,
   ReplyComposerStateKind,
   RootDestination,
   SecondaryDestination,
@@ -439,6 +440,30 @@ export default function topicReadingTest(): void {
       done();
     });
 
+    it('submits a Reply longer than 1000 characters without imposing a UI-only limit', 0, async (done: Function) => {
+      const repository: TopicReadingRepository = new TopicReadingRepository();
+      repository.topicDetailResults.push(RepositoryResult.success<TopicDetail>(new TopicDetail(
+        2725, '站务管理区重要主题导航', 1959, 3, 4, false, false, true,
+        [102728, 102729, 102730], [firstPost(), secondPost(), thirdPost()]
+      )));
+      repository.currentUserResults.push(authenticatedUserResult());
+      repository.replySubmitResults.push(ReplySubmitResult.created(fourthPost()));
+      const model: AppShellModel = new AppShellModel(
+        repository, new MemoryCategoryCache(), CategoryCacheScope.anonymous()
+      );
+      const longDraft: string = '长'.repeat(1001);
+      await model.openTopic(topic());
+      model.openReply(null);
+      model.updateReplyDraft(longDraft);
+
+      await model.submitReply();
+
+      expect(repository.submittedReplies.length).assertEqual(1);
+      expect(repository.submittedReplies[0].raw.length).assertEqual(1001);
+      expect(model.replyState.kind).assertEqual(ReplyComposerStateKind.SUCCESS);
+      done();
+    });
+
     it('confirms an uncertain Reply without sending a second POST', 0, async (done: Function) => {
       const repository: TopicReadingRepository = new TopicReadingRepository();
       repository.topicDetailResults.push(RepositoryResult.success<TopicDetail>(new TopicDetail(
@@ -454,14 +479,51 @@ export default function topicReadingTest(): void {
       await model.openTopic(topic());
       model.openReply(3);
       model.updateReplyDraft('收到');
+      const observedStates: Array<ReplyComposerStateKind> = [];
+
+      await model.submitReply((state: ReplyComposerState): void => {
+        observedStates.push(state.kind);
+      });
+
+      expect(repository.submittedReplies.length).assertEqual(1);
+      expect(repository.recoveryRequests.length).assertEqual(1);
+      expect(repository.recoveryRequests[0].expectedPostNumber).assertEqual(8);
+      expect(observedStates.join(',')).assertEqual('submitting,checking,success');
+      expect(model.replyState.kind).assertEqual(ReplyComposerStateKind.SUCCESS);
+      expect(model.topicState.posts.length).assertEqual(4);
+      done();
+    });
+
+    it('does not retry an unconfirmed Reply until the user explicitly submits again', 0, async (done: Function) => {
+      const repository: TopicReadingRepository = new TopicReadingRepository();
+      repository.topicDetailResults.push(RepositoryResult.success<TopicDetail>(new TopicDetail(
+        2725, '站务管理区重要主题导航', 1959, 3, 4, false, false, true,
+        [102728, 102729, 102730], [firstPost(), secondPost(), thirdPost()]
+      )));
+      repository.currentUserResults.push(authenticatedUserResult(), authenticatedUserResult());
+      repository.replySubmitResults.push(
+        ReplySubmitResult.uncertain('连接中断'),
+        ReplySubmitResult.created(fourthPost())
+      );
+      repository.replyRecoveryResults.push(ReplyRecoveryResult.failed('无法确认 Reply 是否已创建'));
+      const model: AppShellModel = new AppShellModel(
+        repository, new MemoryCategoryCache(), CategoryCacheScope.anonymous()
+      );
+      await model.openTopic(topic());
+      model.openReply(null);
+      model.updateReplyDraft('只发布一次');
 
       await model.submitReply();
 
       expect(repository.submittedReplies.length).assertEqual(1);
       expect(repository.recoveryRequests.length).assertEqual(1);
-      expect(repository.recoveryRequests[0].expectedPostNumber).assertEqual(8);
+      expect(model.replyState.kind).assertEqual(ReplyComposerStateKind.ERROR);
+      expect(model.replyState.draft).assertEqual('只发布一次');
+
+      await model.submitReply();
+
+      expect(repository.submittedReplies.length).assertEqual(2);
       expect(model.replyState.kind).assertEqual(ReplyComposerStateKind.SUCCESS);
-      expect(model.topicState.posts.length).assertEqual(4);
       done();
     });
 

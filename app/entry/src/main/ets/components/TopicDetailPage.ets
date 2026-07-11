@@ -4,12 +4,18 @@ import {
   TopicReadState,
   TopicReadStateKind
 } from '../app/AppShellModel';
+import { ForumComposer } from './ForumComposer';
+import {
+  ForumComposerPresentation,
+  ForumComposerStatus
+} from './ForumComposerPresentation';
 import { ForumPost, TopicDetail } from '../models/ForumModels';
 
 @Component
 export struct TopicDetailPage {
   @Prop state: TopicReadState = TopicReadState.initial();
   @Prop replyState: ReplyComposerState = ReplyComposerState.closed();
+  @Link replySheetVisible: boolean;
   onRetry: () => void = (): void => {};
   onLoadMore: () => void = (): void => {};
   onOpenReply: (postNumber: number | null) => void = (_postNumber: number | null): void => {};
@@ -51,6 +57,33 @@ export struct TopicDetailPage {
 
   private visiblePosts(): Array<ForumPost> {
     return this.hasStarterPost() ? this.state.posts.slice(1) : this.state.posts;
+  }
+
+  private composerStatus(): ForumComposerStatus {
+    if (this.replyState.kind === ReplyComposerStateKind.SUBMITTING) {
+      return ForumComposerStatus.SUBMITTING;
+    }
+    if (this.replyState.kind === ReplyComposerStateKind.CHECKING) {
+      return ForumComposerStatus.CHECKING;
+    }
+    if (this.replyState.kind === ReplyComposerStateKind.ERROR) {
+      return ForumComposerStatus.ERROR;
+    }
+    if (this.replyState.kind === ReplyComposerStateKind.REAUTHENTICATE) {
+      return ForumComposerStatus.REAUTHENTICATE;
+    }
+    return ForumComposerStatus.EDITING;
+  }
+
+  private composerPresentation(): ForumComposerPresentation {
+    return ForumComposerPresentation.reply(
+      this.state.topicId,
+      this.state.title,
+      this.replyState.replyToPostNumber,
+      this.replyState.draft,
+      this.composerStatus(),
+      this.replyState.message
+    );
   }
 
   @Builder
@@ -299,61 +332,14 @@ export struct TopicDetailPage {
   }
 
   @Builder
-  private ReplyComposer(): void {
-    Column({ space: 12 }) {
-      Row() {
-        Text(this.replyState.replyToPostNumber === null
-          ? 'Reply Topic'
-          : `Reply #${this.replyState.replyToPostNumber}`)
-          .fontSize(18)
-          .fontWeight(FontWeight.Bold)
-          .layoutWeight(1)
-        Button('收起')
-          .enabled(!this.replyState.isBusy())
-          .onClick(this.onDismissReply)
-          .accessibilityText('收起 Reply 编辑器并保留草稿')
-      }
-      .width('100%')
-      TextArea({ text: this.replyState.draft, placeholder: '输入 Reply 内容' })
-        .height(140)
-        .width('100%')
-        .enabled(!this.replyState.isBusy())
-        .backgroundColor('#F5F6F8')
-        .borderRadius(8)
-        .onChange((value: string): void => this.onReplyDraftChange(value))
-      Text(`${this.replyState.draft.trim().length} 字符 · 草稿仅保存在本次运行内存中`)
-        .fontSize(12)
-        .fontColor($r('sys.color.font_tertiary'))
-        .width('100%')
-      if (this.replyState.message.length > 0) {
-        Text(this.replyState.message)
-          .fontSize(14)
-          .fontColor(this.replyState.kind === ReplyComposerStateKind.ERROR ||
-            this.replyState.kind === ReplyComposerStateKind.REAUTHENTICATE
-            ? $r('sys.color.font_emphasize')
-            : $r('sys.color.font_secondary'))
-          .width('100%')
-      }
-      if (this.replyState.kind === ReplyComposerStateKind.REAUTHENTICATE) {
-        Button('重新登录后继续')
-          .onClick(this.onLoginForReply)
-          .accessibilityText('重新登录并保留 Reply 草稿')
-          .width('100%')
-      } else {
-        Button(this.replyState.kind === ReplyComposerStateKind.ERROR ? '显式重试' : '发布 Reply')
-          .enabled(this.replyState.draft.trim().length > 0 && !this.replyState.isBusy())
-          .onClick(this.onSubmitReply)
-          .accessibilityText(this.replyState.kind === ReplyComposerStateKind.ERROR
-            ? '再次确认后显式重试 Reply'
-            : '发布 Reply')
-          .width('100%')
-      }
-    }
-    .width('100%')
-    .padding(14)
-    .backgroundColor('#FFFFFF')
-    .borderRadius(12)
-    .border({ width: 1, color: '#E8EBF0' })
+  private ReplyComposerSheet(): void {
+    ForumComposer({
+      presentation: this.composerPresentation(),
+      onTitleChange: (_title: string): void => {},
+      onBodyChange: (body: string): void => this.onReplyDraftChange(body),
+      onSubmit: (): void => this.onSubmitReply(),
+      onReauthenticate: (): void => this.onLoginForReply()
+    })
   }
 
   @Builder
@@ -420,14 +406,6 @@ export struct TopicDetailPage {
           this.PostRow(post)
         }
       }, (post: ForumPost): string => post.id.toString())
-      if (
-        this.replyState.kind !== ReplyComposerStateKind.CLOSED &&
-        this.replyState.kind !== ReplyComposerStateKind.SUCCESS
-      ) {
-        ListItem() {
-          this.ReplyComposer()
-        }
-      }
       ListItem() {
         this.PaginationFooter()
       }
@@ -442,6 +420,24 @@ export struct TopicDetailPage {
     .padding({ left: 12, right: 12, top: 10 })
     .backgroundColor('#F5F6F8')
     .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
+    .bindSheet($$this.replySheetVisible, this.ReplyComposerSheet(), {
+      detents: [SheetSize.MEDIUM, SheetSize.LARGE],
+      detentSelection: SheetSize.MEDIUM,
+      showClose: true,
+      dragBar: true,
+      title: {
+        title: this.composerPresentation().sheetTitle,
+        subtitle: `${this.composerPresentation().sheetSubtitle} · 支持 Markdown`
+      },
+      keyboardAvoidMode: SheetKeyboardAvoidMode.TRANSLATE_AND_RESIZE,
+      shouldDismiss: (sheetDismiss: SheetDismiss): void => {
+        if (this.replyState.isBusy()) {
+          return;
+        }
+        sheetDismiss.dismiss();
+        this.onDismissReply();
+      }
+    })
   }
 
   build() {

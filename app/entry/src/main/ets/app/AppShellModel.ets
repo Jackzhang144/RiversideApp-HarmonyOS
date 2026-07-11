@@ -512,7 +512,9 @@ export class AppShellModel {
     );
   }
 
-  public async submitReply(): Promise<void> {
+  public async submitReply(
+    onStateChange: (state: ReplyComposerState) => void = (_state: ReplyComposerState): void => {}
+  ): Promise<void> {
     const detail: TopicDetail | null = this.topicState.detail;
     if (detail === null || !this.topicState.canReply || this.replyState.isBusy()) {
       return;
@@ -523,11 +525,11 @@ export class AppShellModel {
       this.replyState.replyToPostNumber
     );
     if (request === null) {
-      this.replyState = ReplyComposerState.error(
+      this.transitionReplyState(ReplyComposerState.error(
         this.replyState.draft,
         this.replyState.replyToPostNumber,
         '请输入 Reply 内容'
-      );
+      ), onStateChange);
       return;
     }
 
@@ -536,7 +538,7 @@ export class AppShellModel {
     const replyToPostNumber: number | null = request.replyToPostNumber;
     const expectedPostNumber: number = this.nextExpectedPostNumber(detail);
     this.requiresAuthentication = false;
-    this.replyState = ReplyComposerState.submitting(request.raw, replyToPostNumber);
+    this.transitionReplyState(ReplyComposerState.submitting(request.raw, replyToPostNumber), onStateChange);
 
     const userResult: RepositoryResult<CurrentUser> = await this.repository.loadCurrentUser();
     if (!this.isCurrentReplyRequest(requestVersion, detail.id)) {
@@ -544,9 +546,12 @@ export class AppShellModel {
     }
     if (!userResult.isSuccess() || userResult.data === null) {
       if (userResult.isUnauthorized()) {
-        await this.handleReplyUnauthorized(request.raw, replyToPostNumber);
+        await this.handleReplyUnauthorized(request.raw, replyToPostNumber, onStateChange);
       } else {
-        this.replyState = ReplyComposerState.error(request.raw, replyToPostNumber, userResult.message);
+        this.transitionReplyState(
+          ReplyComposerState.error(request.raw, replyToPostNumber, userResult.message),
+          onStateChange
+        );
       }
       return;
     }
@@ -556,15 +561,18 @@ export class AppShellModel {
       return;
     }
     if (submitResult.kind === ReplySubmitKind.CREATED && submitResult.post !== null) {
-      this.completeReply(submitResult.post);
+      this.completeReply(submitResult.post, onStateChange);
       return;
     }
     if (submitResult.kind === ReplySubmitKind.UNAUTHORIZED) {
-      await this.handleReplyUnauthorized(request.raw, replyToPostNumber);
+      await this.handleReplyUnauthorized(request.raw, replyToPostNumber, onStateChange);
       return;
     }
     if (submitResult.kind === ReplySubmitKind.REJECTED) {
-      this.replyState = ReplyComposerState.error(request.raw, replyToPostNumber, submitResult.message);
+      this.transitionReplyState(
+        ReplyComposerState.error(request.raw, replyToPostNumber, submitResult.message),
+        onStateChange
+      );
       return;
     }
 
@@ -574,24 +582,27 @@ export class AppShellModel {
       userResult.data
     );
     if (recoveryRequest === null) {
-      this.replyState = ReplyComposerState.error(
+      this.transitionReplyState(ReplyComposerState.error(
         request.raw,
         replyToPostNumber,
         '无法确认 Reply 是否已创建，请检查 Topic 后再显式重试'
-      );
+      ), onStateChange);
       return;
     }
-    this.replyState = ReplyComposerState.checking(request.raw, replyToPostNumber);
+    this.transitionReplyState(ReplyComposerState.checking(request.raw, replyToPostNumber), onStateChange);
     const recoveryResult: ReplyRecoveryResult = await this.repository.recoverReply(recoveryRequest);
     if (!this.isCurrentReplyRequest(requestVersion, detail.id)) {
       return;
     }
     if (recoveryResult.kind === ReplyRecoveryKind.CONFIRMED && recoveryResult.post !== null) {
-      this.completeReply(recoveryResult.post);
+      this.completeReply(recoveryResult.post, onStateChange);
     } else if (recoveryResult.kind === ReplyRecoveryKind.UNAUTHORIZED) {
-      await this.handleReplyUnauthorized(request.raw, replyToPostNumber);
+      await this.handleReplyUnauthorized(request.raw, replyToPostNumber, onStateChange);
     } else {
-      this.replyState = ReplyComposerState.error(request.raw, replyToPostNumber, recoveryResult.message);
+      this.transitionReplyState(
+        ReplyComposerState.error(request.raw, replyToPostNumber, recoveryResult.message),
+        onStateChange
+      );
     }
   }
 
@@ -620,13 +631,28 @@ export class AppShellModel {
     return requestVersion === this.replyRequestVersion && this.topicState.topicId === topicId;
   }
 
-  private async handleReplyUnauthorized(draft: string, replyToPostNumber: number | null): Promise<void> {
+  private transitionReplyState(
+    state: ReplyComposerState,
+    onStateChange: (state: ReplyComposerState) => void
+  ): void {
+    this.replyState = state;
+    onStateChange(state);
+  }
+
+  private async handleReplyUnauthorized(
+    draft: string,
+    replyToPostNumber: number | null,
+    onStateChange: (state: ReplyComposerState) => void
+  ): Promise<void> {
     this.requiresAuthentication = true;
-    this.replyState = ReplyComposerState.reauthenticate(draft, replyToPostNumber);
+    this.transitionReplyState(ReplyComposerState.reauthenticate(draft, replyToPostNumber), onStateChange);
     await this.notifyUnauthorized(true);
   }
 
-  private completeReply(post: ForumPost): void {
+  private completeReply(
+    post: ForumPost,
+    onStateChange: (state: ReplyComposerState) => void
+  ): void {
     const detail: TopicDetail | null = this.topicState.detail;
     if (detail === null) {
       return;
@@ -656,7 +682,7 @@ export class AppShellModel {
       false,
       this.topicState.paginationMessage
     );
-    this.replyState = ReplyComposerState.success('Reply 已发布');
+    this.transitionReplyState(ReplyComposerState.success('Reply 已发布'), onStateChange);
   }
 
   public async loadHome(): Promise<void> {

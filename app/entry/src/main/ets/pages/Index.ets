@@ -77,6 +77,7 @@ struct Index {
   @State categoryTitle: string = 'Category';
   @State topicState: TopicReadState = TopicReadState.initial();
   @State replyState: ReplyComposerState = ReplyComposerState.closed();
+  @State replySheetVisible: boolean = false;
   @State authState: AuthState = AuthState.idle();
 
   private topAvoidHeight(): number {
@@ -150,7 +151,7 @@ struct Index {
     model.updateCategoryCacheScope(this.categoryCacheScope(repository));
     if (repository.state.kind === AuthStateKind.AUTHENTICATED) {
       model.resumeReplyAfterAuthentication();
-      this.replyState = model.replyState;
+      this.synchronizeReplyState(model, model.replyState.kind === ReplyComposerStateKind.EDITING);
     }
     this.categoryState = model.categoryState;
     if (reloadCategories) {
@@ -271,11 +272,11 @@ struct Index {
     }
     const task: Promise<void> = model.openTopic(topic);
     this.topicState = model.topicState;
-    this.replyState = model.replyState;
+    this.synchronizeReplyState(model, false);
     this.pathStack.pushPath({ name: TOPIC_ROUTE });
     await task;
     this.topicState = model.topicState;
-    this.replyState = model.replyState;
+    this.synchronizeReplyState(model);
   }
 
   private async retryTopic(): Promise<void> {
@@ -287,7 +288,7 @@ struct Index {
     this.topicState = model.topicState;
     await task;
     this.topicState = model.topicState;
-    this.replyState = model.replyState;
+    this.synchronizeReplyState(model);
   }
 
   private async loadMorePosts(): Promise<void> {
@@ -301,13 +302,24 @@ struct Index {
     this.topicState = model.topicState;
   }
 
+  private synchronizeReplyState(model: AppShellModel, sheetVisible: boolean | null = null): void {
+    this.replyState = model.replyState;
+    if (sheetVisible !== null) {
+      this.replySheetVisible = sheetVisible;
+    }
+  }
+
   private openReply(postNumber: number | null): void {
     const model: AppShellModel | null = this.model;
     if (model === null) {
       return;
     }
     model.openReply(postNumber);
-    this.replyState = model.replyState;
+    this.synchronizeReplyState(
+      model,
+      model.replyState.kind !== ReplyComposerStateKind.CLOSED &&
+        model.replyState.kind !== ReplyComposerStateKind.SUCCESS
+    );
   }
 
   private updateReplyDraft(draft: string): void {
@@ -316,7 +328,7 @@ struct Index {
       return;
     }
     model.updateReplyDraft(draft);
-    this.replyState = model.replyState;
+    this.synchronizeReplyState(model);
   }
 
   private dismissReply(): void {
@@ -325,7 +337,7 @@ struct Index {
       return;
     }
     model.dismissReply();
-    this.replyState = model.replyState;
+    this.synchronizeReplyState(model, false);
   }
 
   private async submitReply(): Promise<void> {
@@ -333,12 +345,22 @@ struct Index {
     if (model === null) {
       return;
     }
-    const task: Promise<void> = model.submitReply();
-    this.replyState = model.replyState;
+    const task: Promise<void> = model.submitReply((state: ReplyComposerState): void => {
+      this.replyState = state;
+    });
+    this.synchronizeReplyState(model);
     await task;
-    this.replyState = model.replyState;
+    this.synchronizeReplyState(
+      model,
+      model.replyState.kind === ReplyComposerStateKind.SUCCESS ? false : null
+    );
     this.topicState = model.topicState;
     this.showReplyMessage();
+  }
+
+  private async loginForReply(): Promise<void> {
+    this.replySheetVisible = false;
+    await this.openLogin();
   }
 
   private handleSecondaryBack(): boolean {
@@ -423,6 +445,9 @@ struct Index {
       repository.cancelAuthorization();
       this.authState = repository.state;
     }
+    if (this.replyState.kind === ReplyComposerStateKind.REAUTHENTICATE) {
+      this.replySheetVisible = true;
+    }
     return false;
   }
 
@@ -468,6 +493,7 @@ struct Index {
         TopicDetailPage({
           state: this.topicState,
           replyState: this.replyState,
+          replySheetVisible: this.replySheetVisible,
           onRetry: (): void => {
             this.retryTopic();
           },
@@ -487,7 +513,7 @@ struct Index {
             this.dismissReply();
           },
           onLoginForReply: (): void => {
-            this.openLogin();
+            this.loginForReply();
           }
         })
       }
@@ -599,7 +625,8 @@ struct Index {
     if (
       this.snackBar === null ||
       (this.replyState.kind !== ReplyComposerStateKind.SUCCESS &&
-        this.replyState.kind !== ReplyComposerStateKind.ERROR)
+        this.replyState.kind !== ReplyComposerStateKind.ERROR &&
+        this.replyState.kind !== ReplyComposerStateKind.REAUTHENTICATE)
     ) {
       return;
     }
@@ -608,7 +635,11 @@ struct Index {
         ? $r('sys.symbol.checkmark_circle')
         : $r('sys.symbol.exclamationmark_circle') },
       {
-        title: this.replyState.kind === ReplyComposerStateKind.SUCCESS ? 'Reply 已发布' : 'Reply 未发布',
+        title: this.replyState.kind === ReplyComposerStateKind.SUCCESS
+          ? 'Reply 已发布'
+          : this.replyState.kind === ReplyComposerStateKind.REAUTHENTICATE
+            ? '需要重新登录'
+            : 'Reply 未发布',
         content: this.replyState.message
       },
       {
