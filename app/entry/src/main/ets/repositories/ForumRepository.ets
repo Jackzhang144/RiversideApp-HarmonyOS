@@ -1,6 +1,12 @@
 import { RepositoryResult } from '../core/RepositoryResult';
 import { Category, ForumPost, Topic, TopicDetail } from '../models/ForumModels';
-import { CurrentUser, ReplyRequest, ReplySubmitResult } from '../models/ReplyModels';
+import {
+  CurrentUser,
+  ReplyRecoveryRequest,
+  ReplyRecoveryResult,
+  ReplyRequest,
+  ReplySubmitResult
+} from '../models/ReplyModels';
 
 export interface ForumRepository {
   loadLatestTopics(): Promise<RepositoryResult<Array<Topic>>>;
@@ -16,4 +22,6 @@ export interface ForumRepository {
   loadCurrentUser(): Promise<RepositoryResult<CurrentUser>>;
 
   submitReply(request: ReplyRequest): Promise<ReplySubmitResult>;
+
+  recoverReply(request: ReplyRecoveryRequest): Promise<ReplyRecoveryResult>;
 }

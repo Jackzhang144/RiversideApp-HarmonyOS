@@ -81,3 +81,77 @@ export class ReplySubmitResult {
     return new ReplySubmitResult(ReplySubmitKind.UNCERTAIN, null, message);
   }
 }
+
+export class ReplyRecoveryRequest {
+  public readonly reply: ReplyRequest;
+  public readonly expectedPostNumber: number;
+  public readonly currentUser: CurrentUser;
+
+  private constructor(reply: ReplyRequest, expectedPostNumber: number, currentUser: CurrentUser) {
+    this.reply = reply;
+    this.expectedPostNumber = expectedPostNumber;
+    this.currentUser = currentUser;
+  }
+
+  public static create(
+    reply: ReplyRequest,
+    expectedPostNumber: number,
+    currentUser: CurrentUser
+  ): ReplyRecoveryRequest | null {
+    if (!Number.isInteger(expectedPostNumber) || expectedPostNumber <= 0) {
+      return null;
+    }
+    return new ReplyRecoveryRequest(reply, expectedPostNumber, currentUser);
+  }
+
+  public matches(post: ForumPost): boolean {
+    if (
+      post.postNumber < this.expectedPostNumber ||
+      post.userId !== this.currentUser.id ||
+      post.raw.trim() !== this.reply.raw
+    ) {
+      return false;
+    }
+    return this.reply.replyToPostNumber === null ||
+      post.replyToPostNumber === this.reply.replyToPostNumber;
+  }
+}
+
+export enum ReplyRecoveryKind {
+  CONFIRMED = 'confirmed',
+  NOT_FOUND = 'not-found',
+  UNAUTHORIZED = 'unauthorized',
+  FAILED = 'failed'
+}
+
+export class ReplyRecoveryResult {
+  public readonly kind: ReplyRecoveryKind;
+  public readonly post: ForumPost | null;
+  public readonly message: string;
+
+  private constructor(kind: ReplyRecoveryKind, post: ForumPost | null, message: string) {
+    this.kind = kind;
+    this.post = post;
+    this.message = message;
+  }
+
+  public static confirmed(post: ForumPost): ReplyRecoveryResult {
+    return new ReplyRecoveryResult(ReplyRecoveryKind.CONFIRMED, post, '');
+  }
+
+  public static notFound(): ReplyRecoveryResult {
+    return new ReplyRecoveryResult(
+      ReplyRecoveryKind.NOT_FOUND,
+      null,
+      '未确认 Reply 已创建，请检查 Topic 后再显式重试'
+    );
+  }
+
+  public static unauthorized(): ReplyRecoveryResult {
+    return new ReplyRecoveryResult(ReplyRecoveryKind.UNAUTHORIZED, null, '登录已失效');
+  }
+
+  public static failed(message: string): ReplyRecoveryResult {
+    return new ReplyRecoveryResult(ReplyRecoveryKind.FAILED, null, message);
+  }
+}

@@ -1,6 +1,12 @@
 import { RepositoryResult } from '../core/RepositoryResult';
 import { Category, ForumPost, Topic, TopicDetail } from '../models/ForumModels';
-import { CurrentUser, ReplyRequest, ReplySubmitResult } from '../models/ReplyModels';
+import {
+  CurrentUser,
+  ReplyRecoveryRequest,
+  ReplyRecoveryResult,
+  ReplyRequest,
+  ReplySubmitResult
+} from '../models/ReplyModels';
 import { ForumHttpClient, HttpTextResult, HttpTextResultKind } from '../network/DiscourseHttpClient';
 import { ForumRepository } from './ForumRepository';
 import { ForumResponseParser } from './ForumResponseParser';
@@ -126,5 +132,27 @@ export class DiscourseForumRepository implements ForumRepository {
       return RepositoryResult.failure<CurrentUser>(response.message);
     }
     return this.parser.parseCurrentUser(response.body);
+  }
+
+  public async recoverReply(request: ReplyRecoveryRequest): Promise<ReplyRecoveryResult> {
+    const response: HttpTextResult = await this.client.get(
+      `/t/${request.reply.topicId}/${request.expectedPostNumber}.json?track_visit=true`
+    );
+    if (response.kind === HttpTextResultKind.UNAUTHORIZED) {
+      return ReplyRecoveryResult.unauthorized();
+    }
+    if (!response.isSuccess()) {
+      return ReplyRecoveryResult.failed(`无法确认 Reply 是否已创建：${response.message}`);
+    }
+    const parsed: RepositoryResult<TopicDetail> = this.parser.parseTopicDetail(response.body);
+    if (!parsed.isSuccess() || parsed.data === null) {
+      return ReplyRecoveryResult.failed(`无法确认 Reply 是否已创建：${parsed.message}`);
+    }
+    const candidates: Array<ForumPost> = parsed.data.posts
+      .filter((post: ForumPost): boolean => request.matches(post))
+      .sort((left: ForumPost, right: ForumPost): number => right.postNumber - left.postNumber);
+    return candidates.length === 0
+      ? ReplyRecoveryResult.notFound()
+      : ReplyRecoveryResult.confirmed(candidates[0]);
   }
 }

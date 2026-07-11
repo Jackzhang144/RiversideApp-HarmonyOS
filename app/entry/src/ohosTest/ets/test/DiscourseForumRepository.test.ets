@@ -3,6 +3,9 @@ import { RepositoryResult, RepositoryResultKind } from '../../../main/ets/core/R
 import { ForumPost, Topic, TopicDetail } from '../../../main/ets/models/ForumModels';
 import {
   CurrentUser,
+  ReplyRecoveryKind,
+  ReplyRecoveryRequest,
+  ReplyRecoveryResult,
   ReplyRequest,
   ReplySubmitKind,
   ReplySubmitResult
@@ -155,6 +158,62 @@ export default function discourseForumRepositoryTest(): void {
       expect(result.kind).assertEqual(RepositoryResultKind.SUCCESS);
       expect(result.data?.id).assertEqual(24);
       expect(result.data?.username).assertEqual('Co-admin');
+      done();
+    });
+
+    it('confirms an interrupted Reply with an identity and content matched GET', 0, async (done: Function) => {
+      const client: StubForumHttpClient = new StubForumHttpClient();
+      client.results.push(HttpTextResult.success(200,
+        '{"id":2725,"title":"站务管理区重要主题导航","posts_count":4,' +
+        '"post_stream":{"stream":[102731],"posts":[{' +
+        '"id":102731,"user_id":24,"username":"Co-admin","cooked":"<p>收到</p>",' +
+        '"raw":"收到","post_number":4,"reply_to_post_number":3,"created_at":"2026-01-28T00:02:00Z"}]}}'
+      ));
+      const repository: DiscourseForumRepository = new DiscourseForumRepository(client);
+      const reply: ReplyRequest | null = ReplyRequest.create(2725, '收到', 3);
+      const user: CurrentUser | null = CurrentUser.create(24, 'Co-admin');
+      const recovery: ReplyRecoveryRequest | null = reply === null || user === null
+        ? null
+        : ReplyRecoveryRequest.create(reply, 4, user);
+      if (recovery === null) {
+        expect(false).assertTrue();
+        done();
+        return;
+      }
+
+      const result: ReplyRecoveryResult = await repository.recoverReply(recovery);
+
+      expect(client.paths[0]).assertEqual('/t/2725/4.json?track_visit=true');
+      expect(client.replyRequests.length).assertEqual(0);
+      expect(result.kind).assertEqual(ReplyRecoveryKind.CONFIRMED);
+      expect(result.post?.id).assertEqual(102731);
+      done();
+    });
+
+    it('does not confirm a recovery candidate from another author or body', 0, async (done: Function) => {
+      const client: StubForumHttpClient = new StubForumHttpClient();
+      client.results.push(HttpTextResult.success(200,
+        '{"id":2725,"title":"站务管理区重要主题导航","posts_count":4,' +
+        '"post_stream":{"stream":[102731],"posts":[{' +
+        '"id":102731,"user_id":99,"username":"other","cooked":"<p>收到</p>",' +
+        '"raw":"不同正文","post_number":4,"reply_to_post_number":3,"created_at":"2026-01-28T00:02:00Z"}]}}'
+      ));
+      const repository: DiscourseForumRepository = new DiscourseForumRepository(client);
+      const reply: ReplyRequest | null = ReplyRequest.create(2725, '收到', 3);
+      const user: CurrentUser | null = CurrentUser.create(24, 'Co-admin');
+      const recovery: ReplyRecoveryRequest | null = reply === null || user === null
+        ? null
+        : ReplyRecoveryRequest.create(reply, 4, user);
+      if (recovery === null) {
+        expect(false).assertTrue();
+        done();
+        return;
+      }
+
+      const result: ReplyRecoveryResult = await repository.recoverReply(recovery);
+
+      expect(result.kind).assertEqual(ReplyRecoveryKind.NOT_FOUND);
+      expect(client.replyRequests.length).assertEqual(0);
       done();
     });
   });
