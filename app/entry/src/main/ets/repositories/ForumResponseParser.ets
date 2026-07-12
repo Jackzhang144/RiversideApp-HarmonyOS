@@ -140,6 +140,78 @@ function numberOrZero(value: number | null): number {
   return typeof value === 'number' && Number.isFinite(value) ? value : 0;
 }
 
+function booleanOrFalse(value: boolean | null): boolean {
+  return value === true;
+}
+
+class GroupMemberships {
+  public readonly names: Array<string>;
+  public readonly ids: Array<number>;
+
+  public constructor(names: Array<string>, ids: Array<number>) {
+    this.names = names;
+    this.ids = ids;
+  }
+}
+
+function groupMemberships(user: JsonObjectReader): GroupMemberships {
+  const values: Array<Object | null> | null = user.array('groups');
+  const names: Array<string> = [];
+  const ids: Array<number> = [];
+  if (values !== null) {
+    for (const value of values) {
+      const group: JsonObjectReader | null = JsonObjectReader.fromValue(value);
+      const name: string | null = group?.string('name') ?? null;
+      const id: number | null = group?.number('id') ?? null;
+      if (name !== null && name.trim().length > 0) {
+        names.push(name.trim());
+      }
+      if (id !== null && Number.isInteger(id) && id > 0) {
+        ids.push(id);
+      }
+    }
+  }
+  const primaryGroupName: string | null = user.string('primary_group_name');
+  if (primaryGroupName !== null && primaryGroupName.trim().length > 0) {
+    names.push(primaryGroupName.trim());
+  }
+  return new GroupMemberships(names, ids);
+}
+
+function hasFutureTimestamp(value: string | null): boolean {
+  if (value === null || value.trim().length === 0) {
+    return false;
+  }
+  const timestamp: number = Date.parse(value);
+  return Number.isFinite(timestamp) && timestamp > Date.now();
+}
+
+function firstBoolean(user: JsonObjectReader, names: Array<string>, fallback: boolean): boolean {
+  for (const name of names) {
+    const value: boolean | null = user.boolean(name);
+    if (value !== null) {
+      return value;
+    }
+  }
+  return fallback;
+}
+
+function canCreatePost(user: JsonObjectReader): boolean {
+  if (
+    user.boolean('silenced') === true ||
+    user.boolean('suspended') === true ||
+    hasFutureTimestamp(user.string('silenced_till')) ||
+    hasFutureTimestamp(user.string('suspended_till'))
+  ) {
+    return false;
+  }
+  return firstBoolean(
+    user,
+    ['can_create_post', 'can_create_posts', 'can_create_topic', 'can_create_topics'],
+    true
+  );
+}
+
 function usernameForTopic(
   users: Array<UserDto | null>,
   posters: Array<TopicPosterDto | null> | null
@@ -513,9 +585,35 @@ export class ForumResponseParser {
     }
     const id: number | null = user.number('id');
     const username: string | null = user.string('username');
+    const groups: GroupMemberships = groupMemberships(user);
+    const userOption: JsonObjectReader | null = user.object('user_option');
     const currentUser: CurrentUser | null = id === null || username === null
       ? null
-      : CurrentUser.create(id, username);
+      : CurrentUser.create(
+        id,
+        username,
+        {
+          name: user.string('name') ?? '',
+          title: user.string('title') ?? user.string('user_title') ?? '',
+          admin: booleanOrFalse(user.boolean('admin')),
+          moderator: booleanOrFalse(user.boolean('moderator')),
+          trustLevel: numberOrZero(user.number('trust_level')),
+          canCreatePost: canCreatePost(user),
+          canChat: booleanOrFalse(user.boolean('can_chat')) ||
+            booleanOrFalse(user.boolean('has_chat_enabled')) ||
+            booleanOrFalse(userOption?.boolean('chat_enabled') ?? null),
+          canDirectMessage: booleanOrFalse(user.boolean('can_direct_message')) ||
+            booleanOrFalse(user.boolean('can_send_private_messages')),
+          canChatWithUser: booleanOrFalse(user.boolean('can_chat_user')) ||
+            booleanOrFalse(user.boolean('can_send_private_message_to_user')),
+          unreadNotifications: numberOrZero(user.number('unread_notifications')) +
+            numberOrZero(user.number('unread_high_priority_notifications')),
+          groupNames: groups.names,
+          groupIds: groups.ids,
+          primaryGroupId: user.number('primary_group_id'),
+          flairGroupId: user.number('flair_group_id')
+        }
+      );
     return currentUser === null
       ? RepositoryResult.failure<CurrentUser>('服务器响应缺少当前用户')
       : RepositoryResult.success<CurrentUser>(currentUser);

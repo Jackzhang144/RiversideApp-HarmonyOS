@@ -174,7 +174,12 @@ export default function discourseForumRepositoryTest(): void {
     it('loads the current authenticated identity required for safe recovery', 0, async (done: Function) => {
       const client: StubForumHttpClient = new StubForumHttpClient();
       client.results.push(HttpTextResult.success(200,
-        '{"current_user":{"id":24,"username":"Co-admin"}}'
+        '{"current_user":{"id":24,"username":"Co-admin","name":"协管员",' +
+        '"title":"社区维护","admin":false,"moderator":true,"trust_level":3,' +
+        '"can_create_post":true,"can_create_topic":true,"can_chat":false,' +
+        '"user_option":{"chat_enabled":true},"can_send_private_messages":true,' +
+        '"unread_notifications":4,"primary_group_id":45,"flair_group_id":50,' +
+        '"groups":[{"id":45,"name":"scuer"},{"id":50,"name":"rs_developer"}]}}'
       ));
       const repository: DiscourseForumRepository = new DiscourseForumRepository(client);
 
@@ -184,6 +189,31 @@ export default function discourseForumRepositoryTest(): void {
       expect(result.kind).assertEqual(RepositoryResultKind.SUCCESS);
       expect(result.data?.id).assertEqual(24);
       expect(result.data?.username).assertEqual('Co-admin');
+      expect(result.data?.displayName).assertEqual('协管员');
+      expect(result.data?.roleLabel).assertEqual('版主');
+      expect(result.data?.isVerified).assertTrue();
+      expect(result.data?.canReply).assertTrue();
+      expect(result.data?.canStartDirectChat).assertTrue();
+      expect(result.data?.unreadNotifications).assertEqual(4);
+      done();
+    });
+
+    it('honors explicit denial, account restrictions, and verification group ids', 0, async (done: Function) => {
+      const client: StubForumHttpClient = new StubForumHttpClient();
+      client.results.push(HttpTextResult.success(200,
+        '{"current_user":{"id":25,"username":"restricted","admin":false,"moderator":false,' +
+        '"can_create_post":false,"can_create_topic":true,"silenced":true,' +
+        '"can_chat":false,"can_send_private_message_to_user":true,' +
+        '"groups":[{"id":46,"name":"localized-school-name"}]}}'
+      ));
+      const repository: DiscourseForumRepository = new DiscourseForumRepository(client);
+
+      const result: RepositoryResult<CurrentUser> = await repository.loadCurrentUser();
+
+      expect(result.kind).assertEqual(RepositoryResultKind.SUCCESS);
+      expect(result.data?.canReply).assertFalse();
+      expect(result.data?.canStartDirectChat).assertTrue();
+      expect(result.data?.isVerified).assertTrue();
       done();
     });
 

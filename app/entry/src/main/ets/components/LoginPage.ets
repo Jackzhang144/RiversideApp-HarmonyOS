@@ -51,7 +51,10 @@ export struct LoginPage {
         .javaScriptAccess(true)
         .domStorageAccess(true)
         .onLoadIntercept((event: OnLoadInterceptEvent): boolean => {
-          return this.onNavigation(event.data.getRequestUrl(), event.data.isMainFrame());
+          const requestUrl: string = event.data.getRequestUrl();
+          const isMainFrame: boolean = event.data.isMainFrame();
+          const handled: boolean = this.onNavigation(requestUrl, isMainFrame);
+          return handled;
         })
         .width('100%')
         .height('100%')

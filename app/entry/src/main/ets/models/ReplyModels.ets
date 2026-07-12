@@ -1,20 +1,152 @@
 import { ForumPost } from './ForumModels';
 
+export interface CurrentUserAttributes {
+  name?: string;
+  title?: string;
+  admin?: boolean;
+  moderator?: boolean;
+  trustLevel?: number;
+  canCreatePost?: boolean;
+  canChat?: boolean;
+  canDirectMessage?: boolean;
+  canChatWithUser?: boolean;
+  unreadNotifications?: number;
+  groupNames?: Array<string>;
+  groupIds?: Array<number>;
+  primaryGroupId?: number | null;
+  flairGroupId?: number | null;
+}
+
 export class CurrentUser {
   public readonly id: number;
   public readonly username: string;
+  public readonly displayName: string;
+  public readonly title: string;
+  public readonly admin: boolean;
+  public readonly moderator: boolean;
+  public readonly trustLevel: number;
+  public readonly canCreatePost: boolean;
+  public readonly canChat: boolean;
+  public readonly canDirectMessage: boolean;
+  public readonly canChatWithUser: boolean;
+  public readonly unreadNotifications: number;
+  public readonly groups: Array<string>;
+  public readonly groupIds: Array<number>;
+  public readonly primaryGroupId: number | null;
+  public readonly flairGroupId: number | null;
+  public readonly isVerified: boolean;
+  public readonly roleLabel: string;
+  public readonly canReply: boolean;
+  public readonly canStartDirectChat: boolean;
 
-  private constructor(id: number, username: string) {
+  private constructor(
+    id: number,
+    username: string,
+    displayName: string,
+    title: string,
+    admin: boolean,
+    moderator: boolean,
+    trustLevel: number,
+    canCreatePost: boolean,
+    canChat: boolean,
+    canDirectMessage: boolean,
+    canChatWithUser: boolean,
+    unreadNotifications: number,
+    groups: Array<string>,
+    groupIds: Array<number>,
+    primaryGroupId: number | null,
+    flairGroupId: number | null,
+    isVerified: boolean,
+    roleLabel: string
+  ) {
     this.id = id;
     this.username = username;
+    this.displayName = displayName;
+    this.title = title;
+    this.admin = admin;
+    this.moderator = moderator;
+    this.trustLevel = trustLevel;
+    this.canCreatePost = canCreatePost;
+    this.canChat = canChat;
+    this.canDirectMessage = canDirectMessage;
+    this.canChatWithUser = canChatWithUser;
+    this.unreadNotifications = unreadNotifications;
+    this.groups = groups;
+    this.groupIds = groupIds;
+    this.primaryGroupId = primaryGroupId;
+    this.flairGroupId = flairGroupId;
+    this.isVerified = isVerified;
+    this.roleLabel = roleLabel;
+    this.canReply = admin || moderator || canCreatePost;
+    this.canStartDirectChat = canChatWithUser || (canChat && canDirectMessage);
   }
 
-  public static create(id: number, username: string): CurrentUser | null {
+  public static create(
+    id: number,
+    username: string,
+    attributes: CurrentUserAttributes = {}
+  ): CurrentUser | null {
     const normalizedUsername: string = username.trim();
     if (!Number.isInteger(id) || id <= 0 || normalizedUsername.length === 0) {
       return null;
     }
-    return new CurrentUser(id, normalizedUsername);
+    const normalizedName: string = (attributes.name ?? '').trim();
+    const normalizedTitle: string = (attributes.title ?? '').trim();
+    const normalizedGroups: Array<string> = (attributes.groupNames ?? [])
+      .map((group: string): string => group.trim())
+      .filter((group: string): boolean => group.length > 0);
+    const normalizedGroupIds: Array<number> = (attributes.groupIds ?? [])
+      .filter((groupId: number): boolean => Number.isInteger(groupId) && groupId > 0);
+    const trustLevel: number = attributes.trustLevel ?? 0;
+    const unreadNotifications: number = attributes.unreadNotifications ?? 0;
+    const normalizedTrustLevel: number = Number.isInteger(trustLevel) && trustLevel >= 0 ? trustLevel : 0;
+    const normalizedUnreadNotifications: number = Number.isInteger(unreadNotifications) && unreadNotifications >= 0
+      ? unreadNotifications
+      : 0;
+    const verifiedGroupNames: Array<string> = [
+      'verified_uestcer',
+      'scuer',
+      'swufer',
+      'swjtuer',
+      'sicnuer'
+    ];
+    const verifiedGroupIds: Array<number> = [41, 45, 46, 48, 49];
+    const isVerified: boolean = normalizedGroups.some(
+      (group: string): boolean => verifiedGroupNames.includes(group)
+    ) || normalizedGroupIds.some((groupId: number): boolean => verifiedGroupIds.includes(groupId)) ||
+      (attributes.primaryGroupId !== null && attributes.primaryGroupId !== undefined &&
+        verifiedGroupIds.includes(attributes.primaryGroupId)) ||
+      (attributes.flairGroupId !== null && attributes.flairGroupId !== undefined &&
+        verifiedGroupIds.includes(attributes.flairGroupId));
+    const admin: boolean = attributes.admin === true;
+    const moderator: boolean = attributes.moderator === true;
+    const roleLabel: string = admin || normalizedGroups.includes('管理员')
+      ? '管理员'
+      : moderator || normalizedGroups.includes('管理人员') || normalizedGroups.includes('版主')
+        ? '版主'
+        : normalizedGroups.includes('rs_developer')
+          ? '开发者'
+          : '普通成员';
+    return new CurrentUser(
+      id,
+      normalizedUsername,
+      normalizedName.length > 0 ? normalizedName : normalizedUsername,
+      normalizedTitle,
+      admin,
+      moderator,
+      normalizedTrustLevel,
+      attributes.canCreatePost !== false,
+      attributes.canChat === true,
+      attributes.canDirectMessage === true,
+      attributes.canChatWithUser === true,
+      normalizedUnreadNotifications,
+      normalizedGroups,
+      normalizedGroupIds,
+      attributes.primaryGroupId ?? null,
+      attributes.flairGroupId ?? null,
+      isVerified,
+      roleLabel
+    );
   }
 }
 

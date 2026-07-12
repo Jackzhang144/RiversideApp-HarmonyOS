@@ -685,6 +685,15 @@ export class AppShellModel {
     this.transitionReplyState(ReplyComposerState.success('Reply 已发布'), onStateChange);
   }
 
+  public async loadCurrentUser(): Promise<RepositoryResult<CurrentUser>> {
+    const result: RepositoryResult<CurrentUser> = await this.repository.loadCurrentUser();
+    if (result.isUnauthorized()) {
+      this.requiresAuthentication = true;
+      await this.notifyUnauthorized(true);
+    }
+    return result;
+  }
+
   public async loadHome(): Promise<void> {
     this.requiresAuthentication = false;
     this.homeState = BrowseState.loading<Topic>();

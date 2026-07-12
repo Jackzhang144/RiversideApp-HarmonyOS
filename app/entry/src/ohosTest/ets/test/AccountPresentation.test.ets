@@ -1,6 +1,7 @@
 import { describe, expect, it } from '@ohos/hypium';
 import { AuthenticatedSession } from '../../../main/ets/auth/AuthModels';
 import { AuthState } from '../../../main/ets/auth/AuthRepository';
+import { CurrentUser } from '../../../main/ets/models/ReplyModels';
 import {
   AccountPrimaryAction,
   AccountPresentation,
@@ -99,6 +100,45 @@ export default function accountPresentationTest(): void {
         expect(presentation.title).assertEqual('正在登录 RiverSide');
         assertPersistentContent(presentation);
       });
+    });
+
+    it('presents server-proven identity, role, verification, and capabilities', 0, () => {
+      const session: AuthenticatedSession | null = AuthenticatedSession.create(
+        'user-api-key',
+        '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'
+      );
+      const user: CurrentUser | null = CurrentUser.create(
+        24,
+        'co-admin',
+        {
+          name: '协管员',
+          title: '社区维护',
+          moderator: true,
+          trustLevel: 3,
+          canCreatePost: true,
+          canChatWithUser: true,
+          unreadNotifications: 4,
+          groupNames: ['scuer', 'rs_developer'],
+          groupIds: [45, 50],
+          primaryGroupId: 45,
+          flairGroupId: 50
+        }
+      );
+      expect(session === null || user === null).assertFalse();
+      if (session === null || user === null) {
+        return;
+      }
+
+      const presentation: AccountPresentation = accountPresentationFor(
+        AuthState.authenticated(session),
+        user,
+        false,
+        ''
+      );
+
+      expect(presentation.title).assertEqual('协管员');
+      expect(presentation.detail).assertEqual('版主 · 已认证 · 信任等级 3 · 4 条未读');
+      expect(presentation.capabilityDetail).assertEqual('可发帖 · 可发起私聊');
     });
   });
 }

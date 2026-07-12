@@ -27,6 +27,7 @@ import { RepositoryAuthenticationLifecycle } from '../auth/RepositoryAuthenticat
 import { RsaAuthorizationCryptoFactory } from '../auth/RsaAuthorizationCrypto';
 import { CategoryCacheScope } from '../cache/CategoryCache';
 import { PreferencesCategoryCache } from '../cache/PreferencesCategoryCache';
+import { RepositoryResult } from '../core/RepositoryResult';
 import { AccountPage } from '../components/AccountPage';
 import { CategoryBrowsePage } from '../components/CategoryBrowsePage';
 import { CategoryTopicsPage } from '../components/CategoryTopicsPage';
@@ -35,6 +36,7 @@ import { LoginPage } from '../components/LoginPage';
 import { TopicDetailPage } from '../components/TopicDetailPage';
 import { UiPrototypePage } from '../components/prototype/UiPrototypePage';
 import { Category, Topic } from '../models/ForumModels';
+import { CurrentUser } from '../models/ReplyModels';
 import {
   AuthenticatedSessionProvider,
   DiscourseHttpClient
@@ -79,6 +81,10 @@ struct Index {
   @State replyState: ReplyComposerState = ReplyComposerState.closed();
   @State replySheetVisible: boolean = false;
   @State authState: AuthState = AuthState.idle();
+  @State accountIdentity: CurrentUser | null = null;
+  @State accountIdentityLoading: boolean = false;
+  @State accountIdentityError: string = '';
+  private accountIdentityRequestVersion: number = 0;
 
   private topAvoidHeight(): number {
     const statusBarBottom: number =
@@ -125,6 +131,7 @@ struct Index {
     );
     model.selectRoot(this.selectedRoot);
     this.model = model;
+    this.refreshAccountIdentity();
     this.loadHome();
     this.loadCategories();
   }
@@ -152,11 +159,46 @@ struct Index {
     if (repository.state.kind === AuthStateKind.AUTHENTICATED) {
       model.resumeReplyAfterAuthentication();
       this.synchronizeReplyState(model, model.replyState.kind === ReplyComposerStateKind.EDITING);
+      this.refreshAccountIdentity();
+    } else {
+      this.accountIdentityRequestVersion += 1;
+      this.accountIdentity = null;
+      this.accountIdentityLoading = false;
+      this.accountIdentityError = '';
     }
     this.categoryState = model.categoryState;
     if (reloadCategories) {
       this.loadCategories();
     }
+  }
+
+  private refreshAccountIdentity(): void {
+    const model: AppShellModel | null = this.model;
+    if (model === null || this.authState.kind !== AuthStateKind.AUTHENTICATED) {
+      return;
+    }
+    const requestVersion: number = this.accountIdentityRequestVersion + 1;
+    this.accountIdentityRequestVersion = requestVersion;
+    this.accountIdentity = null;
+    this.accountIdentityLoading = true;
+    this.accountIdentityError = '';
+    this.loadAccountIdentity(model, requestVersion);
+  }
+
+  private async loadAccountIdentity(model: AppShellModel, requestVersion: number): Promise<void> {
+    const result: RepositoryResult<CurrentUser> = await model.loadCurrentUser();
+    if (
+      requestVersion !== this.accountIdentityRequestVersion ||
+      this.authState.kind !== AuthStateKind.AUTHENTICATED
+    ) {
+      return;
+    }
+    this.accountIdentityLoading = false;
+    if (!result.isSuccess() || result.data === null) {
+      this.accountIdentityError = result.message;
+      return;
+    }
+    this.accountIdentity = result.data;
   }
 
   private async loadHome(): Promise<void> {
@@ -708,11 +750,17 @@ struct Index {
         TabContent() {
           AccountPage({
             state: this.authState,
+            identity: this.accountIdentity,
+            identityLoading: this.accountIdentityLoading,
+            identityError: this.accountIdentityError,
             onLogin: (): void => {
               this.openLogin();
             },
             onLogout: (): void => {
               this.logout();
+            },
+            onRetryIdentity: (): void => {
+              this.refreshAccountIdentity();
             },
             onOpenUiPrototype: (): void => {
               this.openUiPrototype();

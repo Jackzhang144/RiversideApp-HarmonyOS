@@ -1,4 +1,5 @@
 import { AuthState, AuthStateKind } from '../auth/AuthRepository';
+import { CurrentUser } from '../models/ReplyModels';
 
 export enum AccountPrimaryAction {
   NONE = 'none',
@@ -51,6 +52,7 @@ export class AccountPresentation {
   public readonly primaryAction: AccountPrimaryAction;
   public readonly busy: boolean;
   public readonly error: boolean;
+  public readonly capabilityDetail: string;
   public readonly placeholderSections: Array<AccountPlaceholderSection>;
   public readonly prototypeEntryVisible: boolean = true;
 
@@ -60,7 +62,8 @@ export class AccountPresentation {
     primaryAction: AccountPrimaryAction,
     busy: boolean,
     error: boolean,
-    placeholderSections: Array<AccountPlaceholderSection>
+    placeholderSections: Array<AccountPlaceholderSection>,
+    capabilityDetail: string = ''
   ) {
     this.title = title;
     this.detail = detail;
@@ -68,6 +71,7 @@ export class AccountPresentation {
     this.busy = busy;
     this.error = error;
     this.placeholderSections = placeholderSections;
+    this.capabilityDetail = capabilityDetail;
   }
 }
 
@@ -88,16 +92,53 @@ function accountPlaceholderSections(): Array<AccountPlaceholderSection> {
   ];
 }
 
-export function accountPresentationFor(state: AuthState): AccountPresentation {
+function detailForIdentity(identity: CurrentUser): string {
+  const unreadText: string = identity.unreadNotifications > 0
+    ? `${identity.unreadNotifications} 条未读`
+    : '暂无未读';
+  return `${identity.roleLabel} · ${identity.isVerified ? '已认证' : '未认证'} · 信任等级 ${identity.trustLevel} · ${unreadText}`;
+}
+
+function capabilityDetailFor(identity: CurrentUser): string {
+  const capabilities: Array<string> = [];
+  if (identity.canReply) {
+    capabilities.push('可发帖');
+  }
+  if (identity.canStartDirectChat) {
+    capabilities.push('可发起私聊');
+  }
+  return capabilities.length === 0 ? '当前服务端未授予发帖或私聊许可' : capabilities.join(' · ');
+}
+
+export function accountPresentationFor(
+  state: AuthState,
+  identity: CurrentUser | null = null,
+  identityLoading: boolean = false,
+  identityError: string = ''
+): AccountPresentation {
   const placeholderSections: Array<AccountPlaceholderSection> = accountPlaceholderSections();
   if (state.kind === AuthStateKind.AUTHENTICATED) {
+    if (identity !== null) {
+      return new AccountPresentation(
+        identity.displayName,
+        detailForIdentity(identity),
+        AccountPrimaryAction.LOGOUT,
+        false,
+        false,
+        placeholderSections,
+        capabilityDetailFor(identity)
+      );
+    }
     return new AccountPresentation(
-      '已登录 RiverSide',
-      'Authenticated Session 已通过 HUKS 加密保存在本机。',
+      identityLoading ? '正在加载 RiverSide 身份' : '已登录 RiverSide',
+      identityError.length > 0
+        ? `无法读取服务端身份：${identityError}`
+        : 'Authenticated Session 已通过 HUKS 加密保存在本机。',
       AccountPrimaryAction.LOGOUT,
-      false,
-      false,
-      placeholderSections
+      identityLoading,
+      identityError.length > 0,
+      placeholderSections,
+      ''
     );
   }
   if (state.kind === AuthStateKind.RESTORING) {
@@ -146,8 +187,8 @@ export function accountPresentationFor(state: AuthState): AccountPresentation {
     );
   }
   return new AccountPresentation(
-    '未登录 RiverSide',
-    '登录后可使用 RiverSide User API Key 访问需要身份的功能。',
+    '未授权 RiverSide',
+    '请在登录页完成账号登录并同意 User API Key 授权；仅网页登录不会建立应用会话。',
     AccountPrimaryAction.LOGIN,
     false,
     false,

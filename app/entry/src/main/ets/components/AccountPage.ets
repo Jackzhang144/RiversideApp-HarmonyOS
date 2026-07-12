@@ -1,4 +1,5 @@
-import { AuthState } from '../auth/AuthRepository';
+import { AuthState, AuthStateKind } from '../auth/AuthRepository';
+import { CurrentUser } from '../models/ReplyModels';
 import {
   AccountPlaceholder,
   AccountPlaceholderKind,
@@ -11,8 +12,12 @@ import {
 @Component
 export struct AccountPage {
   @Prop state: AuthState = AuthState.idle();
+  @Prop identity: CurrentUser | null = null;
+  @Prop identityLoading: boolean = false;
+  @Prop identityError: string = '';
   onLogin: () => void = (): void => {};
   onLogout: () => void = (): void => {};
+  onRetryIdentity: () => void = (): void => {};
   onOpenUiPrototype: () => void = (): void => {};
 
   private placeholderIcon(kind: AccountPlaceholderKind): Resource {
@@ -71,6 +76,21 @@ export struct AccountPage {
             .fontSize(13)
             .fontColor(presentation.error ? '#C62828' : $r('sys.color.font_secondary'))
             .lineHeight(19)
+          if (presentation.capabilityDetail.length > 0) {
+            Text(presentation.capabilityDetail)
+              .fontSize(12)
+              .fontColor($r('sys.color.font_secondary'))
+              .lineHeight(18)
+          }
+          if (this.state.kind === AuthStateKind.AUTHENTICATED && this.identityError.length > 0) {
+            Button('重新加载身份', { type: ButtonType.Normal })
+              .height(32)
+              .fontSize(12)
+              .backgroundColor('#EEF1F5')
+              .fontColor('#317AF7')
+              .onClick(this.onRetryIdentity)
+              .accessibilityText('重新加载 RiverSide 身份')
+          }
         }
         .alignItems(HorizontalAlign.Start)
         .layoutWeight(1)
@@ -78,12 +98,12 @@ export struct AccountPage {
       .width('100%')
 
       if (presentation.primaryAction === AccountPrimaryAction.LOGIN) {
-        Button('登录 RiverSide', { type: ButtonType.Normal })
+        Button('登录并授权 RiverSide', { type: ButtonType.Normal })
           .width('100%')
           .height(44)
           .borderRadius(12)
           .onClick(this.onLogin)
-          .accessibilityText('登录 RiverSide 账户')
+          .accessibilityText('登录并授权 RiverSide 账户')
       } else if (presentation.primaryAction === AccountPrimaryAction.LOGOUT) {
         Button('退出登录', { type: ButtonType.Normal })
           .width('100%')
@@ -199,6 +219,11 @@ export struct AccountPage {
   }
 
   build() {
-    this.AccountContent(accountPresentationFor(this.state))
+    this.AccountContent(accountPresentationFor(
+      this.state,
+      this.identity,
+      this.identityLoading,
+      this.identityError
+    ))
   }
 }
