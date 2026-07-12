@@ -56,20 +56,6 @@ export struct CategoryBrowsePage {
         .fontSize(20)
         .fontWeight(FontWeight.Bold)
         .layoutWeight(1)
-      if (this.state.isRefreshing) {
-        LoadingProgress()
-          .width(22)
-          .height(22)
-          .margin({ right: 9 })
-          .accessibilityText('正在刷新分类')
-      } else {
-        Button('刷新', { type: ButtonType.Normal })
-          .height(40)
-          .backgroundColor(Color.Transparent)
-          .fontColor('#317AF7')
-          .onClick(this.onRefresh)
-          .accessibilityText('刷新分类')
-      }
     }
     .width('100%')
     .height(56)

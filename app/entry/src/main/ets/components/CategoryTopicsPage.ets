@@ -74,6 +74,13 @@ export struct CategoryTopicsPage {
       Text(`${this.state.items.length} 个 Topic`)
         .fontSize(14)
         .fontColor($r('sys.color.font_secondary'))
+        .layoutWeight(1)
+      Button('刷新', { type: ButtonType.Normal })
+        .height(40)
+        .backgroundColor(Color.Transparent)
+        .fontColor('#317AF7')
+        .onClick(this.onRefresh)
+        .accessibilityText('刷新 Category Topic')
     }
     .width('100%')
     .height(48)
