@@ -6,6 +6,7 @@ import discourseForumRepositoryTest from './DiscourseForumRepository.test';
 import discourseHttpHeadersTest from './DiscourseHttpHeaders.test';
 import forumCardPresentationTest from './ForumCardPresentation.test';
 import forumComposerPresentationTest from './ForumComposerPresentation.test';
+import homePresentationTest from './HomePresentation.test';
 import jsonBoundaryTest from './JsonBoundary.test';
 import replyBoundaryTest from './ReplyBoundary.test';
 import replyTransportTest from './ReplyTransport.test';
@@ -21,6 +22,7 @@ export default function tests(): void {
   discourseHttpHeadersTest();
   forumCardPresentationTest();
   forumComposerPresentationTest();
+  homePresentationTest();
   jsonBoundaryTest();
   replyBoundaryTest();
   replyTransportTest();

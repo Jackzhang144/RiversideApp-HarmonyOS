@@ -22,6 +22,10 @@ export default function forumComposerPresentationTest(): void {
       expect(presentation.contextTitle).assertEqual('回复 Topic #2725');
       expect(presentation.contextBadge).assertEqual('Topic');
       expect(presentation.showsTitleInput).assertFalse();
+      expect(presentation.imageActionAvailable).assertFalse();
+      expect(presentation.imageActionAccessibilityText).assertEqual('图片，未实现');
+      expect(presentation.mentionActionAvailable).assertFalse();
+      expect(presentation.mentionActionAccessibilityText).assertEqual('@ 提及，未实现');
       expect(presentation.canSubmit()).assertTrue();
       expect(presentation.submitLabel()).assertEqual('发布 Reply');
     });

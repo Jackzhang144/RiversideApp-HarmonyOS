@@ -3,6 +3,7 @@ import { BrowseState, BrowseStateKind, isHomeSortTabAvailable } from '../app/App
 import { Category, Topic } from '../models/ForumModels';
 import { ForumCardPresentation } from './ForumCardPresentation';
 import { ForumContentCard } from './ForumContentCard';
+import { HomeHeaderActionPresentation } from './HomePresentation';
 
 @Component
 export struct HomeBrowsePage {
@@ -16,7 +17,7 @@ export struct HomeBrowsePage {
   };
 
   @Builder
-  private headerAction(icon: Resource, label: string): void {
+  private headerAction(icon: Resource, action: HomeHeaderActionPresentation): void {
     Button() {
       SymbolGlyph(icon)
         .fontSize(21)
@@ -26,8 +27,8 @@ export struct HomeBrowsePage {
     .width(40)
     .height(40)
     .backgroundColor(Color.Transparent)
-    .enabled(false)
-    .accessibilityText(`${label}，未实现`)
+    .enabled(action.available)
+    .accessibilityText(action.accessibilityText)
   }
 
   @Builder
@@ -37,8 +38,8 @@ export struct HomeBrowsePage {
         .fontSize(20)
         .fontWeight(FontWeight.Bold)
         .layoutWeight(1)
-      this.headerAction($r('sys.symbol.magnifyingglass'), '搜索')
-      this.headerAction($r('sys.symbol.plus'), '发布新 Topic')
+      this.headerAction($r('sys.symbol.magnifyingglass'), HomeHeaderActionPresentation.search())
+      this.headerAction($r('sys.symbol.plus'), HomeHeaderActionPresentation.newTopic())
     }
     .width('100%')
     .height(56)

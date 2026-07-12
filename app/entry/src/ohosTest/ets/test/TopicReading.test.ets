@@ -152,6 +152,48 @@ function authenticatedUserResult(): RepositoryResult<CurrentUser> {
 
 export default function topicReadingTest(): void {
   describe('AppShell Topic reading', () => {
+    it('composes Category, Topic, targeted Reply, and return navigation through one AppShell', 0,
+      async (done: Function) => {
+        const repository: TopicReadingRepository = new TopicReadingRepository();
+        repository.categoryTopicResults.push(RepositoryResult.success<Array<Topic>>([topic()]));
+        repository.topicDetailResults.push(RepositoryResult.success<TopicDetail>(new TopicDetail(
+          2725, '站务管理区重要主题导航', 1959, 3, 4, false, false, true,
+          [102728, 102729, 102730], [firstPost(), secondPost(), thirdPost()]
+        )));
+        repository.currentUserResults.push(authenticatedUserResult());
+        repository.replySubmitResults.push(ReplySubmitResult.created(fourthPost()));
+        const model: AppShellModel = new AppShellModel(
+          repository, new MemoryCategoryCache(), CategoryCacheScope.anonymous()
+        );
+
+        model.selectRoot(RootDestination.CATEGORY);
+        await model.openCategory(category());
+        expect(model.selectedRoot).assertEqual(RootDestination.CATEGORY);
+        expect(model.activeDestination).assertEqual(SecondaryDestination.CATEGORY_TOPICS);
+        expect(model.categoryTopicsState.items[0].id).assertEqual(2725);
+
+        await model.openTopic(topic());
+        expect(model.activeDestination).assertEqual(SecondaryDestination.TOPIC);
+        expect(model.topicState.posts.length).assertEqual(3);
+
+        model.openReply(3);
+        model.updateReplyDraft('组合路径 Reply');
+        await model.submitReply();
+        expect(repository.submittedReplies.length).assertEqual(1);
+        expect(repository.submittedReplies[0].replyToPostNumber).assertEqual(3);
+        expect(model.topicState.posts[3].id).assertEqual(102731);
+
+        model.closeSecondary();
+        expect(model.activeDestination).assertEqual(SecondaryDestination.CATEGORY_TOPICS);
+        model.closeSecondary();
+        expect(model.activeDestination).assertEqual(SecondaryDestination.NONE);
+        expect(model.selectedRoot).assertEqual(RootDestination.CATEGORY);
+
+        model.selectRoot(RootDestination.ACCOUNT);
+        expect(model.selectedRoot).assertEqual(RootDestination.ACCOUNT);
+        done();
+      });
+
     it('keeps the newest Category and Topic when older requests finish later', 0, async (done: Function) => {
       const repository: TopicReadingRepository = new TopicReadingRepository();
       const firstCategory: PendingRepositoryResult<Array<Topic>> = new PendingRepositoryResult<Array<Topic>>();

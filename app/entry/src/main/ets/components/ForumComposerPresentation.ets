@@ -25,6 +25,10 @@ export class ForumComposerPresentation {
   public readonly showsTitleInput: boolean;
   public readonly titlePlaceholder: string;
   public readonly bodyPlaceholder: string;
+  public readonly imageActionAvailable: boolean = false;
+  public readonly imageActionAccessibilityText: string = '图片，未实现';
+  public readonly mentionActionAvailable: boolean = false;
+  public readonly mentionActionAccessibilityText: string = '@ 提及，未实现';
 
   private constructor(
     mode: ForumComposerMode,

@@ -62,9 +62,9 @@ export struct ForumComposer {
       }
       .width(40)
       .height(40)
-      .enabled(false)
+      .enabled(this.presentation.imageActionAvailable)
       .backgroundColor('#F5F6F8')
-      .accessibilityText('图片，未实现')
+      .accessibilityText(this.presentation.imageActionAccessibilityText)
       Button() {
         Text('@')
           .fontSize(18)
@@ -73,9 +73,9 @@ export struct ForumComposer {
       }
       .width(40)
       .height(40)
-      .enabled(false)
+      .enabled(this.presentation.mentionActionAvailable)
       .backgroundColor('#F5F6F8')
-      .accessibilityText('@ 提及，未实现')
+      .accessibilityText(this.presentation.mentionActionAccessibilityText)
       Text('图片 / @ · 未实现')
         .fontSize(11)
         .fontColor($r('sys.color.font_tertiary'))
