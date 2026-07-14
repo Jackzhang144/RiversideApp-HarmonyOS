@@ -25,6 +25,13 @@ import {
   TopicComposerStateKind,
   TopicReadState
 } from '../app/AppShellModel';
+import {
+  ChatChannelState,
+  ChatComposerState,
+  ChatConversationState,
+  ChatModel,
+  ChatSearchState
+} from '../app/ChatModel';
 import { ProfileManagementModel, ProfileViewState } from '../app/ProfileManagementModel';
 import { ProfileContentKind, ProfileContentModel, ProfileContentState } from '../app/ProfileContentModel';
 import { AuthenticatedSession } from '../auth/AuthModels';
@@ -38,6 +45,8 @@ import { AbilityContextRegistry } from '../core/AbilityContextRegistry';
 import { RepositoryResult } from '../core/RepositoryResult';
 import { AccountPage } from '../components/AccountPage';
 import { CategoryBrowsePage } from '../components/CategoryBrowsePage';
+import { ChatConversationPage } from '../components/ChatConversationPage';
+import { ChatRootPage } from '../components/ChatRootPage';
 import { CategoryTopicsPage } from '../components/CategoryTopicsPage';
 import { HomeBrowsePage } from '../components/HomeBrowsePage';
 import { ForumComposer } from '../components/ForumComposer';
@@ -57,6 +66,12 @@ import { ImageViewerPage } from '../components/ImageViewerPage';
 import { selectedBookmarkPostIds } from '../components/TopicReadingPresentation';
 import { UiPrototypePage } from '../components/prototype/UiPrototypePage';
 import { Category, Topic } from '../models/ForumModels';
+import {
+  ChatChannel,
+  ChatEmoji,
+  ChatReactionAction,
+  ChatSearchResult
+} from '../models/ChatModels';
 import { HomeChannel, SearchPost, SearchUser } from '../models/DiscoveryModels';
 import { CurrentUser } from '../models/ReplyModels';
 import { AUTHORING_CATEGORY_ID, ServerDraft } from '../models/AuthoringModels';
@@ -105,6 +120,7 @@ const PROFILE_CONTENT_ROUTE: string = 'profile-content';
 const RICH_EMBED_ROUTE: string = 'rich-embed';
 const IMAGE_VIEWER_ROUTE: string = 'image-viewer';
 const UI_PROTOTYPE_ROUTE: string = 'ui-prototype';
+const CHAT_CONVERSATION_ROUTE: string = 'chat-conversation';
 const RIVERSIDE_BASE_URL: string = 'https://river-side.cc';
 const ROOT_TAB_SELECTED_COLOR: string = '#317AF7';
 
@@ -126,6 +142,7 @@ struct Index {
   private readonly pathStack: NavPathStack = new NavPathStack();
   private readonly tabsController: HdsTabsController = new HdsTabsController();
   private model: AppShellModel | null = null;
+  private chatModel: ChatModel | null = null;
   private accountProfileModel: ProfileManagementModel | null = null;
   private selectedProfileModel: ProfileManagementModel | null = null;
   private profileContentModel: ProfileContentModel | null = null;
@@ -158,6 +175,12 @@ struct Index {
   @State accountIdentityError: string = '';
   @State accountProfileState: ProfileViewState = ProfileViewState.initial();
   @State searchState: SearchState = SearchState.initial();
+  @State chatChannelState: ChatChannelState = ChatChannelState.initial();
+  @State chatConversationState: ChatConversationState = ChatConversationState.initial();
+  @State chatComposerState: ChatComposerState = new ChatComposerState();
+  @State chatSearchState: ChatSearchState = new ChatSearchState();
+  @State chatEmojis: Array<ChatEmoji> = [];
+  @State chatUploadState: MediaUploadState | null = null;
   @State profileUsername: string = '';
   @State profileState: ProfileViewState = ProfileViewState.initial();
   @State profileMediaState: MediaUploadState | null = null;
@@ -217,6 +240,7 @@ struct Index {
     const mediaRepository: DiscourseMediaRepository = new DiscourseMediaRepository(
       new DiscourseMediaTransport(RIVERSIDE_BASE_URL, sessionProvider)
     );
+    this.chatModel = new ChatModel(forumRepository, mediaRepository, authenticationLifecycle);
     this.accountProfileModel = new ProfileManagementModel(
       forumRepository,
       authenticationLifecycle,
@@ -285,6 +309,8 @@ struct Index {
       this.accountProfileModel?.reset();
       this.selectedProfileModel?.reset();
       this.profileContentModel?.reset();
+      this.chatModel?.reset();
+      this.synchronizeChatState();
       this.profileContentState = new ProfileContentState();
     }
     this.categoryState = model.categoryState;
@@ -354,6 +380,9 @@ struct Index {
     this.accountProfileState = profileModel.state;
     if (profileModel.state.profile === null && profileModel.state.message.length > 0) {
       this.accountIdentityError = profileModel.state.message;
+    }
+    if (profileModel.state.profile?.canChat === true && this.selectedRoot === RootDestination.CHAT) {
+      this.loadChatChannels();
     }
   }
 
@@ -481,6 +510,9 @@ struct Index {
         return;
       }
       this.selectedRoot = model.selectedRoot;
+      if (this.selectedRoot === RootDestination.CHAT) {
+        this.loadChatChannels();
+      }
       return;
     }
     const destination: RootDestination | null = rootDestinationForTabIndex(index);
@@ -488,6 +520,288 @@ struct Index {
       return;
     }
     this.selectedRoot = destination;
+    if (this.selectedRoot === RootDestination.CHAT) {
+      this.loadChatChannels();
+    }
+  }
+
+  private synchronizeChatState(): void {
+    const model: ChatModel | null = this.chatModel;
+    if (model === null) {
+      return;
+    }
+    this.chatChannelState = model.channelState;
+    this.chatConversationState = model.conversationState;
+    this.chatComposerState = model.composerState;
+    this.chatSearchState = model.searchState;
+    this.chatEmojis = model.emojis;
+  }
+
+  private canUseChat(): boolean {
+    return this.authState.kind === AuthStateKind.AUTHENTICATED &&
+      this.accountProfileState.profile?.canChat === true;
+  }
+
+  private currentChatUsername(): string {
+    return this.accountProfileState.profile?.username ?? this.accountIdentity?.username ?? '';
+  }
+
+  private async loadChatChannels(): Promise<void> {
+    const model: ChatModel | null = this.chatModel;
+    if (model === null || !this.canUseChat()) {
+      return;
+    }
+    const task: Promise<void> = model.loadChannels();
+    this.synchronizeChatState();
+    await task;
+    this.synchronizeChatState();
+  }
+
+  private async openChatChannel(channel: ChatChannel): Promise<void> {
+    const model: ChatModel | null = this.chatModel;
+    if (model === null || !this.canUseChat()) {
+      return;
+    }
+    const task: Promise<void> = model.openChannel(channel);
+    this.chatUploadState = null;
+    this.synchronizeChatState();
+    this.pathStack.pushPath({ name: CHAT_CONVERSATION_ROUTE });
+    await Promise.all([task, model.loadEmojis()]);
+    this.synchronizeChatState();
+  }
+
+  private async openChatSearchResult(result: ChatSearchResult): Promise<void> {
+    const model: ChatModel | null = this.chatModel;
+    if (model === null || !this.canUseChat()) {
+      return;
+    }
+    const task: Promise<void> = model.openChannelAt(result.channel, result.message.id);
+    this.chatUploadState = null;
+    this.synchronizeChatState();
+    this.pathStack.pushPath({ name: CHAT_CONVERSATION_ROUTE });
+    await Promise.all([task, model.loadEmojis()]);
+    this.synchronizeChatState();
+  }
+
+  private async retryChatConversation(): Promise<void> {
+    const model: ChatModel | null = this.chatModel;
+    if (model === null) {
+      return;
+    }
+    const task: Promise<void> = model.retryConversation();
+    this.synchronizeChatState();
+    await task;
+    this.synchronizeChatState();
+  }
+
+  private closeChatConversation(): boolean {
+    this.chatModel?.closeChannel();
+    this.chatUploadState = null;
+    this.synchronizeChatState();
+    return false;
+  }
+
+  private async loadOlderChatMessages(): Promise<void> {
+    const model: ChatModel | null = this.chatModel;
+    if (model === null) return;
+    const task: Promise<void> = model.loadOlder();
+    this.synchronizeChatState();
+    await task;
+    this.synchronizeChatState();
+  }
+
+  private async loadNewerChatMessages(): Promise<void> {
+    const model: ChatModel | null = this.chatModel;
+    if (model === null) return;
+    const task: Promise<void> = model.loadNewer();
+    this.synchronizeChatState();
+    await task;
+    this.synchronizeChatState();
+  }
+
+  private updateChatDraft(value: string): void {
+    this.chatModel?.updateDraft(value);
+    this.synchronizeChatState();
+  }
+
+  private replyToChatMessage(messageId: number | null): void {
+    this.chatModel?.replyTo(messageId);
+    this.synchronizeChatState();
+  }
+
+  private mentionChatUser(username: string): void {
+    this.chatModel?.insertMention(username);
+    this.synchronizeChatState();
+  }
+
+  private insertChatEmoji(name: string): void {
+    this.chatModel?.insertEmoji(name);
+    this.synchronizeChatState();
+  }
+
+  private removeChatUpload(uploadId: number): void {
+    this.chatModel?.removeUpload(uploadId);
+    this.synchronizeChatState();
+  }
+
+  private async sendChatMessage(): Promise<void> {
+    const model: ChatModel | null = this.chatModel;
+    if (model === null) return;
+    const task: Promise<boolean> = model.send();
+    this.synchronizeChatState();
+    const sent: boolean = await task;
+    this.synchronizeChatState();
+    if (sent) {
+      this.chatUploadState = null;
+    }
+  }
+
+  private async selectChatImages(): Promise<void> {
+    const context: common.UIAbilityContext | null = AbilityContextRegistry.current();
+    if (context === null) {
+      this.showAuthenticationMessage('无法选择图片', '无法获取应用运行环境');
+      return;
+    }
+    const selection: MediaSelectionResult = await new MediaSelectionService(context).selectImages(5);
+    if (selection.kind === MediaSelectionResultKind.CANCELLED) {
+      return;
+    }
+    if (selection.kind === MediaSelectionResultKind.FAILURE) {
+      this.showAuthenticationMessage('无法选择图片', selection.message);
+      return;
+    }
+    for (const media of selection.media) {
+      const state: MediaUploadState = await this.uploadChatImage(media);
+      if (state.kind !== MediaUploadStateKind.SUCCEEDED) {
+        return;
+      }
+    }
+    this.chatUploadState = null;
+  }
+
+  private async uploadChatImage(media: CachedMedia): Promise<MediaUploadState> {
+    const model: ChatModel | null = this.chatModel;
+    if (model === null) {
+      const unavailable: MediaUploadState = MediaUploadState.selected(media).failed('图片上传服务不可用');
+      this.chatUploadState = unavailable;
+      return unavailable;
+    }
+    const state: MediaUploadState = await model.uploadImage(
+      media,
+      (nextState: MediaUploadState): void => {
+        this.chatUploadState = nextState;
+        this.synchronizeChatState();
+      }
+    );
+    this.chatUploadState = state;
+    this.synchronizeChatState();
+    return state;
+  }
+
+  private async retryChatImageUpload(): Promise<void> {
+    const state: MediaUploadState | null = this.chatUploadState;
+    if (state !== null && state.canRetry()) {
+      await this.uploadChatImage(state.media);
+    }
+  }
+
+  private cancelChatImageUpload(): void {
+    this.chatModel?.cancelUpload();
+    this.synchronizeChatState();
+  }
+
+  private async reactToChatMessage(
+    messageId: number,
+    emoji: string,
+    action: ChatReactionAction
+  ): Promise<void> {
+    const model: ChatModel | null = this.chatModel;
+    if (model === null) return;
+    await model.react(messageId, emoji, action);
+    this.synchronizeChatState();
+  }
+
+  private confirmDeleteChatMessage(messageId: number): void {
+    this.getUIContext().showAlertDialog({
+      title: '删除这条消息？',
+      message: '服务端将保留可恢复的删除状态。',
+      primaryButton: { value: '取消', action: (): void => {} },
+      secondaryButton: {
+        value: '删除',
+        action: (): void => { this.deleteChatMessage(messageId); }
+      },
+      cancel: (): void => {}
+    });
+  }
+
+  private async deleteChatMessage(messageId: number): Promise<void> {
+    const model: ChatModel | null = this.chatModel;
+    if (model === null) return;
+    await model.deleteMessage(messageId);
+    this.synchronizeChatState();
+  }
+
+  private async restoreChatMessage(messageId: number): Promise<void> {
+    const model: ChatModel | null = this.chatModel;
+    if (model === null) return;
+    await model.restoreMessage(messageId);
+    this.synchronizeChatState();
+  }
+
+  private async searchChat(query: string): Promise<void> {
+    const model: ChatModel | null = this.chatModel;
+    if (model === null) return;
+    const task: Promise<void> = model.search(query);
+    this.synchronizeChatState();
+    await task;
+    this.synchronizeChatState();
+  }
+
+  private async loadMoreChatSearch(): Promise<void> {
+    const model: ChatModel | null = this.chatModel;
+    if (model === null) return;
+    const task: Promise<void> = model.loadMoreSearch();
+    this.synchronizeChatState();
+    await task;
+    this.synchronizeChatState();
+  }
+
+  private async openDirectChat(username: string): Promise<void> {
+    const model: ChatModel | null = this.chatModel;
+    if (model === null || !this.canUseChat()) return;
+    const task: Promise<boolean> = model.openDirectChat(username.trim());
+    this.chatUploadState = null;
+    this.synchronizeChatState();
+    const opened: boolean = await task;
+    this.synchronizeChatState();
+    if (opened) {
+      this.pathStack.pushPath({ name: CHAT_CONVERSATION_ROUTE });
+      await model.loadEmojis();
+      this.synchronizeChatState();
+    } else {
+      this.showAuthenticationMessage('无法发起私聊', '请检查用户名与服务端 Chat 权限');
+    }
+  }
+
+  private confirmLeaveChatChannel(): void {
+    this.getUIContext().showAlertDialog({
+      title: '离开这个频道？',
+      message: '离开后频道将从当前账号的 Chat 列表移除。',
+      primaryButton: { value: '取消', action: (): void => {} },
+      secondaryButton: { value: '离开', action: (): void => { this.leaveChatChannel(); } },
+      cancel: (): void => {}
+    });
+  }
+
+  private async leaveChatChannel(): Promise<void> {
+    const model: ChatModel | null = this.chatModel;
+    if (model === null) return;
+    const left: boolean = await model.leaveCurrentChannel();
+    this.synchronizeChatState();
+    if (left) {
+      this.chatUploadState = null;
+      this.pathStack.pop();
+    }
   }
 
   private rootTabStyle(label: string, icon: Resource, available: boolean = true): BottomTabBarStyle {
@@ -1581,6 +1895,45 @@ struct Index {
         }
       })
       .onBackPressed((): boolean => this.handleSecondaryBack())
+    } else if (name === CHAT_CONVERSATION_ROUTE) {
+      HdsNavDestination() {
+        ChatConversationPage({
+          state: this.chatConversationState,
+          composer: this.chatComposerState,
+          emojis: this.chatEmojis,
+          uploadState: this.chatUploadState,
+          currentUsername: this.currentChatUsername(),
+          onRetry: (): void => { this.retryChatConversation(); },
+          onLoadOlder: (): void => { this.loadOlderChatMessages(); },
+          onLoadNewer: (): void => { this.loadNewerChatMessages(); },
+          onDraftChange: (value: string): void => { this.updateChatDraft(value); },
+          onSend: (): void => { this.sendChatMessage(); },
+          onSelectImages: (): void => { this.selectChatImages(); },
+          onRetryUpload: (): void => { this.retryChatImageUpload(); },
+          onCancelUpload: (): void => { this.cancelChatImageUpload(); },
+          onRemoveUpload: (uploadId: number): void => { this.removeChatUpload(uploadId); },
+          onReply: (messageId: number): void => { this.replyToChatMessage(messageId); },
+          onCancelReply: (): void => { this.replyToChatMessage(null); },
+          onMention: (username: string): void => { this.mentionChatUser(username); },
+          onInsertEmoji: (name: string): void => { this.insertChatEmoji(name); },
+          onReact: (messageId: number, emoji: string, action: ChatReactionAction): void => {
+            this.reactToChatMessage(messageId, emoji, action);
+          },
+          onDelete: (messageId: number): void => { this.confirmDeleteChatMessage(messageId); },
+          onRestore: (messageId: number): void => { this.restoreChatMessage(messageId); },
+          onOpenImage: (url: string): void => { this.openImageViewer(url, 'Chat 图片'); },
+          onOpenProfile: (username: string): void => { this.openUserProfile(username); },
+          onLeaveChannel: (): void => { this.confirmLeaveChatChannel(); }
+        })
+      }
+      .titleBar({
+        enableComponentSafeArea: true,
+        content: {
+          title: { mainTitle: this.chatConversationState.channel?.title ?? 'Chat' },
+          backIcon: { label: '返回聊天列表' }
+        }
+      })
+      .onBackPressed((): boolean => this.closeChatConversation())
     } else if (name === USER_PROFILE_ROUTE) {
       HdsNavDestination() {
         UserProfileSummaryPage({
@@ -1597,6 +1950,9 @@ struct Index {
           },
           onNotificationLevelChange: (level: ProfileNotificationLevel): void => {
             this.changeProfileNotificationLevel(level);
+          },
+          onOpenDirectChat: (username: string): void => {
+            this.openDirectChat(username);
           }
         })
       }
@@ -1942,12 +2298,23 @@ struct Index {
         .tabBar(this.rootTabStyle('Category', $r('sys.symbol.square_grid_2x2')))
 
         TabContent() {
-          Column()
-            .width('100%')
-            .height('100%')
+          ChatRootPage({
+            authenticated: this.authState.kind === AuthStateKind.AUTHENTICATED,
+            capabilityLoading: this.accountIdentityLoading,
+            canChat: this.accountProfileState.profile?.canChat === true,
+            canStartDirectChat: this.accountProfileState.profile?.canStartDirectChat() === true,
+            state: this.chatChannelState,
+            searchState: this.chatSearchState,
+            onLogin: (): void => { this.openLogin(); },
+            onRefresh: (): void => { this.loadChatChannels(); },
+            onOpenChannel: (channel: ChatChannel): void => { this.openChatChannel(channel); },
+            onOpenSearchResult: (result: ChatSearchResult): void => { this.openChatSearchResult(result); },
+            onSearch: (query: string): void => { this.searchChat(query); },
+            onLoadMoreSearch: (): void => { this.loadMoreChatSearch(); },
+            onOpenDirectChat: (username: string): void => { this.openDirectChat(username); }
+          })
         }
-        .tabBar(this.rootTabStyle('聊天', $r('sys.symbol.message'), false))
-        .accessibilityText('聊天，未实现')
+        .tabBar(this.rootTabStyle('聊天', $r('sys.symbol.message')))
 
         TabContent() {
           Column()

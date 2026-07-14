@@ -14,6 +14,7 @@ export struct UserProfileSummaryPage {
   onEdit: () => void = (): void => {};
   onFollowingChange: (following: boolean) => void = (): void => {};
   onNotificationLevelChange: (level: ProfileNotificationLevel) => void = (): void => {};
+  onOpenDirectChat: (username: string) => void = (_username: string): void => {};
 
   @Builder
   private LoadingState(): void {
@@ -122,6 +123,12 @@ export struct UserProfileSummaryPage {
               .width('100%')
               .onClick(this.onEdit)
           } else {
+            if (profile.canStartDirectChat()) {
+              Button('发送私聊', { type: ButtonType.Normal })
+                .width('100%')
+                .enabled(!this.state.busy)
+                .onClick((): void => this.onOpenDirectChat(profile.username))
+            }
             Row({ space: 8 }) {
               if (profile.canFollow) {
                 Button(profile.following ? '取消关注' : '关注', { type: ButtonType.Normal })
