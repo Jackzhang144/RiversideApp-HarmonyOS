@@ -20,6 +20,12 @@ import {
 } from '../models/DiscoveryModels';
 import { CurrentUser } from '../models/ReplyModels';
 import { ServerDraft } from '../models/AuthoringModels';
+import {
+  ProfileGroup,
+  UserEmailInfo,
+  UserProfile,
+  UserProfileSummary
+} from '../models/ProfileModels';
 
 interface UserDto {
   id: number | null;
@@ -764,6 +770,74 @@ function firstReplyPermission(envelope: JsonObjectReader, details: JsonObjectRea
 }
 
 export class ForumResponseParser {
+  private parseProfile(user: JsonObjectReader): UserProfile | null {
+    const id: number | null = user.number('id');
+    const username: string | null = user.string('username');
+    if (id === null || username === null) {
+      return null;
+    }
+    const groups: Array<ProfileGroup> = [];
+    for (const value of user.array('groups') ?? []) {
+      const group: JsonObjectReader | null = JsonObjectReader.fromValue(value);
+      if (group === null) {
+        continue;
+      }
+      const groupId: number = Math.trunc(group.number('id') ?? 0);
+      const groupName: string = group.string('name') ?? '';
+      if (groupId > 0 || groupName.trim().length > 0) {
+        groups.push(new ProfileGroup(
+          groupId,
+          groupName,
+          group.string('display_name') ?? group.string('full_name') ?? '',
+          group.string('flair_url') ?? ''
+        ));
+      }
+    }
+    const avatarTemplate: string = user.string('avatar_template') ?? '';
+    const userOption: JsonObjectReader | null = user.object('user_option');
+    return UserProfile.create(id, username, {
+      name: user.string('name') ?? '',
+      title: user.string('title') ?? user.string('user_title') ?? '',
+      avatarUrl: avatarTemplate.replace('{size}', '192'),
+      primaryGroupId: user.number('primary_group_id'),
+      flairGroupId: user.number('flair_group_id'),
+      primaryGroupName: user.string('primary_group_name') ?? '',
+      trustLevel: numberOrZero(user.number('trust_level')),
+      admin: booleanOrFalse(user.boolean('admin')),
+      moderator: booleanOrFalse(user.boolean('moderator')),
+      groups: groups,
+      canFollow: booleanOrFalse(user.boolean('can_follow')) ||
+        booleanOrFalse(user.boolean('can_follow_user')) || booleanOrFalse(user.boolean('can_follow_users')),
+      following: booleanOrFalse(user.boolean('is_followed')) ||
+        booleanOrFalse(user.boolean('following')) || booleanOrFalse(user.boolean('is_following')),
+      canMute: booleanOrFalse(user.boolean('can_mute_user')) || booleanOrFalse(user.boolean('can_mute_users')),
+      canIgnore: booleanOrFalse(user.boolean('can_ignore_user')) || booleanOrFalse(user.boolean('can_ignore_users')),
+      muted: booleanOrFalse(user.boolean('muted')),
+      ignored: booleanOrFalse(user.boolean('ignored')),
+      canUploadProfileBackground: booleanOrFalse(user.boolean('can_upload_profile_header')),
+      canUploadCardBackground: booleanOrFalse(user.boolean('can_upload_user_card_background')),
+      profileBackgroundUrl: user.string('profile_background_upload_url') ?? '',
+      cardBackgroundUrl: user.string('card_background_upload_url') ?? '',
+      bioRaw: user.string('bio_raw') ?? '',
+      bioExcerpt: user.string('bio_excerpt') ?? user.string('bio_raw') ?? '',
+      location: user.string('location') ?? '',
+      website: user.string('website') ?? '',
+      timezone: user.string('timezone') ?? userOption?.string('timezone') ?? '',
+      hideProfile: booleanOrFalse(user.boolean('hide_profile')) ||
+        booleanOrFalse(userOption?.boolean('hide_profile') ?? null),
+      hidePresence: booleanOrFalse(user.boolean('hide_presence')) ||
+        booleanOrFalse(userOption?.boolean('hide_presence') ?? null),
+      canCreatePost: canCreatePost(user),
+      canChat: booleanOrFalse(user.boolean('can_chat')) ||
+        booleanOrFalse(user.boolean('has_chat_enabled')) ||
+        booleanOrFalse(userOption?.boolean('chat_enabled') ?? null),
+      canDirectMessage: booleanOrFalse(user.boolean('can_direct_message')) ||
+        booleanOrFalse(user.boolean('can_send_private_messages')),
+      canChatWithUser: booleanOrFalse(user.boolean('can_chat_user')) ||
+        booleanOrFalse(user.boolean('can_send_private_message_to_user'))
+    });
+  }
+
   private parseUser(user: JsonObjectReader): CurrentUser | null {
     const id: number | null = user.number('id');
     const username: string | null = user.string('username');
@@ -1001,6 +1075,68 @@ export class ForumResponseParser {
     return currentUser === null
       ? RepositoryResult.failure<CurrentUser>('服务器响应缺少用户 Profile')
       : RepositoryResult.success<CurrentUser>(currentUser);
+  }
+
+  public parseFullUserProfile(text: string): RepositoryResult<UserProfile> {
+    const envelope: JsonObjectReader | null = JsonObjectReader.parse(text);
+    const user: JsonObjectReader | null = envelope?.object('user') ?? null;
+    const profile: UserProfile | null = user === null ? null : this.parseProfile(user);
+    return profile === null
+      ? RepositoryResult.failure<UserProfile>('服务器响应缺少完整 Profile')
+      : RepositoryResult.success<UserProfile>(profile);
+  }
+
+  public parseUserProfileSummary(text: string): RepositoryResult<UserProfileSummary> {
+    const envelope: JsonObjectReader | null = JsonObjectReader.parse(text);
+    if (envelope === null) {
+      return RepositoryResult.failure<UserProfileSummary>('服务器 Profile 概览格式无效');
+    }
+    const summary: JsonObjectReader | null = envelope.object('user_summary');
+    if (summary === null) {
+      return RepositoryResult.success<UserProfileSummary>(UserProfileSummary.unavailable());
+    }
+    const badges: Array<string> = [];
+    for (const value of envelope.array('badges') ?? []) {
+      const badge: JsonObjectReader | null = JsonObjectReader.fromValue(value);
+      const name: string = badge?.string('display_name') ?? badge?.string('name') ?? '';
+      if (name.trim().length > 0) {
+        badges.push(name.trim());
+      }
+    }
+    return RepositoryResult.success<UserProfileSummary>(new UserProfileSummary(
+      true,
+      numberOrZero(summary.number('likes_given')),
+      numberOrZero(summary.number('likes_received')),
+      numberOrZero(summary.number('days_visited')),
+      numberOrZero(summary.number('topic_count')),
+      numberOrZero(summary.number('post_count')),
+      numberOrZero(summary.number('solved_count')),
+      badges
+    ));
+  }
+
+  public parseUserEmails(text: string): RepositoryResult<UserEmailInfo> {
+    const envelope: JsonObjectReader | null = JsonObjectReader.parse(text);
+    if (envelope === null) {
+      return RepositoryResult.failure<UserEmailInfo>('服务器邮箱响应格式无效');
+    }
+    const secondaryEmails: Array<string> = [];
+    for (const value of envelope.array('secondary_emails') ?? []) {
+      if (typeof value === 'string') {
+        secondaryEmails.push(value);
+      }
+    }
+    const unconfirmedEmails: Array<string> = [];
+    for (const value of envelope.array('unconfirmed_emails') ?? []) {
+      if (typeof value === 'string') {
+        unconfirmedEmails.push(value);
+      }
+    }
+    return RepositoryResult.success<UserEmailInfo>(new UserEmailInfo(
+      envelope.string('email') ?? '',
+      secondaryEmails,
+      unconfirmedEmails
+    ));
   }
 
   public parseLatestTopics(text: string): RepositoryResult<Array<Topic>> {

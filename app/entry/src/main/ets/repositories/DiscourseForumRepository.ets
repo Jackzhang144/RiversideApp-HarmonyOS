@@ -19,6 +19,13 @@ import {
 import { ForumHttpClient, HttpTextResult, HttpTextResultKind } from '../network/DiscourseHttpClient';
 import { ForumRepository } from './ForumRepository';
 import { ForumResponseParser } from './ForumResponseParser';
+import {
+  ProfileNotificationLevel,
+  ProfileUpdateRequest,
+  UserEmailInfo,
+  UserProfile,
+  UserProfileSummary
+} from '../models/ProfileModels';
 
 interface DraftSavePayload {
   draft_key: string;
@@ -356,6 +363,103 @@ export class DiscourseForumRepository implements ForumRepository {
       return RepositoryResult.failure<CurrentUser>(response.message);
     }
     return this.parser.parseUserProfile(response.body);
+  }
+
+  public async loadFullUserProfile(username: string): Promise<RepositoryResult<UserProfile>> {
+    const normalizedUsername: string = username.trim();
+    if (normalizedUsername.length === 0) {
+      return RepositoryResult.failure<UserProfile>('用户名无效');
+    }
+    const response: HttpTextResult = await this.client.get(`/u/${encodeURIComponent(normalizedUsername)}.json`);
+    if (response.kind === HttpTextResultKind.UNAUTHORIZED) {
+      return RepositoryResult.unauthorized<UserProfile>();
+    }
+    if (!response.isSuccess()) {
+      return RepositoryResult.failure<UserProfile>(response.message);
+    }
+    return this.parser.parseFullUserProfile(response.body);
+  }
+
+  public async loadUserSummary(username: string): Promise<RepositoryResult<UserProfileSummary>> {
+    const normalizedUsername: string = username.trim();
+    if (normalizedUsername.length === 0) {
+      return RepositoryResult.failure<UserProfileSummary>('用户名无效');
+    }
+    const response: HttpTextResult = await this.client.get(
+      `/u/${encodeURIComponent(normalizedUsername)}/summary.json`
+    );
+    if (response.kind === HttpTextResultKind.UNAUTHORIZED) {
+      return RepositoryResult.unauthorized<UserProfileSummary>();
+    }
+    if (!response.isSuccess()) {
+      return RepositoryResult.failure<UserProfileSummary>(response.message);
+    }
+    return this.parser.parseUserProfileSummary(response.body);
+  }
+
+  public async loadUserEmails(username: string): Promise<RepositoryResult<UserEmailInfo>> {
+    const normalizedUsername: string = username.trim();
+    if (normalizedUsername.length === 0) {
+      return RepositoryResult.failure<UserEmailInfo>('用户名无效');
+    }
+    const encodedUsername: string = encodeURIComponent(normalizedUsername);
+    const context: string = encodeURIComponent(`/u/${normalizedUsername}/preferences/account`);
+    const response: HttpTextResult = await this.client.get(
+      `/u/${encodedUsername}/emails.json?context=${context}`
+    );
+    if (response.kind === HttpTextResultKind.UNAUTHORIZED) {
+      return RepositoryResult.unauthorized<UserEmailInfo>();
+    }
+    if (!response.isSuccess()) {
+      return RepositoryResult.failure<UserEmailInfo>(response.message);
+    }
+    return this.parser.parseUserEmails(response.body);
+  }
+
+  public async updateUserProfile(request: ProfileUpdateRequest): Promise<RepositoryResult<boolean>> {
+    return this.booleanWriteResult(await this.client.putForm(
+      `/u/${encodeURIComponent(request.username)}.json`,
+      request.formBody()
+    ));
+  }
+
+  public async pickUploadedAvatar(username: string, uploadId: number): Promise<RepositoryResult<boolean>> {
+    const normalizedUsername: string = username.trim();
+    if (normalizedUsername.length === 0 || !Number.isSafeInteger(uploadId) || uploadId <= 0) {
+      return RepositoryResult.failure<boolean>('头像请求无效');
+    }
+    return this.booleanWriteResult(await this.client.putForm(
+      `/u/${encodeURIComponent(normalizedUsername)}/preferences/avatar/pick.json`,
+      `upload_id=${uploadId}&type=uploaded`
+    ));
+  }
+
+  public async setUserFollowing(username: string, following: boolean): Promise<RepositoryResult<boolean>> {
+    const normalizedUsername: string = username.trim();
+    if (normalizedUsername.length === 0) {
+      return RepositoryResult.failure<boolean>('用户名无效');
+    }
+    const path: string = `/follow/${encodeURIComponent(normalizedUsername)}.json`;
+    const response: HttpTextResult = following ? await this.client.put(path) : await this.client.delete(path);
+    return this.booleanWriteResult(response);
+  }
+
+  public async setUserNotificationLevel(
+    username: string,
+    level: ProfileNotificationLevel,
+    actingUserId: number,
+    expiringAt: string = ''
+  ): Promise<RepositoryResult<boolean>> {
+    const normalizedUsername: string = username.trim();
+    if (normalizedUsername.length === 0 || !Number.isSafeInteger(actingUserId) || actingUserId <= 0) {
+      return RepositoryResult.failure<boolean>('用户通知请求无效');
+    }
+    const body: string = `notification_level=${encodeURIComponent(level)}` +
+      `&expiring_at=${encodeURIComponent(expiringAt.trim())}&acting_user_id=${actingUserId}`;
+    return this.booleanWriteResult(await this.client.putForm(
+      `/u/${encodeURIComponent(normalizedUsername)}/notification_level.json`,
+      body
+    ));
   }
 
   public async recoverReply(request: ReplyRecoveryRequest): Promise<ReplyRecoveryResult> {

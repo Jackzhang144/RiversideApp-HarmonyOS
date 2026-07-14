@@ -12,6 +12,7 @@ import imageViewerModelsTest from './ImageViewerModels.test';
 import jsonBoundaryTest from './JsonBoundary.test';
 import mediaModelsTest from './MediaModels.test';
 import mediaRepositoryTest from './MediaRepository.test';
+import profileManagementTest from './ProfileManagement.test';
 import replyBoundaryTest from './ReplyBoundary.test';
 import replyTransportTest from './ReplyTransport.test';
 import richContentTest from './RichContent.test';
@@ -34,6 +35,7 @@ export default function tests(): void {
   jsonBoundaryTest();
   mediaModelsTest();
   mediaRepositoryTest();
+  profileManagementTest();
   replyBoundaryTest();
   replyTransportTest();
   richContentTest();

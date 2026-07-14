@@ -23,7 +23,7 @@ import {
 import { ForumHttpClient, HttpTextResult } from '../../../main/ets/network/DiscourseHttpClient';
 import { DiscourseForumRepository } from '../../../main/ets/repositories/DiscourseForumRepository';
 
-class StubForumHttpClient implements ForumHttpClient {
+export class StubForumHttpClient implements ForumHttpClient {
   public results: Array<HttpTextResult> = [];
   public replyResults: Array<HttpTextResult> = [];
   public paths: Array<string> = [];
