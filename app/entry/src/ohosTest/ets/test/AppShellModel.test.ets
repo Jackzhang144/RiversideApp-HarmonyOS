@@ -7,7 +7,8 @@ import {
   RootDestination,
   RootTabIndex,
   SearchStateKind,
-  SecondaryDestination
+  SecondaryDestination,
+  ComposerMediaTarget
 } from '../../../main/ets/app/AppShellModel';
 import { CategoryCacheScope } from '../../../main/ets/cache/CategoryCache';
 import { RepositoryResult } from '../../../main/ets/core/RepositoryResult';
@@ -36,6 +37,18 @@ import {
   ReplySubmitResult
 } from '../../../main/ets/models/ReplyModels';
 import { ForumRepository } from '../../../main/ets/repositories/ForumRepository';
+import {
+  CachedMedia,
+  MediaUploadRequest,
+  MediaUploadResult,
+  MediaUploadState
+} from '../../../main/ets/models/MediaModels';
+import { MediaRepository, MediaUploadOperation } from '../../../main/ets/repositories/MediaRepository';
+import {
+  MediaProgressListener,
+  MediaTransportOperation
+} from '../../../main/ets/network/ForumMediaTransport';
+import { HttpTextResult } from '../../../main/ets/network/DiscourseHttpClient';
 import {
   DiscoverySettings,
   DiscoverySettingsStore
@@ -172,6 +185,38 @@ class StubForumRepository implements ForumRepository {
   }
 }
 
+class PendingMediaTransportOperation implements MediaTransportOperation {
+  public readonly completion: Promise<HttpTextResult> = Promise.resolve(HttpTextResult.failure(0, 'unused'));
+  public cancelled: boolean = false;
+
+  public cancel(): void {
+    this.cancelled = true;
+  }
+}
+
+class PendingMediaRepository implements MediaRepository {
+  public readonly transportOperation: PendingMediaTransportOperation = new PendingMediaTransportOperation();
+  private resolver: ((result: RepositoryResult<MediaUploadResult>) => void) | null = null;
+
+  public upload(_request: MediaUploadRequest, _onProgress: MediaProgressListener): MediaUploadOperation {
+    const completion: Promise<RepositoryResult<MediaUploadResult>> =
+      new Promise<RepositoryResult<MediaUploadResult>>(
+        (resolve: (result: RepositoryResult<MediaUploadResult>) => void): void => {
+          this.resolver = resolve;
+        }
+      );
+    return new MediaUploadOperation(this.transportOperation, completion);
+  }
+
+  public complete(result: RepositoryResult<MediaUploadResult>): void {
+    const resolve: ((result: RepositoryResult<MediaUploadResult>) => void) | null = this.resolver;
+    if (resolve !== null) {
+      this.resolver = null;
+      resolve(result);
+    }
+  }
+}
+
 class StubAuthenticationLifecycle implements AuthenticationLifecycle {
   public unauthorizedCallCount: number = 0;
 
@@ -200,6 +245,21 @@ function topic(id: number, title: string): Topic {
 
 function category(id: number, name: string): Category {
   return new Category(id, name, '25AAE2', '', 1, null, []);
+}
+
+function cachedComposerImage(): CachedMedia {
+  const media: CachedMedia | null = CachedMedia.create(
+    'composer-race',
+    '/data/storage/el2/base/cache/media/composer-race.png',
+    'internal://cache/media/composer-race.png',
+    'composer-race.png',
+    'image/png',
+    1024
+  );
+  if (media === null) {
+    throw new Error('测试媒体模型创建失败');
+  }
+  return media;
 }
 
 function searchResult(
@@ -231,6 +291,49 @@ export default function appShellModelTest(): void {
       expect(model.selectedRoot).assertEqual(RootDestination.CATEGORY);
       model.selectRoot(RootDestination.ACCOUNT);
       expect(model.selectedRoot).assertEqual(RootDestination.ACCOUNT);
+    });
+
+    it('never inserts an old upload into a newly opened Topic composer', 0, async (done: Function) => {
+      const mediaRepository: PendingMediaRepository = new PendingMediaRepository();
+      const model: AppShellModel = new AppShellModel(
+        new StubForumRepository(),
+        new MemoryCategoryCache(),
+        CategoryCacheScope.anonymous(),
+        null,
+        null,
+        mediaRepository
+      );
+      model.openNewTopic();
+      model.updateTopicComposerTitle('草稿 A');
+      model.updateTopicComposerRaw('仅属于 A');
+      const upload: Promise<MediaUploadState> = model.uploadComposerMedia(
+        cachedComposerImage(),
+        ComposerMediaTarget.TOPIC,
+        (_state: MediaUploadState): void => {}
+      );
+
+      model.openNewTopic();
+      model.updateTopicComposerTitle('草稿 B');
+      model.updateTopicComposerRaw('仅属于 B');
+      const result: MediaUploadResult | null = MediaUploadResult.create(
+        812,
+        '/uploads/original/composer-race.png',
+        'upload://composer-race',
+        'composer-race.png',
+        '![composer-race.png](upload://composer-race)'
+      );
+      expect(result === null).assertFalse();
+      if (result === null) {
+        done();
+        return;
+      }
+      mediaRepository.complete(RepositoryResult.success<MediaUploadResult>(result));
+      await upload;
+
+      expect(mediaRepository.transportOperation.cancelled).assertTrue();
+      expect(model.topicComposerState.title).assertEqual('草稿 B');
+      expect(model.topicComposerState.raw).assertEqual('仅属于 B');
+      done();
     });
 
     it('selects only available destinations from the five visible root tabs', 0, () => {

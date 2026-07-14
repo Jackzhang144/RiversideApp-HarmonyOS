@@ -15,6 +15,7 @@ import {
   AppShellModel,
   BrowseState,
   BrowseStateKind,
+  ComposerMediaTarget,
   ReplyComposerState,
   ReplyComposerStateKind,
   rootDestinationForTabIndex,
@@ -906,6 +907,7 @@ struct Index {
     }
     const state: MediaUploadState = await model.uploadComposerMedia(
       media,
+      this.replySheetVisible ? ComposerMediaTarget.REPLY : ComposerMediaTarget.TOPIC,
       (nextState: MediaUploadState): void => {
         this.composerMediaState = nextState;
         this.synchronizeComposerDrafts(model);

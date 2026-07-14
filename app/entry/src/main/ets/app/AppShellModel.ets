@@ -51,6 +51,11 @@ import { MediaRepository, MediaUploadOperation } from '../repositories/MediaRepo
 
 export type MediaUploadStateListener = (state: MediaUploadState) => void;
 
+export enum ComposerMediaTarget {
+  REPLY = 'reply',
+  TOPIC = 'topic'
+}
+
 export interface AuthenticationLifecycle {
   handleUnauthorized(): Promise<void>;
 }
@@ -905,6 +910,9 @@ export class AppShellModel {
   private activeMediaUpload: MediaUploadOperation | null = null;
   private activeMediaState: MediaUploadState | null = null;
   private activeMediaStateListener: MediaUploadStateListener | null = null;
+  private activeMediaTarget: ComposerMediaTarget | null = null;
+  private replyComposerSession: number = 0;
+  private topicComposerSession: number = 0;
   private cachedCategories: Array<Category> | null = null;
   private previousPostIds: Array<number> = [];
   private nextPostIds: Array<number> = [];
@@ -1465,6 +1473,7 @@ export class AppShellModel {
     ) {
       return;
     }
+    this.beginComposerSession(ComposerMediaTarget.REPLY);
     let draft: string = this.replyState.isEditingPost() ? '' : this.replyState.draft;
     if (replyToPostNumber !== null) {
       const post: ForumPost | undefined = this.topicState.posts.find(
@@ -1496,12 +1505,14 @@ export class AppShellModel {
       if (!detail.canEdit) {
         return false;
       }
+      this.beginComposerSession(ComposerMediaTarget.TOPIC);
       this.topicEditingTopicId = detail.id;
       this.topicEditingPostId = post.id;
       this.topicEditingOriginalTitle = detail.title;
       this.topicComposerState = TopicComposerState.editing(detail.title, post.raw);
       return true;
     }
+    this.beginComposerSession(ComposerMediaTarget.REPLY);
     this.replyState = ReplyComposerState.editingPost(post.id, post.raw);
     return true;
   }
@@ -1520,11 +1531,12 @@ export class AppShellModel {
 
   public async uploadComposerMedia(
     media: CachedMedia,
+    target: ComposerMediaTarget,
     onStateChange: MediaUploadStateListener
   ): Promise<MediaUploadState> {
     let state: MediaUploadState = MediaUploadState.selected(media);
     onStateChange(state);
-    if (!this.hasEditableComposer()) {
+    if (!this.hasEditableComposer(target)) {
       state = state.failed('编辑器已关闭，未开始图片上传');
       onStateChange(state);
       return state;
@@ -1539,6 +1551,7 @@ export class AppShellModel {
       onStateChange(state);
       return state;
     }
+    const targetSession: number = this.composerSession(target);
 
     state = state.uploading(0, media.sizeBytes);
     onStateChange(state);
@@ -1555,6 +1568,7 @@ export class AppShellModel {
     this.activeMediaUpload = operation;
     this.activeMediaState = state;
     this.activeMediaStateListener = onStateChange;
+    this.activeMediaTarget = target;
     const result: RepositoryResult<MediaUploadResult> = await operation.completion;
     if (this.activeMediaState?.kind === MediaUploadStateKind.CANCELLED) {
       const cancelled: MediaUploadState = this.activeMediaState;
@@ -1571,8 +1585,8 @@ export class AppShellModel {
       onStateChange(state);
       return state;
     }
-    if (!this.appendComposerMedia(result.data)) {
-      state = state.failed('编辑器已关闭，上传结果未插入草稿');
+    if (this.composerSession(target) !== targetSession || !this.appendComposerMedia(target, result.data)) {
+      state = state.failed('编辑器已关闭或切换，上传结果未插入草稿');
       onStateChange(state);
       return state;
     }
@@ -1594,25 +1608,27 @@ export class AppShellModel {
     operation.cancel();
   }
 
-  private hasEditableComposer(): boolean {
-    return this.replyState.kind === ReplyComposerStateKind.EDITING ||
-      this.replyState.kind === ReplyComposerStateKind.ERROR ||
-      this.topicComposerState.kind === TopicComposerStateKind.EDITING ||
+  private hasEditableComposer(target: ComposerMediaTarget): boolean {
+    if (target === ComposerMediaTarget.REPLY) {
+      return this.replyState.kind === ReplyComposerStateKind.EDITING ||
+        this.replyState.kind === ReplyComposerStateKind.ERROR;
+    }
+    return this.topicComposerState.kind === TopicComposerStateKind.EDITING ||
       this.topicComposerState.kind === TopicComposerStateKind.ERROR;
   }
 
-  private appendComposerMedia(result: MediaUploadResult): boolean {
-    if (
+  private appendComposerMedia(target: ComposerMediaTarget, result: MediaUploadResult): boolean {
+    if (target === ComposerMediaTarget.REPLY && (
       this.replyState.kind === ReplyComposerStateKind.EDITING ||
       this.replyState.kind === ReplyComposerStateKind.ERROR
-    ) {
+    )) {
       this.updateReplyDraft(appendUploadedImageMarkdown(this.replyState.draft, result));
       return true;
     }
-    if (
+    if (target === ComposerMediaTarget.TOPIC && (
       this.topicComposerState.kind === TopicComposerStateKind.EDITING ||
       this.topicComposerState.kind === TopicComposerStateKind.ERROR
-    ) {
+    )) {
       this.updateTopicComposerRaw(appendUploadedImageMarkdown(this.topicComposerState.raw, result));
       return true;
     }
@@ -1626,12 +1642,42 @@ export class AppShellModel {
     this.activeMediaUpload = null;
     this.activeMediaState = null;
     this.activeMediaStateListener = null;
+    this.activeMediaTarget = null;
+  }
+
+  private beginComposerSession(target: ComposerMediaTarget): void {
+    if (this.activeMediaUpload !== null) {
+      this.cancelComposerMediaUpload();
+    }
+    if (target === ComposerMediaTarget.REPLY) {
+      this.replyComposerSession += 1;
+    } else {
+      this.topicComposerSession += 1;
+    }
+  }
+
+  private endComposerSession(target: ComposerMediaTarget): void {
+    if (this.activeMediaTarget === target) {
+      this.cancelComposerMediaUpload();
+    }
+    if (target === ComposerMediaTarget.REPLY) {
+      this.replyComposerSession += 1;
+    } else {
+      this.topicComposerSession += 1;
+    }
+  }
+
+  private composerSession(target: ComposerMediaTarget): number {
+    return target === ComposerMediaTarget.REPLY
+      ? this.replyComposerSession
+      : this.topicComposerSession;
   }
 
   public dismissReply(): void {
     if (this.replyState.isBusy()) {
       return;
     }
+    this.endComposerSession(ComposerMediaTarget.REPLY);
     this.replyState = ReplyComposerState.closed(
       this.replyState.draft,
       this.replyState.replyToPostNumber
@@ -1747,6 +1793,7 @@ export class AppShellModel {
     this.replyDraftSequence = 0;
     this.ignoredReplyDraftKey = '';
     this.ignoredReplyDraftSequence = 0;
+    this.endComposerSession(ComposerMediaTarget.REPLY);
     this.replyState = ReplyComposerState.closed();
     return true;
   }
@@ -1901,6 +1948,7 @@ export class AppShellModel {
   }
 
   public openNewTopic(): void {
+    this.beginComposerSession(ComposerMediaTarget.TOPIC);
     this.topicComposerRequestVersion += 1;
     this.topicEditingTopicId = null;
     this.topicEditingPostId = null;
@@ -1994,6 +2042,7 @@ export class AppShellModel {
 
   public dismissTopicComposer(): void {
     if (!this.topicComposerState.isBusy()) {
+      this.endComposerSession(ComposerMediaTarget.TOPIC);
       this.topicComposerRequestVersion += 1;
       this.topicComposerState = TopicComposerState.closed();
       this.topicEditingTopicId = null;
