@@ -3,6 +3,7 @@ import {
   RichContentBlock,
   RichContentBlockKind,
   RichContentLink,
+  RichContentListItem,
   RichEmbedProvider
 } from '../models/RichContentModels';
 
@@ -174,21 +175,34 @@ export struct RichPostContent {
   @Builder
   private ListBlock(block: RichContentBlock): void {
     Column({ space: 7 }) {
-      ForEach(block.items, (item: string, index: number) => {
-        Row({ space: 8 }) {
-          Text(block.ordered ? `${index + 1}.` : '•')
-            .fontSize(14)
-            .fontWeight(FontWeight.Bold)
-            .fontColor('#2068C9')
-          Text(item)
-            .fontSize(14)
-            .lineHeight(21)
-            .layoutWeight(1)
-            .copyOption(CopyOptions.LocalDevice)
+      ForEach(block.listItems, (item: RichContentListItem, index: number) => {
+        Column({ space: 3 }) {
+          Row({ space: 8 }) {
+            Text(block.ordered ? `${index + 1}.` : '•')
+              .fontSize(14)
+              .fontWeight(FontWeight.Bold)
+              .fontColor('#2068C9')
+            Text(item.text)
+              .fontSize(14)
+              .lineHeight(21)
+              .layoutWeight(1)
+              .copyOption(CopyOptions.LocalDevice)
+          }
+          .alignItems(VerticalAlign.Top)
+          .width('100%')
+          if (item.links.length > 0) {
+            Flex({ direction: FlexDirection.Row, wrap: FlexWrap.Wrap }) {
+              ForEach(item.links, (link: RichContentLink) => {
+                this.LinkAction(link)
+              }, (link: RichContentLink): string => `${link.url}-${link.label}`)
+            }
+            .padding({ left: 24 })
+            .width('100%')
+          }
         }
-        .alignItems(VerticalAlign.Top)
+        .alignItems(HorizontalAlign.Start)
         .width('100%')
-      }, (item: string, index: number): string => `${index}-${item}`)
+      }, (item: RichContentListItem, index: number): string => `${index}-${item.text}`)
     }
     .alignItems(HorizontalAlign.Start)
     .width('100%')

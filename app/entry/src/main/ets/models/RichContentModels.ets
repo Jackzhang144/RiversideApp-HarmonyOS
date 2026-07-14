@@ -49,6 +49,16 @@ export class RichContentLink {
   }
 }
 
+export class RichContentListItem {
+  public readonly text: string;
+  public readonly links: Array<RichContentLink>;
+
+  public constructor(text: string, links: Array<RichContentLink> = []) {
+    this.text = text;
+    this.links = links;
+  }
+}
+
 export class RichContentBlock {
   public readonly kind: RichContentBlockKind;
   public readonly text: string;
@@ -56,7 +66,7 @@ export class RichContentBlock {
   public readonly url: string;
   public readonly level: number;
   public readonly ordered: boolean;
-  public readonly items: Array<string>;
+  public readonly listItems: Array<RichContentListItem>;
   public readonly rows: Array<Array<string>>;
   public readonly links: Array<RichContentLink>;
   public readonly embedProvider: RichEmbedProvider;
@@ -68,7 +78,7 @@ export class RichContentBlock {
     url: string = '',
     level: number = 0,
     ordered: boolean = false,
-    items: Array<string> = [],
+    listItems: Array<RichContentListItem> = [],
     rows: Array<Array<string>> = [],
     links: Array<RichContentLink> = [],
     embedProvider: RichEmbedProvider = RichEmbedProvider.NONE
@@ -79,7 +89,7 @@ export class RichContentBlock {
     this.url = url;
     this.level = level;
     this.ordered = ordered;
-    this.items = items;
+    this.listItems = listItems;
     this.rows = rows;
     this.links = links;
     this.embedProvider = embedProvider;
@@ -109,7 +119,7 @@ export class RichContentBlock {
     return new RichContentBlock(RichContentBlockKind.SPOILER, text);
   }
 
-  public static list(items: Array<string>, ordered: boolean): RichContentBlock {
+  public static list(items: Array<RichContentListItem>, ordered: boolean): RichContentBlock {
     return new RichContentBlock(RichContentBlockKind.LIST, '', '', '', 0, ordered, items);
   }
 
@@ -367,6 +377,78 @@ function extractImages(html: string): Array<RichContentBlock> {
   return blocks;
 }
 
+function directListItemTags(html: string): Array<string> {
+  const tags: Array<string> = [];
+  const pattern: RegExp = /<(\/?)li\b[^>]*>/gi;
+  let depth: number = 0;
+  let start: number = -1;
+  let match: RegExpExecArray | null = pattern.exec(html);
+  while (match !== null) {
+    const closing: boolean = match[1] === '/';
+    if (!closing) {
+      if (depth === 0) {
+        start = match.index;
+      }
+      depth += 1;
+    } else if (depth > 0) {
+      depth -= 1;
+      if (depth === 0 && start >= 0) {
+        tags.push(html.slice(start, pattern.lastIndex));
+        start = -1;
+      }
+    }
+    match = pattern.exec(html);
+  }
+  return tags;
+}
+
+class BalancedListExtraction {
+  public readonly html: string;
+  public readonly lists: Array<string>;
+
+  public constructor(html: string, lists: Array<string>) {
+    this.html = html;
+    this.lists = lists;
+  }
+}
+
+function encodePlaceholderText(text: string): string {
+  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function extractBalancedLists(html: string): BalancedListExtraction {
+  const pattern: RegExp = /<(\/?)\s*(?:ul|ol)\b[^>]*>/gi;
+  const lists: Array<string> = [];
+  let output: string = '';
+  let cursor: number = 0;
+  let depth: number = 0;
+  let start: number = -1;
+  let match: RegExpExecArray | null = pattern.exec(html);
+  while (match !== null) {
+    const closing: boolean = match[1] === '/';
+    if (!closing) {
+      if (depth === 0) {
+        start = match.index;
+      }
+      depth += 1;
+    } else if (depth > 0) {
+      depth -= 1;
+      if (depth === 0 && start >= 0) {
+        const list: string = html.slice(start, pattern.lastIndex);
+        const listIndex: number = lists.length;
+        lists.push(list);
+        output += html.slice(cursor, start) +
+          `<rich-list data-index="${listIndex}">${encodePlaceholderText(stripHtml(list))}</rich-list>`;
+        cursor = pattern.lastIndex;
+        start = -1;
+      }
+    }
+    match = pattern.exec(html);
+  }
+  output += html.slice(cursor);
+  return new BalancedListExtraction(output, lists);
+}
+
 function appendInlineBlocks(html: string, blocks: Array<RichContentBlock>): void {
   const iframeUrl: string = firstCapture(html, /<iframe\b[^>]*src=["']([^"']+)["']/i);
   if (iframeUrl.length > 0) {
@@ -436,10 +518,11 @@ function parseHtmlToken(token: string, blocks: Array<RichContentBlock>): void {
     return;
   }
   if ((lower.startsWith('<ul') || lower.startsWith('<ol'))) {
-    const itemTags: Array<string> = token.match(/<li\b[^>]*>[\s\S]*?<\/li>/gi) ?? [];
-    const items: Array<string> = itemTags
-      .map((item: string): string => stripHtml(item))
-      .filter((item: string): boolean => item.length > 0);
+    const itemTags: Array<string> = directListItemTags(token);
+    const items: Array<RichContentListItem> = itemTags
+      .map((item: string): RichContentListItem =>
+        new RichContentListItem(stripHtml(item), extractLinks(item)))
+      .filter((item: RichContentListItem): boolean => item.text.length > 0);
     if (items.length > 0) {
       blocks.push(RichContentBlock.list(items, lower.startsWith('<ol')));
     }
@@ -475,12 +558,21 @@ function parseCookedHtml(cooked: string): Array<RichContentBlock> {
     .replace(/<script[\s\S]*?<\/script>/gi, '')
     .replace(/<style[\s\S]*?<\/style>/gi, '')
     .replace(/<(?:object|embed|form)\b[\s\S]*?<\/(?:object|embed|form)>/gi, '');
-  const tokens: Array<string> = sanitized.match(
-    /<pre\b[^>]*>[\s\S]*?<\/pre>|<aside\b[^>]*>[\s\S]*?<\/aside>|<blockquote\b[^>]*>[\s\S]*?<\/blockquote>|<h[1-6]\b[^>]*>[\s\S]*?<\/h[1-6]>|<[uo]l\b[^>]*>[\s\S]*?<\/[uo]l>|<table\b[^>]*>[\s\S]*?<\/table>|<div\b[^>]*class=["'][^"']*\bmath\b[^"']*["'][^>]*>[\s\S]*?<\/div>|<p\b[^>]*>[\s\S]*?<\/p>|<iframe\b[^>]*>[\s\S]*?<\/iframe>|<img\b[^>]*>/gi
+  const listExtraction: BalancedListExtraction = extractBalancedLists(sanitized);
+  const tokens: Array<string> = listExtraction.html.match(
+    /<pre\b[^>]*>[\s\S]*?<\/pre>|<aside\b[^>]*>[\s\S]*?<\/aside>|<blockquote\b[^>]*>[\s\S]*?<\/blockquote>|<h[1-6]\b[^>]*>[\s\S]*?<\/h[1-6]>|<rich-list\b[^>]*>[\s\S]*?<\/rich-list>|<table\b[^>]*>[\s\S]*?<\/table>|<div\b[^>]*class=["'][^"']*\bmath\b[^"']*["'][^>]*>[\s\S]*?<\/div>|<p\b[^>]*>[\s\S]*?<\/p>|<iframe\b[^>]*>[\s\S]*?<\/iframe>|<img\b[^>]*>/gi
   ) ?? [];
   const blocks: Array<RichContentBlock> = [];
   for (const token of tokens) {
-    parseHtmlToken(token, blocks);
+    if (token.toLowerCase().startsWith('<rich-list')) {
+      const indexText: string = firstCapture(token, /data-index=["'](\d+)["']/i);
+      const index: number = Number.parseInt(indexText, 10);
+      if (Number.isInteger(index) && index >= 0 && index < listExtraction.lists.length) {
+        parseHtmlToken(listExtraction.lists[index], blocks);
+      }
+    } else {
+      parseHtmlToken(token, blocks);
+    }
   }
   if (blocks.length === 0) {
     appendInlineBlocks(sanitized, blocks);
@@ -545,13 +637,14 @@ function parseMarkdown(raw: string): Array<RichContentBlock> {
     }
     if (/^[-*+]\s+/.test(line) || /^\d+\.\s+/.test(line)) {
       const ordered: boolean = /^\d+\.\s+/.test(line);
-      const items: Array<string> = [];
+      const items: Array<RichContentListItem> = [];
       while (index < lines.length) {
         const candidate: string = lines[index].trim();
         if ((ordered && !/^\d+\.\s+/.test(candidate)) || (!ordered && !/^[-*+]\s+/.test(candidate))) {
           break;
         }
-        items.push(markdownText(candidate.replace(ordered ? /^\d+\.\s+/ : /^[-*+]\s+/, '')));
+        const itemSource: string = candidate.replace(ordered ? /^\d+\.\s+/ : /^[-*+]\s+/, '');
+        items.push(new RichContentListItem(markdownText(itemSource), markdownLinks(itemSource)));
         index += 1;
       }
       blocks.push(RichContentBlock.list(items, ordered));

@@ -40,7 +40,7 @@ export default function richContentTest(): void {
       expect(blocksOfKind(blocks, RichContentBlockKind.CODE)[0].text).assertEqual('const value = 1 < 2;');
       expect(blocksOfKind(blocks, RichContentBlockKind.FORMULA)[0].text).assertEqual('E=mc^2');
       expect(blocksOfKind(blocks, RichContentBlockKind.SPOILER)[0].text).assertEqual('隐藏内容');
-      expect(blocksOfKind(blocks, RichContentBlockKind.LIST)[0].items.length).assertEqual(2);
+      expect(blocksOfKind(blocks, RichContentBlockKind.LIST)[0].listItems.length).assertEqual(2);
       expect(blocksOfKind(blocks, RichContentBlockKind.TABLE)[0].rows.length).assertEqual(2);
       expect(blocksOfKind(blocks, RichContentBlockKind.IMAGE)[0].url)
         .assertEqual('https://river-side.cc/uploads/default/original/1X/example.png');
@@ -57,7 +57,7 @@ export default function richContentTest(): void {
       expect(blocksOfKind(blocks, RichContentBlockKind.HEADING)[0].text).assertEqual('标题');
       expect(blocksOfKind(blocks, RichContentBlockKind.QUOTE)[0].text).assertEqual('引用');
       expect(blocksOfKind(blocks, RichContentBlockKind.CODE)[0].text).assertEqual('const ok = true;');
-      expect(blocksOfKind(blocks, RichContentBlockKind.LIST)[0].items.length).assertEqual(2);
+      expect(blocksOfKind(blocks, RichContentBlockKind.LIST)[0].listItems.length).assertEqual(2);
       expect(blocksOfKind(blocks, RichContentBlockKind.IMAGE)[0].url)
         .assertEqual('https://river-side.cc/uploads/example.png');
       expect(blocksOfKind(blocks, RichContentBlockKind.TEXT)[0].links[0].url)
@@ -132,6 +132,35 @@ export default function richContentTest(): void {
         .assertFalse();
       expect(BILIBILI_URL_TRUST_LIST.includes('*')).assertFalse();
       expect(YOUTUBE_URL_TRUST_LIST.includes('*')).assertFalse();
+    });
+
+    it('preserves clickable links inside list items', 0, () => {
+      const blocks: Array<RichContentBlock> = parseRichPostContent(
+        '<ul><li><strong>Download</strong>: ' +
+        '<a href="https://river-side.cc/mobile-app/android/app.apk">Click APK</a></li></ul>',
+        ''
+      );
+      const list: RichContentBlock = blocksOfKind(blocks, RichContentBlockKind.LIST)[0];
+
+      expect(list.listItems.length).assertEqual(1);
+      expect(list.listItems[0].text).assertEqual('Download: Click APK');
+      expect(list.listItems[0].links[0].url)
+        .assertEqual('https://river-side.cc/mobile-app/android/app.apk');
+    });
+
+    it('keeps direct items and nested content in nested lists', 0, () => {
+      const blocks: Array<RichContentBlock> = parseRichPostContent(
+        '<ol><li><p><strong>Rewards:</strong></p>' +
+        '<ul><li>RSC reward is paid after the match.</li></ul></li>' +
+        '<li>Next rule</li></ol>',
+        ''
+      );
+      const list: RichContentBlock = blocksOfKind(blocks, RichContentBlockKind.LIST)[0];
+
+      expect(list.listItems.length).assertEqual(2);
+      expect(list.listItems[0].text.includes('Rewards:')).assertTrue();
+      expect(list.listItems[0].text.includes('RSC reward is paid after the match.')).assertTrue();
+      expect(list.listItems[1].text).assertEqual('Next rule');
     });
   });
 }
