@@ -641,7 +641,7 @@ export class AppShellModel {
         state.items,
         false,
         '',
-        false,
+        true,
         false,
         result.message
       );
@@ -1037,7 +1037,7 @@ export class AppShellModel {
     }
     if (!result.isSuccess() || result.data === null) {
       this.requiresAuthentication = result.isUnauthorized();
-      this.homeState = BrowseState.content<Topic>(state.items, false, '', false, false, result.message);
+      this.homeState = BrowseState.content<Topic>(state.items, false, '', true, false, result.message);
       await this.notifyUnauthorized(result.isUnauthorized());
       return;
     }

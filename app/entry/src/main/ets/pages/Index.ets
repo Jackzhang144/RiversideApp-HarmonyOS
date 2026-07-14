@@ -13,11 +13,11 @@ import {
   AppShellModel,
   BrowseState,
   BrowseStateKind,
-  isHomeSortTabAvailable,
   ReplyComposerState,
   ReplyComposerStateKind,
   rootDestinationForTabIndex,
   RootDestination,
+  SearchState,
   TopicReadState
 } from '../app/AppShellModel';
 import { AuthenticatedSession } from '../auth/AuthModels';
@@ -33,19 +33,23 @@ import { CategoryBrowsePage } from '../components/CategoryBrowsePage';
 import { CategoryTopicsPage } from '../components/CategoryTopicsPage';
 import { HomeBrowsePage } from '../components/HomeBrowsePage';
 import { LoginPage } from '../components/LoginPage';
+import { SearchPage } from '../components/SearchPage';
 import { TopicDetailPage } from '../components/TopicDetailPage';
 import { UiPrototypePage } from '../components/prototype/UiPrototypePage';
 import { Category, Topic } from '../models/ForumModels';
+import { HomeChannel } from '../models/DiscoveryModels';
 import { CurrentUser } from '../models/ReplyModels';
 import {
   AuthenticatedSessionProvider,
   DiscourseHttpClient
 } from '../network/DiscourseHttpClient';
 import { DiscourseForumRepository } from '../repositories/DiscourseForumRepository';
+import { PreferencesDiscoverySettingsStore } from '../settings/PreferencesDiscoverySettingsStore';
 
 const CATEGORY_TOPICS_ROUTE: string = 'category-topics';
 const TOPIC_ROUTE: string = 'topic';
 const LOGIN_ROUTE: string = 'login';
+const SEARCH_ROUTE: string = 'search';
 const UI_PROTOTYPE_ROUTE: string = 'ui-prototype';
 const RIVERSIDE_BASE_URL: string = 'https://river-side.cc';
 const ROOT_TAB_SELECTED_COLOR: string = '#317AF7';
@@ -74,6 +78,8 @@ struct Index {
   @Env(SystemProperties.WINDOW_AVOID_AREA) avoidAreasVp: window.UIEnvWindowAvoidAreaInfoVP;
   @State selectedRoot: RootDestination = RootDestination.HOME;
   @State homeState: BrowseState<Topic> = BrowseState.initial<Topic>();
+  @State selectedHomeChannel: HomeChannel = HomeChannel.LATEST_REPLIES;
+  @State worldCupEntryEnabled: boolean = true;
   @State categoryState: BrowseState<Category> = BrowseState.initial<Category>();
   @State categoryTopicsState: BrowseState<Topic> = BrowseState.initial<Topic>();
   @State categoryTitle: string = 'Category';
@@ -84,6 +90,7 @@ struct Index {
   @State accountIdentity: CurrentUser | null = null;
   @State accountIdentityLoading: boolean = false;
   @State accountIdentityError: string = '';
+  @State searchState: SearchState = SearchState.initial();
   private accountIdentityRequestVersion: number = 0;
 
   private topAvoidHeight(): number {
@@ -127,8 +134,12 @@ struct Index {
       new DiscourseForumRepository(new DiscourseHttpClient(RIVERSIDE_BASE_URL, sessionProvider)),
       new PreferencesCategoryCache(context),
       this.categoryCacheScope(authRepository),
-      authenticationLifecycle
+      authenticationLifecycle,
+      new PreferencesDiscoverySettingsStore(context)
     );
+    await model.restoreDiscoverySettings();
+    this.selectedHomeChannel = model.selectedHomeChannel;
+    this.worldCupEntryEnabled = model.worldCupEntryEnabled;
     model.selectRoot(this.selectedRoot);
     this.model = model;
     this.refreshAccountIdentity();
@@ -199,6 +210,15 @@ struct Index {
       return;
     }
     this.accountIdentity = result.data;
+    const channelChanged: boolean = model.selectedHomeChannel !== result.data.defaultHomeChannel &&
+      result.data.defaultHomeChannel !== null;
+    if (result.data.defaultHomeChannel !== null) {
+      await model.applyServerHomeChannel(result.data.defaultHomeChannel);
+      this.selectedHomeChannel = model.selectedHomeChannel;
+      if (channelChanged) {
+        await this.loadHome();
+      }
+    }
   }
 
   private async loadHome(): Promise<void> {
@@ -222,6 +242,78 @@ struct Index {
     await task;
     this.homeState = model.homeState;
     this.showHomeRefreshMessage();
+  }
+
+  private async selectHomeChannel(index: number): Promise<void> {
+    const model: AppShellModel | null = this.model;
+    if (model === null || !await model.selectHomeChannel(index)) {
+      return;
+    }
+    this.selectedHomeChannel = model.selectedHomeChannel;
+    await this.loadHome();
+  }
+
+  private async loadMoreHome(): Promise<void> {
+    const model: AppShellModel | null = this.model;
+    if (model === null) {
+      return;
+    }
+    const task: Promise<void> = model.loadMoreHome();
+    this.homeState = model.homeState;
+    await task;
+    this.homeState = model.homeState;
+  }
+
+  private async setWorldCupEntryEnabled(enabled: boolean): Promise<void> {
+    const model: AppShellModel | null = this.model;
+    if (model === null) {
+      return;
+    }
+    this.worldCupEntryEnabled = enabled;
+    await model.setWorldCupEntryEnabled(enabled);
+    this.worldCupEntryEnabled = model.worldCupEntryEnabled;
+  }
+
+  private openSearch(): void {
+    const model: AppShellModel | null = this.model;
+    if (model !== null) {
+      model.searchState = SearchState.initial();
+      this.searchState = model.searchState;
+    }
+    this.pathStack.pushPath({ name: SEARCH_ROUTE });
+  }
+
+  private async searchForum(query: string): Promise<void> {
+    const model: AppShellModel | null = this.model;
+    if (model === null) {
+      return;
+    }
+    const task: Promise<void> = model.searchForum(query);
+    this.searchState = model.searchState;
+    await task;
+    this.searchState = model.searchState;
+  }
+
+  private async retrySearch(): Promise<void> {
+    const model: AppShellModel | null = this.model;
+    if (model === null) {
+      return;
+    }
+    const task: Promise<void> = model.retrySearch();
+    this.searchState = model.searchState;
+    await task;
+    this.searchState = model.searchState;
+  }
+
+  private async loadMoreSearch(): Promise<void> {
+    const model: AppShellModel | null = this.model;
+    if (model === null) {
+      return;
+    }
+    const task: Promise<void> = model.loadMoreSearch();
+    this.searchState = model.searchState;
+    await task;
+    this.searchState = model.searchState;
   }
 
   private async loadCategories(): Promise<void> {
@@ -302,6 +394,17 @@ struct Index {
       return;
     }
     const task: Promise<void> = model.retryCategoryTopics();
+    this.categoryTopicsState = model.categoryTopicsState;
+    await task;
+    this.categoryTopicsState = model.categoryTopicsState;
+  }
+
+  private async loadMoreCategoryTopics(): Promise<void> {
+    const model: AppShellModel | null = this.model;
+    if (model === null) {
+      return;
+    }
+    const task: Promise<void> = model.loadMoreCategoryTopics();
     this.categoryTopicsState = model.categoryTopicsState;
     await task;
     this.categoryTopicsState = model.categoryTopicsState;
@@ -517,6 +620,9 @@ struct Index {
           onRefresh: (): void => {
             this.retryCategoryTopics();
           },
+          onLoadMore: (): void => {
+            this.loadMoreCategoryTopics();
+          },
           onOpenTopic: (topic: Topic): void => {
             this.openTopic(topic);
           }
@@ -527,6 +633,36 @@ struct Index {
         content: {
           title: { mainTitle: this.categoryTitle },
           backIcon: { label: '返回 Category' }
+        }
+      })
+      .onBackPressed((): boolean => this.handleSecondaryBack())
+    } else if (name === SEARCH_ROUTE) {
+      HdsNavDestination() {
+        SearchPage({
+          state: this.searchState,
+          knownCategories: this.categoryState.items,
+          onSearch: (query: string): void => {
+            this.searchForum(query);
+          },
+          onRetry: (): void => {
+            this.retrySearch();
+          },
+          onLoadMore: (): void => {
+            this.loadMoreSearch();
+          },
+          onOpenTopic: (topic: Topic): void => {
+            this.openTopic(topic);
+          },
+          onOpenCategory: (category: Category): void => {
+            this.openCategory(category);
+          }
+        })
+      }
+      .titleBar({
+        enableComponentSafeArea: true,
+        content: {
+          title: { mainTitle: '搜索论坛' },
+          backIcon: { label: '返回首页' }
         }
       })
       .onBackPressed((): boolean => this.handleSecondaryBack())
@@ -699,20 +835,28 @@ struct Index {
           HomeBrowsePage({
             state: this.homeState,
             categories: this.categoryState.items,
+            selectedChannel: this.selectedHomeChannel,
+            worldCupEntryEnabled: this.worldCupEntryEnabled,
             onRetry: (): void => {
               this.loadHome();
             },
             onRefresh: (): void => {
               this.refreshHome();
             },
+            onLoadMore: (): void => {
+              this.loadMoreHome();
+            },
             onOpenTopic: (topic: Topic): void => {
               this.openTopic(topic);
             },
-            canChangeSortTab: (index: number): boolean => {
-              const model: AppShellModel | null = this.model;
-              return model === null
-                ? isHomeSortTabAvailable(index)
-                : model.selectHomeSortTab(index);
+            onOpenSearch: (): void => {
+              this.openSearch();
+            },
+            onSelectChannel: (index: number): void => {
+              this.selectHomeChannel(index);
+            },
+            onWorldCupEntryChange: (enabled: boolean): void => {
+              this.setWorldCupEntryEnabled(enabled);
             }
           })
         }

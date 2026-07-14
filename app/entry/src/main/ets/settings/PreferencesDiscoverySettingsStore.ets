@@ -30,9 +30,13 @@ export class PreferencesDiscoverySettingsStore implements DiscoverySettingsStore
   }
 
   public async write(settings: DiscoverySettings): Promise<void> {
-    const store: preferences.Preferences = await preferences.getPreferences(this.context, PREFERENCES_NAME);
-    await store.put(HOME_CHANNEL_KEY, settings.homeChannel);
-    await store.put(WORLD_CUP_ENTRY_KEY, settings.worldCupEntryEnabled);
-    await store.flush();
+    try {
+      const store: preferences.Preferences = await preferences.getPreferences(this.context, PREFERENCES_NAME);
+      await store.put(HOME_CHANNEL_KEY, settings.homeChannel);
+      await store.put(WORLD_CUP_ENTRY_KEY, settings.worldCupEntryEnabled);
+      await store.flush();
+    } catch (_) {
+      // Settings writes are best effort; the in-memory selection remains authoritative for this run.
+    }
   }
 }

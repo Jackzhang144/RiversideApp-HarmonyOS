@@ -8,6 +8,7 @@ export struct CategoryTopicsPage {
   @Prop state: BrowseState<Topic> = BrowseState.initial<Topic>();
   @Prop categories: Array<Category> = [];
   onRefresh: () => void = (): void => {};
+  onLoadMore: () => void = (): void => {};
   onOpenTopic: (topic: Topic) => void = (_topic: Topic): void => {};
 
   @Builder
@@ -98,9 +99,31 @@ export struct CategoryTopicsPage {
           }
         }, (topic: Topic): string => topic.id.toString())
         ListItem() {
-          Column()
-            .width('100%')
-            .height(32)
+          Column({ space: 8 }) {
+            if (this.state.isLoadingMore) {
+              LoadingProgress()
+                .width(28)
+                .height(28)
+              Text('正在加载更多 Topic')
+                .fontSize(12)
+                .fontColor($r('sys.color.font_secondary'))
+            } else if (this.state.paginationMessage.length > 0) {
+              Text(this.state.paginationMessage)
+                .fontSize(12)
+                .fontColor('#C62828')
+                .textAlign(TextAlign.Center)
+              Button('重试加载更多')
+                .height(34)
+                .onClick(this.onLoadMore)
+            } else if (!this.state.hasMore) {
+              Text('已经到底了')
+                .fontSize(12)
+                .fontColor($r('sys.color.font_tertiary'))
+            }
+          }
+          .width('100%')
+          .height(76)
+          .justifyContent(FlexAlign.Center)
         }
       }
       .width('100%')
@@ -108,6 +131,7 @@ export struct CategoryTopicsPage {
       .padding({ left: 12, right: 12 })
       .backgroundColor('#F5F6F8')
       .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
+      .onReachEnd(this.onLoadMore)
     }
     .width('100%')
     .height('100%')
