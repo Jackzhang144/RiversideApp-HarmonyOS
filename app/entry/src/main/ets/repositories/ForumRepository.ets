@@ -26,6 +26,8 @@ export interface ForumRepository {
 
   loadTopicPosts(topicId: number, postIds: Array<number>): Promise<RepositoryResult<TopicPostBatch>>;
 
+  loadTopicSuggestions(topicId: number): Promise<RepositoryResult<Array<Topic>>>;
+
   loadCurrentUser(): Promise<RepositoryResult<CurrentUser>>;
 
   loadUserProfile(username: string): Promise<RepositoryResult<CurrentUser>>;

@@ -175,8 +175,12 @@ export class TopicReadState {
   public readonly canReply: boolean;
   public readonly message: string;
   public readonly hasMorePosts: boolean;
+  public readonly hasPreviousPosts: boolean;
+  public readonly hasNextPosts: boolean;
   public readonly isLoadingMore: boolean;
   public readonly paginationMessage: string;
+  public readonly isLoadingPrevious: boolean;
+  public readonly previousPaginationMessage: string;
 
   private constructor(
     kind: TopicReadStateKind,
@@ -186,9 +190,12 @@ export class TopicReadState {
     posts: Array<ForumPost>,
     canReply: boolean,
     message: string,
-    hasMorePosts: boolean,
+    hasPreviousPosts: boolean,
+    hasNextPosts: boolean,
     isLoadingMore: boolean,
-    paginationMessage: string
+    paginationMessage: string,
+    isLoadingPrevious: boolean,
+    previousPaginationMessage: string
   ) {
     this.kind = kind;
     this.topicId = topicId;
@@ -197,17 +204,25 @@ export class TopicReadState {
     this.posts = posts;
     this.canReply = canReply;
     this.message = message;
-    this.hasMorePosts = hasMorePosts;
+    this.hasPreviousPosts = hasPreviousPosts;
+    this.hasNextPosts = hasNextPosts;
+    this.hasMorePosts = hasPreviousPosts || hasNextPosts;
     this.isLoadingMore = isLoadingMore;
     this.paginationMessage = paginationMessage;
+    this.isLoadingPrevious = isLoadingPrevious;
+    this.previousPaginationMessage = previousPaginationMessage;
   }
 
   public static initial(): TopicReadState {
-    return new TopicReadState(TopicReadStateKind.INITIAL, 0, '', null, [], false, '', false, false, '');
+    return new TopicReadState(
+      TopicReadStateKind.INITIAL, 0, '', null, [], false, '', false, false, false, '', false, ''
+    );
   }
 
   public static loading(topic: Topic): TopicReadState {
-    return new TopicReadState(TopicReadStateKind.LOADING, topic.id, topic.title, null, [], false, '', false, false, '');
+    return new TopicReadState(
+      TopicReadStateKind.LOADING, topic.id, topic.title, null, [], false, '', false, false, false, '', false, ''
+    );
   }
 
   public static content(
@@ -215,7 +230,10 @@ export class TopicReadState {
     posts: Array<ForumPost>,
     hasMorePosts: boolean = false,
     isLoadingMore: boolean = false,
-    paginationMessage: string = ''
+    paginationMessage: string = '',
+    hasPreviousPosts: boolean = false,
+    isLoadingPrevious: boolean = false,
+    previousPaginationMessage: string = ''
   ): TopicReadState {
     return new TopicReadState(
       TopicReadStateKind.CONTENT,
@@ -225,9 +243,12 @@ export class TopicReadState {
       posts,
       detail.canReply,
       '',
+      hasPreviousPosts,
       hasMorePosts,
       isLoadingMore,
-      paginationMessage
+      paginationMessage,
+      isLoadingPrevious,
+      previousPaginationMessage
     );
   }
 
@@ -235,7 +256,10 @@ export class TopicReadState {
     detail: TopicDetail,
     hasMorePosts: boolean = false,
     isLoadingMore: boolean = false,
-    paginationMessage: string = ''
+    paginationMessage: string = '',
+    hasPreviousPosts: boolean = false,
+    isLoadingPrevious: boolean = false,
+    previousPaginationMessage: string = ''
   ): TopicReadState {
     return new TopicReadState(
       TopicReadStateKind.EMPTY,
@@ -245,14 +269,19 @@ export class TopicReadState {
       [],
       detail.canReply,
       '',
+      hasPreviousPosts,
       hasMorePosts,
       isLoadingMore,
-      paginationMessage
+      paginationMessage,
+      isLoadingPrevious,
+      previousPaginationMessage
     );
   }
 
   public static error(topic: Topic, message: string): TopicReadState {
-    return new TopicReadState(TopicReadStateKind.ERROR, topic.id, topic.title, null, [], false, message, false, false, '');
+    return new TopicReadState(
+      TopicReadStateKind.ERROR, topic.id, topic.title, null, [], false, message, false, false, false, '', false, ''
+    );
   }
 
   public static pagination(state: TopicReadState, isLoadingMore: boolean, paginationMessage: string): TopicReadState {
@@ -264,9 +293,52 @@ export class TopicReadState {
       state.posts,
       state.canReply,
       state.message,
-      state.hasMorePosts,
+      state.hasPreviousPosts,
+      state.hasNextPosts,
       isLoadingMore,
-      paginationMessage
+      paginationMessage,
+      state.isLoadingPrevious,
+      state.previousPaginationMessage
+    );
+  }
+
+  public static previousPagination(
+    state: TopicReadState,
+    isLoadingPrevious: boolean,
+    previousPaginationMessage: string
+  ): TopicReadState {
+    return new TopicReadState(
+      state.kind,
+      state.topicId,
+      state.title,
+      state.detail,
+      state.posts,
+      state.canReply,
+      state.message,
+      state.hasPreviousPosts,
+      state.hasNextPosts,
+      state.isLoadingMore,
+      state.paginationMessage,
+      isLoadingPrevious,
+      previousPaginationMessage
+    );
+  }
+
+  public static withDetail(state: TopicReadState, detail: TopicDetail): TopicReadState {
+    return new TopicReadState(
+      state.kind,
+      state.topicId,
+      state.title,
+      detail,
+      state.posts,
+      detail.canReply,
+      state.message,
+      state.hasPreviousPosts,
+      state.hasNextPosts,
+      state.isLoadingMore,
+      state.paginationMessage,
+      state.isLoadingPrevious,
+      state.previousPaginationMessage
     );
   }
 }
@@ -281,6 +353,22 @@ function uniquePosts(posts: Array<ForumPost>): Array<ForumPost> {
     }
   }
   return unique;
+}
+
+function orderPosts(postIds: Array<number>, posts: Array<ForumPost>): Array<ForumPost> {
+  const byId: Map<number, ForumPost> = new Map<number, ForumPost>();
+  for (const post of uniquePosts(posts)) {
+    byId.set(post.id, post);
+  }
+  const ordered: Array<ForumPost> = [];
+  for (const postId of postIds) {
+    const post: ForumPost | undefined = byId.get(postId);
+    if (post !== undefined) {
+      ordered.push(post);
+      byId.delete(postId);
+    }
+  }
+  return ordered.concat(Array.from(byId.values()));
 }
 
 export class BrowseState<T> {
@@ -481,7 +569,8 @@ export class AppShellModel {
   private readonly authenticationLifecycle: AuthenticationLifecycle | null;
   private readonly discoverySettingsStore: DiscoverySettingsStore | null;
   private cachedCategories: Array<Category> | null = null;
-  private remainingPostIds: Array<number> = [];
+  private previousPostIds: Array<number> = [];
+  private nextPostIds: Array<number> = [];
   private topicReturnDestination: SecondaryDestination = SecondaryDestination.NONE;
   private selectedTopic: Topic | null = null;
   private selectedTopicPostNumber: number | null = null;
@@ -682,22 +771,35 @@ export class AppShellModel {
       return;
     }
     if (!result.isSuccess() || result.data === null) {
-      this.remainingPostIds = [];
+      this.previousPostIds = [];
+      this.nextPostIds = [];
       this.requiresAuthentication = result.isUnauthorized();
       this.topicState = TopicReadState.error(topic, result.message);
       await this.notifyUnauthorized(result.isUnauthorized());
       return;
     }
-    const posts: Array<ForumPost> = uniquePosts(result.data.posts);
-    const visiblePostIds: Set<number> = new Set<number>();
+    const posts: Array<ForumPost> = orderPosts(result.data.postIds, result.data.posts);
+    let firstVisibleIndex: number = result.data.postIds.length;
+    let lastVisibleIndex: number = -1;
     for (const post of posts) {
-      visiblePostIds.add(post.id);
+      const index: number = result.data.postIds.indexOf(post.id);
+      if (index >= 0) {
+        firstVisibleIndex = Math.min(firstVisibleIndex, index);
+        lastVisibleIndex = Math.max(lastVisibleIndex, index);
+      }
     }
-    this.remainingPostIds = result.data.postIds.filter((postId: number) => !visiblePostIds.has(postId));
-    const hasMorePosts: boolean = this.remainingPostIds.length > 0;
+    this.previousPostIds = lastVisibleIndex < 0 ? [] : result.data.postIds.slice(0, firstVisibleIndex);
+    this.nextPostIds = lastVisibleIndex < 0
+      ? result.data.postIds.slice()
+      : result.data.postIds.slice(lastVisibleIndex + 1);
+    const hasPreviousPosts: boolean = this.previousPostIds.length > 0;
+    const hasNextPosts: boolean = this.nextPostIds.length > 0;
     this.topicState = posts.length === 0
-      ? TopicReadState.empty(result.data, hasMorePosts)
-      : TopicReadState.content(result.data, posts, hasMorePosts);
+      ? TopicReadState.empty(result.data, hasNextPosts, false, '', hasPreviousPosts)
+      : TopicReadState.content(result.data, posts, hasNextPosts, false, '', hasPreviousPosts);
+    if (!hasNextPosts && result.data.suggestedTopics.length === 0) {
+      await this.refreshTopicSuggestions(requestVersion);
+    }
   }
 
   public async retryTopic(): Promise<void> {
@@ -717,14 +819,14 @@ export class AppShellModel {
     if (
       detail === null ||
       this.topicState.isLoadingMore ||
-      this.remainingPostIds.length === 0 ||
+      this.nextPostIds.length === 0 ||
       (this.topicState.kind !== TopicReadStateKind.CONTENT && this.topicState.kind !== TopicReadStateKind.EMPTY)
     ) {
       return;
     }
 
     this.requiresAuthentication = false;
-    const requestedPostIds: Array<number> = this.remainingPostIds.slice(0, 20);
+    const requestedPostIds: Array<number> = this.nextPostIds.slice(0, 20);
     const requestVersion: number = this.topicRequestVersion;
     const visiblePosts: Array<ForumPost> = this.topicState.posts;
     this.topicState = TopicReadState.pagination(this.topicState, true, '');
@@ -741,12 +843,80 @@ export class AppShellModel {
     }
 
     const requestedIds: Set<number> = new Set<number>(requestedPostIds);
-    this.remainingPostIds = this.remainingPostIds.filter((postId: number) => !requestedIds.has(postId));
-    const posts: Array<ForumPost> = uniquePosts(visiblePosts.concat(result.data.posts));
-    const hasMorePosts: boolean = this.remainingPostIds.length > 0;
+    this.nextPostIds = this.nextPostIds.filter((postId: number) => !requestedIds.has(postId));
+    const posts: Array<ForumPost> = orderPosts(detail.postIds, visiblePosts.concat(result.data.posts));
+    const hasNextPosts: boolean = this.nextPostIds.length > 0;
+    const hasPreviousPosts: boolean = this.previousPostIds.length > 0;
+    const updatedDetail: TopicDetail = result.data.suggestedTopics.length > 0
+      ? detail.withSuggestedTopics(result.data.suggestedTopics)
+      : detail;
     this.topicState = posts.length === 0
-      ? TopicReadState.empty(detail, hasMorePosts)
-      : TopicReadState.content(detail, posts, hasMorePosts);
+      ? TopicReadState.empty(updatedDetail, hasNextPosts, false, '', hasPreviousPosts)
+      : TopicReadState.content(updatedDetail, posts, hasNextPosts, false, '', hasPreviousPosts);
+    if (!hasNextPosts && updatedDetail.suggestedTopics.length === 0) {
+      await this.refreshTopicSuggestions(requestVersion);
+    }
+  }
+
+  public async loadPreviousPosts(): Promise<void> {
+    const detail: TopicDetail | null = this.topicState.detail;
+    if (
+      detail === null ||
+      this.topicState.isLoadingPrevious ||
+      this.previousPostIds.length === 0 ||
+      (this.topicState.kind !== TopicReadStateKind.CONTENT && this.topicState.kind !== TopicReadStateKind.EMPTY)
+    ) {
+      return;
+    }
+
+    this.requiresAuthentication = false;
+    const startIndex: number = Math.max(0, this.previousPostIds.length - 20);
+    const requestedPostIds: Array<number> = this.previousPostIds.slice(startIndex);
+    const requestVersion: number = this.topicRequestVersion;
+    const visiblePosts: Array<ForumPost> = this.topicState.posts;
+    this.topicState = TopicReadState.previousPagination(this.topicState, true, '');
+    const result: RepositoryResult<TopicPostBatch> =
+      await this.repository.loadTopicPosts(detail.id, requestedPostIds);
+    if (requestVersion !== this.topicRequestVersion || this.topicState.topicId !== detail.id) {
+      return;
+    }
+    if (!result.isSuccess() || result.data === null) {
+      this.requiresAuthentication = result.isUnauthorized();
+      this.topicState = TopicReadState.previousPagination(this.topicState, false, result.message);
+      await this.notifyUnauthorized(result.isUnauthorized());
+      return;
+    }
+
+    const requestedIds: Set<number> = new Set<number>(requestedPostIds);
+    this.previousPostIds = this.previousPostIds.filter((postId: number) => !requestedIds.has(postId));
+    const posts: Array<ForumPost> = orderPosts(detail.postIds, result.data.posts.concat(visiblePosts));
+    const hasPreviousPosts: boolean = this.previousPostIds.length > 0;
+    const hasNextPosts: boolean = this.nextPostIds.length > 0;
+    this.topicState = posts.length === 0
+      ? TopicReadState.empty(detail, hasNextPosts, false, '', hasPreviousPosts)
+      : TopicReadState.content(detail, posts, hasNextPosts, false, '', hasPreviousPosts);
+  }
+
+  public async retryPreviousTopicPosts(): Promise<void> {
+    await this.loadPreviousPosts();
+  }
+
+  private async refreshTopicSuggestions(requestVersion: number): Promise<void> {
+    const detail: TopicDetail | null = this.topicState.detail;
+    if (detail === null || detail.suggestedTopics.length > 0) {
+      return;
+    }
+    const result: RepositoryResult<Array<Topic>> = await this.repository.loadTopicSuggestions(detail.id);
+    if (
+      requestVersion !== this.topicRequestVersion ||
+      this.topicState.topicId !== detail.id ||
+      !result.isSuccess() ||
+      result.data === null ||
+      result.data.length === 0
+    ) {
+      return;
+    }
+    this.topicState = TopicReadState.withDetail(this.topicState, detail.withSuggestedTopics(result.data));
   }
 
   public async retryTopicPosts(): Promise<void> {
@@ -892,7 +1062,8 @@ export class AppShellModel {
       this.categoryRequestVersion += 1;
       this.activeDestination = SecondaryDestination.NONE;
     }
-    this.remainingPostIds = [];
+    this.previousPostIds = [];
+    this.nextPostIds = [];
     this.selectedTopicPostNumber = null;
   }
 

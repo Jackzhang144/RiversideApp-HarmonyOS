@@ -236,6 +236,21 @@ export default function discourseForumRepositoryTest(): void {
       done();
     });
 
+    it('loads suggested Topics from the untracked full Topic fallback', 0, async (done: Function) => {
+      const client: StubForumHttpClient = new StubForumHttpClient();
+      client.results.push(HttpTextResult.success(200,
+        '{"suggested_topics":[{"id":2800,"title":"推荐 Topic","category_id":111,"posts_count":4}]}'
+      ));
+      const repository: DiscourseForumRepository = new DiscourseForumRepository(client);
+
+      const result: RepositoryResult<Array<Topic>> = await repository.loadTopicSuggestions(2725);
+
+      expect(client.paths[0]).assertEqual('/t/2725.json');
+      expect(result.kind).assertEqual(RepositoryResultKind.SUCCESS);
+      expect(result.data?.[0].id).assertEqual(2800);
+      done();
+    });
+
     it('returns the created Post from a nested Reply response', 0, async (done: Function) => {
       const client: StubForumHttpClient = new StubForumHttpClient();
       client.replyResults.push(HttpTextResult.success(200,

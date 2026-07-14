@@ -90,6 +90,10 @@ class StubForumRepository implements ForumRepository {
     return RepositoryResult.success<TopicPostBatch>(new TopicPostBatch([]));
   }
 
+  public async loadTopicSuggestions(_topicId: number): Promise<RepositoryResult<Array<Topic>>> {
+    return RepositoryResult.success<Array<Topic>>([]);
+  }
+
   public async submitReply(_request: ReplyRequest): Promise<ReplySubmitResult> {
     return ReplySubmitResult.rejected('missing Reply result');
   }

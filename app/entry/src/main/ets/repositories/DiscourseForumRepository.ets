@@ -162,6 +162,20 @@ export class DiscourseForumRepository implements ForumRepository {
     return this.parser.parseTopicPostBatch(response.body);
   }
 
+  public async loadTopicSuggestions(topicId: number): Promise<RepositoryResult<Array<Topic>>> {
+    if (!Number.isInteger(topicId) || topicId <= 0) {
+      return RepositoryResult.failure<Array<Topic>>('Topic 标识无效');
+    }
+    const response: HttpTextResult = await this.client.get(`/t/${topicId}.json`);
+    if (response.kind === HttpTextResultKind.UNAUTHORIZED) {
+      return RepositoryResult.unauthorized<Array<Topic>>();
+    }
+    if (!response.isSuccess()) {
+      return RepositoryResult.failure<Array<Topic>>(response.message);
+    }
+    return this.parser.parseTopicSuggestions(response.body);
+  }
+
   public async submitReply(request: ReplyRequest): Promise<ReplySubmitResult> {
     const response: HttpTextResult = await this.client.postReply(request);
     if (response.kind === HttpTextResultKind.UNAUTHORIZED) {

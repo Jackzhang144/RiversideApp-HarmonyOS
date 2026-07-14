@@ -316,4 +316,28 @@ export class TopicDetail {
     }
     this.highestPostNumber = observedHighestPostNumber;
   }
+
+  public withSuggestedTopics(suggestedTopics: Array<Topic>): TopicDetail {
+    return new TopicDetail(
+      this.id,
+      this.title,
+      this.viewCount,
+      this.postCount,
+      this.likeCount,
+      this.closed,
+      this.archived,
+      this.canReply,
+      this.postIds,
+      this.posts,
+      this.highestPostNumber,
+      new TopicDetailMetadata(
+        this.categoryId,
+        this.canEdit,
+        this.authorUsername,
+        this.validReactions,
+        suggestedTopics,
+        this.lastReadPostNumber
+      )
+    );
+  }
 }

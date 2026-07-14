@@ -1097,6 +1097,13 @@ export class ForumResponseParser {
       : RepositoryResult.success<TopicPostBatch>(new TopicPostBatch(posts, decodeSuggestedTopics(envelope)));
   }
 
+  public parseTopicSuggestions(text: string): RepositoryResult<Array<Topic>> {
+    const envelope: JsonObjectReader | null = JsonObjectReader.parse(text);
+    return envelope === null
+      ? RepositoryResult.failure<Array<Topic>>('服务器响应缺少推荐 Topic')
+      : RepositoryResult.success<Array<Topic>>(decodeSuggestedTopics(envelope));
+  }
+
   public parseCreatedReply(text: string): RepositoryResult<ForumPost> {
     const envelope: JsonObjectReader | null = JsonObjectReader.parse(text);
     if (envelope === null) {

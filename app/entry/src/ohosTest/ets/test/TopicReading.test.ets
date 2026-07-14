@@ -52,12 +52,14 @@ class PendingRepositoryResult<T> {
 class TopicReadingRepository implements ForumRepository {
   public topicDetailResults: Array<RepositoryResult<TopicDetail>> = [];
   public topicPostResults: Array<RepositoryResult<TopicPostBatch>> = [];
+  public topicSuggestionResults: Array<RepositoryResult<Array<Topic>>> = [];
   public categoryTopicResults: Array<RepositoryResult<Array<Topic>>> = [];
   public topicDetailTasks: Array<Promise<RepositoryResult<TopicDetail>>> = [];
   public categoryTopicTasks: Array<Promise<RepositoryResult<Array<Topic>>>> = [];
   public requestedCategoryIds: Array<number> = [];
   public requestedPostIds: Array<Array<number>> = [];
   public requestedTopicPostNumbers: Array<number | null> = [];
+  public requestedSuggestionTopicIds: Array<number> = [];
   public currentUserResults: Array<RepositoryResult<CurrentUser>> = [];
   public replySubmitResults: Array<ReplySubmitResult> = [];
   public replyRecoveryResults: Array<ReplyRecoveryResult> = [];
@@ -111,6 +113,12 @@ class TopicReadingRepository implements ForumRepository {
     this.requestedPostIds.push(postIds);
     const result: RepositoryResult<TopicPostBatch> | undefined = this.topicPostResults.shift();
     return result ?? RepositoryResult.failure<TopicPostBatch>('missing Post result');
+  }
+
+  public async loadTopicSuggestions(topicId: number): Promise<RepositoryResult<Array<Topic>>> {
+    this.requestedSuggestionTopicIds.push(topicId);
+    const result: RepositoryResult<Array<Topic>> | undefined = this.topicSuggestionResults.shift();
+    return result ?? RepositoryResult.success<Array<Topic>>([]);
   }
 
   public async submitReply(request: ReplyRequest): Promise<ReplySubmitResult> {
@@ -519,6 +527,77 @@ export default function topicReadingTest(): void {
         .assertEqual('2,1,4,3');
       done();
     });
+
+    it('loads both sides of a targeted Post window without breaking stream order', 0, async (done: Function) => {
+      const repository: TopicReadingRepository = new TopicReadingRepository();
+      repository.topicDetailResults.push(RepositoryResult.success<TopicDetail>(new TopicDetail(
+        2725,
+        '定点阅读',
+        100,
+        5,
+        0,
+        false,
+        false,
+        true,
+        [102728, 102729, 102730, 102731, 102732],
+        [thirdPost(), fourthPost()]
+      )));
+      repository.topicPostResults.push(RepositoryResult.success<TopicPostBatch>(new TopicPostBatch([
+        firstPost(), secondPost()
+      ])));
+      repository.topicPostResults.push(RepositoryResult.success<TopicPostBatch>(new TopicPostBatch([
+        new ForumPost(102732, 1, 'admin', '<p>末楼</p>', '末楼', 5, null, '2026-01-28T00:03:00Z')
+      ])));
+      const model: AppShellModel = new AppShellModel(
+        repository,
+        new MemoryCategoryCache(),
+        CategoryCacheScope.anonymous()
+      );
+
+      await model.openTopic(topic(), 3);
+      expect(model.topicState.hasPreviousPosts).assertTrue();
+      expect(model.topicState.hasNextPosts).assertTrue();
+
+      await model.loadPreviousPosts();
+      expect(repository.requestedPostIds[0].join(',')).assertEqual('102728,102729');
+      expect(model.topicState.posts.map((post: ForumPost): number => post.postNumber).join(','))
+        .assertEqual('1,2,3,4');
+
+      await model.loadMorePosts();
+      expect(repository.requestedPostIds[1].join(',')).assertEqual('102732');
+      expect(model.topicState.posts.map((post: ForumPost): number => post.postNumber).join(','))
+        .assertEqual('1,2,3,4,5');
+      expect(model.topicState.hasPreviousPosts).assertFalse();
+      expect(model.topicState.hasNextPosts).assertFalse();
+      done();
+    });
+
+    it('falls back to the full Topic response when the final Post batch has no suggestions', 0,
+      async (done: Function) => {
+        const repository: TopicReadingRepository = new TopicReadingRepository();
+        repository.topicDetailResults.push(RepositoryResult.success<TopicDetail>(new TopicDetail(
+          2725, '长 Topic', 100, 3, 0, false, false, true,
+          [102728, 102729, 102730], [firstPost()]
+        )));
+        repository.topicPostResults.push(RepositoryResult.success<TopicPostBatch>(new TopicPostBatch([
+          secondPost(), thirdPost()
+        ])));
+        repository.topicSuggestionResults.push(RepositoryResult.success<Array<Topic>>([
+          topicWithId(2800, '推荐 Topic')
+        ]));
+        const model: AppShellModel = new AppShellModel(
+          repository,
+          new MemoryCategoryCache(),
+          CategoryCacheScope.anonymous()
+        );
+
+        await model.openTopic(topic());
+        await model.loadMorePosts();
+
+        expect(repository.requestedSuggestionTopicIds.join(',')).assertEqual('2725');
+        expect(model.topicState.detail?.suggestedTopics[0].id).assertEqual(2800);
+        done();
+      });
 
     it('submits a targeted Reply once and appends the created Post', 0, async (done: Function) => {
       const repository: TopicReadingRepository = new TopicReadingRepository();
