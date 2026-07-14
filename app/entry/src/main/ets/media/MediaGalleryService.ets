@@ -85,7 +85,7 @@ export class MediaGalleryService {
         usingCache: false,
         maxRedirects: trustedOrigin ? 0 : 5
       });
-      if (response.responseCode === 401) {
+      if (response.responseCode === 401 && trustedOrigin) {
         return RepositoryResult.unauthorized<CachedMedia>();
       }
       if (response.responseCode < 200 || response.responseCode >= 300) {
