@@ -113,6 +113,7 @@ struct Index {
   private readonly tabsController: HdsTabsController = new HdsTabsController();
   private model: AppShellModel | null = null;
   private authRepository: AuthRepository | null = null;
+  private authenticationLifecycle: RepositoryAuthenticationLifecycle | null = null;
   private snackBar: HdsSnackBar | null = null;
   private richEmbedController: webview.WebviewController = new webview.WebviewController();
   private mediaGalleryService: MediaGalleryService | null = null;
@@ -191,6 +192,7 @@ struct Index {
         this.synchronizeAuthentication(true);
       }
     );
+    this.authenticationLifecycle = authenticationLifecycle;
     const model: AppShellModel = new AppShellModel(
       new DiscourseForumRepository(new DiscourseHttpClient(RIVERSIDE_BASE_URL, sessionProvider)),
       new PreferencesCategoryCache(context),
@@ -602,6 +604,11 @@ struct Index {
     }
     const result: RepositoryResult<CachedMedia> = await service.prepareOriginal(normalizedUrl);
     if (this.imageViewerState.remoteUrl !== normalizedUrl) {
+      return;
+    }
+    if (result.isUnauthorized()) {
+      await this.authenticationLifecycle?.handleUnauthorized();
+      this.imageViewerState = this.imageViewerState.failed('登录已失效，请重新登录后保存图片');
       return;
     }
     this.imageViewerState = result.isSuccess() && result.data !== null
