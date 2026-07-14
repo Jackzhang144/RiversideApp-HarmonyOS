@@ -1,5 +1,6 @@
 import appShellModelTest from './AppShellModel.test';
 import accountPresentationTest from './AccountPresentation.test';
+import authoringModelsTest from './AuthoringModels.test';
 import authBoundaryTest from './AuthBoundary.test';
 import authRepositoryTest from './AuthRepository.test';
 import discourseForumRepositoryTest from './DiscourseForumRepository.test';
@@ -17,6 +18,7 @@ import topicReadingPresentationTest from './TopicReadingPresentation.test';
 export default function tests(): void {
   accountPresentationTest();
   appShellModelTest();
+  authoringModelsTest();
   authBoundaryTest();
   authRepositoryTest();
   discourseForumRepositoryTest();
