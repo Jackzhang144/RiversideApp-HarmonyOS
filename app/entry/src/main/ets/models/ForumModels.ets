@@ -256,6 +256,38 @@ export class ForumPost {
       )
     );
   }
+
+  public withRawContent(raw: string): ForumPost {
+    return new ForumPost(
+      this.id,
+      this.userId,
+      this.username,
+      '',
+      raw,
+      this.postNumber,
+      this.replyToPostNumber,
+      this.createdAt,
+      new ForumPostMetadata(
+        this.userTitle,
+        this.avatarUrl,
+        this.flairUrl,
+        this.replyToUsername,
+        this.replyToAvatarUrl,
+        this.likeCount,
+        this.reactions,
+        this.currentUserReaction,
+        this.canEdit,
+        this.canDelete,
+        this.acceptedAnswer,
+        this.canAcceptAnswer,
+        this.canUnacceptAnswer,
+        this.bookmarked,
+        this.bookmarkId,
+        this.postType,
+        this.actionCode
+      )
+    );
+  }
 }
 
 export class TopicDetailMetadata {

@@ -19,6 +19,16 @@ import {
 } from '../models/DiscoveryModels';
 import { DiscoverySettings, DiscoverySettingsStore } from '../settings/DiscoverySettingsStore';
 import {
+  CreateTopicRequest,
+  DraftWriteRequest,
+  EditPostRequest,
+  EditTopicRequest,
+  ServerDraft,
+  TopicSubmitKind,
+  TopicSubmitResult,
+  autoReplyQuote
+} from '../models/AuthoringModels';
+import {
   CurrentUser,
   ReplyRecoveryKind,
   ReplyRecoveryRequest,
@@ -174,17 +184,20 @@ export class ReplyComposerState {
   public readonly draft: string;
   public readonly replyToPostNumber: number | null;
   public readonly message: string;
+  public readonly editingPostId: number | null;
 
   private constructor(
     kind: ReplyComposerStateKind,
     draft: string,
     replyToPostNumber: number | null,
-    message: string
+    message: string,
+    editingPostId: number | null = null
   ) {
     this.kind = kind;
     this.draft = draft;
     this.replyToPostNumber = replyToPostNumber;
     this.message = message;
+    this.editingPostId = editingPostId;
   }
 
   public static closed(draft: string = '', replyToPostNumber: number | null = null): ReplyComposerState {
@@ -195,8 +208,22 @@ export class ReplyComposerState {
     return new ReplyComposerState(ReplyComposerStateKind.EDITING, draft, replyToPostNumber, '');
   }
 
-  public static submitting(draft: string, replyToPostNumber: number | null): ReplyComposerState {
-    return new ReplyComposerState(ReplyComposerStateKind.SUBMITTING, draft, replyToPostNumber, '正在提交 Reply');
+  public static editingPost(postId: number, draft: string): ReplyComposerState {
+    return new ReplyComposerState(ReplyComposerStateKind.EDITING, draft, null, '', postId);
+  }
+
+  public static submitting(
+    draft: string,
+    replyToPostNumber: number | null,
+    editingPostId: number | null = null
+  ): ReplyComposerState {
+    return new ReplyComposerState(
+      ReplyComposerStateKind.SUBMITTING,
+      draft,
+      replyToPostNumber,
+      editingPostId === null ? '正在提交 Reply' : '正在保存 Post',
+      editingPostId
+    );
   }
 
   public static checking(draft: string, replyToPostNumber: number | null): ReplyComposerState {
@@ -208,16 +235,28 @@ export class ReplyComposerState {
     );
   }
 
-  public static error(draft: string, replyToPostNumber: number | null, message: string): ReplyComposerState {
-    return new ReplyComposerState(ReplyComposerStateKind.ERROR, draft, replyToPostNumber, message);
+  public static error(
+    draft: string,
+    replyToPostNumber: number | null,
+    message: string,
+    editingPostId: number | null = null
+  ): ReplyComposerState {
+    return new ReplyComposerState(ReplyComposerStateKind.ERROR, draft, replyToPostNumber, message, editingPostId);
   }
 
   public static reauthenticate(
     draft: string,
     replyToPostNumber: number | null,
-    message: string = '登录已失效，重新登录后可继续提交'
+    message: string = '登录已失效，重新登录后可继续提交',
+    editingPostId: number | null = null
   ): ReplyComposerState {
-    return new ReplyComposerState(ReplyComposerStateKind.REAUTHENTICATE, draft, replyToPostNumber, message);
+    return new ReplyComposerState(
+      ReplyComposerStateKind.REAUTHENTICATE,
+      draft,
+      replyToPostNumber,
+      message,
+      editingPostId
+    );
   }
 
   public static success(message: string): ReplyComposerState {
@@ -226,6 +265,113 @@ export class ReplyComposerState {
 
   public isBusy(): boolean {
     return this.kind === ReplyComposerStateKind.SUBMITTING || this.kind === ReplyComposerStateKind.CHECKING;
+  }
+
+  public isEditingPost(): boolean {
+    return this.editingPostId !== null;
+  }
+}
+
+export enum TopicComposerStateKind {
+  CLOSED = 'closed',
+  EDITING = 'editing',
+  SUBMITTING = 'submitting',
+  SAVING_DRAFT = 'saving-draft',
+  ERROR = 'error',
+  REAUTHENTICATE = 'reauthenticate',
+  SUCCESS = 'success'
+}
+
+export class TopicComposerState {
+  public readonly kind: TopicComposerStateKind;
+  public readonly title: string;
+  public readonly raw: string;
+  public readonly draftSequence: number;
+  public readonly createdTopicId: number | null;
+  public readonly message: string;
+
+  private constructor(
+    kind: TopicComposerStateKind,
+    title: string,
+    raw: string,
+    draftSequence: number,
+    createdTopicId: number | null,
+    message: string
+  ) {
+    this.kind = kind;
+    this.title = title;
+    this.raw = raw;
+    this.draftSequence = Math.max(0, draftSequence);
+    this.createdTopicId = createdTopicId;
+    this.message = message;
+  }
+
+  public static closed(): TopicComposerState {
+    return new TopicComposerState(TopicComposerStateKind.CLOSED, '', '', 0, null, '');
+  }
+
+  public static editing(title: string = '', raw: string = '', draftSequence: number = 0): TopicComposerState {
+    return new TopicComposerState(TopicComposerStateKind.EDITING, title, raw, draftSequence, null, '');
+  }
+
+  public static submitting(state: TopicComposerState): TopicComposerState {
+    return new TopicComposerState(
+      TopicComposerStateKind.SUBMITTING,
+      state.title,
+      state.raw,
+      state.draftSequence,
+      null,
+      '正在发布 Topic'
+    );
+  }
+
+  public static savingDraft(state: TopicComposerState): TopicComposerState {
+    return new TopicComposerState(
+      TopicComposerStateKind.SAVING_DRAFT,
+      state.title,
+      state.raw,
+      state.draftSequence,
+      null,
+      '正在保存草稿'
+    );
+  }
+
+  public static error(state: TopicComposerState, message: string): TopicComposerState {
+    return new TopicComposerState(
+      TopicComposerStateKind.ERROR,
+      state.title,
+      state.raw,
+      state.draftSequence,
+      null,
+      message
+    );
+  }
+
+  public static reauthenticate(state: TopicComposerState): TopicComposerState {
+    return new TopicComposerState(
+      TopicComposerStateKind.REAUTHENTICATE,
+      state.title,
+      state.raw,
+      state.draftSequence,
+      null,
+      '登录已失效，重新登录后可继续发布'
+    );
+  }
+
+  public static success(topicId: number): TopicComposerState {
+    return new TopicComposerState(TopicComposerStateKind.SUCCESS, '', '', 0, topicId, 'Topic 已发布');
+  }
+
+  public withTitle(title: string): TopicComposerState {
+    return TopicComposerState.editing(title, this.raw, this.draftSequence);
+  }
+
+  public withRaw(raw: string): TopicComposerState {
+    return TopicComposerState.editing(this.title, raw, this.draftSequence);
+  }
+
+  public isBusy(): boolean {
+    return this.kind === TopicComposerStateKind.SUBMITTING || this.kind === TopicComposerStateKind.SAVING_DRAFT;
   }
 }
 
@@ -709,6 +855,9 @@ export class AppShellModel {
   public categoryTopicsState: BrowseState<Topic> = BrowseState.initial<Topic>();
   public topicState: TopicReadState = TopicReadState.initial();
   public replyState: ReplyComposerState = ReplyComposerState.closed();
+  public topicComposerState: TopicComposerState = TopicComposerState.closed();
+  public topicEditingTopicId: number | null = null;
+  public topicEditingPostId: number | null = null;
   public searchState: SearchState = SearchState.initial();
 
   private readonly repository: ForumRepository;
@@ -730,6 +879,8 @@ export class AppShellModel {
   private searchNextPage: number = 1;
   private topicRequestVersion: number = 0;
   private replyRequestVersion: number = 0;
+  private topicComposerRequestVersion: number = 0;
+  private topicEditingOriginalTitle: string = '';
 
   public constructor(
     repository: ForumRepository,
@@ -1260,14 +1411,47 @@ export class AppShellModel {
     if (!this.topicState.canReply || this.topicState.detail === null || this.replyState.isBusy()) {
       return;
     }
-    this.replyState = ReplyComposerState.editing(this.replyState.draft, replyToPostNumber);
+    let draft: string = this.replyState.isEditingPost() ? '' : this.replyState.draft;
+    if (replyToPostNumber !== null) {
+      const post: ForumPost | undefined = this.topicState.posts.find(
+        (candidate: ForumPost): boolean => candidate.postNumber === replyToPostNumber
+      );
+      if (post !== undefined) {
+        draft = autoReplyQuote(post, this.topicState.detail.id, this.topicState.detail.highestPostNumber, draft);
+      }
+    }
+    this.replyState = ReplyComposerState.editing(draft, replyToPostNumber);
+  }
+
+  public openPostEditor(postId: number): boolean {
+    const detail: TopicDetail | null = this.topicState.detail;
+    const post: ForumPost | undefined = this.topicState.posts.find(
+      (candidate: ForumPost): boolean => candidate.id === postId
+    );
+    if (detail === null || post === undefined || !post.canEdit || this.replyState.isBusy()) {
+      return false;
+    }
+    if (post.postNumber === 1) {
+      if (!detail.canEdit) {
+        return false;
+      }
+      this.topicEditingTopicId = detail.id;
+      this.topicEditingPostId = post.id;
+      this.topicEditingOriginalTitle = detail.title;
+      this.topicComposerState = TopicComposerState.editing(detail.title, post.raw);
+      return true;
+    }
+    this.replyState = ReplyComposerState.editingPost(post.id, post.raw);
+    return true;
   }
 
   public updateReplyDraft(draft: string): void {
     if (this.replyState.isBusy()) {
       return;
     }
-    this.replyState = ReplyComposerState.editing(draft, this.replyState.replyToPostNumber);
+    this.replyState = this.replyState.editingPostId === null
+      ? ReplyComposerState.editing(draft, this.replyState.replyToPostNumber)
+      : ReplyComposerState.editingPost(this.replyState.editingPostId, draft);
   }
 
   public dismissReply(): void {
@@ -1285,17 +1469,24 @@ export class AppShellModel {
       return;
     }
     this.requiresAuthentication = false;
-    this.replyState = ReplyComposerState.editing(
-      this.replyState.draft,
-      this.replyState.replyToPostNumber
-    );
+    this.replyState = this.replyState.editingPostId === null
+      ? ReplyComposerState.editing(this.replyState.draft, this.replyState.replyToPostNumber)
+      : ReplyComposerState.editingPost(this.replyState.editingPostId, this.replyState.draft);
   }
 
   public async submitReply(
     onStateChange: (state: ReplyComposerState) => void = (_state: ReplyComposerState): void => {}
   ): Promise<void> {
     const detail: TopicDetail | null = this.topicState.detail;
-    if (detail === null || !this.topicState.canReply || this.replyState.isBusy()) {
+    if (
+      detail === null ||
+      this.replyState.isBusy() ||
+      (this.replyState.editingPostId === null && !this.topicState.canReply)
+    ) {
+      return;
+    }
+    if (this.replyState.editingPostId !== null) {
+      await this.submitPostEdit(onStateChange);
       return;
     }
     const request: ReplyRequest | null = ReplyRequest.create(
@@ -1383,6 +1574,232 @@ export class AppShellModel {
         onStateChange
       );
     }
+  }
+
+  private async submitPostEdit(onStateChange: (state: ReplyComposerState) => void): Promise<void> {
+    const postId: number | null = this.replyState.editingPostId;
+    const request: EditPostRequest | null = postId === null
+      ? null
+      : EditPostRequest.create(postId, this.replyState.draft);
+    if (request === null) {
+      this.transitionReplyState(
+        ReplyComposerState.error(this.replyState.draft, null, '请输入 Post 内容', postId),
+        onStateChange
+      );
+      return;
+    }
+    this.transitionReplyState(ReplyComposerState.submitting(request.raw, null, postId), onStateChange);
+    const result: RepositoryResult<boolean> = await this.repository.editPost(request);
+    if (result.isUnauthorized()) {
+      this.requiresAuthentication = true;
+      this.transitionReplyState(ReplyComposerState.reauthenticate(request.raw, null, undefined, postId), onStateChange);
+      await this.notifyUnauthorized(true);
+      return;
+    }
+    if (!result.isSuccess() || result.data !== true) {
+      this.transitionReplyState(ReplyComposerState.error(request.raw, null, result.message, postId), onStateChange);
+      return;
+    }
+    const post: ForumPost | undefined = this.topicState.posts.find(
+      (candidate: ForumPost): boolean => candidate.id === postId
+    );
+    if (post !== undefined) {
+      this.topicState = TopicReadState.withPosts(this.topicState, replacePost(
+        this.topicState.posts,
+        post.withRawContent(request.raw)
+      ));
+    }
+    this.transitionReplyState(ReplyComposerState.success('Post 已保存'), onStateChange);
+  }
+
+  public openNewTopic(): void {
+    this.topicComposerRequestVersion += 1;
+    this.topicEditingTopicId = null;
+    this.topicEditingPostId = null;
+    this.topicEditingOriginalTitle = '';
+    this.topicComposerState = TopicComposerState.editing();
+  }
+
+  public updateTopicComposerTitle(title: string): void {
+    if (!this.topicComposerState.isBusy()) {
+      this.topicComposerState = this.topicComposerState.withTitle(title);
+    }
+  }
+
+  public updateTopicComposerRaw(raw: string): void {
+    if (!this.topicComposerState.isBusy()) {
+      this.topicComposerState = this.topicComposerState.withRaw(raw);
+    }
+  }
+
+  public async restoreTopicDraft(): Promise<void> {
+    if (this.topicEditingTopicId !== null || this.topicComposerState.kind !== TopicComposerStateKind.EDITING) {
+      return;
+    }
+    const requestVersion: number = this.topicComposerRequestVersion;
+    const title: string = this.topicComposerState.title;
+    const raw: string = this.topicComposerState.raw;
+    const result: RepositoryResult<Array<ServerDraft>> = await this.repository.loadDrafts();
+    if (
+      requestVersion !== this.topicComposerRequestVersion ||
+      this.topicComposerState.title !== title ||
+      this.topicComposerState.raw !== raw
+    ) {
+      return;
+    }
+    if (result.isUnauthorized()) {
+      this.requiresAuthentication = true;
+      this.topicComposerState = TopicComposerState.reauthenticate(this.topicComposerState);
+      await this.notifyUnauthorized(true);
+      return;
+    }
+    if (!result.isSuccess() || result.data === null) {
+      this.topicComposerState = TopicComposerState.error(this.topicComposerState, result.message);
+      return;
+    }
+    const draft: ServerDraft | undefined = result.data.find(
+      (candidate: ServerDraft): boolean => candidate.draftKey === 'new_topic' &&
+        (candidate.categoryId === null || candidate.categoryId === 111)
+    );
+    if (draft !== undefined) {
+      this.topicComposerState = TopicComposerState.editing(draft.title, draft.raw, draft.sequence);
+    }
+  }
+
+  public async saveTopicDraft(): Promise<boolean> {
+    if (this.topicEditingTopicId !== null || this.topicComposerState.isBusy()) {
+      return false;
+    }
+    const request: DraftWriteRequest | null = DraftWriteRequest.newTopic(
+      this.topicComposerState.title,
+      this.topicComposerState.raw,
+      this.topicComposerState.draftSequence
+    );
+    if (request === null) {
+      this.topicComposerState = TopicComposerState.error(this.topicComposerState, '草稿内容为空');
+      return false;
+    }
+    const editing: TopicComposerState = this.topicComposerState;
+    this.topicComposerState = TopicComposerState.savingDraft(editing);
+    const result: RepositoryResult<number> = await this.repository.saveDraft(request);
+    if (result.isUnauthorized()) {
+      this.requiresAuthentication = true;
+      this.topicComposerState = TopicComposerState.reauthenticate(editing);
+      await this.notifyUnauthorized(true);
+      return false;
+    }
+    if (!result.isSuccess() || result.data === null) {
+      this.topicComposerState = TopicComposerState.error(editing, result.message);
+      return false;
+    }
+    this.topicComposerState = TopicComposerState.editing(editing.title, editing.raw, result.data);
+    return true;
+  }
+
+  public dismissTopicComposer(): void {
+    if (!this.topicComposerState.isBusy()) {
+      this.topicComposerRequestVersion += 1;
+      this.topicComposerState = TopicComposerState.closed();
+      this.topicEditingTopicId = null;
+      this.topicEditingPostId = null;
+      this.topicEditingOriginalTitle = '';
+    }
+  }
+
+  public resumeTopicAfterAuthentication(): void {
+    if (this.topicComposerState.kind === TopicComposerStateKind.REAUTHENTICATE) {
+      this.requiresAuthentication = false;
+      this.topicComposerState = TopicComposerState.editing(
+        this.topicComposerState.title,
+        this.topicComposerState.raw,
+        this.topicComposerState.draftSequence
+      );
+    }
+  }
+
+  public async submitTopicComposer(): Promise<void> {
+    if (this.topicComposerState.isBusy()) {
+      return;
+    }
+    if (this.topicEditingTopicId !== null && this.topicEditingPostId !== null) {
+      await this.submitTopicEdit();
+      return;
+    }
+    const request: CreateTopicRequest | null = CreateTopicRequest.create(
+      this.topicComposerState.title,
+      this.topicComposerState.raw
+    );
+    if (request === null) {
+      this.topicComposerState = TopicComposerState.error(this.topicComposerState, '请填写标题和内容');
+      return;
+    }
+    const editing: TopicComposerState = this.topicComposerState;
+    this.topicComposerState = TopicComposerState.submitting(editing);
+    const result: TopicSubmitResult = await this.repository.submitTopic(request);
+    if (result.kind === TopicSubmitKind.UNAUTHORIZED) {
+      this.requiresAuthentication = true;
+      this.topicComposerState = TopicComposerState.reauthenticate(editing);
+      await this.notifyUnauthorized(true);
+      return;
+    }
+    if (result.kind !== TopicSubmitKind.CREATED || result.topicId === null) {
+      this.topicComposerState = TopicComposerState.error(editing, result.message);
+      return;
+    }
+    if (editing.draftSequence > 0) {
+      await this.repository.deleteDraft('new_topic', editing.draftSequence);
+    }
+    this.topicComposerState = TopicComposerState.success(result.topicId);
+  }
+
+  private async submitTopicEdit(): Promise<void> {
+    const topicId: number | null = this.topicEditingTopicId;
+    const postId: number | null = this.topicEditingPostId;
+    const topicRequest: EditTopicRequest | null = topicId === null
+      ? null
+      : EditTopicRequest.create(topicId, this.topicComposerState.title, this.topicEditingOriginalTitle);
+    const postRequest: EditPostRequest | null = postId === null
+      ? null
+      : EditPostRequest.create(postId, this.topicComposerState.raw);
+    if (topicRequest === null || postRequest === null) {
+      this.topicComposerState = TopicComposerState.error(this.topicComposerState, '请填写标题和内容');
+      return;
+    }
+    const editing: TopicComposerState = this.topicComposerState;
+    this.topicComposerState = TopicComposerState.submitting(editing);
+    const topicResult: RepositoryResult<boolean> = await this.repository.editTopic(topicRequest);
+    if (!topicResult.isSuccess() || topicResult.data !== true) {
+      await this.handleTopicEditFailure(editing, topicResult);
+      return;
+    }
+    const postResult: RepositoryResult<boolean> = await this.repository.editPost(postRequest);
+    if (!postResult.isSuccess() || postResult.data !== true) {
+      await this.handleTopicEditFailure(editing, postResult);
+      return;
+    }
+    const post: ForumPost | undefined = this.topicState.posts.find(
+      (candidate: ForumPost): boolean => candidate.id === postId
+    );
+    if (post !== undefined) {
+      this.topicState = TopicReadState.withPosts(
+        this.topicState,
+        replacePost(this.topicState.posts, post.withRawContent(postRequest.raw))
+      );
+    }
+    this.topicComposerState = TopicComposerState.success(topicRequest.topicId);
+  }
+
+  private async handleTopicEditFailure(
+    editing: TopicComposerState,
+    result: RepositoryResult<boolean>
+  ): Promise<void> {
+    if (result.isUnauthorized()) {
+      this.requiresAuthentication = true;
+      this.topicComposerState = TopicComposerState.reauthenticate(editing);
+      await this.notifyUnauthorized(true);
+      return;
+    }
+    this.topicComposerState = TopicComposerState.error(editing, result.message);
   }
 
   public closeSecondary(): void {

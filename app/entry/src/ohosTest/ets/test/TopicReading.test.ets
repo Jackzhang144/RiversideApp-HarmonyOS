@@ -7,6 +7,7 @@ import {
   ReplyComposerStateKind,
   RootDestination,
   SecondaryDestination,
+  TopicComposerStateKind,
   TopicReadStateKind
 } from '../../../main/ets/app/AppShellModel';
 import { CategoryCacheScope } from '../../../main/ets/cache/CategoryCache';
@@ -86,6 +87,14 @@ class TopicReadingRepository implements ForumRepository {
   public replyRecoveryResults: Array<ReplyRecoveryResult> = [];
   public submittedReplies: Array<ReplyRequest> = [];
   public recoveryRequests: Array<ReplyRecoveryRequest> = [];
+  public topicSubmitResults: Array<TopicSubmitResult> = [];
+  public submittedTopics: Array<CreateTopicRequest> = [];
+  public editPostResults: Array<RepositoryResult<boolean>> = [];
+  public editedPosts: Array<EditPostRequest> = [];
+  public draftResults: Array<RepositoryResult<Array<ServerDraft>>> = [];
+  public savedDrafts: Array<DraftWriteRequest> = [];
+  public savedDraftResults: Array<RepositoryResult<number>> = [];
+  public deletedDrafts: Array<string> = [];
 
   public async loadLatestTopics(): Promise<RepositoryResult<Array<Topic>>> {
     return RepositoryResult.success<Array<Topic>>([]);
@@ -199,12 +208,14 @@ class TopicReadingRepository implements ForumRepository {
     return result ?? ReplyRecoveryResult.failed('missing Reply recovery result');
   }
 
-  public async submitTopic(_request: CreateTopicRequest): Promise<TopicSubmitResult> {
-    return TopicSubmitResult.rejected('missing Topic result');
+  public async submitTopic(request: CreateTopicRequest): Promise<TopicSubmitResult> {
+    this.submittedTopics.push(request);
+    return this.topicSubmitResults.shift() ?? TopicSubmitResult.rejected('missing Topic result');
   }
 
-  public async editPost(_request: EditPostRequest): Promise<RepositoryResult<boolean>> {
-    return RepositoryResult.failure<boolean>('missing Post edit result');
+  public async editPost(request: EditPostRequest): Promise<RepositoryResult<boolean>> {
+    this.editedPosts.push(request);
+    return this.editPostResults.shift() ?? RepositoryResult.failure<boolean>('missing Post edit result');
   }
 
   public async editTopic(_request: EditTopicRequest): Promise<RepositoryResult<boolean>> {
@@ -212,15 +223,17 @@ class TopicReadingRepository implements ForumRepository {
   }
 
   public async loadDrafts(): Promise<RepositoryResult<Array<ServerDraft>>> {
-    return RepositoryResult.success<Array<ServerDraft>>([]);
+    return this.draftResults.shift() ?? RepositoryResult.success<Array<ServerDraft>>([]);
   }
 
-  public async saveDraft(_request: DraftWriteRequest): Promise<RepositoryResult<number>> {
-    return RepositoryResult.failure<number>('missing draft result');
+  public async saveDraft(request: DraftWriteRequest): Promise<RepositoryResult<number>> {
+    this.savedDrafts.push(request);
+    return this.savedDraftResults.shift() ?? RepositoryResult.failure<number>('missing draft result');
   }
 
-  public async deleteDraft(_draftKey: string, _sequence: number): Promise<RepositoryResult<boolean>> {
-    return RepositoryResult.failure<boolean>('missing draft delete result');
+  public async deleteDraft(draftKey: string, sequence: number): Promise<RepositoryResult<boolean>> {
+    this.deletedDrafts.push(`${draftKey}:${sequence}`);
+    return RepositoryResult.success<boolean>(true);
   }
 }
 
@@ -992,5 +1005,95 @@ export default function topicReadingTest(): void {
       expect(model.replyState.draft).assertEqual('登录后继续');
       done();
     });
+
+    it('prepares an identity-safe quote only when replying across a floor gap', 0, async (done: Function) => {
+      const repository: TopicReadingRepository = new TopicReadingRepository();
+      repository.topicDetailResults.push(RepositoryResult.success<TopicDetail>(new TopicDetail(
+        2725, '引用语义', 10, 7, 0, false, false, true,
+        [102728, 102729, 102730], [firstPost(), secondPost(), thirdPost()], 7
+      )));
+      const model: AppShellModel = new AppShellModel(
+        repository, new MemoryCategoryCache(), CategoryCacheScope.anonymous()
+      );
+      await model.openTopic(topic());
+
+      model.openReply(3);
+
+      expect(model.replyState.replyToPostNumber).assertEqual(3);
+      expect(model.replyState.draft).assertEqual(
+        '[quote="Co-admin, post:3, topic:2725"]\n第二条 Reply\n[/quote]\n\n'
+      );
+      done();
+    });
+
+    it('restores and retries a rejected new Topic draft without leaving Category 111', 0,
+      async (done: Function) => {
+        const repository: TopicReadingRepository = new TopicReadingRepository();
+        repository.draftResults.push(RepositoryResult.success<Array<ServerDraft>>([
+          new ServerDraft('new_topic', 2, 'createTopic', '课程笔记', '草稿正文', 111, null, null)
+        ]));
+        repository.topicSubmitResults.push(
+          TopicSubmitResult.rejected('标题不符合要求'),
+          TopicSubmitResult.created(19139)
+        );
+        const model: AppShellModel = new AppShellModel(
+          repository, new MemoryCategoryCache(), CategoryCacheScope.anonymous()
+        );
+
+        model.openNewTopic();
+        await model.restoreTopicDraft();
+        expect(model.topicComposerState.title).assertEqual('课程笔记');
+        expect(model.topicComposerState.raw).assertEqual('草稿正文');
+        expect(model.topicComposerState.draftSequence).assertEqual(2);
+
+        await model.submitTopicComposer();
+        expect(model.topicComposerState.kind).assertEqual(TopicComposerStateKind.ERROR);
+        expect(model.topicComposerState.title).assertEqual('课程笔记');
+        expect(model.topicComposerState.raw).assertEqual('草稿正文');
+        expect(repository.submittedTopics[0].categoryId).assertEqual(111);
+
+        await model.submitTopicComposer();
+        expect(model.topicComposerState.kind).assertEqual(TopicComposerStateKind.SUCCESS);
+        expect(model.topicComposerState.createdTopicId).assertEqual(19139);
+        expect(repository.submittedTopics.length).assertEqual(2);
+        expect(repository.deletedDrafts[0]).assertEqual('new_topic:2');
+        done();
+      });
+
+    it('edits only a Post allowed by the server and keeps rejected edits recoverable', 0,
+      async (done: Function) => {
+        const repository: TopicReadingRepository = new TopicReadingRepository();
+        const editablePost = new ForumPost(
+          102729, 1, 'admin', '<p>第一条 Reply</p>', '第一条 Reply', 2, null,
+          '2026-01-28T00:00:00Z', new ForumPostMetadata('', '', '', null, null, 0, [], null, true)
+        );
+        repository.topicDetailResults.push(RepositoryResult.success<TopicDetail>(new TopicDetail(
+          2725, '编辑许可', 10, 3, 0, false, false, true,
+          [102728, 102729, 102730], [firstPost(), editablePost, thirdPost()]
+        )));
+        repository.editPostResults.push(
+          RepositoryResult.failure<boolean>('服务器拒绝编辑'),
+          RepositoryResult.success<boolean>(true)
+        );
+        const model: AppShellModel = new AppShellModel(
+          repository, new MemoryCategoryCache(), CategoryCacheScope.anonymous()
+        );
+        await model.openTopic(topic());
+
+        expect(model.openPostEditor(102730)).assertFalse();
+        expect(model.openPostEditor(102729)).assertTrue();
+        model.updateReplyDraft('更新后的 Reply');
+        await model.submitReply();
+
+        expect(model.replyState.kind).assertEqual(ReplyComposerStateKind.ERROR);
+        expect(model.replyState.draft).assertEqual('更新后的 Reply');
+        expect(repository.editedPosts.length).assertEqual(1);
+
+        await model.submitReply();
+        expect(model.replyState.kind).assertEqual(ReplyComposerStateKind.SUCCESS);
+        expect(repository.editedPosts.length).assertEqual(2);
+        expect(model.topicState.posts[1].raw).assertEqual('更新后的 Reply');
+        done();
+      });
   });
 }
