@@ -11,6 +11,7 @@ import homePresentationTest from './HomePresentation.test';
 import jsonBoundaryTest from './JsonBoundary.test';
 import replyBoundaryTest from './ReplyBoundary.test';
 import replyTransportTest from './ReplyTransport.test';
+import richContentTest from './RichContent.test';
 import sessionStoreTest from './SessionStore.test';
 import topicReadingTest from './TopicReading.test';
 import topicReadingPresentationTest from './TopicReadingPresentation.test';
@@ -29,6 +30,7 @@ export default function tests(): void {
   jsonBoundaryTest();
   replyBoundaryTest();
   replyTransportTest();
+  richContentTest();
   sessionStoreTest();
   topicReadingTest();
   topicReadingPresentationTest();
