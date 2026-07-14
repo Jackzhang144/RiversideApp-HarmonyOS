@@ -24,6 +24,9 @@ import {
 export struct TopicDetailPage {
   @Prop state: TopicReadState = TopicReadState.initial();
   @Link bookmarkedPostIds: Array<number>;
+  @Link lastReadPostNumber: number;
+  @Link readProgressBusy: boolean;
+  @Link readProgressMessage: string;
   @Prop replyState: ReplyComposerState = ReplyComposerState.closed();
   @Prop categories: Array<Category> = [];
   @Link replySheetVisible: boolean;
@@ -170,7 +173,7 @@ export struct TopicDetailPage {
           .fontColor($r('sys.color.font_secondary'))
       }
       Blank()
-      Text(`已读 #${this.state.readProgressState.lastReadPostNumber}`)
+      Text(`已读 #${this.lastReadPostNumber}`)
         .fontSize(12)
         .fontColor($r('sys.color.font_secondary'))
     }
@@ -180,14 +183,14 @@ export struct TopicDetailPage {
 
   @Builder
   private ReadProgressFeedback(): void {
-    if (this.state.readProgressState.busy) {
+    if (this.readProgressBusy) {
       Text('正在同步阅读进度')
         .fontSize(12)
         .fontColor($r('sys.color.font_secondary'))
         .width('100%')
         .textAlign(TextAlign.Center)
-    } else if (this.state.readProgressState.message.length > 0) {
-      Text(this.state.readProgressState.message)
+    } else if (this.readProgressMessage.length > 0) {
+      Text(this.readProgressMessage)
         .fontSize(12)
         .fontColor('#C62828')
         .width('100%')

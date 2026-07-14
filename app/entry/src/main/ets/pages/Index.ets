@@ -86,6 +86,9 @@ struct Index {
   @State categoryTitle: string = 'Category';
   @State topicState: TopicReadState = TopicReadState.initial();
   @State bookmarkedPostIds: Array<number> = [];
+  @State lastReadPostNumber: number = 0;
+  @State readProgressBusy: boolean = false;
+  @State readProgressMessage: string = '';
   @State replyState: ReplyComposerState = ReplyComposerState.closed();
   @State replySheetVisible: boolean = false;
   @State authState: AuthState = AuthState.idle();
@@ -496,6 +499,9 @@ struct Index {
   private synchronizeTopicState(model: AppShellModel): void {
     this.topicState = model.topicState;
     this.bookmarkedPostIds = selectedBookmarkPostIds(model.topicState.posts);
+    this.lastReadPostNumber = model.topicState.readProgressState.lastReadPostNumber;
+    this.readProgressBusy = model.topicState.readProgressState.busy;
+    this.readProgressMessage = model.topicState.readProgressState.message;
   }
 
   private synchronizeReplyState(model: AppShellModel, sheetVisible: boolean | null = null): void {
@@ -725,6 +731,9 @@ struct Index {
         TopicDetailPage({
           state: this.topicState,
           bookmarkedPostIds: $bookmarkedPostIds,
+          lastReadPostNumber: $lastReadPostNumber,
+          readProgressBusy: $readProgressBusy,
+          readProgressMessage: $readProgressMessage,
           replyState: this.replyState,
           categories: this.categoryState.items,
           replySheetVisible: this.replySheetVisible,

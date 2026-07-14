@@ -60,6 +60,7 @@ class TopicReadingRepository implements ForumRepository {
   public deleteBookmarkResults: Array<RepositoryResult<boolean>> = [];
   public markTopicReadResults: Array<RepositoryResult<boolean>> = [];
   public clearNotificationResults: Array<RepositoryResult<number>> = [];
+  public clearNotificationTasks: Array<Promise<RepositoryResult<number>>> = [];
   public categoryTopicResults: Array<RepositoryResult<Array<Topic>>> = [];
   public topicDetailTasks: Array<Promise<RepositoryResult<TopicDetail>>> = [];
   public categoryTopicTasks: Array<Promise<RepositoryResult<Array<Topic>>>> = [];
@@ -162,6 +163,10 @@ class TopicReadingRepository implements ForumRepository {
     upToPostNumber: number
   ): Promise<RepositoryResult<number>> {
     this.requestedNotificationProgress.push(`${topicId}:${upToPostNumber}`);
+    const task: Promise<RepositoryResult<number>> | undefined = this.clearNotificationTasks.shift();
+    if (task !== undefined) {
+      return await task;
+    }
     return this.clearNotificationResults.shift() ?? RepositoryResult.success<number>(0);
   }
 
@@ -771,6 +776,38 @@ export default function topicReadingTest(): void {
 
       await model.reportTopicReadProgress(2);
       expect(repository.requestedReadTimings.length).assertEqual(2);
+      done();
+    });
+
+    it('publishes read progress before notification cleanup finishes', 0, async (done: Function) => {
+      const repository: TopicReadingRepository = new TopicReadingRepository();
+      repository.topicDetailResults.push(RepositoryResult.success<TopicDetail>(new TopicDetail(
+        2725, '阅读进度', 10, 5, 0, false, false, true,
+        [102728, 102729, 102730], [firstPost(), secondPost(), thirdPost()]
+      )));
+      repository.markTopicReadResults.push(RepositoryResult.success<boolean>(true));
+      const pendingCleanup: PendingRepositoryResult<number> = new PendingRepositoryResult<number>();
+      repository.clearNotificationTasks.push(pendingCleanup.promise);
+      const model: AppShellModel = new AppShellModel(
+        repository, new MemoryCategoryCache(), CategoryCacheScope.anonymous()
+      );
+      await model.openTopic(topic());
+
+      let completed: boolean = false;
+      const progressTask: Promise<void> = model.reportTopicReadProgress(3);
+      progressTask.then((): void => {
+        completed = true;
+      });
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(model.topicState.readProgressState.lastReadPostNumber).assertEqual(3);
+      expect(repository.requestedNotificationProgress.join(',')).assertEqual('2725:3');
+      expect(completed).assertTrue();
+
+      pendingCleanup.complete(RepositoryResult.success<number>(0));
+      await progressTask;
       done();
     });
 

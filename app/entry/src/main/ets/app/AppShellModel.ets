@@ -1238,9 +1238,13 @@ export class AppShellModel {
       this.topicState,
       TopicReadProgressState.idle(reportedPostNumber)
     );
+    this.clearTopicNotificationsInBackground(detail.id, reportedPostNumber);
+  }
+
+  private async clearTopicNotificationsInBackground(topicId: number, upToPostNumber: number): Promise<void> {
     const notificationResult: RepositoryResult<number> = await this.repository.clearTopicNotifications(
-      detail.id,
-      reportedPostNumber
+      topicId,
+      upToPostNumber
     );
     if (notificationResult.isUnauthorized()) {
       this.requiresAuthentication = true;
