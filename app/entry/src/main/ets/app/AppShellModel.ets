@@ -963,6 +963,23 @@ export class AppShellModel {
     if (result.isUnauthorized()) {
       this.requiresAuthentication = true;
       await this.notifyUnauthorized(true);
+      return result;
+    }
+    if (!result.isSuccess() || result.data === null || result.data.defaultHomeChannel !== null) {
+      return result;
+    }
+    const profileResult: RepositoryResult<CurrentUser> =
+      await this.repository.loadUserProfile(result.data.username);
+    if (profileResult.isUnauthorized()) {
+      this.requiresAuthentication = true;
+      await this.notifyUnauthorized(true);
+      return profileResult;
+    }
+    if (profileResult.isSuccess() && profileResult.data?.defaultHomeChannel !== null &&
+      profileResult.data?.defaultHomeChannel !== undefined) {
+      return RepositoryResult.success<CurrentUser>(
+        result.data.withDefaultHomeChannel(profileResult.data.defaultHomeChannel)
+      );
     }
     return result;
   }

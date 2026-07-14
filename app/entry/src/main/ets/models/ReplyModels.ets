@@ -154,6 +154,30 @@ export class CurrentUser {
       attributes.defaultHomeChannel ?? null
     );
   }
+
+  public withDefaultHomeChannel(channel: HomeChannel): CurrentUser {
+    return new CurrentUser(
+      this.id,
+      this.username,
+      this.displayName,
+      this.title,
+      this.admin,
+      this.moderator,
+      this.trustLevel,
+      this.canCreatePost,
+      this.canChat,
+      this.canDirectMessage,
+      this.canChatWithUser,
+      this.unreadNotifications,
+      this.groups,
+      this.groupIds,
+      this.primaryGroupId,
+      this.flairGroupId,
+      this.isVerified,
+      this.roleLabel,
+      channel
+    );
+  }
 }
 
 export class ReplyRequest {

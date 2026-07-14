@@ -186,6 +186,21 @@ export class DiscourseForumRepository implements ForumRepository {
     return this.parser.parseCurrentUser(response.body);
   }
 
+  public async loadUserProfile(username: string): Promise<RepositoryResult<CurrentUser>> {
+    const normalizedUsername: string = username.trim();
+    if (normalizedUsername.length === 0) {
+      return RepositoryResult.failure<CurrentUser>('用户名无效');
+    }
+    const response: HttpTextResult = await this.client.get(`/u/${encodeURIComponent(normalizedUsername)}.json`);
+    if (response.kind === HttpTextResultKind.UNAUTHORIZED) {
+      return RepositoryResult.unauthorized<CurrentUser>();
+    }
+    if (!response.isSuccess()) {
+      return RepositoryResult.failure<CurrentUser>(response.message);
+    }
+    return this.parser.parseUserProfile(response.body);
+  }
+
   public async recoverReply(request: ReplyRecoveryRequest): Promise<ReplyRecoveryResult> {
     const response: HttpTextResult = await this.client.get(
       `/t/${request.reply.topicId}/${request.expectedPostNumber}.json?track_visit=true`

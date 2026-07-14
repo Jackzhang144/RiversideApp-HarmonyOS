@@ -28,6 +28,8 @@ export interface ForumRepository {
 
   loadCurrentUser(): Promise<RepositoryResult<CurrentUser>>;
 
+  loadUserProfile(username: string): Promise<RepositoryResult<CurrentUser>>;
+
   submitReply(request: ReplyRequest): Promise<ReplySubmitResult>;
 
   recoverReply(request: ReplyRecoveryRequest): Promise<ReplyRecoveryResult>;

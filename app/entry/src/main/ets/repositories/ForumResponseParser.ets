@@ -616,6 +616,42 @@ function firstReplyPermission(envelope: JsonObjectReader, details: JsonObjectRea
 }
 
 export class ForumResponseParser {
+  private parseUser(user: JsonObjectReader): CurrentUser | null {
+    const id: number | null = user.number('id');
+    const username: string | null = user.string('username');
+    if (id === null || username === null) {
+      return null;
+    }
+    const groups: GroupMemberships = groupMemberships(user);
+    const userOption: JsonObjectReader | null = user.object('user_option');
+    return CurrentUser.create(
+      id,
+      username,
+      {
+        name: user.string('name') ?? '',
+        title: user.string('title') ?? user.string('user_title') ?? '',
+        admin: booleanOrFalse(user.boolean('admin')),
+        moderator: booleanOrFalse(user.boolean('moderator')),
+        trustLevel: numberOrZero(user.number('trust_level')),
+        canCreatePost: canCreatePost(user),
+        canChat: booleanOrFalse(user.boolean('can_chat')) ||
+          booleanOrFalse(user.boolean('has_chat_enabled')) ||
+          booleanOrFalse(userOption?.boolean('chat_enabled') ?? null),
+        canDirectMessage: booleanOrFalse(user.boolean('can_direct_message')) ||
+          booleanOrFalse(user.boolean('can_send_private_messages')),
+        canChatWithUser: booleanOrFalse(user.boolean('can_chat_user')) ||
+          booleanOrFalse(user.boolean('can_send_private_message_to_user')),
+        unreadNotifications: numberOrZero(user.number('unread_notifications')) +
+          numberOrZero(user.number('unread_high_priority_notifications')),
+        groupNames: groups.names,
+        groupIds: groups.ids,
+        primaryGroupId: user.number('primary_group_id'),
+        flairGroupId: user.number('flair_group_id'),
+        defaultHomeChannel: homeChannelFromUserOption(userOption)
+      }
+    );
+  }
+
   public parseSearch(text: string): RepositoryResult<ForumSearchResult> {
     const envelope: JsonObjectReader | null = JsonObjectReader.parse(text);
     if (envelope === null) {
@@ -804,40 +840,18 @@ export class ForumResponseParser {
     if (user === null) {
       return RepositoryResult.failure<CurrentUser>('服务器响应缺少当前用户');
     }
-    const id: number | null = user.number('id');
-    const username: string | null = user.string('username');
-    const groups: GroupMemberships = groupMemberships(user);
-    const userOption: JsonObjectReader | null = user.object('user_option');
-    const currentUser: CurrentUser | null = id === null || username === null
-      ? null
-      : CurrentUser.create(
-        id,
-        username,
-        {
-          name: user.string('name') ?? '',
-          title: user.string('title') ?? user.string('user_title') ?? '',
-          admin: booleanOrFalse(user.boolean('admin')),
-          moderator: booleanOrFalse(user.boolean('moderator')),
-          trustLevel: numberOrZero(user.number('trust_level')),
-          canCreatePost: canCreatePost(user),
-          canChat: booleanOrFalse(user.boolean('can_chat')) ||
-            booleanOrFalse(user.boolean('has_chat_enabled')) ||
-            booleanOrFalse(userOption?.boolean('chat_enabled') ?? null),
-          canDirectMessage: booleanOrFalse(user.boolean('can_direct_message')) ||
-            booleanOrFalse(user.boolean('can_send_private_messages')),
-          canChatWithUser: booleanOrFalse(user.boolean('can_chat_user')) ||
-            booleanOrFalse(user.boolean('can_send_private_message_to_user')),
-          unreadNotifications: numberOrZero(user.number('unread_notifications')) +
-            numberOrZero(user.number('unread_high_priority_notifications')),
-          groupNames: groups.names,
-          groupIds: groups.ids,
-          primaryGroupId: user.number('primary_group_id'),
-          flairGroupId: user.number('flair_group_id'),
-          defaultHomeChannel: homeChannelFromUserOption(userOption)
-        }
-      );
+    const currentUser: CurrentUser | null = this.parseUser(user);
     return currentUser === null
       ? RepositoryResult.failure<CurrentUser>('服务器响应缺少当前用户')
+      : RepositoryResult.success<CurrentUser>(currentUser);
+  }
+
+  public parseUserProfile(text: string): RepositoryResult<CurrentUser> {
+    const envelope: JsonObjectReader | null = JsonObjectReader.parse(text);
+    const user: JsonObjectReader | null = envelope?.object('user') ?? null;
+    const currentUser: CurrentUser | null = user === null ? null : this.parseUser(user);
+    return currentUser === null
+      ? RepositoryResult.failure<CurrentUser>('服务器响应缺少用户 Profile')
       : RepositoryResult.success<CurrentUser>(currentUser);
   }
 

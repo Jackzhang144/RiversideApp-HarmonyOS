@@ -113,6 +113,10 @@ class TopicReadingRepository implements ForumRepository {
     return result ?? RepositoryResult.failure<CurrentUser>('missing current user result');
   }
 
+  public async loadUserProfile(_username: string): Promise<RepositoryResult<CurrentUser>> {
+    return RepositoryResult.failure<CurrentUser>('missing user profile result');
+  }
+
   public async recoverReply(request: ReplyRecoveryRequest): Promise<ReplyRecoveryResult> {
     this.recoveryRequests.push(request);
     const result: ReplyRecoveryResult | undefined = this.replyRecoveryResults.shift();

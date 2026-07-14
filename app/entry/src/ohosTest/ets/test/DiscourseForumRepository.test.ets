@@ -286,6 +286,21 @@ export default function discourseForumRepositoryTest(): void {
       done();
     });
 
+    it('loads the user Profile used as the Home preference fallback', 0, async (done: Function) => {
+      const client: StubForumHttpClient = new StubForumHttpClient();
+      client.results.push(HttpTextResult.success(200,
+        '{"user":{"id":24,"username":"member","user_option":{"homepage_id":4}}}'
+      ));
+      const repository: DiscourseForumRepository = new DiscourseForumRepository(client);
+
+      const result: RepositoryResult<CurrentUser> = await repository.loadUserProfile(' member ');
+
+      expect(client.paths[0]).assertEqual('/u/member.json');
+      expect(result.kind).assertEqual(RepositoryResultKind.SUCCESS);
+      expect(result.data?.defaultHomeChannel).assertEqual(HomeChannel.LATEST_CREATED);
+      done();
+    });
+
     it('honors explicit denial, account restrictions, and verification group ids', 0, async (done: Function) => {
       const client: StubForumHttpClient = new StubForumHttpClient();
       client.results.push(HttpTextResult.success(200,

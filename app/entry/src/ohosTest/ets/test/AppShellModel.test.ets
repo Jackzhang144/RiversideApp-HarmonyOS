@@ -39,6 +39,8 @@ class StubForumRepository implements ForumRepository {
   public categoryResults: Array<RepositoryResult<Array<Category>>> = [];
   public categoryTopicResults: Array<RepositoryResult<Array<Topic>>> = [];
   public searchResults: Array<RepositoryResult<ForumSearchResult>> = [];
+  public currentUserResults: Array<RepositoryResult<CurrentUser>> = [];
+  public userProfileResults: Array<RepositoryResult<CurrentUser>> = [];
   public latestCallCount: number = 0;
   public categoryCallCount: number = 0;
   public requestedHomeChannels: Array<HomeChannel> = [];
@@ -93,7 +95,13 @@ class StubForumRepository implements ForumRepository {
   }
 
   public async loadCurrentUser(): Promise<RepositoryResult<CurrentUser>> {
-    return RepositoryResult.failure<CurrentUser>('missing current user result');
+    const result: RepositoryResult<CurrentUser> | undefined = this.currentUserResults.shift();
+    return result ?? RepositoryResult.failure<CurrentUser>('missing current user result');
+  }
+
+  public async loadUserProfile(_username: string): Promise<RepositoryResult<CurrentUser>> {
+    const result: RepositoryResult<CurrentUser> | undefined = this.userProfileResults.shift();
+    return result ?? RepositoryResult.failure<CurrentUser>('missing user profile result');
   }
 
   public async recoverReply(_request: ReplyRecoveryRequest): Promise<ReplyRecoveryResult> {
@@ -366,6 +374,36 @@ export default function appShellModelTest(): void {
       expect(await model.applyServerHomeChannel(HomeChannel.LATEST_CREATED)).assertTrue();
       expect(model.selectedHomeChannel).assertEqual(HomeChannel.LATEST_CREATED);
       expect(settings.stored?.homeChannel).assertEqual(HomeChannel.LATEST_CREATED);
+      done();
+    });
+
+    it('falls back to the user Profile for a missing session Home preference', 0, async (done: Function) => {
+      const repository: StubForumRepository = new StubForumRepository();
+      const sessionUser: CurrentUser | null = CurrentUser.create(24, 'member', {
+        name: '会话身份',
+        canCreatePost: false
+      });
+      const profileUser: CurrentUser | null = CurrentUser.create(24, 'member', {
+        defaultHomeChannel: HomeChannel.HOT
+      });
+      if (sessionUser === null || profileUser === null) {
+        expect(false).assertTrue();
+        done();
+        return;
+      }
+      repository.currentUserResults.push(RepositoryResult.success(sessionUser));
+      repository.userProfileResults.push(RepositoryResult.success(profileUser));
+      const model: AppShellModel = new AppShellModel(
+        repository,
+        new MemoryCategoryCache(),
+        CategoryCacheScope.anonymous()
+      );
+
+      const result: RepositoryResult<CurrentUser> = await model.loadCurrentUser();
+
+      expect(result.data?.displayName).assertEqual('会话身份');
+      expect(result.data?.canReply).assertFalse();
+      expect(result.data?.defaultHomeChannel).assertEqual(HomeChannel.HOT);
       done();
     });
 
