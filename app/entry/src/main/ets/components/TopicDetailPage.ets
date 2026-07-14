@@ -300,9 +300,15 @@ export struct TopicDetailPage {
         }, (reaction: PostReaction): string => reaction.id)
         this.ReactionTrigger(post)
         Button() {
-          SymbolGlyph($r('sys.symbol.bookmark'))
-            .fontSize(18)
-            .fontColor([post.bookmarked ? '#FFFFFF' : '#2068C9'])
+          if (post.bookmarked) {
+            SymbolGlyph($r('sys.symbol.bookmark_fill'))
+              .fontSize(18)
+              .fontColor(['#FFFFFF'])
+          } else {
+            SymbolGlyph($r('sys.symbol.bookmark'))
+              .fontSize(18)
+              .fontColor(['#2068C9'])
+          }
         }
         .width(42)
         .height(34)
