@@ -102,6 +102,25 @@ export default function discourseForumRepositoryTest(): void {
         done();
       });
 
+    it('accepts nullable Topic results and string tags returned by Discourse', 0, async (done: Function) => {
+      const client: StubForumHttpClient = new StubForumHttpClient();
+      client.results.push(HttpTextResult.success(200,
+        '{"posts":[],"topics":null,"users":[{"id":38290,"username":"river"}],' +
+        '"categories":[],"tags":["2-tag"],"groups":[],' +
+        '"grouped_search_result":{"more_full_page_results":false,"more_tags":true}}'
+      ));
+      const repository: DiscourseForumRepository = new DiscourseForumRepository(client);
+
+      const result: RepositoryResult<ForumSearchResult> = await repository.searchForum('river', 1);
+
+      expect(result.kind).assertEqual(RepositoryResultKind.SUCCESS);
+      expect(result.data?.topics.length).assertEqual(0);
+      expect(result.data?.users[0].username).assertEqual('river');
+      expect(result.data?.tags[0].name).assertEqual('2-tag');
+      expect(result.data?.hasMore).assertTrue();
+      done();
+    });
+
     it('loads topic search suggestions and rejects blank search without transport', 0, async (done: Function) => {
       const client: StubForumHttpClient = new StubForumHttpClient();
       client.results.push(HttpTextResult.success(200,

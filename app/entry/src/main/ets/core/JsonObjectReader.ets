@@ -52,6 +52,10 @@ export class JsonObjectReader {
     return false;
   }
 
+  public isNull(name: string): boolean {
+    return this.has(name) && this.property(name) === null;
+  }
+
   public array(name: string): Array<Object | null> | null {
     const value: Object | null = this.property(name);
     if (!Array.isArray(value)) {

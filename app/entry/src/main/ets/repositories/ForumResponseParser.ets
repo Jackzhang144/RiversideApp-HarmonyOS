@@ -627,12 +627,12 @@ export class ForumResponseParser {
     const categoryValues: Array<Object | null> | null = envelope.array('categories');
     const tagValues: Array<Object | null> | null = envelope.array('tags');
     const groupValues: Array<Object | null> | null = envelope.array('groups');
-    if ((envelope.has('posts') && postValues === null) ||
-      (envelope.has('topics') && topicValues === null) ||
-      (envelope.has('users') && userValues === null) ||
-      (envelope.has('categories') && categoryValues === null) ||
-      (envelope.has('tags') && tagValues === null) ||
-      (envelope.has('groups') && groupValues === null)) {
+    if ((envelope.has('posts') && postValues === null && !envelope.isNull('posts')) ||
+      (envelope.has('topics') && topicValues === null && !envelope.isNull('topics')) ||
+      (envelope.has('users') && userValues === null && !envelope.isNull('users')) ||
+      (envelope.has('categories') && categoryValues === null && !envelope.isNull('categories')) ||
+      (envelope.has('tags') && tagValues === null && !envelope.isNull('tags')) ||
+      (envelope.has('groups') && groupValues === null && !envelope.isNull('groups'))) {
       return RepositoryResult.failure<ForumSearchResult>('服务器搜索响应格式无效');
     }
 
@@ -736,6 +736,13 @@ export class ForumResponseParser {
 
     const tags: Array<SearchTag> = [];
     for (const value of tagValues ?? []) {
+      if (typeof value === 'string') {
+        const name: string = value.trim();
+        if (name.length > 0) {
+          tags.push(new SearchTag(name, name, 0));
+        }
+        continue;
+      }
       const tag: JsonObjectReader | null = JsonObjectReader.fromValue(value);
       const name: string | null = tag?.string('name') ?? null;
       if (tag !== null && name !== null && name.trim().length > 0) {
@@ -766,7 +773,8 @@ export class ForumResponseParser {
     const grouped: JsonObjectReader | null = envelope.object('grouped_search_result');
     const hasMore: boolean = grouped?.boolean('more_full_page_results') === true ||
       grouped?.boolean('more_posts') === true || grouped?.boolean('more_users') === true ||
-      grouped?.boolean('more_categories') === true;
+      grouped?.boolean('more_categories') === true || grouped?.boolean('more_tags') === true ||
+      grouped?.boolean('more_groups') === true;
     return RepositoryResult.success<ForumSearchResult>(
       new ForumSearchResult(topics, posts, users, categories, tags, groups, hasMore)
     );
@@ -775,7 +783,8 @@ export class ForumResponseParser {
   public parseSearchSuggestions(text: string): RepositoryResult<Array<string>> {
     const envelope: JsonObjectReader | null = JsonObjectReader.parse(text);
     const topicValues: Array<Object | null> | null = envelope?.array('topics') ?? null;
-    if (envelope === null || (envelope.has('topics') && topicValues === null)) {
+    if (envelope === null ||
+      (envelope.has('topics') && topicValues === null && !envelope.isNull('topics'))) {
       return RepositoryResult.failure<Array<string>>('服务器搜索建议格式无效');
     }
     const suggestions: Array<string> = [];
