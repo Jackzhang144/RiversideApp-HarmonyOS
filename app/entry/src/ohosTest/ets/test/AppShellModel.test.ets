@@ -21,6 +21,14 @@ import {
   SearchUser
 } from '../../../main/ets/models/DiscoveryModels';
 import {
+  CreateTopicRequest,
+  DraftWriteRequest,
+  EditPostRequest,
+  EditTopicRequest,
+  ServerDraft,
+  TopicSubmitResult
+} from '../../../main/ets/models/AuthoringModels';
+import {
   CurrentUser,
   ReplyRecoveryRequest,
   ReplyRecoveryResult,
@@ -137,6 +145,30 @@ class StubForumRepository implements ForumRepository {
 
   public async recoverReply(_request: ReplyRecoveryRequest): Promise<ReplyRecoveryResult> {
     return ReplyRecoveryResult.failed('missing Reply recovery result');
+  }
+
+  public async submitTopic(_request: CreateTopicRequest): Promise<TopicSubmitResult> {
+    return TopicSubmitResult.rejected('missing Topic result');
+  }
+
+  public async editPost(_request: EditPostRequest): Promise<RepositoryResult<boolean>> {
+    return RepositoryResult.failure<boolean>('missing Post edit result');
+  }
+
+  public async editTopic(_request: EditTopicRequest): Promise<RepositoryResult<boolean>> {
+    return RepositoryResult.failure<boolean>('missing Topic edit result');
+  }
+
+  public async loadDrafts(): Promise<RepositoryResult<Array<ServerDraft>>> {
+    return RepositoryResult.success<Array<ServerDraft>>([]);
+  }
+
+  public async saveDraft(_request: DraftWriteRequest): Promise<RepositoryResult<number>> {
+    return RepositoryResult.failure<number>('missing draft result');
+  }
+
+  public async deleteDraft(_draftKey: string, _sequence: number): Promise<RepositoryResult<boolean>> {
+    return RepositoryResult.failure<boolean>('missing draft delete result');
   }
 }
 

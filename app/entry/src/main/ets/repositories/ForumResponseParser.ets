@@ -19,6 +19,7 @@ import {
   SearchUser
 } from '../models/DiscoveryModels';
 import { CurrentUser } from '../models/ReplyModels';
+import { ServerDraft } from '../models/AuthoringModels';
 
 interface UserDto {
   id: number | null;
@@ -159,6 +160,23 @@ function numberOrZero(value: number | null): number {
 
 function booleanOrFalse(value: boolean | null): boolean {
   return value === true;
+}
+
+function integerFromReader(reader: JsonObjectReader, names: Array<string>): number | null {
+  for (const name of names) {
+    const numeric: number | null = reader.number(name);
+    if (numeric !== null && Number.isInteger(numeric)) {
+      return numeric;
+    }
+    const text: string | null = reader.string(name);
+    if (text !== null && /^\d+$/.test(text.trim())) {
+      const parsed: number = Number.parseInt(text.trim(), 10);
+      if (Number.isInteger(parsed)) {
+        return parsed;
+      }
+    }
+  }
+  return null;
 }
 
 class GroupMemberships {
@@ -1155,5 +1173,61 @@ export class ForumResponseParser {
     return post === null
       ? RepositoryResult.failure<ForumPost>('服务器响应缺少已创建的 Reply')
       : RepositoryResult.success<ForumPost>(post);
+  }
+
+  public parseCreatedTopicId(text: string): RepositoryResult<number> {
+    const envelope: JsonObjectReader | null = JsonObjectReader.parse(text);
+    const topicId: number | null = envelope === null
+      ? null
+      : integerFromReader(envelope, ['topic_id', 'id']);
+    return topicId === null || topicId <= 0
+      ? RepositoryResult.failure<number>('服务器发帖响应格式无效')
+      : RepositoryResult.success<number>(topicId);
+  }
+
+  public parseDraftSequence(text: string): RepositoryResult<number> {
+    const envelope: JsonObjectReader | null = JsonObjectReader.parse(text);
+    const sequence: number | null = envelope === null
+      ? null
+      : integerFromReader(envelope, ['draft_sequence', 'sequence']);
+    return sequence === null || sequence < 0
+      ? RepositoryResult.failure<number>('服务器草稿响应格式无效')
+      : RepositoryResult.success<number>(sequence);
+  }
+
+  public parseServerDrafts(text: string): RepositoryResult<Array<ServerDraft>> {
+    const envelope: JsonObjectReader | null = JsonObjectReader.parse(text);
+    const values: Array<Object | null> | null = envelope?.array('drafts') ?? null;
+    if (envelope === null || values === null) {
+      return RepositoryResult.failure<Array<ServerDraft>>('服务器草稿响应格式无效');
+    }
+    const drafts: Array<ServerDraft> = [];
+    for (const value of values) {
+      const item: JsonObjectReader | null = JsonObjectReader.fromValue(value);
+      if (item === null) {
+        continue;
+      }
+      const draftKey: string = item.string('draft_key')?.trim() ?? '';
+      const sequence: number | null = integerFromReader(item, ['sequence']);
+      let data: JsonObjectReader | null = item.object('data');
+      if (data === null) {
+        const encodedData: string | null = item.string('data');
+        data = encodedData === null ? null : JsonObjectReader.parse(encodedData);
+      }
+      if (draftKey.length === 0 || sequence === null || sequence < 0 || data === null) {
+        continue;
+      }
+      drafts.push(new ServerDraft(
+        draftKey,
+        sequence,
+        data.string('action') ?? '',
+        data.string('title') ?? item.string('title') ?? '',
+        data.string('reply') ?? data.string('raw') ?? '',
+        integerFromReader(data, ['category_id', 'categoryId']),
+        integerFromReader(data, ['topic_id', 'topicId']),
+        integerFromReader(data, ['reply_to_post_number', 'replyToPostNumber'])
+      ));
+    }
+    return RepositoryResult.success<Array<ServerDraft>>(drafts);
   }
 }

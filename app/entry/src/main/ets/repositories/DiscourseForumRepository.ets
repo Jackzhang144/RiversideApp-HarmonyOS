@@ -2,6 +2,14 @@ import { RepositoryResult } from '../core/RepositoryResult';
 import { Category, ForumPost, Topic, TopicDetail, TopicPostBatch } from '../models/ForumModels';
 import { ForumSearchResult, HomeChannel, homeChannelPath } from '../models/DiscoveryModels';
 import {
+  CreateTopicRequest,
+  DraftWriteRequest,
+  EditPostRequest,
+  EditTopicRequest,
+  ServerDraft,
+  TopicSubmitResult
+} from '../models/AuthoringModels';
+import {
   CurrentUser,
   ReplyRecoveryRequest,
   ReplyRecoveryResult,
@@ -11,6 +19,12 @@ import {
 import { ForumHttpClient, HttpTextResult, HttpTextResultKind } from '../network/DiscourseHttpClient';
 import { ForumRepository } from './ForumRepository';
 import { ForumResponseParser } from './ForumResponseParser';
+
+interface DraftSavePayload {
+  draft_key: string;
+  data: string;
+  sequence: number;
+}
 
 export class DiscourseForumRepository implements ForumRepository {
   private readonly client: ForumHttpClient;
@@ -364,5 +378,88 @@ export class DiscourseForumRepository implements ForumRepository {
     return candidates.length === 0
       ? ReplyRecoveryResult.notFound()
       : ReplyRecoveryResult.confirmed(candidates[0]);
+  }
+
+  public async submitTopic(request: CreateTopicRequest): Promise<TopicSubmitResult> {
+    const response: HttpTextResult = await this.client.postJson(
+      '/posts.json',
+      JSON.stringify(request.toHttpExtraData())
+    );
+    if (response.kind === HttpTextResultKind.UNAUTHORIZED) {
+      return TopicSubmitResult.unauthorized();
+    }
+    if (!response.isSuccess()) {
+      const uncertain: boolean = response.statusCode === 0 || response.statusCode === 408 || response.statusCode >= 500;
+      return uncertain ? TopicSubmitResult.uncertain(response.message) : TopicSubmitResult.rejected(response.message);
+    }
+    const parsed: RepositoryResult<number> = this.parser.parseCreatedTopicId(response.body);
+    return parsed.data === null || !parsed.isSuccess()
+      ? TopicSubmitResult.uncertain(parsed.message)
+      : TopicSubmitResult.created(parsed.data);
+  }
+
+  public async editPost(request: EditPostRequest): Promise<RepositoryResult<boolean>> {
+    const body: string = `post%5Braw%5D=${encodeURIComponent(request.raw)}&post%5Bedit_reason%5D=`;
+    return this.booleanWriteResult(await this.client.putForm(`/posts/${request.postId}`, body));
+  }
+
+  public async editTopic(request: EditTopicRequest): Promise<RepositoryResult<boolean>> {
+    const parts: Array<string> = [
+      `title=${encodeURIComponent(request.title)}`,
+      `category_id=${request.categoryId}`
+    ];
+    if (request.originalTitle.length > 0) {
+      parts.push(`original_title=${encodeURIComponent(request.originalTitle)}`);
+    }
+    return this.booleanWriteResult(
+      await this.client.putForm(`/t/-/${request.topicId}.json`, parts.join('&'))
+    );
+  }
+
+  public async loadDrafts(): Promise<RepositoryResult<Array<ServerDraft>>> {
+    const response: HttpTextResult = await this.client.get('/drafts.json');
+    if (response.kind === HttpTextResultKind.UNAUTHORIZED) {
+      return RepositoryResult.unauthorized<Array<ServerDraft>>();
+    }
+    if (!response.isSuccess()) {
+      return RepositoryResult.failure<Array<ServerDraft>>(response.message);
+    }
+    return this.parser.parseServerDrafts(response.body);
+  }
+
+  public async saveDraft(request: DraftWriteRequest): Promise<RepositoryResult<number>> {
+    const payload: DraftSavePayload = {
+      draft_key: request.draftKey,
+      data: JSON.stringify(request.toData()),
+      sequence: request.sequence
+    };
+    const response: HttpTextResult = await this.client.postJson('/drafts.json', JSON.stringify(payload));
+    if (response.kind === HttpTextResultKind.UNAUTHORIZED) {
+      return RepositoryResult.unauthorized<number>();
+    }
+    if (!response.isSuccess()) {
+      return RepositoryResult.failure<number>(response.message);
+    }
+    return this.parser.parseDraftSequence(response.body);
+  }
+
+  public async deleteDraft(draftKey: string, sequence: number): Promise<RepositoryResult<boolean>> {
+    const normalizedKey: string = draftKey.trim();
+    if (normalizedKey.length === 0 || !Number.isInteger(sequence) || sequence < 0) {
+      return RepositoryResult.failure<boolean>('草稿标识无效');
+    }
+    const body: string = `draft_key=${encodeURIComponent(normalizedKey)}&sequence=${sequence}`;
+    return this.booleanWriteResult(
+      await this.client.deleteForm(`/drafts/${encodeURIComponent(normalizedKey)}.json`, body)
+    );
+  }
+
+  private booleanWriteResult(response: HttpTextResult): RepositoryResult<boolean> {
+    if (response.kind === HttpTextResultKind.UNAUTHORIZED) {
+      return RepositoryResult.unauthorized<boolean>();
+    }
+    return response.isSuccess()
+      ? RepositoryResult.success<boolean>(true)
+      : RepositoryResult.failure<boolean>(response.message);
   }
 }

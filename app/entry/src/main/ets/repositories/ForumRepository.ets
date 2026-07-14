@@ -2,6 +2,14 @@ import { RepositoryResult } from '../core/RepositoryResult';
 import { Category, ForumPost, Topic, TopicDetail, TopicPostBatch } from '../models/ForumModels';
 import { ForumSearchResult, HomeChannel } from '../models/DiscoveryModels';
 import {
+  CreateTopicRequest,
+  DraftWriteRequest,
+  EditPostRequest,
+  EditTopicRequest,
+  ServerDraft,
+  TopicSubmitResult
+} from '../models/AuthoringModels';
+import {
   CurrentUser,
   ReplyRecoveryRequest,
   ReplyRecoveryResult,
@@ -49,4 +57,16 @@ export interface ForumRepository {
   submitReply(request: ReplyRequest): Promise<ReplySubmitResult>;
 
   recoverReply(request: ReplyRecoveryRequest): Promise<ReplyRecoveryResult>;
+
+  submitTopic(request: CreateTopicRequest): Promise<TopicSubmitResult>;
+
+  editPost(request: EditPostRequest): Promise<RepositoryResult<boolean>>;
+
+  editTopic(request: EditTopicRequest): Promise<RepositoryResult<boolean>>;
+
+  loadDrafts(): Promise<RepositoryResult<Array<ServerDraft>>>;
+
+  saveDraft(request: DraftWriteRequest): Promise<RepositoryResult<number>>;
+
+  deleteDraft(draftKey: string, sequence: number): Promise<RepositoryResult<boolean>>;
 }

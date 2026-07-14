@@ -9,6 +9,246 @@ const MULTIPLE_POLL_TEMPLATE: string =
   '[poll name=poll2 type=multiple results=always min=1 max=2 public=true chartType=bar]\n' +
     '* 1\n* 2\n* 3\n[/poll]';
 
+interface TopicCreatePayload {
+  title: string;
+  raw: string;
+  category: number;
+}
+
+interface DraftDataPayload {
+  action: string;
+  title: string;
+  reply: string;
+  category_id?: number;
+  topic_id?: number;
+  reply_to_post_number?: number;
+}
+
+export class CreateTopicRequest {
+  public readonly title: string;
+  public readonly raw: string;
+  public readonly categoryId: number = AUTHORING_CATEGORY_ID;
+
+  private constructor(title: string, raw: string) {
+    this.title = title;
+    this.raw = raw;
+  }
+
+  public static create(title: string, raw: string): CreateTopicRequest | null {
+    const normalizedTitle: string = title.trim();
+    const normalizedRaw: string = raw.trim();
+    return normalizedTitle.length === 0 || normalizedRaw.length === 0
+      ? null
+      : new CreateTopicRequest(normalizedTitle, normalizedRaw);
+  }
+
+  public toHttpExtraData(): Object {
+    const payload: TopicCreatePayload = {
+      title: this.title,
+      raw: this.raw,
+      category: this.categoryId
+    };
+    return payload;
+  }
+}
+
+export class EditPostRequest {
+  public readonly postId: number;
+  public readonly raw: string;
+
+  private constructor(postId: number, raw: string) {
+    this.postId = postId;
+    this.raw = raw;
+  }
+
+  public static create(postId: number, raw: string): EditPostRequest | null {
+    const normalizedRaw: string = raw.trim();
+    return !Number.isInteger(postId) || postId <= 0 || normalizedRaw.length === 0
+      ? null
+      : new EditPostRequest(postId, normalizedRaw);
+  }
+}
+
+export class EditTopicRequest {
+  public readonly topicId: number;
+  public readonly title: string;
+  public readonly originalTitle: string;
+  public readonly categoryId: number = AUTHORING_CATEGORY_ID;
+
+  private constructor(topicId: number, title: string, originalTitle: string) {
+    this.topicId = topicId;
+    this.title = title;
+    this.originalTitle = originalTitle;
+  }
+
+  public static create(topicId: number, title: string, originalTitle: string): EditTopicRequest | null {
+    const normalizedTitle: string = title.trim();
+    const normalizedOriginalTitle: string = originalTitle.trim();
+    return !Number.isInteger(topicId) || topicId <= 0 || normalizedTitle.length === 0
+      ? null
+      : new EditTopicRequest(topicId, normalizedTitle, normalizedOriginalTitle);
+  }
+}
+
+export class ServerDraft {
+  public readonly draftKey: string;
+  public readonly sequence: number;
+  public readonly action: string;
+  public readonly title: string;
+  public readonly raw: string;
+  public readonly categoryId: number | null;
+  public readonly topicId: number | null;
+  public readonly replyToPostNumber: number | null;
+
+  public constructor(
+    draftKey: string,
+    sequence: number,
+    action: string,
+    title: string,
+    raw: string,
+    categoryId: number | null,
+    topicId: number | null,
+    replyToPostNumber: number | null
+  ) {
+    this.draftKey = draftKey;
+    this.sequence = Math.max(0, sequence);
+    this.action = action;
+    this.title = title;
+    this.raw = raw;
+    this.categoryId = categoryId;
+    this.topicId = topicId;
+    this.replyToPostNumber = replyToPostNumber;
+  }
+}
+
+export class DraftWriteRequest {
+  public readonly draftKey: string;
+  public readonly sequence: number;
+  public readonly action: string;
+  public readonly title: string;
+  public readonly raw: string;
+  public readonly categoryId: number | null;
+  public readonly topicId: number | null;
+  public readonly replyToPostNumber: number | null;
+
+  private constructor(
+    draftKey: string,
+    sequence: number,
+    action: string,
+    title: string,
+    raw: string,
+    categoryId: number | null,
+    topicId: number | null,
+    replyToPostNumber: number | null
+  ) {
+    this.draftKey = draftKey;
+    this.sequence = Math.max(0, sequence);
+    this.action = action;
+    this.title = title;
+    this.raw = raw;
+    this.categoryId = categoryId;
+    this.topicId = topicId;
+    this.replyToPostNumber = replyToPostNumber;
+  }
+
+  public static newTopic(title: string, raw: string, sequence: number = 0): DraftWriteRequest | null {
+    const normalizedTitle: string = title.trim();
+    const normalizedRaw: string = raw.trim();
+    if (normalizedTitle.length === 0 && normalizedRaw.length === 0) {
+      return null;
+    }
+    return new DraftWriteRequest(
+      'new_topic',
+      sequence,
+      'createTopic',
+      normalizedTitle,
+      normalizedRaw,
+      AUTHORING_CATEGORY_ID,
+      null,
+      null
+    );
+  }
+
+  public static reply(
+    topicId: number,
+    raw: string,
+    replyToPostNumber: number | null,
+    sequence: number = 0
+  ): DraftWriteRequest | null {
+    const normalizedRaw: string = raw.trim();
+    if (!Number.isInteger(topicId) || topicId <= 0 || normalizedRaw.length === 0) {
+      return null;
+    }
+    const normalizedReplyTo: number | null = replyToPostNumber !== null &&
+      Number.isInteger(replyToPostNumber) && replyToPostNumber > 0
+      ? replyToPostNumber
+      : null;
+    return new DraftWriteRequest(
+      `topic_${topicId}`,
+      sequence,
+      'reply',
+      '',
+      normalizedRaw,
+      null,
+      topicId,
+      normalizedReplyTo
+    );
+  }
+
+  public toData(): Object {
+    const payload: DraftDataPayload = {
+      action: this.action,
+      title: this.title,
+      reply: this.raw
+    };
+    if (this.categoryId !== null) {
+      payload.category_id = this.categoryId;
+    }
+    if (this.topicId !== null) {
+      payload.topic_id = this.topicId;
+    }
+    if (this.replyToPostNumber !== null) {
+      payload.reply_to_post_number = this.replyToPostNumber;
+    }
+    return payload;
+  }
+}
+
+export enum TopicSubmitKind {
+  CREATED = 'created',
+  REJECTED = 'rejected',
+  UNCERTAIN = 'uncertain',
+  UNAUTHORIZED = 'unauthorized'
+}
+
+export class TopicSubmitResult {
+  public readonly kind: TopicSubmitKind;
+  public readonly topicId: number | null;
+  public readonly message: string;
+
+  private constructor(kind: TopicSubmitKind, topicId: number | null, message: string) {
+    this.kind = kind;
+    this.topicId = topicId;
+    this.message = message;
+  }
+
+  public static created(topicId: number): TopicSubmitResult {
+    return new TopicSubmitResult(TopicSubmitKind.CREATED, topicId, 'Topic 已发布');
+  }
+
+  public static rejected(message: string): TopicSubmitResult {
+    return new TopicSubmitResult(TopicSubmitKind.REJECTED, null, message);
+  }
+
+  public static uncertain(message: string): TopicSubmitResult {
+    return new TopicSubmitResult(TopicSubmitKind.UNCERTAIN, null, message);
+  }
+
+  public static unauthorized(): TopicSubmitResult {
+    return new TopicSubmitResult(TopicSubmitKind.UNAUTHORIZED, null, '登录已失效');
+  }
+}
+
 export enum ComposerTool {
   BOLD = 'bold',
   ITALIC = 'italic',

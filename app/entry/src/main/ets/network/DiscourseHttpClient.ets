@@ -160,6 +160,12 @@ export interface ForumHttpClient {
 
   postForm(path: string, body: string): Promise<HttpTextResult>;
 
+  postJson(path: string, body: string): Promise<HttpTextResult>;
+
+  putForm(path: string, body: string): Promise<HttpTextResult>;
+
+  deleteForm(path: string, body: string): Promise<HttpTextResult>;
+
   delete(path: string): Promise<HttpTextResult>;
 }
 
@@ -195,6 +201,18 @@ export class DiscourseHttpClient implements ForumHttpClient {
 
   public async postForm(path: string, body: string): Promise<HttpTextResult> {
     return await this.requestText(path, http.RequestMethod.POST, body, 'application/x-www-form-urlencoded');
+  }
+
+  public async postJson(path: string, body: string): Promise<HttpTextResult> {
+    return await this.requestText(path, http.RequestMethod.POST, body, 'application/json');
+  }
+
+  public async putForm(path: string, body: string): Promise<HttpTextResult> {
+    return await this.requestText(path, http.RequestMethod.PUT, body, 'application/x-www-form-urlencoded');
+  }
+
+  public async deleteForm(path: string, body: string): Promise<HttpTextResult> {
+    return await this.requestText(path, http.RequestMethod.DELETE, body, 'application/x-www-form-urlencoded');
   }
 
   public async delete(path: string): Promise<HttpTextResult> {

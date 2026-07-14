@@ -3,6 +3,15 @@ import { RepositoryResult, RepositoryResultKind } from '../../../main/ets/core/R
 import { ForumPost, Topic, TopicDetail, TopicPostBatch } from '../../../main/ets/models/ForumModels';
 import { ForumSearchResult, HomeChannel } from '../../../main/ets/models/DiscoveryModels';
 import {
+  CreateTopicRequest,
+  DraftWriteRequest,
+  EditPostRequest,
+  EditTopicRequest,
+  ServerDraft,
+  TopicSubmitKind,
+  TopicSubmitResult
+} from '../../../main/ets/models/AuthoringModels';
+import {
   CurrentUser,
   ReplyRecoveryKind,
   ReplyRecoveryRequest,
@@ -25,6 +34,12 @@ class StubForumHttpClient implements ForumHttpClient {
   public putPaths: Array<string> = [];
   public formRequests: Array<string> = [];
   public deletePaths: Array<string> = [];
+  public jsonPostResults: Array<HttpTextResult> = [];
+  public jsonPostRequests: Array<string> = [];
+  public formPutResults: Array<HttpTextResult> = [];
+  public formPutRequests: Array<string> = [];
+  public formDeleteResults: Array<HttpTextResult> = [];
+  public formDeleteRequests: Array<string> = [];
 
   public async get(path: string): Promise<HttpTextResult> {
     this.paths.push(path);
@@ -51,6 +66,21 @@ class StubForumHttpClient implements ForumHttpClient {
   public async delete(path: string): Promise<HttpTextResult> {
     this.deletePaths.push(path);
     return this.deleteResults.shift() ?? HttpTextResult.failure(0, 'missing DELETE result');
+  }
+
+  public async postJson(path: string, body: string): Promise<HttpTextResult> {
+    this.jsonPostRequests.push(`${path}|${body}`);
+    return this.jsonPostResults.shift() ?? HttpTextResult.failure(0, 'missing JSON POST result');
+  }
+
+  public async putForm(path: string, body: string): Promise<HttpTextResult> {
+    this.formPutRequests.push(`${path}|${body}`);
+    return this.formPutResults.shift() ?? HttpTextResult.failure(0, 'missing form PUT result');
+  }
+
+  public async deleteForm(path: string, body: string): Promise<HttpTextResult> {
+    this.formDeleteRequests.push(`${path}|${body}`);
+    return this.formDeleteResults.shift() ?? HttpTextResult.failure(0, 'missing form DELETE result');
   }
 }
 
@@ -373,6 +403,86 @@ export default function discourseForumRepositoryTest(): void {
       expect(result.post?.postNumber).assertEqual(4);
       done();
     });
+
+    it('creates Topics only in Category 111 and returns the created Topic id', 0, async (done: Function) => {
+      const client: StubForumHttpClient = new StubForumHttpClient();
+      client.jsonPostResults.push(HttpTextResult.success(200, '{"topic_id":19139}'));
+      const repository: DiscourseForumRepository = new DiscourseForumRepository(client);
+      const request: CreateTopicRequest | null = CreateTopicRequest.create('课程笔记', '**正文**');
+      if (request === null) {
+        expect(false).assertTrue();
+        done();
+        return;
+      }
+
+      const result: TopicSubmitResult = await repository.submitTopic(request);
+
+      expect(client.jsonPostRequests[0]).assertEqual(
+        '/posts.json|{"title":"课程笔记","raw":"**正文**","category":111}'
+      );
+      expect(result.kind).assertEqual(TopicSubmitKind.CREATED);
+      expect(result.topicId).assertEqual(19139);
+      done();
+    });
+
+    it('edits a permitted Topic title Category and first Post body through frozen paths', 0,
+      async (done: Function) => {
+        const client: StubForumHttpClient = new StubForumHttpClient();
+        client.formPutResults.push(HttpTextResult.success(200, '{}'));
+        client.formPutResults.push(HttpTextResult.success(200, '{}'));
+        const repository: DiscourseForumRepository = new DiscourseForumRepository(client);
+        const topicRequest: EditTopicRequest | null = EditTopicRequest.create(19139, '新标题', '旧标题');
+        const postRequest: EditPostRequest | null = EditPostRequest.create(103066, '更新后的正文');
+        if (topicRequest === null || postRequest === null) {
+          expect(false).assertTrue();
+          done();
+          return;
+        }
+
+        await repository.editTopic(topicRequest);
+        await repository.editPost(postRequest);
+
+        expect(client.formPutRequests[0]).assertEqual(
+          '/t/-/19139.json|title=%E6%96%B0%E6%A0%87%E9%A2%98&category_id=111&original_title=%E6%97%A7%E6%A0%87%E9%A2%98'
+        );
+        expect(client.formPutRequests[1]).assertEqual(
+          '/posts/103066|post%5Braw%5D=%E6%9B%B4%E6%96%B0%E5%90%8E%E7%9A%84%E6%AD%A3%E6%96%87&post%5Bedit_reason%5D='
+        );
+        done();
+      });
+
+    it('loads saves and deletes server drafts with their sequence and authoring context', 0,
+      async (done: Function) => {
+        const client: StubForumHttpClient = new StubForumHttpClient();
+        client.results.push(HttpTextResult.success(200,
+          '{"drafts":[{"draft_key":"new_topic","sequence":2,"data":{' +
+            '"action":"createTopic","title":"课程笔记","reply":"正文","category_id":111}}]}'
+        ));
+        client.jsonPostResults.push(HttpTextResult.success(200, '{"draft_sequence":3}'));
+        client.formDeleteResults.push(HttpTextResult.success(200, '{}'));
+        const repository: DiscourseForumRepository = new DiscourseForumRepository(client);
+
+        const drafts: RepositoryResult<Array<ServerDraft>> = await repository.loadDrafts();
+        const write: DraftWriteRequest | null = DraftWriteRequest.newTopic('课程笔记', '正文', 2);
+        if (write === null) {
+          expect(false).assertTrue();
+          done();
+          return;
+        }
+        const saved: RepositoryResult<number> = await repository.saveDraft(write);
+        const deleted: RepositoryResult<boolean> = await repository.deleteDraft('new_topic', 3);
+
+        expect(drafts.data?.[0].categoryId).assertEqual(111);
+        expect(drafts.data?.[0].sequence).assertEqual(2);
+        expect(client.jsonPostRequests[0]).assertEqual(
+          '/drafts.json|{"draft_key":"new_topic","data":"{\\"action\\":\\"createTopic\\",' +
+            '\\"title\\":\\"课程笔记\\",\\"reply\\":\\"正文\\",\\"category_id\\":111}","sequence":2}'
+        );
+        expect(saved.data).assertEqual(3);
+        expect(client.formDeleteRequests[0]).assertEqual('/drafts/new_topic.json|draft_key=new_topic&sequence=3');
+        expect(deleted.data).assertTrue();
+        done();
+      });
 
     it('accepts the direct Reply response fallback field names', 0, async (done: Function) => {
       const client: StubForumHttpClient = new StubForumHttpClient();
