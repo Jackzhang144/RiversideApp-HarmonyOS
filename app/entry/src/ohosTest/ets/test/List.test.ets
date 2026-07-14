@@ -14,6 +14,7 @@ import mediaModelsTest from './MediaModels.test';
 import mediaRepositoryTest from './MediaRepository.test';
 import profileManagementTest from './ProfileManagement.test';
 import profileManagementModelTest from './ProfileManagementModel.test';
+import profileContentModelTest from './ProfileContentModel.test';
 import replyBoundaryTest from './ReplyBoundary.test';
 import replyTransportTest from './ReplyTransport.test';
 import richContentTest from './RichContent.test';
@@ -38,6 +39,7 @@ export default function tests(): void {
   mediaRepositoryTest();
   profileManagementTest();
   profileManagementModelTest();
+  profileContentModelTest();
   replyBoundaryTest();
   replyTransportTest();
   richContentTest();

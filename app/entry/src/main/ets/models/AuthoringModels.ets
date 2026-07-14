@@ -151,14 +151,21 @@ export class DraftWriteRequest {
     this.replyToPostNumber = replyToPostNumber;
   }
 
-  public static newTopic(title: string, raw: string, sequence: number = 0): DraftWriteRequest | null {
+  public static newTopic(
+    title: string,
+    raw: string,
+    sequence: number = 0,
+    draftKey: string = 'new_topic'
+  ): DraftWriteRequest | null {
     const normalizedTitle: string = title.trim();
     const normalizedRaw: string = raw.trim();
-    if (normalizedTitle.length === 0 && normalizedRaw.length === 0) {
+    const normalizedDraftKey: string = draftKey.trim();
+    if ((normalizedTitle.length === 0 && normalizedRaw.length === 0) ||
+      !normalizedDraftKey.startsWith('new_topic')) {
       return null;
     }
     return new DraftWriteRequest(
-      'new_topic',
+      normalizedDraftKey,
       sequence,
       'createTopic',
       normalizedTitle,
@@ -173,10 +180,13 @@ export class DraftWriteRequest {
     topicId: number,
     raw: string,
     replyToPostNumber: number | null,
-    sequence: number = 0
+    sequence: number = 0,
+    draftKey: string = `topic_${topicId}`
   ): DraftWriteRequest | null {
     const normalizedRaw: string = raw.trim();
-    if (!Number.isInteger(topicId) || topicId <= 0 || normalizedRaw.length === 0) {
+    const normalizedDraftKey: string = draftKey.trim();
+    if (!Number.isInteger(topicId) || topicId <= 0 || normalizedRaw.length === 0 ||
+      normalizedDraftKey.length === 0) {
       return null;
     }
     const normalizedReplyTo: number | null = replyToPostNumber !== null &&
@@ -184,7 +194,7 @@ export class DraftWriteRequest {
       ? replyToPostNumber
       : null;
     return new DraftWriteRequest(
-      `topic_${topicId}`,
+      normalizedDraftKey,
       sequence,
       'reply',
       '',

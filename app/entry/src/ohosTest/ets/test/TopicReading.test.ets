@@ -1132,7 +1132,7 @@ export default function topicReadingTest(): void {
       async (done: Function) => {
         const repository: TopicReadingRepository = new TopicReadingRepository();
         repository.draftResults.push(RepositoryResult.success<Array<ServerDraft>>([
-          new ServerDraft('new_topic', 2, 'createTopic', '课程笔记', '草稿正文', 111, null, null)
+          new ServerDraft('new_topic_1720000000', 2, 'createTopic', '课程笔记', '草稿正文', 111, null, null)
         ]));
         repository.topicSubmitResults.push(
           TopicSubmitResult.rejected('标题不符合要求'),
@@ -1158,7 +1158,7 @@ export default function topicReadingTest(): void {
         expect(model.topicComposerState.kind).assertEqual(TopicComposerStateKind.SUCCESS);
         expect(model.topicComposerState.createdTopicId).assertEqual(19139);
         expect(repository.submittedTopics.length).assertEqual(2);
-        expect(repository.deletedDrafts[0]).assertEqual('new_topic:2');
+        expect(repository.deletedDrafts[0]).assertEqual('new_topic_1720000000:2');
         done();
       });
 

@@ -19,6 +19,8 @@ export interface ProfileSessionLifecycle {
   handleUnauthorized(): Promise<void>;
 }
 
+export type ProfileMediaStateListener = (state: MediaUploadState | null) => void;
+
 export enum ProfileViewStateKind {
   INITIAL = 'initial',
   LOADING = 'loading',
@@ -108,17 +110,29 @@ export class ProfileManagementModel {
   private readonly repository: ProfileRepository;
   private readonly sessionLifecycle: ProfileSessionLifecycle;
   private readonly mediaRepository: MediaRepository | null;
+  private readonly mediaStateListener: ProfileMediaStateListener;
   private activeUsername: string = '';
   private loadGeneration: number = 0;
+  private mutationGeneration: number = 0;
 
   public constructor(
     repository: ProfileRepository,
     sessionLifecycle: ProfileSessionLifecycle,
-    mediaRepository: MediaRepository | null = null
+    mediaRepository: MediaRepository | null = null,
+    mediaStateListener: ProfileMediaStateListener = (_state: MediaUploadState | null): void => {}
   ) {
     this.repository = repository;
     this.sessionLifecycle = sessionLifecycle;
     this.mediaRepository = mediaRepository;
+    this.mediaStateListener = mediaStateListener;
+  }
+
+  public reset(): void {
+    this.loadGeneration += 1;
+    this.mutationGeneration += 1;
+    this.activeUsername = '';
+    this.state = ProfileViewState.initial();
+    this.setMediaState(null);
   }
 
   public async loadProfile(username: string, includeEmails: boolean = false): Promise<void> {
@@ -129,6 +143,8 @@ export class ProfileManagementModel {
     }
     const generation: number = this.loadGeneration + 1;
     this.loadGeneration = generation;
+    this.mutationGeneration += 1;
+    this.setMediaState(null);
     this.activeUsername = normalizedUsername;
     this.state = ProfileViewState.loading();
     const profileResult: RepositoryResult<UserProfile> =
@@ -149,8 +165,7 @@ export class ProfileManagementModel {
       return;
     }
     if (summaryResult.kind === RepositoryResultKind.UNAUTHORIZED) {
-      await this.sessionLifecycle.handleUnauthorized();
-      this.state = ProfileViewState.content(profile, UserProfileSummary.unavailable(), null, summaryResult.message);
+      await this.invalidateSession(summaryResult.message);
       return;
     }
     const summary: UserProfileSummary = summaryResult.data ?? UserProfileSummary.unavailable();
@@ -165,8 +180,7 @@ export class ProfileManagementModel {
       return;
     }
     if (emailResult.kind === RepositoryResultKind.UNAUTHORIZED) {
-      await this.sessionLifecycle.handleUnauthorized();
-      this.state = ProfileViewState.content(profile, summary, null, emailResult.message);
+      await this.invalidateSession(emailResult.message);
       return;
     }
     const emailMessage: string = emailResult.kind === RepositoryResultKind.FAILURE
@@ -180,9 +194,9 @@ export class ProfileManagementModel {
     if (profile === null || request.username !== profile.username) {
       return false;
     }
-    this.state = ProfileViewState.content(profile, this.state.summary, this.state.emails, '', true);
+    const generation: number = this.beginMutation(profile);
     const result: RepositoryResult<boolean> = await this.repository.updateUserProfile(request);
-    return this.finishWrite(result);
+    return this.finishWrite(result, profile, generation);
   }
 
   public async setFollowing(following: boolean): Promise<boolean> {
@@ -190,9 +204,9 @@ export class ProfileManagementModel {
     if (profile === null || !profile.canFollow) {
       return false;
     }
-    this.state = ProfileViewState.content(profile, this.state.summary, this.state.emails, '', true);
+    const generation: number = this.beginMutation(profile);
     const result: RepositoryResult<boolean> = await this.repository.setUserFollowing(profile.username, following);
-    return this.finishWrite(result);
+    return this.finishWrite(result, profile, generation);
   }
 
   public async setNotificationLevel(
@@ -205,14 +219,14 @@ export class ProfileManagementModel {
       (level === ProfileNotificationLevel.IGNORED && !profile.canIgnore)) {
       return false;
     }
-    this.state = ProfileViewState.content(profile, this.state.summary, this.state.emails, '', true);
+    const generation: number = this.beginMutation(profile);
     const result: RepositoryResult<boolean> = await this.repository.setUserNotificationLevel(
       profile.username,
       level,
       actingUserId,
       expiringAt
     );
-    return this.finishWrite(result);
+    return this.finishWrite(result, profile, generation);
   }
 
   public async uploadAvatar(media: CachedMedia): Promise<boolean> {
@@ -224,21 +238,25 @@ export class ProfileManagementModel {
     if (request === null) {
       return false;
     }
-    const upload: RepositoryResult<MediaUploadResult> = await this.uploadMedia(request);
+    const generation: number = this.beginMutation(profile);
+    const upload: RepositoryResult<MediaUploadResult> = await this.uploadMedia(request, generation, profile.username);
+    if (!this.isMutationActive(generation, profile.username)) {
+      return false;
+    }
     if (!upload.isSuccess() || upload.data === null) {
-      await this.finishFailedUpload(upload);
+      await this.finishFailedUpload(upload, profile, generation);
       return false;
     }
     const selected: RepositoryResult<boolean> = await this.repository.pickUploadedAvatar(
       profile.username,
       upload.data.id
     );
-    const saved: boolean = await this.finishWrite(selected);
+    const saved: boolean = await this.finishWrite(selected, profile, generation);
     if (!saved) {
-      this.mediaState = this.mediaState?.failed(this.state.message) ?? null;
+      this.setMediaState(this.mediaState?.failed(this.state.message) ?? null);
       return false;
     }
-    this.mediaState = this.mediaState?.succeeded(upload.data) ?? null;
+    this.setMediaState(this.mediaState?.succeeded(upload.data) ?? null);
     return true;
   }
 
@@ -247,14 +265,30 @@ export class ProfileManagementModel {
     if (profile === null || this.mediaRepository === null || !profile.canUploadProfileBackground) {
       return false;
     }
+    const generation: number = this.beginMutation(profile);
     const upload: RepositoryResult<MediaUploadResult> = await this.uploadMedia(
-      MediaUploadRequest.profileBackground(media)
+      MediaUploadRequest.profileBackground(media),
+      generation,
+      profile.username
     );
+    if (!this.isMutationActive(generation, profile.username)) {
+      return false;
+    }
     if (!upload.isSuccess() || upload.data === null) {
-      await this.finishFailedUpload(upload);
+      await this.finishFailedUpload(upload, profile, generation);
       return false;
     }
     const uploadUrl: string = upload.data.url.length > 0 ? upload.data.url : upload.data.shortUrl;
+    if (uploadUrl.trim().length === 0) {
+      this.state = ProfileViewState.content(
+        profile,
+        this.state.summary,
+        this.state.emails,
+        '背景图上传响应缺少地址'
+      );
+      this.setMediaState(this.mediaState?.failed('背景图上传响应缺少地址') ?? null);
+      return false;
+    }
     const request: ProfileUpdateRequest | null = ProfileUpdateRequest.create(
       profile.username,
       null,
@@ -264,60 +298,74 @@ export class ProfileManagementModel {
       uploadUrl
     );
     if (request === null) {
-      this.mediaState = this.mediaState?.failed('背景图上传响应缺少地址') ?? null;
+      this.setMediaState(this.mediaState?.failed('背景图上传响应缺少地址') ?? null);
       return false;
     }
-    const saved: boolean = await this.finishWrite(await this.repository.updateUserProfile(request));
+    const saved: boolean = await this.finishWrite(
+      await this.repository.updateUserProfile(request),
+      profile,
+      generation
+    );
     if (!saved) {
-      this.mediaState = this.mediaState?.failed(this.state.message) ?? null;
+      this.setMediaState(this.mediaState?.failed(this.state.message) ?? null);
       return false;
     }
-    this.mediaState = this.mediaState?.succeeded(upload.data) ?? null;
+    this.setMediaState(this.mediaState?.succeeded(upload.data) ?? null);
     return true;
   }
 
-  private async uploadMedia(request: MediaUploadRequest): Promise<RepositoryResult<MediaUploadResult>> {
+  private async uploadMedia(
+    request: MediaUploadRequest,
+    generation: number,
+    username: string
+  ): Promise<RepositoryResult<MediaUploadResult>> {
     const mediaRepository: MediaRepository | null = this.mediaRepository;
     if (mediaRepository === null) {
       return RepositoryResult.failure<MediaUploadResult>('媒体上传不可用');
     }
-    this.mediaState = MediaUploadState.selected(request.media);
+    this.setMediaState(MediaUploadState.selected(request.media));
     const operation: MediaUploadOperation = mediaRepository.upload(
       request,
       (uploadedBytes: number, totalBytes: number): void => {
-        this.mediaState = this.mediaState?.uploading(uploadedBytes, totalBytes) ?? null;
+        if (this.isMutationActive(generation, username)) {
+          this.setMediaState(this.mediaState?.uploading(uploadedBytes, totalBytes) ?? null);
+        }
       }
     );
     return operation.completion;
   }
 
-  private async finishFailedUpload(result: RepositoryResult<MediaUploadResult>): Promise<void> {
+  private async finishFailedUpload(
+    result: RepositoryResult<MediaUploadResult>,
+    profile: UserProfile,
+    generation: number
+  ): Promise<void> {
+    if (!this.isMutationActive(generation, profile.username)) {
+      return;
+    }
     if (result.kind === RepositoryResultKind.UNAUTHORIZED) {
-      await this.sessionLifecycle.handleUnauthorized();
+      await this.invalidateSession(result.message);
+      return;
     }
-    const profile: UserProfile | null = this.state.profile;
-    if (profile !== null) {
-      this.state = ProfileViewState.content(
-        profile,
-        this.state.summary,
-        this.state.emails,
-        result.message
-      );
-    }
-    this.mediaState = this.mediaState?.failed(result.message) ?? null;
+    this.state = ProfileViewState.content(profile, this.state.summary, this.state.emails, result.message);
+    this.setMediaState(this.mediaState?.failed(result.message) ?? null);
   }
 
-  private async finishWrite(result: RepositoryResult<boolean>): Promise<boolean> {
-    const current: UserProfile | null = this.state.profile;
-    if (current === null) {
+  private async finishWrite(
+    result: RepositoryResult<boolean>,
+    target: UserProfile,
+    generation: number
+  ): Promise<boolean> {
+    if (!this.isMutationActive(generation, target.username)) {
       return false;
     }
     if (!result.isSuccess() || result.data !== true) {
       if (result.kind === RepositoryResultKind.UNAUTHORIZED) {
-        await this.sessionLifecycle.handleUnauthorized();
+        await this.invalidateSession(result.message);
+        return false;
       }
       this.state = ProfileViewState.content(
-        current,
+        target,
         this.state.summary,
         this.state.emails,
         result.message
@@ -325,13 +373,17 @@ export class ProfileManagementModel {
       return false;
     }
     const refreshed: RepositoryResult<UserProfile> =
-      await this.repository.loadFullUserProfile(this.activeUsername);
+      await this.repository.loadFullUserProfile(target.username);
+    if (!this.isMutationActive(generation, target.username)) {
+      return false;
+    }
     if (!refreshed.isSuccess() || refreshed.data === null) {
       if (refreshed.kind === RepositoryResultKind.UNAUTHORIZED) {
-        await this.sessionLifecycle.handleUnauthorized();
+        await this.invalidateSession(refreshed.message);
+        return false;
       }
       this.state = ProfileViewState.content(
-        current,
+        target,
         this.state.summary,
         this.state.emails,
         refreshed.message.length > 0 ? refreshed.message : '资料已提交，但刷新失败'
@@ -344,8 +396,35 @@ export class ProfileManagementModel {
 
   private async failAuthoritativeLoad(result: RepositoryResult<UserProfile>): Promise<void> {
     if (result.kind === RepositoryResultKind.UNAUTHORIZED) {
-      await this.sessionLifecycle.handleUnauthorized();
+      await this.invalidateSession(result.message);
+      return;
     }
     this.state = ProfileViewState.error(result.message);
+  }
+
+  private beginMutation(profile: UserProfile): number {
+    this.mutationGeneration += 1;
+    this.state = ProfileViewState.content(profile, this.state.summary, this.state.emails, '', true);
+    return this.mutationGeneration;
+  }
+
+  private isMutationActive(generation: number, username: string): boolean {
+    return generation === this.mutationGeneration &&
+      username === this.activeUsername &&
+      this.state.profile?.username === username;
+  }
+
+  private async invalidateSession(message: string): Promise<void> {
+    this.loadGeneration += 1;
+    this.mutationGeneration += 1;
+    this.activeUsername = '';
+    this.setMediaState(null);
+    await this.sessionLifecycle.handleUnauthorized();
+    this.state = ProfileViewState.error(message.length > 0 ? message : '登录已失效');
+  }
+
+  private setMediaState(state: MediaUploadState | null): void {
+    this.mediaState = state;
+    this.mediaStateListener(state);
   }
 }

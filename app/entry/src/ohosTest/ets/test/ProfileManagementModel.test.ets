@@ -49,6 +49,45 @@ export default function profileManagementModelTest(): void {
         done();
       });
 
+    it('does not restore Profile or email content after an auxiliary request returns 401', 0,
+      async (done: Function) => {
+        const client: StubForumHttpClient = new StubForumHttpClient();
+        client.results.push(HttpTextResult.success(200, profileJson('成员')));
+        client.results.push(HttpTextResult.unauthorized());
+        const lifecycle: StubProfileSessionLifecycle = new StubProfileSessionLifecycle();
+        const model: ProfileManagementModel = new ProfileManagementModel(
+          new DiscourseForumRepository(client),
+          lifecycle
+        );
+
+        await model.loadProfile('member', true);
+
+        expect(model.state.kind).assertEqual(ProfileViewStateKind.ERROR);
+        expect(model.state.profile === null).assertTrue();
+        expect(model.state.emails === null).assertTrue();
+        expect(lifecycle.unauthorizedCount).assertEqual(1);
+        done();
+      });
+
+    it('does not restore an in-flight Profile after external session reset', 0,
+      async (done: Function) => {
+        const client: StubForumHttpClient = new StubForumHttpClient();
+        client.results.push(HttpTextResult.success(200, profileJson('旧会话成员')));
+        const model: ProfileManagementModel = new ProfileManagementModel(
+          new DiscourseForumRepository(client),
+          new StubProfileSessionLifecycle()
+        );
+
+        const loading: Promise<void> = model.loadProfile('member', true);
+        model.reset();
+        await loading;
+
+        expect(model.state.kind).assertEqual(ProfileViewStateKind.INITIAL);
+        expect(model.state.profile === null).assertTrue();
+        expect(model.state.emails === null).assertTrue();
+        done();
+      });
+
     it('does not overwrite the current Profile when a profile write fails', 0,
       async (done: Function) => {
         const client: StubForumHttpClient = new StubForumHttpClient();
@@ -166,6 +205,30 @@ export default function profileManagementModelTest(): void {
           'https://river-side.cc/uploads/default/original/background.png'
         );
         expect(model.mediaState?.kind).assertEqual(MediaUploadStateKind.SUCCEEDED);
+        done();
+      });
+
+    it('rejects a background upload without a URL before any profile write', 0,
+      async (done: Function) => {
+        const client: StubForumHttpClient = new StubForumHttpClient();
+        client.results.push(HttpTextResult.success(200, profileJson('成员')));
+        client.results.push(HttpTextResult.success(200, '{}'));
+        const mediaTransport: StubMediaTransport = new StubMediaTransport();
+        mediaTransport.results.push(HttpTextResult.success(200,
+          '{"id":815,"markdown":"![background](upload://background)"}'
+        ));
+        const model: ProfileManagementModel = new ProfileManagementModel(
+          new DiscourseForumRepository(client),
+          new StubProfileSessionLifecycle(),
+          new DiscourseMediaRepository(mediaTransport)
+        );
+        await model.loadProfile('member');
+
+        const saved: boolean = await model.uploadProfileBackground(cachedPng());
+
+        expect(saved).assertFalse();
+        expect(client.formPutRequests.length).assertEqual(0);
+        expect(model.state.message).assertEqual('背景图上传响应缺少地址');
         done();
       });
   });

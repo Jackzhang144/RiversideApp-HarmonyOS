@@ -57,6 +57,23 @@ export enum ProfileNotificationLevel {
   IGNORED = 'ignore'
 }
 
+function twoDigits(value: number): string {
+  return value.toString().padStart(2, '0');
+}
+
+export function profileIgnoreExpiry(days: number | null, now: Date = new Date()): string {
+  if (days === null) {
+    return `${now.getFullYear() + 1000}-05-01 08:00-05:00`;
+  }
+  const expires: Date = new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
+  const offsetMinutes: number = -expires.getTimezoneOffset();
+  const offsetSign: string = offsetMinutes >= 0 ? '+' : '-';
+  const absoluteOffset: number = Math.abs(offsetMinutes);
+  return `${expires.getFullYear()}-${twoDigits(expires.getMonth() + 1)}-${twoDigits(expires.getDate())} ` +
+    `${twoDigits(expires.getHours())}:${twoDigits(expires.getMinutes())}` +
+    `${offsetSign}${twoDigits(Math.floor(absoluteOffset / 60))}:${twoDigits(absoluteOffset % 60)}`;
+}
+
 export interface UserProfileAttributes {
   name?: string;
   title?: string;
@@ -64,6 +81,7 @@ export interface UserProfileAttributes {
   primaryGroupId?: number | null;
   flairGroupId?: number | null;
   primaryGroupName?: string;
+  flairGroupName?: string;
   trustLevel?: number;
   admin?: boolean;
   moderator?: boolean;
@@ -101,6 +119,7 @@ export class UserProfile {
   public readonly primaryGroupId: number | null;
   public readonly flairGroupId: number | null;
   public readonly primaryGroupName: string;
+  public readonly flairGroupName: string;
   public readonly trustLevel: number;
   public readonly admin: boolean;
   public readonly moderator: boolean;
@@ -138,13 +157,20 @@ export class UserProfile {
     this.primaryGroupId = attributes.primaryGroupId ?? null;
     this.flairGroupId = attributes.flairGroupId ?? null;
     this.primaryGroupName = (attributes.primaryGroupName ?? '').trim();
+    this.flairGroupName = (attributes.flairGroupName ?? '').trim();
     this.trustLevel = Math.max(0, Math.trunc(attributes.trustLevel ?? 0));
     this.admin = attributes.admin === true;
     this.moderator = attributes.moderator === true;
     this.groups = (attributes.groups ?? []).slice();
     const groupNames: Array<string> = this.groups.map((group: ProfileGroup): string => group.name);
     const groupIds: Array<number> = this.groups.map((group: ProfileGroup): number => group.id);
-    this.isVerified = groupNames.some((name: string): boolean => VERIFIED_GROUP_NAMES.includes(name)) ||
+    const authorityGroupNames: Array<string> = groupNames.concat([
+      this.primaryGroupName,
+      this.flairGroupName
+    ]);
+    this.isVerified = authorityGroupNames.some(
+      (name: string): boolean => VERIFIED_GROUP_NAMES.includes(name)
+    ) ||
       groupIds.some((groupId: number): boolean => VERIFIED_GROUP_IDS.includes(groupId)) ||
       (this.primaryGroupId !== null && VERIFIED_GROUP_IDS.includes(this.primaryGroupId)) ||
       (this.flairGroupId !== null && VERIFIED_GROUP_IDS.includes(this.flairGroupId));
@@ -275,12 +301,12 @@ export class UserReplyItem {
   ) {
     this.actionId = Math.max(0, Math.trunc(actionId));
     this.topicId = Math.max(0, Math.trunc(topicId));
-    this.topicTitle = topicTitle.trim();
+    this.topicTitle = visibleProfileText(topicTitle);
     this.categoryId = Math.max(0, Math.trunc(categoryId));
     this.postNumber = Math.max(1, Math.trunc(postNumber));
     this.createdAt = createdAt.trim();
     this.username = username.trim();
-    this.excerpt = excerpt.trim();
+    this.excerpt = visibleProfileText(excerpt);
   }
 }
 
@@ -308,8 +334,8 @@ export class UserBookmarkItem {
   ) {
     this.bookmarkId = Math.max(0, Math.trunc(bookmarkId));
     this.topicId = Math.max(0, Math.trunc(topicId));
-    this.title = title.trim();
-    this.excerpt = excerpt.trim();
+    this.title = visibleProfileText(title);
+    this.excerpt = visibleProfileText(excerpt);
     this.postNumber = Math.max(1, Math.trunc(postNumber));
     this.categoryId = Math.max(0, Math.trunc(categoryId));
     this.highestPostNumber = Math.max(this.postNumber, Math.trunc(highestPostNumber));

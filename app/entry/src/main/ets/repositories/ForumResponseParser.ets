@@ -804,6 +804,7 @@ export class ForumResponseParser {
       primaryGroupId: user.number('primary_group_id'),
       flairGroupId: user.number('flair_group_id'),
       primaryGroupName: user.string('primary_group_name') ?? '',
+      flairGroupName: user.string('flair_name') ?? '',
       trustLevel: numberOrZero(user.number('trust_level')),
       admin: booleanOrFalse(user.boolean('admin')),
       moderator: booleanOrFalse(user.boolean('moderator')),
@@ -1173,21 +1174,23 @@ export class ForumResponseParser {
       if (item === null) {
         continue;
       }
-      const topicId: number | null = item.number('topic_id');
-      const topicTitle: string = item.string('topic_title')?.trim() ?? '';
-      const postNumber: number | null = item.number('post_number');
+      const topicId: number | null = item.number('topic_id') ?? item.number('target_topic_id');
+      const topicTitle: string = (
+        item.string('topic_title') ?? item.string('title') ?? ''
+      ).trim();
+      const postNumber: number | null = item.number('post_number') ?? item.number('target_post_number');
       if (topicId === null || topicId <= 0 || topicTitle.length === 0 || postNumber === null || postNumber <= 0) {
         continue;
       }
       replies.push(new UserReplyItem(
-        item.number('id') ?? 0,
+        item.number('id') ?? item.number('post_id') ?? 0,
         topicId,
         topicTitle,
         item.number('category_id') ?? 0,
         postNumber,
         item.string('created_at') ?? '',
-        item.string('username') ?? '',
-        item.string('excerpt') ?? ''
+        item.string('acting_username') ?? item.string('username') ?? item.string('target_username') ?? '',
+        item.string('excerpt') ?? item.string('action_excerpt') ?? ''
       ));
     }
     return RepositoryResult.success<Array<UserReplyItem>>(replies);
@@ -1429,9 +1432,10 @@ export class ForumResponseParser {
         data.string('action') ?? '',
         data.string('title') ?? item.string('title') ?? '',
         data.string('reply') ?? data.string('raw') ?? '',
-        integerFromReader(data, ['category_id', 'categoryId']),
-        integerFromReader(data, ['topic_id', 'topicId']),
-        integerFromReader(data, ['reply_to_post_number', 'replyToPostNumber'])
+        integerFromReader(data, ['category_id', 'categoryId']) ?? item.number('category_id'),
+        integerFromReader(data, ['topic_id', 'topicId']) ?? item.number('topic_id'),
+        integerFromReader(data, ['reply_to_post_number', 'replyToPostNumber']) ??
+          item.number('reply_to_post_number')
       ));
     }
     return RepositoryResult.success<Array<ServerDraft>>(drafts);

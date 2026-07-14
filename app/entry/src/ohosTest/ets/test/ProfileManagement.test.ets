@@ -4,6 +4,7 @@ import {
   UserBookmarkItem,
   ProfileNotificationLevel,
   ProfileUpdateRequest,
+  profileIgnoreExpiry,
   UserReplyItem,
   UserEmailInfo,
   UserProfile,
@@ -77,6 +78,20 @@ export default function profileManagementTest(): void {
       done();
     });
 
+    it('accepts verified primary or flair group names when the compact Profile omits groups', 0,
+      async (done: Function) => {
+        const client: StubForumHttpClient = new StubForumHttpClient();
+        client.results.push(HttpTextResult.success(200,
+          '{"user":{"id":24,"username":"member","flair_name":"scuer"}}'
+        ));
+        const repository: DiscourseForumRepository = new DiscourseForumRepository(client);
+
+        const result: RepositoryResult<UserProfile> = await repository.loadFullUserProfile('member');
+
+        expect(result.data?.isVerified).assertTrue();
+        done();
+      });
+
     it('loads emails through the read-only preferences contract', 0, async (done: Function) => {
       const client: StubForumHttpClient = new StubForumHttpClient();
       client.results.push(HttpTextResult.success(200,
@@ -124,6 +139,35 @@ export default function profileManagementTest(): void {
         done();
       });
 
+    it('builds the four ignore expiry choices and sends the selected value', 0,
+      async (done: Function) => {
+        const client: StubForumHttpClient = new StubForumHttpClient();
+        client.formPutResults.push(HttpTextResult.success(200, '{}'));
+        const repository: DiscourseForumRepository = new DiscourseForumRepository(client);
+        const now: Date = new Date('2026-07-14T08:00:00+08:00');
+        const oneDay: string = profileIgnoreExpiry(1, now);
+        const oneWeek: string = profileIgnoreExpiry(7, now);
+        const oneMonth: string = profileIgnoreExpiry(30, now);
+        const forever: string = profileIgnoreExpiry(null, now);
+
+        await repository.setUserNotificationLevel(
+          'member',
+          ProfileNotificationLevel.IGNORED,
+          24,
+          oneMonth
+        );
+
+        expect(oneDay).assertEqual('2026-07-15 08:00+08:00');
+        expect(oneWeek).assertEqual('2026-07-21 08:00+08:00');
+        expect(oneMonth).assertEqual('2026-08-13 08:00+08:00');
+        expect(forever).assertEqual('3026-05-01 08:00-05:00');
+        expect(client.formPutRequests[0]).assertEqual(
+          '/u/member/notification_level.json|' +
+          'notification_level=ignore&expiring_at=2026-08-13%2008%3A00%2B08%3A00&acting_user_id=24'
+        );
+        done();
+      });
+
     it('loads the authenticated users topics replies bookmarks and drafts from their native contracts', 0,
       async (done: Function) => {
         const client: StubForumHttpClient = new StubForumHttpClient();
@@ -135,9 +179,9 @@ export default function profileManagementTest(): void {
           ']}}'
         ));
         client.results.push(HttpTextResult.success(200,
-          '{"user_actions":[{"id":902,"topic_id":302,"topic_title":"回复所在主题",' +
+          '{"user_actions":[{"id":902,"topic_id":302,"title":"回复所在主题",' +
           '"category_id":111,"post_number":4,"created_at":"2026-07-14T02:00:00Z",' +
-          '"username":"member","excerpt":"我的回复摘要"}]}'
+          '"acting_username":"member","action_excerpt":"<p>我的回复摘要</p>"}]}'
         ));
         client.results.push(HttpTextResult.success(200,
           '{"user_bookmark_list":{"bookmarks":[{"id":701,"title":"收藏主题",' +
@@ -147,7 +191,9 @@ export default function profileManagementTest(): void {
         ));
         client.results.push(HttpTextResult.success(200,
           '{"drafts":[{"draft_key":"new_topic","sequence":3,' +
-          '"data":"{\\"title\\":\\"待发布主题\\",\\"reply\\":\\"草稿正文\\"}"}]}'
+          '"data":"{\\"title\\":\\"待发布主题\\",\\"reply\\":\\"草稿正文\\"}"},' +
+          '{"draft_key":"topic_302","sequence":4,"topic_id":302,' +
+          '"data":"{\\"reply\\":\\"回复草稿\\",\\"reply_to_post_number\\":3}"}]}'
         ));
         const repository: DiscourseForumRepository = new DiscourseForumRepository(client);
 
@@ -163,9 +209,11 @@ export default function profileManagementTest(): void {
         expect(topics.data?.[0].id).assertEqual(301);
         expect(replies.data?.[0].topicId).assertEqual(302);
         expect(replies.data?.[0].postNumber).assertEqual(4);
+        expect(replies.data?.[0].excerpt).assertEqual('我的回复摘要');
         expect(bookmarks.data?.[0].bookmarkId).assertEqual(701);
         expect(bookmarks.data?.[0].postNumber).assertEqual(6);
         expect(drafts.data?.[0].title).assertEqual('待发布主题');
+        expect(drafts.data?.[1].topicId).assertEqual(302);
         done();
       });
   });

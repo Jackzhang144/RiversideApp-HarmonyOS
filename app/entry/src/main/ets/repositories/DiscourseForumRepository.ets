@@ -68,8 +68,9 @@ export class DiscourseForumRepository implements ForumRepository, ProfileReposit
     if (normalizedUsername.length === 0 || !Number.isInteger(page) || page < 0) {
       return RepositoryResult.failure<Array<Topic>>('用户主题查询参数无效');
     }
+    const pageSuffix: string = page > 0 ? `?page=${page}` : '';
     const response: HttpTextResult = await this.client.get(
-      `/topics/created-by/${encodeURIComponent(normalizedUsername)}.json?page=${page}`
+      `/topics/created-by/${encodeURIComponent(normalizedUsername)}.json${pageSuffix}`
     );
     if (response.kind === HttpTextResultKind.UNAUTHORIZED) {
       return RepositoryResult.unauthorized<Array<Topic>>();
@@ -105,8 +106,9 @@ export class DiscourseForumRepository implements ForumRepository, ProfileReposit
     if (normalizedUsername.length === 0 || !Number.isInteger(page) || page < 0) {
       return RepositoryResult.failure<Array<UserBookmarkItem>>('用户收藏查询参数无效');
     }
+    const pageSuffix: string = page > 0 ? `?page=${page}` : '';
     const response: HttpTextResult = await this.client.get(
-      `/u/${encodeURIComponent(normalizedUsername)}/bookmarks.json?page=${page}`
+      `/u/${encodeURIComponent(normalizedUsername)}/bookmarks.json${pageSuffix}`
     );
     if (response.kind === HttpTextResultKind.UNAUTHORIZED) {
       return RepositoryResult.unauthorized<Array<UserBookmarkItem>>();

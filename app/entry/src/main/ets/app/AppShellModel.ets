@@ -929,10 +929,12 @@ export class AppShellModel {
   private replyRequestVersion: number = 0;
   private replyDraftRequestVersion: number = 0;
   private replyDraftSequence: number = 0;
+  private replyDraftKey: string = '';
   private ignoredReplyDraftKey: string = '';
   private ignoredReplyDraftSequence: number = 0;
   private topicComposerRequestVersion: number = 0;
   private ignoredTopicDraftSequence: number = 0;
+  private topicDraftKey: string = 'new_topic';
   private topicEditingOriginalTitle: string = '';
 
   public constructor(
@@ -1113,6 +1115,7 @@ export class AppShellModel {
     this.replyRequestVersion += 1;
     this.replyDraftRequestVersion += 1;
     this.replyDraftSequence = 0;
+    this.replyDraftKey = '';
     this.replyState = ReplyComposerState.closed();
     this.selectedTopic = topic;
     this.selectedTopicPostNumber = initialPostNumber;
@@ -1484,7 +1487,23 @@ export class AppShellModel {
       }
     }
     this.replyDraftRequestVersion += 1;
+    this.replyDraftKey = `topic_${this.topicState.detail.id}`;
     this.replyState = ReplyComposerState.editing(draft, replyToPostNumber);
+  }
+
+  public openReplyDraft(draft: ServerDraft): boolean {
+    const detail: TopicDetail | null = this.topicState.detail;
+    if (detail === null || draft.topicId !== detail.id || draft.raw.trim().length === 0) {
+      return false;
+    }
+    this.openReply(draft.replyToPostNumber);
+    if (this.replyState.kind !== ReplyComposerStateKind.EDITING) {
+      return false;
+    }
+    this.replyDraftKey = draft.draftKey;
+    this.replyDraftSequence = draft.sequence;
+    this.replyState = ReplyComposerState.editing(draft.raw, draft.replyToPostNumber);
+    return true;
   }
 
   public openPostEditor(postId: number): boolean {
@@ -1722,6 +1741,7 @@ export class AppShellModel {
           candidate.sequence !== this.ignoredReplyDraftSequence)
     );
     if (serverDraft !== undefined) {
+      this.replyDraftKey = serverDraft.draftKey;
       this.replyDraftSequence = serverDraft.sequence;
       this.replyState = ReplyComposerState.editing(serverDraft.raw, serverDraft.replyToPostNumber);
     }
@@ -1736,7 +1756,8 @@ export class AppShellModel {
       detail.id,
       this.replyState.draft,
       this.replyState.replyToPostNumber,
-      this.replyDraftSequence
+      this.replyDraftSequence,
+      this.replyDraftKey.length > 0 ? this.replyDraftKey : `topic_${detail.id}`
     );
     if (request === null) {
       this.replyState = ReplyComposerState.error(
@@ -1768,7 +1789,7 @@ export class AppShellModel {
     const detail: TopicDetail | null = this.topicState.detail;
     if (detail !== null && this.replyDraftSequence > 0) {
       const result: RepositoryResult<boolean> = await this.repository.deleteDraft(
-        `topic_${detail.id}`,
+        this.replyDraftKey.length > 0 ? this.replyDraftKey : `topic_${detail.id}`,
         this.replyDraftSequence
       );
       if (result.isUnauthorized()) {
@@ -1953,7 +1974,19 @@ export class AppShellModel {
     this.topicEditingTopicId = null;
     this.topicEditingPostId = null;
     this.topicEditingOriginalTitle = '';
+    this.topicDraftKey = 'new_topic';
     this.topicComposerState = TopicComposerState.editing();
+  }
+
+  public openTopicDraft(draft: ServerDraft): boolean {
+    if (!draft.draftKey.startsWith('new_topic') ||
+      (draft.categoryId !== null && draft.categoryId !== AUTHORING_CATEGORY_ID)) {
+      return false;
+    }
+    this.openNewTopic();
+    this.topicDraftKey = draft.draftKey;
+    this.topicComposerState = TopicComposerState.editing(draft.title, draft.raw, draft.sequence);
+    return true;
   }
 
   public updateTopicComposerTitle(title: string): void {
@@ -2000,11 +2033,12 @@ export class AppShellModel {
       return;
     }
     const draft: ServerDraft | undefined = result.data.find(
-      (candidate: ServerDraft): boolean => candidate.draftKey === 'new_topic' &&
+      (candidate: ServerDraft): boolean => candidate.draftKey.startsWith('new_topic') &&
         (candidate.categoryId === null || candidate.categoryId === AUTHORING_CATEGORY_ID) &&
         candidate.sequence !== this.ignoredTopicDraftSequence
     );
     if (draft !== undefined) {
+      this.topicDraftKey = draft.draftKey;
       this.topicComposerState = TopicComposerState.editing(draft.title, draft.raw, draft.sequence);
     }
   }
@@ -2016,7 +2050,8 @@ export class AppShellModel {
     const request: DraftWriteRequest | null = DraftWriteRequest.newTopic(
       this.topicComposerState.title,
       this.topicComposerState.raw,
-      this.topicComposerState.draftSequence
+      this.topicComposerState.draftSequence,
+      this.topicDraftKey
     );
     if (request === null) {
       this.topicComposerState = TopicComposerState.error(this.topicComposerState, '草稿内容为空');
@@ -2061,7 +2096,7 @@ export class AppShellModel {
     }
     const editing: TopicComposerState = this.topicComposerState;
     const result: RepositoryResult<boolean> = await this.repository.deleteDraft(
-      'new_topic',
+      this.topicDraftKey,
       editing.draftSequence
     );
     if (result.isUnauthorized()) {
@@ -2121,7 +2156,7 @@ export class AppShellModel {
     }
     if (editing.draftSequence > 0) {
       const cleanupResult: RepositoryResult<boolean> = await this.repository.deleteDraft(
-        'new_topic',
+        this.topicDraftKey,
         editing.draftSequence
       );
       if (!cleanupResult.isSuccess() || cleanupResult.data !== true) {
@@ -2287,9 +2322,10 @@ export class AppShellModel {
     );
     const sequence: number = this.replyDraftSequence;
     if (sequence > 0) {
-      const result: RepositoryResult<boolean> = await this.repository.deleteDraft(`topic_${detail.id}`, sequence);
+      const draftKey: string = this.replyDraftKey.length > 0 ? this.replyDraftKey : `topic_${detail.id}`;
+      const result: RepositoryResult<boolean> = await this.repository.deleteDraft(draftKey, sequence);
       if (!result.isSuccess() || result.data !== true) {
-        this.ignoredReplyDraftKey = `topic_${detail.id}`;
+        this.ignoredReplyDraftKey = draftKey;
         this.ignoredReplyDraftSequence = sequence;
         this.replyDraftSequence = 0;
         this.transitionReplyState(
@@ -2300,6 +2336,7 @@ export class AppShellModel {
       }
     }
     this.replyDraftSequence = 0;
+    this.replyDraftKey = '';
     this.ignoredReplyDraftKey = '';
     this.ignoredReplyDraftSequence = 0;
     this.transitionReplyState(ReplyComposerState.success('Reply 已发布'), onStateChange);

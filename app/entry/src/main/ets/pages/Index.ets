@@ -26,6 +26,7 @@ import {
   TopicReadState
 } from '../app/AppShellModel';
 import { ProfileManagementModel, ProfileViewState } from '../app/ProfileManagementModel';
+import { ProfileContentKind, ProfileContentModel, ProfileContentState } from '../app/ProfileContentModel';
 import { AuthenticatedSession } from '../auth/AuthModels';
 import { AuthRepository, AuthState, AuthStateKind } from '../auth/AuthRepository';
 import { HuksAuthenticatedSessionStore } from '../auth/HuksAuthenticatedSessionStore';
@@ -50,18 +51,19 @@ import { SecureRichEmbedPage } from '../components/SecureRichEmbedPage';
 import { TopicDetailPage } from '../components/TopicDetailPage';
 import { UserProfileSummaryPage } from '../components/UserProfileSummaryPage';
 import { ProfileEditorPage } from '../components/ProfileEditorPage';
-import { ProfileContentKind, ProfileContentPage } from '../components/ProfileContentPage';
+import { ProfileContentPage } from '../components/ProfileContentPage';
 import { AccountPlaceholderKind } from '../components/AccountPresentation';
 import { ImageViewerPage } from '../components/ImageViewerPage';
 import { selectedBookmarkPostIds } from '../components/TopicReadingPresentation';
 import { UiPrototypePage } from '../components/prototype/UiPrototypePage';
 import { Category, Topic } from '../models/ForumModels';
-import { HomeChannel, SearchPost } from '../models/DiscoveryModels';
+import { HomeChannel, SearchPost, SearchUser } from '../models/DiscoveryModels';
 import { CurrentUser } from '../models/ReplyModels';
 import { AUTHORING_CATEGORY_ID, ServerDraft } from '../models/AuthoringModels';
 import {
   ProfileNotificationLevel,
   ProfileUpdateRequest,
+  profileIgnoreExpiry,
   UserBookmarkItem,
   UserReplyItem
 } from '../models/ProfileModels';
@@ -77,7 +79,6 @@ import {
   DiscourseHttpClient
 } from '../network/DiscourseHttpClient';
 import { DiscourseForumRepository } from '../repositories/DiscourseForumRepository';
-import { ProfileRepository } from '../repositories/ProfileRepository';
 import { DiscourseMediaRepository } from '../repositories/MediaRepository';
 import { DiscourseMediaTransport } from '../network/ForumMediaTransport';
 import {
@@ -125,9 +126,9 @@ struct Index {
   private readonly pathStack: NavPathStack = new NavPathStack();
   private readonly tabsController: HdsTabsController = new HdsTabsController();
   private model: AppShellModel | null = null;
-  private profileRepository: ProfileRepository | null = null;
   private accountProfileModel: ProfileManagementModel | null = null;
   private selectedProfileModel: ProfileManagementModel | null = null;
+  private profileContentModel: ProfileContentModel | null = null;
   private authRepository: AuthRepository | null = null;
   private authenticationLifecycle: RepositoryAuthenticationLifecycle | null = null;
   private snackBar: HdsSnackBar | null = null;
@@ -159,20 +160,14 @@ struct Index {
   @State searchState: SearchState = SearchState.initial();
   @State profileUsername: string = '';
   @State profileState: ProfileViewState = ProfileViewState.initial();
+  @State profileMediaState: MediaUploadState | null = null;
   @State profileIsOwn: boolean = false;
-  @State profileContentKind: ProfileContentKind = ProfileContentKind.TOPICS;
-  @State profileContentLoading: boolean = false;
-  @State profileContentMessage: string = '';
-  @State profileTopics: Array<Topic> = [];
-  @State profileReplies: Array<UserReplyItem> = [];
-  @State profileDrafts: Array<ServerDraft> = [];
-  @State profileBookmarks: Array<UserBookmarkItem> = [];
+  @State profileContentState: ProfileContentState = new ProfileContentState();
   @State richEmbedUrl: string = '';
   @State richEmbedTitle: string = '';
   @State richEmbedProvider: RichEmbedProvider = RichEmbedProvider.NONE;
   @State imageViewerState: ImageViewerState = ImageViewerState.preparing('', '');
   private accountIdentityRequestVersion: number = 0;
-  private profileContentRequestVersion: number = 0;
 
   private topAvoidHeight(): number {
     const statusBarBottom: number =
@@ -222,7 +217,6 @@ struct Index {
     const mediaRepository: DiscourseMediaRepository = new DiscourseMediaRepository(
       new DiscourseMediaTransport(RIVERSIDE_BASE_URL, sessionProvider)
     );
-    this.profileRepository = forumRepository;
     this.accountProfileModel = new ProfileManagementModel(
       forumRepository,
       authenticationLifecycle,
@@ -231,8 +225,12 @@ struct Index {
     this.selectedProfileModel = new ProfileManagementModel(
       forumRepository,
       authenticationLifecycle,
-      mediaRepository
+      mediaRepository,
+      (state: MediaUploadState | null): void => {
+        this.profileMediaState = state;
+      }
     );
+    this.profileContentModel = new ProfileContentModel(forumRepository, authenticationLifecycle);
     const model: AppShellModel = new AppShellModel(
       forumRepository,
       new PreferencesCategoryCache(context),
@@ -284,6 +282,10 @@ struct Index {
       this.accountIdentityError = '';
       this.accountProfileState = ProfileViewState.initial();
       this.profileState = ProfileViewState.initial();
+      this.accountProfileModel?.reset();
+      this.selectedProfileModel?.reset();
+      this.profileContentModel?.reset();
+      this.profileContentState = new ProfileContentState();
     }
     this.categoryState = model.categoryState;
     if (reloadCategories) {
@@ -320,6 +322,10 @@ struct Index {
     }
     this.accountIdentity = result.data;
     await this.loadAccountProfile(result.data.username);
+    if (requestVersion !== this.accountIdentityRequestVersion ||
+      this.authState.kind !== AuthStateKind.AUTHENTICATED) {
+      return;
+    }
     this.accountIdentityLoading = false;
     const channelChanged: boolean = model.selectedHomeChannel !== result.data.defaultHomeChannel &&
       result.data.defaultHomeChannel !== null;
@@ -340,6 +346,11 @@ struct Index {
     const task: Promise<void> = profileModel.loadProfile(username, true);
     this.accountProfileState = profileModel.state;
     await task;
+    if (this.accountProfileModel !== profileModel ||
+      this.authState.kind !== AuthStateKind.AUTHENTICATED ||
+      this.accountIdentity?.username !== username) {
+      return;
+    }
     this.accountProfileState = profileModel.state;
     if (profileModel.state.profile === null && profileModel.state.message.length > 0) {
       this.accountIdentityError = profileModel.state.message;
@@ -571,19 +582,23 @@ struct Index {
     this.profileUsername = username;
     this.profileIsOwn = ownProfile;
     this.profileState = ProfileViewState.loading();
+    this.profileMediaState = null;
     this.pathStack.pushPath({ name: USER_PROFILE_ROUTE });
     this.loadSelectedUserProfile();
   }
 
   private async loadSelectedUserProfile(): Promise<void> {
     const profileModel: ProfileManagementModel | null = this.selectedProfileModel;
-    if (profileModel === null || this.profileUsername.length === 0) {
+    const username: string = this.profileUsername;
+    if (profileModel === null || username.length === 0) {
       return;
     }
-    const task: Promise<void> = profileModel.loadProfile(this.profileUsername, this.profileIsOwn);
+    const task: Promise<void> = profileModel.loadProfile(username, this.profileIsOwn);
     this.profileState = profileModel.state;
     await task;
-    this.profileState = profileModel.state;
+    if (this.selectedProfileModel === profileModel && this.profileUsername === username) {
+      this.profileState = profileModel.state;
+    }
   }
 
   private openRichEmbed(url: string, provider: RichEmbedProvider, title: string): void {
@@ -869,7 +884,7 @@ struct Index {
     if (this.authState.kind !== AuthStateKind.AUTHENTICATED) {
       return true;
     }
-    return this.accountIdentity?.canCreatePost === true && this.categoryState.items.some(
+    return this.accountProfileState.profile?.canCreatePost === true && this.categoryState.items.some(
       (category: Category): boolean => category.id === AUTHORING_CATEGORY_ID
     );
   }
@@ -1121,74 +1136,46 @@ struct Index {
   }
 
   private openProfileContent(kind: ProfileContentKind): void {
-    this.profileContentKind = kind;
-    this.profileContentMessage = '';
+    this.profileContentState = new ProfileContentState(kind, true);
     this.pathStack.pushPath({ name: PROFILE_CONTENT_ROUTE });
     this.loadProfileContent();
   }
 
   private async loadProfileContent(): Promise<void> {
-    const repository: ProfileRepository | null = this.profileRepository;
+    const model: ProfileContentModel | null = this.profileContentModel;
     const username: string = this.accountProfileState.profile?.username ?? '';
-    if (repository === null || username.length === 0) {
+    if (model === null || username.length === 0) {
       return;
     }
-    const requestVersion: number = this.profileContentRequestVersion + 1;
-    this.profileContentRequestVersion = requestVersion;
-    this.profileContentLoading = true;
-    this.profileContentMessage = '';
-    if (this.profileContentKind === ProfileContentKind.TOPICS) {
-      const result: RepositoryResult<Array<Topic>> = await repository.loadUserTopics(username, 0);
-      if (requestVersion !== this.profileContentRequestVersion) {
-        return;
-      }
-      this.profileTopics = result.data ?? [];
-      this.profileContentMessage = result.message;
-      if (result.isUnauthorized()) {
-        await this.authenticationLifecycle?.handleUnauthorized();
-      }
-    } else if (this.profileContentKind === ProfileContentKind.REPLIES) {
-      const result: RepositoryResult<Array<UserReplyItem>> = await repository.loadUserReplies(username, 0);
-      if (requestVersion !== this.profileContentRequestVersion) {
-        return;
-      }
-      this.profileReplies = result.data ?? [];
-      this.profileContentMessage = result.message;
-      if (result.isUnauthorized()) {
-        await this.authenticationLifecycle?.handleUnauthorized();
-      }
-    } else if (this.profileContentKind === ProfileContentKind.DRAFTS) {
-      const result: RepositoryResult<Array<ServerDraft>> = await repository.loadDrafts();
-      if (requestVersion !== this.profileContentRequestVersion) {
-        return;
-      }
-      this.profileDrafts = result.data ?? [];
-      this.profileContentMessage = result.message;
-      if (result.isUnauthorized()) {
-        await this.authenticationLifecycle?.handleUnauthorized();
-      }
-    } else {
-      const result: RepositoryResult<Array<UserBookmarkItem>> = await repository.loadUserBookmarks(username, 0);
-      if (requestVersion !== this.profileContentRequestVersion) {
-        return;
-      }
-      this.profileBookmarks = result.data ?? [];
-      this.profileContentMessage = result.message;
-      if (result.isUnauthorized()) {
-        await this.authenticationLifecycle?.handleUnauthorized();
-      }
+    const task: Promise<void> = model.load(username, this.profileContentState.kind);
+    this.profileContentState = model.state;
+    await task;
+    if (this.profileContentModel === model &&
+      this.authState.kind === AuthStateKind.AUTHENTICATED &&
+      this.accountProfileState.profile?.username === username) {
+      this.profileContentState = model.state;
     }
-    this.profileContentLoading = false;
+  }
+
+  private async loadMoreProfileContent(): Promise<void> {
+    const model: ProfileContentModel | null = this.profileContentModel;
+    if (model === null) return;
+    const task: Promise<void> = model.loadMore();
+    this.profileContentState = model.state;
+    await task;
+    if (this.profileContentModel === model && this.authState.kind === AuthStateKind.AUTHENTICATED) {
+      this.profileContentState = model.state;
+    }
   }
 
   private profileContentTitle(): string {
-    if (this.profileContentKind === ProfileContentKind.TOPICS) {
+    if (this.profileContentState.kind === ProfileContentKind.TOPICS) {
       return '我的 Topic';
     }
-    if (this.profileContentKind === ProfileContentKind.REPLIES) {
+    if (this.profileContentState.kind === ProfileContentKind.REPLIES) {
       return '我的 Reply';
     }
-    if (this.profileContentKind === ProfileContentKind.DRAFTS) {
+    if (this.profileContentState.kind === ProfileContentKind.DRAFTS) {
       return '我的草稿';
     }
     return '我的书签';
@@ -1206,12 +1193,45 @@ struct Index {
   }
 
   private async changeProfileNotificationLevel(level: ProfileNotificationLevel): Promise<void> {
+    if (level === ProfileNotificationLevel.IGNORED) {
+      this.getUIContext().showActionSheet({
+        title: '选择忽略时长',
+        message: '到期后将自动恢复该用户的通知级别。',
+        sheets: [
+          {
+            title: '忽略 1 天',
+            action: (): void => { this.applyProfileNotificationLevel(level, profileIgnoreExpiry(1)); }
+          },
+          {
+            title: '忽略 1 周',
+            action: (): void => { this.applyProfileNotificationLevel(level, profileIgnoreExpiry(7)); }
+          },
+          {
+            title: '忽略 1 个月',
+            action: (): void => { this.applyProfileNotificationLevel(level, profileIgnoreExpiry(30)); }
+          },
+          {
+            title: '永久忽略',
+            action: (): void => { this.applyProfileNotificationLevel(level, profileIgnoreExpiry(null)); }
+          }
+        ],
+        cancel: (): void => {}
+      });
+      return;
+    }
+    await this.applyProfileNotificationLevel(level);
+  }
+
+  private async applyProfileNotificationLevel(
+    level: ProfileNotificationLevel,
+    expiringAt?: string
+  ): Promise<void> {
     const model: ProfileManagementModel | null = this.selectedProfileModel;
     const actingUserId: number = this.accountProfileState.profile?.id ?? 0;
     if (model === null || actingUserId <= 0) {
       return;
     }
-    const task: Promise<boolean> = model.setNotificationLevel(level, actingUserId);
+    const task: Promise<boolean> = model.setNotificationLevel(level, actingUserId, expiringAt);
     this.profileState = model.state;
     await task;
     this.profileState = model.state;
@@ -1232,13 +1252,14 @@ struct Index {
     }
     const request: ProfileUpdateRequest | null = ProfileUpdateRequest.create(
       profile.username,
-      name,
-      title,
-      bio,
-      location,
+      name.trim() === profile.name ? null : name,
+      title.trim() === profile.title ? null : title,
+      bio.trim() === profile.bioRaw.trim() ? null : bio,
+      location.trim() === profile.location ? null : location,
       null
     );
     if (request === null) {
+      this.showAuthenticationMessage('无需保存', '个人资料没有变化');
       return;
     }
     const task: Promise<boolean> = model.saveProfile(request);
@@ -1305,12 +1326,21 @@ struct Index {
     ), bookmark.postNumber);
   }
 
-  private openProfileDraft(draft: ServerDraft): void {
-    if (draft.topicId === null) {
-      this.openNewTopic();
+  private async openProfileDraft(draft: ServerDraft): Promise<void> {
+    const model: AppShellModel | null = this.model;
+    if (model === null) {
       return;
     }
-    this.openTopic(new Topic(
+    if (draft.topicId === null) {
+      if (!this.canCreateAuthoringTopic() || !model.openTopicDraft(draft)) {
+        return;
+      }
+      this.composerMediaState = null;
+      this.topicComposerState = model.topicComposerState;
+      this.pathStack.pushPath({ name: TOPIC_COMPOSER_ROUTE });
+      return;
+    }
+    await this.openTopic(new Topic(
       draft.topicId,
       draft.title.length > 0 ? draft.title : '草稿所在 Topic',
       draft.categoryId ?? 0,
@@ -1322,6 +1352,9 @@ struct Index {
       false,
       this.accountProfileState.profile?.username ?? ''
     ), draft.replyToPostNumber);
+    if (model.openReplyDraft(draft)) {
+      this.synchronizeReplyState(model, true);
+    }
   }
 
   private closeUiPrototype(): void {
@@ -1443,6 +1476,9 @@ struct Index {
           },
           onOpenPost: (post: SearchPost): void => {
             this.openTopic(post.topic, post.postNumber);
+          },
+          onOpenUser: (user: SearchUser): void => {
+            this.openUserProfile(user.username);
           },
           onOpenCategory: (category: Category): void => {
             this.openCategory(category);
@@ -1577,7 +1613,7 @@ struct Index {
         ProfileEditorPage({
           profile: this.profileState.profile,
           emails: this.profileState.emails,
-          mediaState: this.selectedProfileModel?.mediaState ?? null,
+          mediaState: this.profileMediaState,
           busy: this.profileState.busy,
           message: this.profileState.message,
           onSave: (name: string, title: string, bio: string, location: string): void => {
@@ -1602,13 +1638,18 @@ struct Index {
     } else if (name === PROFILE_CONTENT_ROUTE) {
       HdsNavDestination() {
         ProfileContentPage({
-          kind: this.profileContentKind,
-          loading: this.profileContentLoading,
-          message: this.profileContentMessage,
-          topics: this.profileTopics,
-          replies: this.profileReplies,
-          drafts: this.profileDrafts,
-          bookmarks: this.profileBookmarks,
+          kind: this.profileContentState.kind,
+          loading: this.profileContentState.loading,
+          loadingMore: this.profileContentState.loadingMore,
+          hasMore: this.profileContentState.hasMore,
+          message: this.profileContentState.message,
+          topics: this.profileContentState.topics,
+          replies: this.profileContentState.replies,
+          drafts: this.profileContentState.drafts,
+          bookmarks: this.profileContentState.bookmarks,
+          onLoadMore: (): void => {
+            this.loadMoreProfileContent();
+          },
           onRetry: (): void => {
             this.loadProfileContent();
           },

@@ -1,18 +1,14 @@
 import { ServerDraft } from '../models/AuthoringModels';
 import { Topic } from '../models/ForumModels';
 import { UserBookmarkItem, UserReplyItem } from '../models/ProfileModels';
-
-export enum ProfileContentKind {
-  TOPICS = 'topics',
-  REPLIES = 'replies',
-  DRAFTS = 'drafts',
-  BOOKMARKS = 'bookmarks'
-}
+import { ProfileContentKind } from '../app/ProfileContentModel';
 
 @Component
 export struct ProfileContentPage {
   @Prop kind: ProfileContentKind = ProfileContentKind.TOPICS;
   @Prop loading: boolean = false;
+  @Prop loadingMore: boolean = false;
+  @Prop hasMore: boolean = false;
   @Prop message: string = '';
   @Prop topics: Array<Topic> = [];
   @Prop replies: Array<UserReplyItem> = [];
@@ -23,6 +19,7 @@ export struct ProfileContentPage {
   onOpenReply: (reply: UserReplyItem) => void = (): void => {};
   onOpenDraft: (draft: ServerDraft) => void = (): void => {};
   onOpenBookmark: (bookmark: UserBookmarkItem) => void = (): void => {};
+  onLoadMore: () => void = (): void => {};
 
   private empty(): boolean {
     if (this.kind === ProfileContentKind.TOPICS) {
@@ -53,6 +50,24 @@ export struct ProfileContentPage {
     .backgroundColor('#FFFFFF')
     .borderRadius(12)
     .onClick(onClick)
+  }
+
+  @Builder
+  private PaginationFooter(): void {
+    Column({ space: 8 }) {
+      if (this.loadingMore) {
+        LoadingProgress().width(28).height(28)
+        Text('正在加载更多').fontSize(12).fontColor('#52606D')
+      } else if (this.message.length > 0) {
+        Text(this.message).fontSize(12).fontColor('#C62828').textAlign(TextAlign.Center)
+        Button('重试加载更多').height(34).onClick(this.onLoadMore)
+      } else if (!this.hasMore && this.kind !== ProfileContentKind.DRAFTS) {
+        Text('已经显示全部内容').fontSize(12).fontColor('#7B8794')
+      }
+    }
+    .width('100%')
+    .height(82)
+    .justifyContent(FlexAlign.Center)
   }
 
   build() {
@@ -91,8 +106,10 @@ export struct ProfileContentPage {
               (): void => this.onOpenBookmark(bookmark)) }
           }, (bookmark: UserBookmarkItem): string => bookmark.bookmarkId.toString())
         }
+        ListItem() { this.PaginationFooter() }
       }
       .width('100%').height('100%').padding(12).backgroundColor('#F5F6F8')
+      .onReachEnd(this.onLoadMore)
     }
   }
 }

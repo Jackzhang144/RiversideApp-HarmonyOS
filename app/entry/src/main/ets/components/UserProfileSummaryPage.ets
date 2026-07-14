@@ -83,6 +83,14 @@ export struct UserProfileSummaryPage {
     Scroll() {
       Column({ space: 12 }) {
         Column({ space: 10 }) {
+          if (profile.profileBackgroundUrl.length > 0) {
+            Image(profile.profileBackgroundUrl)
+              .width('100%')
+              .height(132)
+              .borderRadius(12)
+              .objectFit(ImageFit.Cover)
+              .accessibilityText(`${profile.displayName} 的个人页背景`)
+          }
           if (profile.avatarUrl.length > 0) {
             Image(profile.avatarUrl)
               .width(76)
