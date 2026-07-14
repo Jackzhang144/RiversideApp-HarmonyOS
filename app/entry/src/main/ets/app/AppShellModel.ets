@@ -19,6 +19,7 @@ import {
 } from '../models/DiscoveryModels';
 import { DiscoverySettings, DiscoverySettingsStore } from '../settings/DiscoverySettingsStore';
 import {
+  AUTHORING_CATEGORY_ID,
   CreateTopicRequest,
   DraftWriteRequest,
   EditPostRequest,
@@ -577,6 +578,30 @@ export class TopicReadState {
       state.detail,
       posts,
       state.canReply,
+      state.message,
+      state.hasPreviousPosts,
+      state.hasNextPosts,
+      state.isLoadingMore,
+      state.paginationMessage,
+      state.isLoadingPrevious,
+      state.previousPaginationMessage,
+      state.postActionState,
+      state.readProgressState
+    );
+  }
+
+  public static withDetailAndPosts(
+    state: TopicReadState,
+    detail: TopicDetail,
+    posts: Array<ForumPost>
+  ): TopicReadState {
+    return new TopicReadState(
+      state.kind,
+      detail.id,
+      detail.title,
+      detail,
+      posts,
+      detail.canReply,
       state.message,
       state.hasPreviousPosts,
       state.hasNextPosts,
@@ -1433,7 +1458,13 @@ export class AppShellModel {
     const post: ForumPost | undefined = this.topicState.posts.find(
       (candidate: ForumPost): boolean => candidate.id === postId
     );
-    if (detail === null || post === undefined || !post.canEdit || this.replyState.isBusy()) {
+    if (
+      detail === null ||
+      detail.categoryId !== AUTHORING_CATEGORY_ID ||
+      post === undefined ||
+      !post.canEdit ||
+      this.replyState.isBusy()
+    ) {
       return false;
     }
     if (post.postNumber === 1) {
@@ -1797,6 +1828,33 @@ export class AppShellModel {
     }
   }
 
+  public async discardTopicDraft(): Promise<boolean> {
+    if (this.topicComposerState.isBusy()) {
+      return false;
+    }
+    if (this.topicEditingTopicId !== null || this.topicComposerState.draftSequence === 0) {
+      this.dismissTopicComposer();
+      return true;
+    }
+    const editing: TopicComposerState = this.topicComposerState;
+    const result: RepositoryResult<boolean> = await this.repository.deleteDraft(
+      'new_topic',
+      editing.draftSequence
+    );
+    if (result.isUnauthorized()) {
+      this.requiresAuthentication = true;
+      this.topicComposerState = TopicComposerState.reauthenticate(editing);
+      await this.notifyUnauthorized(true);
+      return false;
+    }
+    if (!result.isSuccess() || result.data !== true) {
+      this.topicComposerState = TopicComposerState.error(editing, result.message);
+      return false;
+    }
+    this.dismissTopicComposer();
+    return true;
+  }
+
   public resumeTopicAfterAuthentication(): void {
     if (this.topicComposerState.kind === TopicComposerStateKind.REAUTHENTICATE) {
       this.requiresAuthentication = false;
@@ -1872,10 +1930,18 @@ export class AppShellModel {
       (candidate: ForumPost): boolean => candidate.id === postId
     );
     if (post !== undefined) {
-      this.topicState = TopicReadState.withPosts(
-        this.topicState,
-        replacePost(this.topicState.posts, post.withRawContent(postRequest.raw))
+      const posts: Array<ForumPost> = replacePost(
+        this.topicState.posts,
+        post.withRawContent(postRequest.raw)
       );
+      const detail: TopicDetail | null = this.topicState.detail;
+      this.topicState = detail === null
+        ? TopicReadState.withPosts(this.topicState, posts)
+        : TopicReadState.withDetailAndPosts(
+          this.topicState,
+          detail.withTitleAndPosts(topicRequest.title, posts),
+          posts
+        );
     }
     this.topicComposerState = TopicComposerState.success(topicRequest.topicId);
   }

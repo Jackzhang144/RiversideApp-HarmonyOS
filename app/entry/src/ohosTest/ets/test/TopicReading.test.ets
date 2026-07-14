@@ -19,6 +19,7 @@ import {
   PostReaction,
   Topic,
   TopicDetail,
+  TopicDetailMetadata,
   TopicPostBatch
 } from '../../../main/ets/models/ForumModels';
 import { ForumSearchResult, HomeChannel } from '../../../main/ets/models/DiscoveryModels';
@@ -1102,7 +1103,8 @@ export default function topicReadingTest(): void {
         );
         repository.topicDetailResults.push(RepositoryResult.success<TopicDetail>(new TopicDetail(
           2725, '编辑许可', 10, 3, 0, false, false, true,
-          [102728, 102729, 102730], [firstPost(), editablePost, thirdPost()]
+          [102728, 102729, 102730], [firstPost(), editablePost, thirdPost()], 3,
+          new TopicDetailMetadata(111)
         )));
         repository.editPostResults.push(
           RepositoryResult.failure<boolean>('服务器拒绝编辑'),

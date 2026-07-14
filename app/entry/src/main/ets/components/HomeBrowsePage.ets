@@ -12,11 +12,13 @@ export struct HomeBrowsePage {
   @Prop categories: Array<Category> = [];
   @Prop selectedChannel: HomeChannel = HomeChannel.LATEST_REPLIES;
   @Prop worldCupEntryEnabled: boolean = true;
+  @Prop newTopicAvailable: boolean = true;
   onRetry: () => void = (): void => {};
   onRefresh: () => void = (): void => {};
   onLoadMore: () => void = (): void => {};
   onOpenTopic: (topic: Topic) => void = (_topic: Topic): void => {};
   onOpenSearch: () => void = (): void => {};
+  onOpenNewTopic: () => void = (): void => {};
   onSelectChannel: (index: number) => void = (_index: number): void => {};
   onWorldCupEntryChange: (enabled: boolean) => void = (_enabled: boolean): void => {};
 
@@ -54,8 +56,8 @@ export struct HomeBrowsePage {
       )
       this.headerAction(
         $r('sys.symbol.plus'),
-        HomeHeaderActionPresentation.newTopic(),
-        (): void => {}
+        HomeHeaderActionPresentation.newTopic(this.newTopicAvailable),
+        this.onOpenNewTopic
       )
     }
     .width('100%')

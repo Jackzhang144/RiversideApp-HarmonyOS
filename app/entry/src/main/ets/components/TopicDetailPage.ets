@@ -34,6 +34,7 @@ export struct TopicDetailPage {
   onLoadMore: () => void = (): void => {};
   onLoadPrevious: () => void = (): void => {};
   onOpenReply: (postNumber: number | null) => void = (_postNumber: number | null): void => {};
+  onOpenEdit: (postId: number) => void = (_postId: number): void => {};
   onToggleReaction: (postId: number, reaction: string) => void = (
     _postId: number,
     _reaction: string
@@ -43,6 +44,8 @@ export struct TopicDetailPage {
   onReadProgress: (postNumber: number) => void = (_postNumber: number): void => {};
   onReplyDraftChange: (draft: string) => void = (_draft: string): void => {};
   onSubmitReply: () => void = (): void => {};
+  onSaveReplyDraft: () => void = (): void => {};
+  onDiscardReplyDraft: () => void = (): void => {};
   onDismissReply: () => void = (): void => {};
   onLoginForReply: () => void = (): void => {};
   private readProgressTimer: number = -1;
@@ -97,6 +100,15 @@ export struct TopicDetailPage {
   }
 
   private composerPresentation(): ForumComposerPresentation {
+    if (this.replyState.isEditingPost()) {
+      return ForumComposerPresentation.editPost(
+        this.state.topicId,
+        this.state.title,
+        this.replyState.draft,
+        this.composerStatus(),
+        this.replyState.message
+      );
+    }
     return ForumComposerPresentation.reply(
       this.state.topicId,
       this.state.title,
@@ -105,6 +117,13 @@ export struct TopicDetailPage {
       this.composerStatus(),
       this.replyState.message
     );
+  }
+
+  private canEditPost(post: ForumPost): boolean {
+    if (!post.canEdit) {
+      return false;
+    }
+    return post.postNumber !== 1 || this.state.detail?.canEdit === true;
   }
 
   @Builder
@@ -325,6 +344,17 @@ export struct TopicDetailPage {
         .enabled(!this.state.postActionState.busy)
         .onClick((): void => this.onToggleBookmark(post.id))
         .accessibilityText(this.isPostBookmarked(post.id) ? '取消收藏' : '收藏')
+        if (this.canEditPost(post)) {
+          Button('编辑')
+            .height(34)
+            .fontSize(12)
+            .backgroundColor('#EAF2FF')
+            .fontColor('#2068C9')
+            .margin({ right: 6, bottom: 6 })
+            .enabled(!this.state.postActionState.busy)
+            .onClick((): void => this.onOpenEdit(post.id))
+            .accessibilityText(post.postNumber === 1 ? '编辑 Topic' : `编辑 Post #${post.postNumber}`)
+        }
       }
       .width('100%')
       if (this.state.postActionState.postId === post.id && this.state.postActionState.busy) {
@@ -395,6 +425,8 @@ export struct TopicDetailPage {
       onTitleChange: (_title: string): void => {},
       onBodyChange: (body: string): void => this.onReplyDraftChange(body),
       onSubmit: (): void => this.onSubmitReply(),
+      onSaveDraft: (): void => this.onSaveReplyDraft(),
+      onDiscard: (): void => this.onDiscardReplyDraft(),
       onReauthenticate: (): void => this.onLoginForReply()
     })
   }

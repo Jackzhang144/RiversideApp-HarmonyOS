@@ -405,6 +405,30 @@ export class TopicDetail {
     );
   }
 
+  public withTitleAndPosts(title: string, posts: Array<ForumPost>): TopicDetail {
+    return new TopicDetail(
+      this.id,
+      title,
+      this.viewCount,
+      this.postCount,
+      this.likeCount,
+      this.closed,
+      this.archived,
+      this.canReply,
+      this.postIds,
+      posts,
+      this.highestPostNumber,
+      new TopicDetailMetadata(
+        this.categoryId,
+        this.canEdit,
+        this.authorUsername,
+        this.validReactions,
+        this.suggestedTopics,
+        this.lastReadPostNumber
+      )
+    );
+  }
+
   public withLastReadPostNumber(lastReadPostNumber: number): TopicDetail {
     return new TopicDetail(
       this.id,

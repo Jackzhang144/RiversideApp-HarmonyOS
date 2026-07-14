@@ -26,6 +26,7 @@ export default function forumComposerPresentationTest(): void {
       expect(presentation.imageActionAccessibilityText).assertEqual('图片，未实现');
       expect(presentation.mentionActionAvailable).assertFalse();
       expect(presentation.mentionActionAccessibilityText).assertEqual('@ 提及，未实现');
+      expect(presentation.showsDraftActions).assertTrue();
       expect(presentation.canSubmit()).assertTrue();
       expect(presentation.submitLabel()).assertEqual('发布 Reply');
     });
@@ -84,6 +85,26 @@ export default function forumComposerPresentationTest(): void {
       expect(incomplete.canSubmit()).assertFalse();
       expect(complete.canSubmit()).assertTrue();
       expect(complete.submitLabel()).assertEqual('发布 Topic');
+      expect(complete.contextDescription).assertEqual('仅发布到测试专用 Category #111');
+      expect(complete.showsDraftActions).assertTrue();
+    });
+
+    it('distinguishes Post and Topic editing from creation', 0, () => {
+      const post: ForumComposerPresentation = ForumComposerPresentation.editPost(
+        2725, 'Topic', '更新 Reply', ForumComposerStatus.EDITING, ''
+      );
+      const topic: ForumComposerPresentation = ForumComposerPresentation.editTopic(
+        '原标题', '更新正文', ForumComposerStatus.ERROR, '服务器拒绝编辑'
+      );
+
+      expect(post.mode).assertEqual(ForumComposerMode.EDIT_POST);
+      expect(post.showsTitleInput).assertFalse();
+      expect(post.showsDraftActions).assertFalse();
+      expect(post.submitLabel()).assertEqual('保存 Post');
+      expect(topic.mode).assertEqual(ForumComposerMode.EDIT_TOPIC);
+      expect(topic.showsTitleInput).assertTrue();
+      expect(topic.showsDraftActions).assertFalse();
+      expect(topic.submitLabel()).assertEqual('显式重试');
     });
   });
 }

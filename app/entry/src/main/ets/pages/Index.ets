@@ -18,6 +18,8 @@ import {
   rootDestinationForTabIndex,
   RootDestination,
   SearchState,
+  TopicComposerState,
+  TopicComposerStateKind,
   TopicReadState
 } from '../app/AppShellModel';
 import { AuthenticatedSession } from '../auth/AuthModels';
@@ -32,6 +34,11 @@ import { AccountPage } from '../components/AccountPage';
 import { CategoryBrowsePage } from '../components/CategoryBrowsePage';
 import { CategoryTopicsPage } from '../components/CategoryTopicsPage';
 import { HomeBrowsePage } from '../components/HomeBrowsePage';
+import { ForumComposer } from '../components/ForumComposer';
+import {
+  ForumComposerPresentation,
+  ForumComposerStatus
+} from '../components/ForumComposerPresentation';
 import { LoginPage } from '../components/LoginPage';
 import { SearchPage } from '../components/SearchPage';
 import { TopicDetailPage } from '../components/TopicDetailPage';
@@ -40,6 +47,7 @@ import { UiPrototypePage } from '../components/prototype/UiPrototypePage';
 import { Category, Topic } from '../models/ForumModels';
 import { HomeChannel, SearchPost } from '../models/DiscoveryModels';
 import { CurrentUser } from '../models/ReplyModels';
+import { AUTHORING_CATEGORY_ID } from '../models/AuthoringModels';
 import {
   AuthenticatedSessionProvider,
   DiscourseHttpClient
@@ -51,6 +59,7 @@ const CATEGORY_TOPICS_ROUTE: string = 'category-topics';
 const TOPIC_ROUTE: string = 'topic';
 const LOGIN_ROUTE: string = 'login';
 const SEARCH_ROUTE: string = 'search';
+const TOPIC_COMPOSER_ROUTE: string = 'topic-composer';
 const UI_PROTOTYPE_ROUTE: string = 'ui-prototype';
 const RIVERSIDE_BASE_URL: string = 'https://river-side.cc';
 const ROOT_TAB_SELECTED_COLOR: string = '#317AF7';
@@ -91,6 +100,7 @@ struct Index {
   @State readProgressMessage: string = '';
   @State replyState: ReplyComposerState = ReplyComposerState.closed();
   @State replySheetVisible: boolean = false;
+  @State topicComposerState: TopicComposerState = TopicComposerState.closed();
   @State authState: AuthState = AuthState.idle();
   @State accountIdentity: CurrentUser | null = null;
   @State accountIdentityLoading: boolean = false;
@@ -175,6 +185,8 @@ struct Index {
     if (repository.state.kind === AuthStateKind.AUTHENTICATED) {
       model.resumeReplyAfterAuthentication();
       this.synchronizeReplyState(model, model.replyState.kind === ReplyComposerStateKind.EDITING);
+      model.resumeTopicAfterAuthentication();
+      this.topicComposerState = model.topicComposerState;
       this.refreshAccountIdentity();
     } else {
       this.accountIdentityRequestVersion += 1;
@@ -522,6 +534,15 @@ struct Index {
       model.replyState.kind !== ReplyComposerStateKind.CLOSED &&
         model.replyState.kind !== ReplyComposerStateKind.SUCCESS
     );
+    this.restoreReplyDraft(model);
+  }
+
+  private async restoreReplyDraft(model: AppShellModel): Promise<void> {
+    await model.restoreReplyDraft();
+    this.synchronizeReplyState(model,
+      model.replyState.kind !== ReplyComposerStateKind.CLOSED &&
+        model.replyState.kind !== ReplyComposerStateKind.SUCCESS
+    );
   }
 
   private updateReplyDraft(draft: string): void {
@@ -558,6 +579,173 @@ struct Index {
     );
     this.synchronizeTopicState(model);
     this.showReplyMessage();
+  }
+
+  private async saveReplyDraft(): Promise<void> {
+    const model: AppShellModel | null = this.model;
+    if (model === null) {
+      return;
+    }
+    const saved: boolean = await model.saveReplyDraft();
+    this.synchronizeReplyState(model);
+    if (saved) {
+      this.showAuthenticationMessage('草稿已保存', 'Reply 草稿已同步到服务端');
+    }
+  }
+
+  private async discardReplyDraft(): Promise<void> {
+    const model: AppShellModel | null = this.model;
+    if (model === null) {
+      return;
+    }
+    await model.discardReplyDraft();
+    this.synchronizeReplyState(model, false);
+  }
+
+  private async openNewTopic(): Promise<void> {
+    const model: AppShellModel | null = this.model;
+    if (model === null || !this.canCreateAuthoringTopic()) {
+      return;
+    }
+    model.openNewTopic();
+    this.topicComposerState = model.topicComposerState;
+    this.pathStack.pushPath({ name: TOPIC_COMPOSER_ROUTE });
+    await model.restoreTopicDraft();
+    this.topicComposerState = model.topicComposerState;
+  }
+
+  private canCreateAuthoringTopic(): boolean {
+    if (this.authState.kind !== AuthStateKind.AUTHENTICATED) {
+      return true;
+    }
+    return this.accountIdentity?.canCreatePost === true && this.categoryState.items.some(
+      (category: Category): boolean => category.id === AUTHORING_CATEGORY_ID
+    );
+  }
+
+  private openPostEditor(postId: number): void {
+    const model: AppShellModel | null = this.model;
+    if (model === null || !model.openPostEditor(postId)) {
+      return;
+    }
+    this.synchronizeTopicState(model);
+    if (model.topicEditingTopicId !== null) {
+      this.topicComposerState = model.topicComposerState;
+      this.pathStack.pushPath({ name: TOPIC_COMPOSER_ROUTE });
+      return;
+    }
+    this.synchronizeReplyState(model, true);
+  }
+
+  private topicComposerStatus(): ForumComposerStatus {
+    if (
+      this.topicComposerState.kind === TopicComposerStateKind.SUBMITTING ||
+      this.topicComposerState.kind === TopicComposerStateKind.SAVING_DRAFT
+    ) {
+      return ForumComposerStatus.SUBMITTING;
+    }
+    if (this.topicComposerState.kind === TopicComposerStateKind.ERROR) {
+      return ForumComposerStatus.ERROR;
+    }
+    if (this.topicComposerState.kind === TopicComposerStateKind.REAUTHENTICATE) {
+      return ForumComposerStatus.REAUTHENTICATE;
+    }
+    return ForumComposerStatus.EDITING;
+  }
+
+  private topicComposerPresentation(): ForumComposerPresentation {
+    const model: AppShellModel | null = this.model;
+    if (model?.topicEditingTopicId !== null && model?.topicEditingTopicId !== undefined) {
+      return ForumComposerPresentation.editTopic(
+        this.topicComposerState.title,
+        this.topicComposerState.raw,
+        this.topicComposerStatus(),
+        this.topicComposerState.message
+      );
+    }
+    return ForumComposerPresentation.topic(
+      'Category #111',
+      this.topicComposerState.title,
+      this.topicComposerState.raw,
+      this.topicComposerStatus(),
+      this.topicComposerState.message
+    );
+  }
+
+  private updateTopicTitle(title: string): void {
+    const model: AppShellModel | null = this.model;
+    if (model !== null) {
+      model.updateTopicComposerTitle(title);
+      this.topicComposerState = model.topicComposerState;
+    }
+  }
+
+  private updateTopicRaw(raw: string): void {
+    const model: AppShellModel | null = this.model;
+    if (model !== null) {
+      model.updateTopicComposerRaw(raw);
+      this.topicComposerState = model.topicComposerState;
+    }
+  }
+
+  private async saveTopicDraft(): Promise<void> {
+    const model: AppShellModel | null = this.model;
+    if (model === null) {
+      return;
+    }
+    const saved: boolean = await model.saveTopicDraft();
+    this.topicComposerState = model.topicComposerState;
+    if (saved) {
+      this.showAuthenticationMessage('草稿已保存', 'Topic 草稿已同步到服务端');
+    }
+  }
+
+  private async discardTopicDraft(): Promise<void> {
+    const model: AppShellModel | null = this.model;
+    if (model === null) {
+      return;
+    }
+    const discarded: boolean = await model.discardTopicDraft();
+    this.topicComposerState = model.topicComposerState;
+    if (discarded) {
+      this.pathStack.pop();
+    }
+  }
+
+  private async submitTopicComposer(): Promise<void> {
+    const model: AppShellModel | null = this.model;
+    if (model === null) {
+      return;
+    }
+    const editing: boolean = model.topicEditingTopicId !== null;
+    const task: Promise<void> = model.submitTopicComposer();
+    this.topicComposerState = model.topicComposerState;
+    await task;
+    this.topicComposerState = model.topicComposerState;
+    this.synchronizeTopicState(model);
+    if (model.topicComposerState.kind === TopicComposerStateKind.SUCCESS) {
+      this.pathStack.pop();
+      this.showAuthenticationMessage(
+        editing ? 'Topic 已保存' : 'Topic 已发布',
+        editing ? '标题和首个 Post 已更新' : '已发布到 Category #111'
+      );
+      if (!editing) {
+        this.refreshHome();
+      }
+    }
+  }
+
+  private async loginForTopicComposer(): Promise<void> {
+    await this.openLogin();
+  }
+
+  private handleTopicComposerBack(): boolean {
+    const model: AppShellModel | null = this.model;
+    if (model !== null && !model.topicComposerState.isBusy()) {
+      model.dismissTopicComposer();
+      this.topicComposerState = model.topicComposerState;
+    }
+    return false;
   }
 
   private async loginForReply(): Promise<void> {
@@ -761,11 +949,20 @@ struct Index {
           onOpenReply: (postNumber: number | null): void => {
             this.openReply(postNumber);
           },
+          onOpenEdit: (postId: number): void => {
+            this.openPostEditor(postId);
+          },
           onReplyDraftChange: (draft: string): void => {
             this.updateReplyDraft(draft);
           },
           onSubmitReply: (): void => {
             this.submitReply();
+          },
+          onSaveReplyDraft: (): void => {
+            this.saveReplyDraft();
+          },
+          onDiscardReplyDraft: (): void => {
+            this.discardReplyDraft();
           },
           onDismissReply: (): void => {
             this.dismissReply();
@@ -783,6 +980,40 @@ struct Index {
         }
       })
       .onBackPressed((): boolean => this.handleSecondaryBack())
+    } else if (name === TOPIC_COMPOSER_ROUTE) {
+      HdsNavDestination() {
+        ForumComposer({
+          presentation: this.topicComposerPresentation(),
+          onTitleChange: (title: string): void => {
+            this.updateTopicTitle(title);
+          },
+          onBodyChange: (raw: string): void => {
+            this.updateTopicRaw(raw);
+          },
+          onSubmit: (): void => {
+            this.submitTopicComposer();
+          },
+          onSaveDraft: (): void => {
+            this.saveTopicDraft();
+          },
+          onDiscard: (): void => {
+            this.discardTopicDraft();
+          },
+          onReauthenticate: (): void => {
+            this.loginForTopicComposer();
+          }
+        })
+      }
+      .titleBar({
+        enableComponentSafeArea: true,
+        content: {
+          title: {
+            mainTitle: this.model?.topicEditingTopicId === null ? '发布新 Topic' : '编辑 Topic'
+          },
+          backIcon: { label: '返回' }
+        }
+      })
+      .onBackPressed((): boolean => this.handleTopicComposerBack())
     } else if (name === LOGIN_ROUTE) {
       HdsNavDestination() {
         LoginPage({
@@ -917,6 +1148,7 @@ struct Index {
             categories: this.categoryState.items,
             selectedChannel: this.selectedHomeChannel,
             worldCupEntryEnabled: this.worldCupEntryEnabled,
+            newTopicAvailable: this.canCreateAuthoringTopic(),
             onRetry: (): void => {
               this.loadHome();
             },
@@ -931,6 +1163,9 @@ struct Index {
             },
             onOpenSearch: (): void => {
               this.openSearch();
+            },
+            onOpenNewTopic: (): void => {
+              this.openNewTopic();
             },
             onSelectChannel: (index: number): void => {
               this.selectHomeChannel(index);
