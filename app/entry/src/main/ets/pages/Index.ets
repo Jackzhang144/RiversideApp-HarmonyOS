@@ -1,6 +1,6 @@
 import { common } from '@kit.AbilityKit';
 import { webview } from '@kit.ArkWeb';
-import { BusinessError } from '@kit.BasicServicesKit';
+import { BusinessError, pasteboard } from '@kit.BasicServicesKit';
 import {
   hdsMaterial,
   HdsNavDestination,
@@ -47,6 +47,7 @@ import { SearchPage } from '../components/SearchPage';
 import { SecureRichEmbedPage } from '../components/SecureRichEmbedPage';
 import { TopicDetailPage } from '../components/TopicDetailPage';
 import { UserProfileSummaryPage } from '../components/UserProfileSummaryPage';
+import { ImageViewerPage } from '../components/ImageViewerPage';
 import { selectedBookmarkPostIds } from '../components/TopicReadingPresentation';
 import { UiPrototypePage } from '../components/prototype/UiPrototypePage';
 import { Category, Topic } from '../models/ForumModels';
@@ -73,6 +74,11 @@ import {
   MediaSelectionService
 } from '../media/MediaSelectionService';
 import { CachedMedia, MediaUploadState, MediaUploadStateKind } from '../models/MediaModels';
+import {
+  ImageViewerState,
+  normalizeRemoteImageUrl
+} from '../models/ImageViewerModels';
+import { MediaGalleryService } from '../media/MediaGalleryService';
 import { PreferencesDiscoverySettingsStore } from '../settings/PreferencesDiscoverySettingsStore';
 
 const CATEGORY_TOPICS_ROUTE: string = 'category-topics';
@@ -82,6 +88,7 @@ const SEARCH_ROUTE: string = 'search';
 const TOPIC_COMPOSER_ROUTE: string = 'topic-composer';
 const USER_PROFILE_ROUTE: string = 'user-profile';
 const RICH_EMBED_ROUTE: string = 'rich-embed';
+const IMAGE_VIEWER_ROUTE: string = 'image-viewer';
 const UI_PROTOTYPE_ROUTE: string = 'ui-prototype';
 const RIVERSIDE_BASE_URL: string = 'https://river-side.cc';
 const ROOT_TAB_SELECTED_COLOR: string = '#317AF7';
@@ -107,6 +114,7 @@ struct Index {
   private authRepository: AuthRepository | null = null;
   private snackBar: HdsSnackBar | null = null;
   private richEmbedController: webview.WebviewController = new webview.WebviewController();
+  private mediaGalleryService: MediaGalleryService | null = null;
 
   @Env(SystemProperties.WINDOW_AVOID_AREA) avoidAreasVp: window.UIEnvWindowAvoidAreaInfoVP;
   @State selectedRoot: RootDestination = RootDestination.HOME;
@@ -137,6 +145,7 @@ struct Index {
   @State richEmbedUrl: string = '';
   @State richEmbedTitle: string = '';
   @State richEmbedProvider: RichEmbedProvider = RichEmbedProvider.NONE;
+  @State imageViewerState: ImageViewerState = ImageViewerState.preparing('', '');
   private accountIdentityRequestVersion: number = 0;
   private profileRequestVersion: number = 0;
 
@@ -171,6 +180,10 @@ struct Index {
     this.authState = authRepository.state;
 
     const sessionProvider: RepositorySessionProvider = new RepositorySessionProvider(authRepository);
+    const abilityContext: common.UIAbilityContext | null = AbilityContextRegistry.current();
+    if (abilityContext !== null) {
+      this.mediaGalleryService = new MediaGalleryService(abilityContext, sessionProvider);
+    }
     const authenticationLifecycle: RepositoryAuthenticationLifecycle = new RepositoryAuthenticationLifecycle(
       authRepository,
       (): void => {
@@ -571,6 +584,53 @@ struct Index {
     abilityContext.openLink(url).catch((error: BusinessError): void => {
       this.showAuthenticationMessage('链接未打开', error.message);
     });
+  }
+
+  private async openImageViewer(url: string, title: string): Promise<void> {
+    const normalizedUrl: string = normalizeRemoteImageUrl(url, RIVERSIDE_BASE_URL);
+    if (normalizedUrl.length === 0) {
+      this.showAuthenticationMessage('无法查看图片', '图片地址无效');
+      return;
+    }
+    this.imageViewerState = ImageViewerState.preparing(normalizedUrl, title);
+    this.pathStack.pushPath({ name: IMAGE_VIEWER_ROUTE });
+    const service: MediaGalleryService | null = this.mediaGalleryService;
+    if (service === null) {
+      this.imageViewerState = this.imageViewerState.failed('图片保存服务不可用');
+      return;
+    }
+    const result: RepositoryResult<CachedMedia> = await service.prepareOriginal(normalizedUrl);
+    if (this.imageViewerState.remoteUrl !== normalizedUrl) {
+      return;
+    }
+    this.imageViewerState = result.isSuccess() && result.data !== null
+      ? this.imageViewerState.ready(result.data)
+      : this.imageViewerState.failed(result.message);
+  }
+
+  private async saveViewerImage(): Promise<void> {
+    const service: MediaGalleryService | null = this.mediaGalleryService;
+    const media: CachedMedia | null = this.imageViewerState.cachedMedia;
+    if (service === null || media === null) {
+      this.imageViewerState = this.imageViewerState.failed('原图尚未准备完成');
+      return;
+    }
+    this.imageViewerState = this.imageViewerState.saving();
+    const result: RepositoryResult<boolean> = await service.saveToGallery(media);
+    this.imageViewerState = result.isSuccess()
+      ? this.imageViewerState.saved()
+      : this.imageViewerState.failed(result.message);
+  }
+
+  private async copyViewerImageUrl(): Promise<void> {
+    try {
+      await pasteboard.getSystemPasteboard().setData(
+        pasteboard.createData(pasteboard.MIMETYPE_TEXT_PLAIN, this.imageViewerState.remoteUrl)
+      );
+      this.showAuthenticationMessage('链接已复制', '图片原始地址已复制到剪贴板');
+    } catch (_) {
+      this.showAuthenticationMessage('复制失败', '无法写入系统剪贴板');
+    }
   }
 
   private async retryTopic(): Promise<void> {
@@ -1152,6 +1212,9 @@ struct Index {
           onOpenRichEmbed: (url: string, provider: RichEmbedProvider, title: string): void => {
             this.openRichEmbed(url, provider, title);
           },
+          onOpenImage: (url: string, title: string): void => {
+            this.openImageViewer(url, title);
+          },
           onReadProgress: (postNumber: number): void => {
             this.reportTopicReadProgress(postNumber);
           },
@@ -1239,6 +1302,32 @@ struct Index {
         }
       })
       .onBackPressed((): boolean => this.handleRichEmbedBack())
+    } else if (name === IMAGE_VIEWER_ROUTE) {
+      HdsNavDestination() {
+        ImageViewerPage({
+          state: this.imageViewerState,
+          onCopyUrl: (): void => {
+            this.copyViewerImageUrl();
+          },
+          onOpenExternally: (): void => {
+            this.openExternalLink(this.imageViewerState.remoteUrl);
+          },
+          onSaveAuthorized: (): void => {
+            this.saveViewerImage();
+          },
+          onSaveAuthorizationFailure: (): void => {
+            this.showAuthenticationMessage('未保存图片', '系统未授予本次保存授权');
+          }
+        })
+      }
+      .titleBar({
+        enableComponentSafeArea: true,
+        content: {
+          title: { mainTitle: this.imageViewerState.title.length > 0 ? this.imageViewerState.title : '查看原图' },
+          backIcon: { label: '返回 Topic' }
+        }
+      })
+      .onBackPressed((): boolean => false)
     } else if (name === TOPIC_COMPOSER_ROUTE) {
       HdsNavDestination() {
         ForumComposer({

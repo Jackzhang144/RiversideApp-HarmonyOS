@@ -51,6 +51,7 @@ export struct TopicDetailPage {
     _provider: RichEmbedProvider,
     _title: string
   ): void => {};
+  onOpenImage: (url: string, title: string) => void = (_url: string, _title: string): void => {};
   onReadProgress: (postNumber: number) => void = (_postNumber: number): void => {};
   onReplyDraftChange: (draft: string) => void = (_draft: string): void => {};
   onSubmitReply: () => void = (): void => {};
@@ -193,6 +194,7 @@ export struct TopicDetailPage {
         onOpenRichLink: (url: string): void => this.onOpenRichLink(url),
         onOpenRichEmbed: (url: string, provider: RichEmbedProvider, title: string): void =>
           this.onOpenRichEmbed(url, provider, title),
+        onOpenImage: (url: string, title: string): void => this.onOpenImage(url, title),
         onReply: (postNumber: number | null): void => this.onOpenReply(postNumber)
       })
       if (post !== null) {
@@ -261,6 +263,7 @@ export struct TopicDetailPage {
         onOpenRichLink: (url: string): void => this.onOpenRichLink(url),
         onOpenRichEmbed: (url: string, provider: RichEmbedProvider, title: string): void =>
           this.onOpenRichEmbed(url, provider, title),
+        onOpenImage: (url: string, title: string): void => this.onOpenImage(url, title),
         onReply: (postNumber: number | null): void => this.onOpenReply(postNumber)
       })
       this.PostActions(post)

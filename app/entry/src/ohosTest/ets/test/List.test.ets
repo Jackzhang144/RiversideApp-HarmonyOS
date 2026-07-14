@@ -8,6 +8,7 @@ import discourseHttpHeadersTest from './DiscourseHttpHeaders.test';
 import forumCardPresentationTest from './ForumCardPresentation.test';
 import forumComposerPresentationTest from './ForumComposerPresentation.test';
 import homePresentationTest from './HomePresentation.test';
+import imageViewerModelsTest from './ImageViewerModels.test';
 import jsonBoundaryTest from './JsonBoundary.test';
 import mediaModelsTest from './MediaModels.test';
 import mediaRepositoryTest from './MediaRepository.test';
@@ -29,6 +30,7 @@ export default function tests(): void {
   forumCardPresentationTest();
   forumComposerPresentationTest();
   homePresentationTest();
+  imageViewerModelsTest();
   jsonBoundaryTest();
   mediaModelsTest();
   mediaRepositoryTest();

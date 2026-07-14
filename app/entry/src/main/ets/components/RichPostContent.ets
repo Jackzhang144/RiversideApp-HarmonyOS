@@ -19,6 +19,7 @@ export struct RichPostContent {
     _provider: RichEmbedProvider,
     _title: string
   ): void => {};
+  onOpenImage: (url: string, title: string) => void = (_url: string, _title: string): void => {};
 
   private blocks(): Array<RichContentBlock> {
     return parseRichPostContent(this.cooked, this.raw);
@@ -268,6 +269,7 @@ export struct RichPostContent {
           .backgroundColor('#F4F5F7')
           .borderRadius(8)
           .onError((): void => this.recordImageFailure(block.url))
+          .onClick((): void => this.onOpenImage(block.url, block.title))
           .accessibilityText(block.title)
       }
       if (block.title.length > 0) {

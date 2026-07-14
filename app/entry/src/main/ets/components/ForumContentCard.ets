@@ -24,6 +24,7 @@ export struct ForumContentCard {
     _provider: RichEmbedProvider,
     _title: string
   ): void => {};
+  onOpenImage: (url: string, title: string) => void = (_url: string, _title: string): void => {};
 
   @Builder
   private Badge(badge: ForumCardBadge): void {
@@ -101,7 +102,8 @@ export struct ForumContentCard {
           raw: this.richRaw,
           onOpenLink: (url: string): void => this.onOpenRichLink(url),
           onOpenEmbed: (url: string, provider: RichEmbedProvider, title: string): void =>
-            this.onOpenRichEmbed(url, provider, title)
+            this.onOpenRichEmbed(url, provider, title),
+          onOpenImage: (url: string, title: string): void => this.onOpenImage(url, title)
         })
       } else if (this.presentation.body.length > 0) {
         Text(this.presentation.body)
