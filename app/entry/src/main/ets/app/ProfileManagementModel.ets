@@ -1,5 +1,11 @@
 import { RepositoryResult, RepositoryResultKind } from '../core/RepositoryResult';
 import {
+  CachedMedia,
+  MediaUploadRequest,
+  MediaUploadResult,
+  MediaUploadState
+} from '../models/MediaModels';
+import {
   ProfileNotificationLevel,
   ProfileUpdateRequest,
   UserEmailInfo,
@@ -7,6 +13,7 @@ import {
   UserProfileSummary
 } from '../models/ProfileModels';
 import { ProfileRepository } from '../repositories/ProfileRepository';
+import { MediaRepository, MediaUploadOperation } from '../repositories/MediaRepository';
 
 export interface ProfileSessionLifecycle {
   handleUnauthorized(): Promise<void>;
@@ -97,14 +104,21 @@ export class ProfileViewState {
 
 export class ProfileManagementModel {
   public state: ProfileViewState = ProfileViewState.initial();
+  public mediaState: MediaUploadState | null = null;
   private readonly repository: ProfileRepository;
   private readonly sessionLifecycle: ProfileSessionLifecycle;
+  private readonly mediaRepository: MediaRepository | null;
   private activeUsername: string = '';
   private loadGeneration: number = 0;
 
-  public constructor(repository: ProfileRepository, sessionLifecycle: ProfileSessionLifecycle) {
+  public constructor(
+    repository: ProfileRepository,
+    sessionLifecycle: ProfileSessionLifecycle,
+    mediaRepository: MediaRepository | null = null
+  ) {
     this.repository = repository;
     this.sessionLifecycle = sessionLifecycle;
+    this.mediaRepository = mediaRepository;
   }
 
   public async loadProfile(username: string, includeEmails: boolean = false): Promise<void> {
@@ -199,6 +213,98 @@ export class ProfileManagementModel {
       expiringAt
     );
     return this.finishWrite(result);
+  }
+
+  public async uploadAvatar(media: CachedMedia): Promise<boolean> {
+    const profile: UserProfile | null = this.state.profile;
+    if (profile === null || this.mediaRepository === null) {
+      return false;
+    }
+    const request: MediaUploadRequest | null = MediaUploadRequest.avatar(media, profile.id);
+    if (request === null) {
+      return false;
+    }
+    const upload: RepositoryResult<MediaUploadResult> = await this.uploadMedia(request);
+    if (!upload.isSuccess() || upload.data === null) {
+      await this.finishFailedUpload(upload);
+      return false;
+    }
+    const selected: RepositoryResult<boolean> = await this.repository.pickUploadedAvatar(
+      profile.username,
+      upload.data.id
+    );
+    const saved: boolean = await this.finishWrite(selected);
+    if (!saved) {
+      this.mediaState = this.mediaState?.failed(this.state.message) ?? null;
+      return false;
+    }
+    this.mediaState = this.mediaState?.succeeded(upload.data) ?? null;
+    return true;
+  }
+
+  public async uploadProfileBackground(media: CachedMedia): Promise<boolean> {
+    const profile: UserProfile | null = this.state.profile;
+    if (profile === null || this.mediaRepository === null || !profile.canUploadProfileBackground) {
+      return false;
+    }
+    const upload: RepositoryResult<MediaUploadResult> = await this.uploadMedia(
+      MediaUploadRequest.profileBackground(media)
+    );
+    if (!upload.isSuccess() || upload.data === null) {
+      await this.finishFailedUpload(upload);
+      return false;
+    }
+    const uploadUrl: string = upload.data.url.length > 0 ? upload.data.url : upload.data.shortUrl;
+    const request: ProfileUpdateRequest | null = ProfileUpdateRequest.create(
+      profile.username,
+      null,
+      null,
+      null,
+      null,
+      uploadUrl
+    );
+    if (request === null) {
+      this.mediaState = this.mediaState?.failed('背景图上传响应缺少地址') ?? null;
+      return false;
+    }
+    const saved: boolean = await this.finishWrite(await this.repository.updateUserProfile(request));
+    if (!saved) {
+      this.mediaState = this.mediaState?.failed(this.state.message) ?? null;
+      return false;
+    }
+    this.mediaState = this.mediaState?.succeeded(upload.data) ?? null;
+    return true;
+  }
+
+  private async uploadMedia(request: MediaUploadRequest): Promise<RepositoryResult<MediaUploadResult>> {
+    const mediaRepository: MediaRepository | null = this.mediaRepository;
+    if (mediaRepository === null) {
+      return RepositoryResult.failure<MediaUploadResult>('媒体上传不可用');
+    }
+    this.mediaState = MediaUploadState.selected(request.media);
+    const operation: MediaUploadOperation = mediaRepository.upload(
+      request,
+      (uploadedBytes: number, totalBytes: number): void => {
+        this.mediaState = this.mediaState?.uploading(uploadedBytes, totalBytes) ?? null;
+      }
+    );
+    return operation.completion;
+  }
+
+  private async finishFailedUpload(result: RepositoryResult<MediaUploadResult>): Promise<void> {
+    if (result.kind === RepositoryResultKind.UNAUTHORIZED) {
+      await this.sessionLifecycle.handleUnauthorized();
+    }
+    const profile: UserProfile | null = this.state.profile;
+    if (profile !== null) {
+      this.state = ProfileViewState.content(
+        profile,
+        this.state.summary,
+        this.state.emails,
+        result.message
+      );
+    }
+    this.mediaState = this.mediaState?.failed(result.message) ?? null;
   }
 
   private async finishWrite(result: RepositoryResult<boolean>): Promise<boolean> {

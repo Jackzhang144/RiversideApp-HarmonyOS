@@ -30,7 +30,7 @@ class StubMediaTransportOperation implements MediaTransportOperation {
   }
 }
 
-class StubMediaTransport implements ForumMediaTransport {
+export class StubMediaTransport implements ForumMediaTransport {
   public readonly requests: Array<MediaTransportRequest> = [];
   public readonly operations: Array<StubMediaTransportOperation> = [];
   public results: Array<HttpTextResult> = [];
@@ -45,7 +45,7 @@ class StubMediaTransport implements ForumMediaTransport {
   }
 }
 
-function cachedPng(): CachedMedia {
+export function cachedPng(): CachedMedia {
   const media: CachedMedia | null = CachedMedia.create(
     'media-1700000000-abcd',
     '/data/storage/el2/base/cache/media/media-1700000000-abcd.png',

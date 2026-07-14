@@ -5,9 +5,12 @@ import {
   ProfileViewStateKind
 } from '../../../main/ets/app/ProfileManagementModel';
 import { ProfileUpdateRequest } from '../../../main/ets/models/ProfileModels';
+import { MediaUploadStateKind } from '../../../main/ets/models/MediaModels';
 import { HttpTextResult } from '../../../main/ets/network/DiscourseHttpClient';
 import { DiscourseForumRepository } from '../../../main/ets/repositories/DiscourseForumRepository';
+import { DiscourseMediaRepository } from '../../../main/ets/repositories/MediaRepository';
 import { StubForumHttpClient } from './DiscourseForumRepository.test';
+import { cachedPng, StubMediaTransport } from './MediaRepository.test';
 
 class StubProfileSessionLifecycle implements ProfileSessionLifecycle {
   public unauthorizedCount: number = 0;
@@ -20,7 +23,8 @@ class StubProfileSessionLifecycle implements ProfileSessionLifecycle {
 function profileJson(name: string, following: boolean = false): string {
   return '{"user":{"id":24,"username":"member","name":"' + name + '",' +
     '"avatar_template":"/user_avatar/member/{size}/1.png","can_follow":true,' +
-    '"is_followed":' + following + ',"can_mute_user":true,"can_ignore_user":true}}';
+    '"is_followed":' + following + ',"can_mute_user":true,"can_ignore_user":true,' +
+    '"can_upload_profile_header":true}}';
 }
 
 export default function profileManagementModelTest(): void {
@@ -100,6 +104,68 @@ export default function profileManagementModelTest(): void {
         expect(followingAfterFailure).assertFalse();
         expect(succeeded).assertTrue();
         expect(model.state.profile?.following).assertTrue();
+        done();
+      });
+
+    it('keeps the current avatar when upload succeeds but avatar selection fails', 0,
+      async (done: Function) => {
+        const client: StubForumHttpClient = new StubForumHttpClient();
+        client.results.push(HttpTextResult.success(200, profileJson('成员')));
+        client.results.push(HttpTextResult.success(200, '{}'));
+        client.formPutResults.push(HttpTextResult.failure(500, '头像保存失败'));
+        const mediaTransport: StubMediaTransport = new StubMediaTransport();
+        mediaTransport.results.push(HttpTextResult.success(200,
+          '{"id":813,"url":"/uploads/default/original/avatar.png","original_filename":"avatar.png"}'
+        ));
+        const model: ProfileManagementModel = new ProfileManagementModel(
+          new DiscourseForumRepository(client),
+          new StubProfileSessionLifecycle(),
+          new DiscourseMediaRepository(mediaTransport)
+        );
+        await model.loadProfile('member');
+        const originalAvatar: string = model.state.profile?.avatarUrl ?? '';
+
+        const saved: boolean = await model.uploadAvatar(cachedPng());
+
+        expect(saved).assertFalse();
+        expect(model.state.profile?.avatarUrl).assertEqual(originalAvatar);
+        expect(model.mediaState?.kind).assertEqual(MediaUploadStateKind.FAILED);
+        expect(model.state.message).assertEqual('头像保存失败');
+        done();
+      });
+
+    it('applies a background upload URL only after profile write and authoritative refresh succeed', 0,
+      async (done: Function) => {
+        const client: StubForumHttpClient = new StubForumHttpClient();
+        client.results.push(HttpTextResult.success(200, profileJson('成员')));
+        client.results.push(HttpTextResult.success(200, '{}'));
+        client.formPutResults.push(HttpTextResult.success(200, '{}'));
+        client.results.push(HttpTextResult.success(200,
+          '{"user":{"id":24,"username":"member","name":"成员",' +
+          '"profile_background_upload_url":"/uploads/default/original/background.png"}}'
+        ));
+        const mediaTransport: StubMediaTransport = new StubMediaTransport();
+        mediaTransport.results.push(HttpTextResult.success(200,
+          '{"id":814,"url":"/uploads/default/original/background.png",' +
+          '"original_filename":"background.png"}'
+        ));
+        const model: ProfileManagementModel = new ProfileManagementModel(
+          new DiscourseForumRepository(client),
+          new StubProfileSessionLifecycle(),
+          new DiscourseMediaRepository(mediaTransport)
+        );
+        await model.loadProfile('member');
+
+        const saved: boolean = await model.uploadProfileBackground(cachedPng());
+
+        expect(saved).assertTrue();
+        expect(client.formPutRequests[0]).assertEqual(
+          '/u/member.json|profile_background_upload_url=%2Fuploads%2Fdefault%2Foriginal%2Fbackground.png'
+        );
+        expect(model.state.profile?.profileBackgroundUrl).assertEqual(
+          'https://river-side.cc/uploads/default/original/background.png'
+        );
+        expect(model.mediaState?.kind).assertEqual(MediaUploadStateKind.SUCCEEDED);
         done();
       });
   });
