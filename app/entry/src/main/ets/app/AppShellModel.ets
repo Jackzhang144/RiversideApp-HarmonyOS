@@ -63,7 +63,8 @@ export interface AuthenticationLifecycle {
 export enum RootDestination {
   HOME = 0,
   CATEGORY = 1,
-  ACCOUNT = 2
+  CHAT = 2,
+  ACCOUNT = 4
 }
 
 export enum RootTabIndex {
@@ -93,6 +94,9 @@ export function rootDestinationForTabIndex(index: number): RootDestination | nul
   }
   if (index === RootTabIndex.CATEGORY) {
     return RootDestination.CATEGORY;
+  }
+  if (index === RootTabIndex.CHAT) {
+    return RootDestination.CHAT;
   }
   if (index === RootTabIndex.ACCOUNT) {
     return RootDestination.ACCOUNT;

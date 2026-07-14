@@ -346,10 +346,10 @@ export default function appShellModelTest(): void {
       expect(model.selectRootTab(RootTabIndex.CATEGORY)).assertTrue();
       expect(model.selectedRoot).assertEqual(RootDestination.CATEGORY);
 
-      expect(model.selectRootTab(RootTabIndex.CHAT)).assertFalse();
-      expect(model.selectedRoot).assertEqual(RootDestination.CATEGORY);
+      expect(model.selectRootTab(RootTabIndex.CHAT)).assertTrue();
+      expect(model.selectedRoot).assertEqual(RootDestination.CHAT);
       expect(model.selectRootTab(RootTabIndex.NOTIFICATIONS)).assertFalse();
-      expect(model.selectedRoot).assertEqual(RootDestination.CATEGORY);
+      expect(model.selectedRoot).assertEqual(RootDestination.CHAT);
 
       expect(model.selectRootTab(RootTabIndex.ACCOUNT)).assertTrue();
       expect(model.selectedRoot).assertEqual(RootDestination.ACCOUNT);

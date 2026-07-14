@@ -324,6 +324,24 @@ export class ChatModel {
   }
 
   public async openChannel(channel: ChatChannel): Promise<void> {
+    await this.openChannelWithQuery(channel, ChatMessageQuery.initial());
+  }
+
+  public async openChannelAt(channel: ChatChannel, messageId: number): Promise<void> {
+    const query: ChatMessageQuery | null = ChatMessageQuery.target(messageId);
+    if (query !== null) {
+      await this.openChannelWithQuery(channel, query);
+    }
+  }
+
+  public async retryConversation(): Promise<void> {
+    const channel: ChatChannel | null = this.conversationState.channel;
+    if (channel !== null) {
+      await this.openChannel(channel);
+    }
+  }
+
+  private async openChannelWithQuery(channel: ChatChannel, query: ChatMessageQuery): Promise<void> {
     this.cancelUpload();
     this.conversationRequestVersion += 1;
     const requestVersion: number = this.conversationRequestVersion;
@@ -331,7 +349,7 @@ export class ChatModel {
     this.composerState = new ChatComposerState();
     const result: RepositoryResult<ChatMessagePage> = await this.repository.loadChatMessages(
       channel.id,
-      ChatMessageQuery.initial()
+      query
     );
     if (!this.isCurrentConversation(requestVersion, channel.id)) {
       return;
@@ -354,6 +372,18 @@ export class ChatModel {
     this.conversationRequestVersion += 1;
     this.conversationState = ChatConversationState.initial();
     this.composerState = new ChatComposerState();
+  }
+
+  public reset(): void {
+    this.cancelUpload();
+    this.channelRequestVersion += 1;
+    this.conversationRequestVersion += 1;
+    this.searchRequestVersion += 1;
+    this.channelState = ChatChannelState.initial();
+    this.conversationState = ChatConversationState.initial();
+    this.composerState = new ChatComposerState();
+    this.searchState = new ChatSearchState();
+    this.emojis = [];
   }
 
   public async loadOlder(): Promise<void> {

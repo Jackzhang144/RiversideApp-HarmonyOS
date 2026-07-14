@@ -231,6 +231,13 @@ export class ChatMessageQuery {
     return new ChatMessageQuery(null, '', false);
   }
 
+  public static target(targetMessageId: number): ChatMessageQuery | null {
+    if (!Number.isSafeInteger(targetMessageId) || targetMessageId <= 0) {
+      return null;
+    }
+    return new ChatMessageQuery(targetMessageId, '', false);
+  }
+
   public static around(targetMessageId: number, direction: string): ChatMessageQuery | null {
     const normalizedDirection: string = direction.trim().toLowerCase();
     if (

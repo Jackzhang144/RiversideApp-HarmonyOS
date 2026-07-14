@@ -218,6 +218,41 @@ export default function chatModelTest(): void {
         done();
       });
 
+    it('opens a Chat search result around its server message id', 0, async (done: Function) => {
+      const repository: StubChatRepository = new StubChatRepository();
+      repository.messageResults.push(RepositoryResult.success<ChatMessagePage>(
+        new ChatMessagePage([message(30, '命中', '2026-07-12T11:00:00Z')], true, true)
+      ));
+      const model: ChatModel = new ChatModel(repository);
+
+      await model.openChannelAt(channel(), 30);
+
+      expect(repository.messageQueries[0].targetMessageId).assertEqual(30);
+      expect(repository.messageQueries[0].direction).assertEqual('');
+      expect(model.conversationState.messages[0].id).assertEqual(30);
+      done();
+    });
+
+    it('clears protected Chat state when the authenticated session resets', 0, async (done: Function) => {
+      const repository: StubChatRepository = new StubChatRepository();
+      repository.channelResults.push(RepositoryResult.success<Array<ChatChannel>>([channel()]));
+      repository.messageResults.push(RepositoryResult.success<ChatMessagePage>(
+        new ChatMessagePage([message(30, '会话消息', '2026-07-12T11:00:00Z')], false, false)
+      ));
+      const model: ChatModel = new ChatModel(repository);
+      await model.loadChannels();
+      await model.openChannel(channel());
+      model.updateDraft('尚未发送');
+
+      model.reset();
+
+      expect(model.channelState.kind).assertEqual(ChatStateKind.INITIAL);
+      expect(model.conversationState.channel).assertNull();
+      expect(model.composerState.draft).assertEqual('');
+      expect(model.searchState.kind).assertEqual(ChatStateKind.INITIAL);
+      done();
+    });
+
     it('preserves text reply and uploaded images on send failure then clears only after server confirmation', 0,
       async (done: Function) => {
         const repository: StubChatRepository = new StubChatRepository();
