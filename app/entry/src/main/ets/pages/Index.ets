@@ -35,6 +35,7 @@ import { HomeBrowsePage } from '../components/HomeBrowsePage';
 import { LoginPage } from '../components/LoginPage';
 import { SearchPage } from '../components/SearchPage';
 import { TopicDetailPage } from '../components/TopicDetailPage';
+import { selectedBookmarkPostIds } from '../components/TopicReadingPresentation';
 import { UiPrototypePage } from '../components/prototype/UiPrototypePage';
 import { Category, Topic } from '../models/ForumModels';
 import { HomeChannel, SearchPost } from '../models/DiscoveryModels';
@@ -84,6 +85,7 @@ struct Index {
   @State categoryTopicsState: BrowseState<Topic> = BrowseState.initial<Topic>();
   @State categoryTitle: string = 'Category';
   @State topicState: TopicReadState = TopicReadState.initial();
+  @State bookmarkedPostIds: Array<number> = [];
   @State replyState: ReplyComposerState = ReplyComposerState.closed();
   @State replySheetVisible: boolean = false;
   @State authState: AuthState = AuthState.idle();
@@ -416,11 +418,11 @@ struct Index {
       return;
     }
     const task: Promise<void> = model.openTopic(topic, initialPostNumber);
-    this.topicState = model.topicState;
+    this.synchronizeTopicState(model);
     this.synchronizeReplyState(model, false);
     this.pathStack.pushPath({ name: TOPIC_ROUTE });
     await task;
-    this.topicState = model.topicState;
+    this.synchronizeTopicState(model);
     this.synchronizeReplyState(model);
   }
 
@@ -430,9 +432,9 @@ struct Index {
       return;
     }
     const task: Promise<void> = model.retryTopic();
-    this.topicState = model.topicState;
+    this.synchronizeTopicState(model);
     await task;
-    this.topicState = model.topicState;
+    this.synchronizeTopicState(model);
     this.synchronizeReplyState(model);
   }
 
@@ -442,9 +444,9 @@ struct Index {
       return;
     }
     const task: Promise<void> = model.loadMorePosts();
-    this.topicState = model.topicState;
+    this.synchronizeTopicState(model);
     await task;
-    this.topicState = model.topicState;
+    this.synchronizeTopicState(model);
   }
 
   private async loadPreviousPosts(): Promise<void> {
@@ -453,9 +455,9 @@ struct Index {
       return;
     }
     const task: Promise<void> = model.loadPreviousPosts();
-    this.topicState = model.topicState;
+    this.synchronizeTopicState(model);
     await task;
-    this.topicState = model.topicState;
+    this.synchronizeTopicState(model);
   }
 
   private async togglePostReaction(postId: number, reaction: string): Promise<void> {
@@ -464,9 +466,9 @@ struct Index {
       return;
     }
     const task: Promise<void> = model.togglePostReaction(postId, reaction);
-    this.topicState = model.topicState;
+    this.synchronizeTopicState(model);
     await task;
-    this.topicState = model.topicState;
+    this.synchronizeTopicState(model);
   }
 
   private async togglePostBookmark(postId: number): Promise<void> {
@@ -475,9 +477,9 @@ struct Index {
       return;
     }
     const task: Promise<void> = model.togglePostBookmark(postId);
-    this.topicState = model.topicState;
+    this.synchronizeTopicState(model);
     await task;
-    this.topicState = model.topicState;
+    this.synchronizeTopicState(model);
   }
 
   private async reportTopicReadProgress(postNumber: number): Promise<void> {
@@ -486,9 +488,14 @@ struct Index {
       return;
     }
     const task: Promise<void> = model.reportTopicReadProgress(postNumber);
-    this.topicState = model.topicState;
+    this.synchronizeTopicState(model);
     await task;
+    this.synchronizeTopicState(model);
+  }
+
+  private synchronizeTopicState(model: AppShellModel): void {
     this.topicState = model.topicState;
+    this.bookmarkedPostIds = selectedBookmarkPostIds(model.topicState.posts);
   }
 
   private synchronizeReplyState(model: AppShellModel, sheetVisible: boolean | null = null): void {
@@ -543,7 +550,7 @@ struct Index {
       model,
       model.replyState.kind === ReplyComposerStateKind.SUCCESS ? false : null
     );
-    this.topicState = model.topicState;
+    this.synchronizeTopicState(model);
     this.showReplyMessage();
   }
 
@@ -717,6 +724,7 @@ struct Index {
       HdsNavDestination() {
         TopicDetailPage({
           state: this.topicState,
+          bookmarkedPostIds: $bookmarkedPostIds,
           replyState: this.replyState,
           categories: this.categoryState.items,
           replySheetVisible: this.replySheetVisible,

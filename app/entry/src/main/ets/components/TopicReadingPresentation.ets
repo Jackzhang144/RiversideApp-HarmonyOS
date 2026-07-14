@@ -1,4 +1,4 @@
-import { Category, PostReaction } from '../models/ForumModels';
+import { Category, ForumPost, PostReaction } from '../models/ForumModels';
 
 const REACTION_EMOJI_BASE_URL: string = 'https://river-side.cc/images/emoji/twitter';
 
@@ -59,6 +59,12 @@ export function displayedReactions(reactions: Array<PostReaction>): Array<PostRe
     }
   }
   return displayed;
+}
+
+export function selectedBookmarkPostIds(posts: Array<ForumPost>): Array<number> {
+  return posts
+    .filter((post: ForumPost): boolean => post.bookmarked)
+    .map((post: ForumPost): number => post.id);
 }
 
 export function reactionEmojiKey(value: string): string {

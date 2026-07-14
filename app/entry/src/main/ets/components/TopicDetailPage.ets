@@ -23,6 +23,7 @@ import {
 @Component
 export struct TopicDetailPage {
   @Prop state: TopicReadState = TopicReadState.initial();
+  @Link bookmarkedPostIds: Array<number>;
   @Prop replyState: ReplyComposerState = ReplyComposerState.closed();
   @Prop categories: Array<Category> = [];
   @Link replySheetVisible: boolean;
@@ -70,6 +71,10 @@ export struct TopicDetailPage {
 
   private visiblePosts(): Array<ForumPost> {
     return this.hasStarterPost() ? this.state.posts.slice(1) : this.state.posts;
+  }
+
+  private isPostBookmarked(postId: number): boolean {
+    return this.bookmarkedPostIds.includes(postId);
   }
 
   private composerStatus(): ForumComposerStatus {
@@ -300,7 +305,7 @@ export struct TopicDetailPage {
         }, (reaction: PostReaction): string => reaction.id)
         this.ReactionTrigger(post)
         Button() {
-          if (post.bookmarked) {
+          if (this.isPostBookmarked(post.id)) {
             SymbolGlyph($r('sys.symbol.bookmark_fill'))
               .fontSize(18)
               .fontColor(['#FFFFFF'])
@@ -312,11 +317,11 @@ export struct TopicDetailPage {
         }
         .width(42)
         .height(34)
-        .backgroundColor(post.bookmarked ? '#317AF7' : '#EAF2FF')
+        .backgroundColor(this.isPostBookmarked(post.id) ? '#317AF7' : '#EAF2FF')
         .margin({ right: 6, bottom: 6 })
         .enabled(!this.state.postActionState.busy)
         .onClick((): void => this.onToggleBookmark(post.id))
-        .accessibilityText(post.bookmarked ? '取消收藏' : '收藏')
+        .accessibilityText(this.isPostBookmarked(post.id) ? '取消收藏' : '收藏')
       }
       .width('100%')
       if (this.state.postActionState.postId === post.id && this.state.postActionState.busy) {

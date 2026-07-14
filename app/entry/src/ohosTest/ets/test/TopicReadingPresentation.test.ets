@@ -1,5 +1,9 @@
 import { describe, expect, it } from '@ohos/hypium';
-import { Category, PostReaction } from '../../../main/ets/models/ForumModels';
+import {
+  Category,
+  ForumPost,
+  PostReaction
+} from '../../../main/ets/models/ForumModels';
 import {
   categoryLabel,
   displayedReactions,
@@ -7,6 +11,7 @@ import {
   reactionCount,
   reactionEmojiKey,
   reactionEmojiUrl,
+  selectedBookmarkPostIds,
   systemActionLabel
 } from '../../../main/ets/components/TopicReadingPresentation';
 
@@ -54,6 +59,18 @@ export default function topicReadingPresentationTest(): void {
       expect(displayedReactions(reactions).length).assertEqual(1);
       expect(displayedReactions(reactions)[0].id).assertEqual('heart');
       expect(displayedReactions(reactions)[0].count).assertEqual(2);
+    });
+
+    it('projects only server-bookmarked Posts into observable selection state', 0, () => {
+      const posts: Array<ForumPost> = [
+        new ForumPost(101, 1, 'admin', '', '', 1, null, ''),
+        new ForumPost(102, 1, 'admin', '', '', 2, null, '').withBookmark(true, 4763)
+      ];
+
+      const selectedPostIds: Array<number> = selectedBookmarkPostIds(posts);
+
+      expect(selectedPostIds.length).assertEqual(1);
+      expect(selectedPostIds[0]).assertEqual(102);
     });
   });
 }
