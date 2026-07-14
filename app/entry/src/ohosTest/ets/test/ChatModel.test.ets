@@ -1,0 +1,347 @@
+import { describe, expect, it } from '@ohos/hypium';
+import {
+  ChatAuthenticationLifecycle,
+  ChatMetadataProvider,
+  ChatModel,
+  ChatStateKind
+} from '../../../main/ets/app/ChatModel';
+import { RepositoryResult } from '../../../main/ets/core/RepositoryResult';
+import {
+  ChatChannel,
+  ChatEmoji,
+  ChatMessage,
+  ChatMessagePage,
+  ChatMessageQuery,
+  ChatReaction,
+  ChatReactionAction,
+  ChatSearchResult,
+  ChatSendRequest
+} from '../../../main/ets/models/ChatModels';
+import {
+  CachedMedia,
+  MediaUploadRequest,
+  MediaUploadResult,
+  MediaUploadState,
+  MediaUploadStateKind
+} from '../../../main/ets/models/MediaModels';
+import { MediaProgressListener, MediaTransportOperation } from '../../../main/ets/network/ForumMediaTransport';
+import { HttpTextResult } from '../../../main/ets/network/DiscourseHttpClient';
+import { ChatRepository } from '../../../main/ets/repositories/ChatRepository';
+import { MediaRepository, MediaUploadOperation } from '../../../main/ets/repositories/MediaRepository';
+
+class StubChatRepository implements ChatRepository {
+  public channelResults: Array<RepositoryResult<Array<ChatChannel>>> = [];
+  public messageResults: Array<RepositoryResult<ChatMessagePage>> = [];
+  public directResults: Array<RepositoryResult<ChatChannel>> = [];
+  public sendResults: Array<RepositoryResult<ChatMessage>> = [];
+  public booleanResults: Array<RepositoryResult<boolean>> = [];
+  public emojiResults: Array<RepositoryResult<Array<ChatEmoji>>> = [];
+  public searchResults: Array<RepositoryResult<Array<ChatSearchResult>>> = [];
+  public messageQueries: Array<ChatMessageQuery> = [];
+  public sentRequests: Array<ChatSendRequest> = [];
+  public reactionActions: Array<ChatReactionAction> = [];
+  public markReadIds: Array<number> = [];
+
+  public async loadChatChannels(): Promise<RepositoryResult<Array<ChatChannel>>> {
+    return this.channelResults.shift() ?? RepositoryResult.failure<Array<ChatChannel>>('missing channel result');
+  }
+
+  public async loadChatMessages(
+    _channelId: number,
+    query: ChatMessageQuery
+  ): Promise<RepositoryResult<ChatMessagePage>> {
+    this.messageQueries.push(query);
+    return this.messageResults.shift() ?? RepositoryResult.failure<ChatMessagePage>('missing message result');
+  }
+
+  public async openDirectChat(_username: string): Promise<RepositoryResult<ChatChannel>> {
+    return this.directResults.shift() ?? RepositoryResult.failure<ChatChannel>('missing direct result');
+  }
+
+  public async markChatRead(_channelId: number, messageId: number): Promise<RepositoryResult<boolean>> {
+    this.markReadIds.push(messageId);
+    return RepositoryResult.success<boolean>(true);
+  }
+
+  public async sendChatMessage(request: ChatSendRequest): Promise<RepositoryResult<ChatMessage>> {
+    this.sentRequests.push(request);
+    return this.sendResults.shift() ?? RepositoryResult.failure<ChatMessage>('missing send result');
+  }
+
+  public async reactToChatMessage(
+    _channelId: number,
+    _messageId: number,
+    _emoji: string,
+    action: ChatReactionAction
+  ): Promise<RepositoryResult<boolean>> {
+    this.reactionActions.push(action);
+    return this.booleanResults.shift() ?? RepositoryResult.failure<boolean>('missing reaction result');
+  }
+
+  public async deleteChatMessage(_channelId: number, _messageId: number): Promise<RepositoryResult<boolean>> {
+    return this.booleanResults.shift() ?? RepositoryResult.failure<boolean>('missing delete result');
+  }
+
+  public async restoreChatMessage(_channelId: number, _messageId: number): Promise<RepositoryResult<boolean>> {
+    return this.booleanResults.shift() ?? RepositoryResult.failure<boolean>('missing restore result');
+  }
+
+  public async loadChatEmojis(): Promise<RepositoryResult<Array<ChatEmoji>>> {
+    return this.emojiResults.shift() ?? RepositoryResult.success<Array<ChatEmoji>>([]);
+  }
+
+  public async searchChat(
+    _query: string,
+    _offset: number,
+    _limit: number
+  ): Promise<RepositoryResult<Array<ChatSearchResult>>> {
+    return this.searchResults.shift() ?? RepositoryResult.success<Array<ChatSearchResult>>([]);
+  }
+
+  public async leaveChatChannel(_channelId: number): Promise<RepositoryResult<boolean>> {
+    return this.booleanResults.shift() ?? RepositoryResult.failure<boolean>('missing leave result');
+  }
+}
+
+class StubMediaTransportOperation implements MediaTransportOperation {
+  public readonly completion: Promise<HttpTextResult> = Promise.resolve(HttpTextResult.failure(0, 'unused'));
+  public cancelled: boolean = false;
+
+  public cancel(): void {
+    this.cancelled = true;
+  }
+}
+
+class StubMediaRepository implements MediaRepository {
+  public results: Array<RepositoryResult<MediaUploadResult>> = [];
+  public requests: Array<MediaUploadRequest> = [];
+
+  public upload(request: MediaUploadRequest, onProgress: MediaProgressListener): MediaUploadOperation {
+    this.requests.push(request);
+    onProgress(request.media.sizeBytes, request.media.sizeBytes);
+    const result: RepositoryResult<MediaUploadResult> = this.results.shift() ??
+      RepositoryResult.failure<MediaUploadResult>('missing upload result');
+    return new MediaUploadOperation(new StubMediaTransportOperation(), Promise.resolve(result));
+  }
+}
+
+class StubAuthenticationLifecycle implements ChatAuthenticationLifecycle {
+  public calls: number = 0;
+
+  public async handleUnauthorized(): Promise<void> {
+    this.calls += 1;
+  }
+}
+
+class FixedChatMetadataProvider implements ChatMetadataProvider {
+  public nextStagedId(): string {
+    return 'hm-fixed-stage';
+  }
+
+  public nowIso(): string {
+    return '2026-07-12T12:00:00.000Z';
+  }
+}
+
+function channel(id: number = 55): ChatChannel {
+  return new ChatChannel(id, '测试频道', '频道', '最后消息', '2026-07-12T09:00:00Z', false, 2, 9, 'member', 'test');
+}
+
+function message(
+  id: number,
+  text: string,
+  createdAt: string,
+  reactions: Array<ChatReaction> = [],
+  deleted: boolean = false
+): ChatMessage {
+  return new ChatMessage(id, 'member', '', text, '', [], reactions, null, createdAt, deleted);
+}
+
+function cachedImage(): CachedMedia {
+  const media: CachedMedia | null = CachedMedia.create(
+    'chat-image',
+    '/data/storage/el2/base/cache/media/chat.png',
+    'internal://cache/media/chat.png',
+    'chat.png',
+    'image/png',
+    1024
+  );
+  if (media === null) {
+    throw new Error('测试媒体创建失败');
+  }
+  return media;
+}
+
+function uploadedImage(): MediaUploadResult {
+  const result: MediaUploadResult | null = MediaUploadResult.create(
+    801,
+    '/uploads/default/original/chat.png',
+    'upload://chat',
+    'chat.png',
+    '![chat.png](upload://chat)'
+  );
+  if (result === null) {
+    throw new Error('测试上传结果创建失败');
+  }
+  return result;
+}
+
+export default function chatModelTest(): void {
+  describe('ChatModel public behavior', () => {
+    it('loads from last read, keeps server order, paginates and marks the real latest id read', 0,
+      async (done: Function) => {
+        const repository: StubChatRepository = new StubChatRepository();
+        repository.channelResults.push(RepositoryResult.success<Array<ChatChannel>>([channel()]));
+        repository.messageResults.push(
+          RepositoryResult.success<ChatMessagePage>(new ChatMessagePage([
+            message(8, '较早', '2026-07-12T08:00:00Z'),
+            message(9, '较新', '2026-07-12T09:00:00Z')
+          ], true, false)),
+          RepositoryResult.success<ChatMessagePage>(new ChatMessagePage([
+            message(7, '最早', '2026-07-12T07:00:00Z'),
+            message(8, '重复', '2026-07-12T08:00:00Z')
+          ], false, false))
+        );
+        const model: ChatModel = new ChatModel(repository);
+
+        await model.loadChannels();
+        await model.openChannel(channel());
+        await model.loadOlder();
+
+        expect(model.channelState.kind).assertEqual(ChatStateKind.CONTENT);
+        expect(model.conversationState.messages.map((item: ChatMessage): number => item.id).join(','))
+          .assertEqual('7,8,9');
+        expect(repository.messageQueries[0].fetchFromLastRead).assertTrue();
+        expect(repository.messageQueries[1].targetMessageId).assertEqual(8);
+        expect(repository.messageQueries[1].direction).assertEqual('past');
+        expect(repository.markReadIds[0]).assertEqual(9);
+        done();
+      });
+
+    it('preserves text reply and uploaded images on send failure then clears only after server confirmation', 0,
+      async (done: Function) => {
+        const repository: StubChatRepository = new StubChatRepository();
+        const mediaRepository: StubMediaRepository = new StubMediaRepository();
+        mediaRepository.results.push(RepositoryResult.success<MediaUploadResult>(uploadedImage()));
+        repository.messageResults.push(RepositoryResult.success<ChatMessagePage>(
+          new ChatMessagePage([message(9, '原消息', '2026-07-12T09:00:00Z')], false, false)
+        ));
+        repository.sendResults.push(
+          RepositoryResult.failure<ChatMessage>('发送失败'),
+          RepositoryResult.success<ChatMessage>(message(10, '带图回复', '2026-07-12T12:00:00Z'))
+        );
+        const model: ChatModel = new ChatModel(
+          repository,
+          mediaRepository,
+          null,
+          new FixedChatMetadataProvider()
+        );
+        await model.openChannel(channel());
+        model.updateDraft('带图回复');
+        model.replyTo(9);
+        await model.uploadImage(cachedImage(), (_state: MediaUploadState): void => {});
+
+        const failed: boolean = await model.send();
+        expect(failed).assertFalse();
+        expect(model.composerState.draft).assertEqual('带图回复');
+        expect(model.composerState.replyToMessageId).assertEqual(9);
+        expect(model.composerState.uploads.length).assertEqual(1);
+        expect(model.conversationState.messages.length).assertEqual(1);
+
+        const sent: boolean = await model.send();
+        expect(sent).assertTrue();
+        expect(repository.sentRequests[0].uploadIds[0]).assertEqual(801);
+        expect(repository.sentRequests[0].inReplyToId).assertEqual(9);
+        expect(model.conversationState.messages.map((item: ChatMessage): number => item.id).join(','))
+          .assertEqual('9,10');
+        expect(model.composerState.draft).assertEqual('');
+        expect(model.composerState.uploads.length).assertEqual(0);
+        done();
+      });
+
+    it('keeps an upload retryable and never inserts a failed upload into the draft', 0, async (done: Function) => {
+      const repository: StubChatRepository = new StubChatRepository();
+      const mediaRepository: StubMediaRepository = new StubMediaRepository();
+      mediaRepository.results.push(
+        RepositoryResult.failure<MediaUploadResult>('上传失败'),
+        RepositoryResult.success<MediaUploadResult>(uploadedImage())
+      );
+      const model: ChatModel = new ChatModel(repository, mediaRepository);
+      model.updateDraft('说明');
+
+      const failed: MediaUploadState = await model.uploadImage(
+        cachedImage(),
+        (_state: MediaUploadState): void => {}
+      );
+      const succeeded: MediaUploadState = await model.uploadImage(
+        cachedImage(),
+        (_state: MediaUploadState): void => {}
+      );
+
+      expect(failed.kind).assertEqual(MediaUploadStateKind.FAILED);
+      expect(model.composerState.draft).assertEqual('说明');
+      expect(succeeded.kind).assertEqual(MediaUploadStateKind.SUCCEEDED);
+      expect(model.composerState.uploads.length).assertEqual(1);
+      done();
+    });
+
+    it('refreshes Reaction state only after a successful server write', 0, async (done: Function) => {
+      const oldReaction: ChatReaction = new ChatReaction('heart', 1, false, []);
+      const newReaction: ChatReaction = new ChatReaction('heart', 2, true, []);
+      const repository: StubChatRepository = new StubChatRepository();
+      repository.messageResults.push(
+        RepositoryResult.success<ChatMessagePage>(new ChatMessagePage([
+          message(9, '消息', '2026-07-12T09:00:00Z', [oldReaction])
+        ], false, false)),
+        RepositoryResult.success<ChatMessagePage>(new ChatMessagePage([
+          message(9, '消息', '2026-07-12T09:00:00Z', [newReaction])
+        ], false, false))
+      );
+      repository.booleanResults.push(
+        RepositoryResult.failure<boolean>('Reaction 失败'),
+        RepositoryResult.success<boolean>(true)
+      );
+      const model: ChatModel = new ChatModel(repository);
+      await model.openChannel(channel());
+
+      const failed: boolean = await model.react(9, 'heart', ChatReactionAction.ADD);
+      expect(failed).assertFalse();
+      expect(model.conversationState.messages[0].reactions[0].count).assertEqual(1);
+      const succeeded: boolean = await model.react(9, 'heart', ChatReactionAction.ADD);
+      expect(succeeded).assertTrue();
+      expect(model.conversationState.messages[0].reactions[0].count).assertEqual(2);
+      expect(model.conversationState.messages[0].reactions[0].reacted).assertTrue();
+      done();
+    });
+
+    it('applies delete and restore only after the server confirms each transition', 0, async (done: Function) => {
+      const repository: StubChatRepository = new StubChatRepository();
+      repository.messageResults.push(
+        RepositoryResult.success<ChatMessagePage>(new ChatMessagePage([
+          message(9, '消息', '2026-07-12T09:00:00Z')
+        ], false, false)),
+        RepositoryResult.success<ChatMessagePage>(new ChatMessagePage([
+          message(9, '', '2026-07-12T09:00:00Z', [], true)
+        ], false, false)),
+        RepositoryResult.success<ChatMessagePage>(new ChatMessagePage([
+          message(9, '消息', '2026-07-12T09:00:00Z')
+        ], false, false))
+      );
+      repository.booleanResults.push(
+        RepositoryResult.failure<boolean>('删除失败'),
+        RepositoryResult.success<boolean>(true),
+        RepositoryResult.success<boolean>(true)
+      );
+      const model: ChatModel = new ChatModel(repository);
+      await model.openChannel(channel());
+
+      expect(await model.deleteMessage(9)).assertFalse();
+      expect(model.conversationState.messages[0].deleted).assertFalse();
+      expect(await model.deleteMessage(9)).assertTrue();
+      expect(model.conversationState.messages[0].deleted).assertTrue();
+      expect(await model.restoreMessage(9)).assertTrue();
+      expect(model.conversationState.messages[0].deleted).assertFalse();
+      done();
+    });
+  });
+}

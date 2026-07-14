@@ -23,10 +23,12 @@ import topicReadingTest from './TopicReading.test';
 import topicReadingPresentationTest from './TopicReadingPresentation.test';
 import chatModelsTest from './ChatModels.test';
 import chatRepositoryTest from './ChatRepository.test';
+import chatModelTest from './ChatModel.test';
 
 export default function tests(): void {
   chatModelsTest();
   chatRepositoryTest();
+  chatModelTest();
   accountPresentationTest();
   appShellModelTest();
   authoringModelsTest();
