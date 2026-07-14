@@ -3,6 +3,7 @@ import { fileIo } from '@kit.CoreFileKit';
 import { http } from '@kit.NetworkKit';
 import {
   CachedMedia,
+  isUploadImageSizeSupported,
   MediaUploadField,
   MediaUploadRequest
 } from '../models/MediaModels';
@@ -196,6 +197,9 @@ export class DiscourseMediaTransport implements ForumMediaTransport {
   ): Promise<HttpTextResult> {
     if (!request.path.startsWith('/')) {
       return HttpTextResult.failure(0, '上传路径无效');
+    }
+    if (!isUploadImageSizeSupported(request.media.sizeBytes)) {
+      return HttpTextResult.failure(0, '图片大小无效或超过 20 MB');
     }
     const boundary: string = `----RiversideMedia${request.media.operationId.replace(/[^a-zA-Z0-9]/g, '')}`;
     const body: ArrayBuffer | null = await multipartBody(request, boundary);

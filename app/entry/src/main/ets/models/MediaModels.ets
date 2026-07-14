@@ -5,6 +5,12 @@ const SUPPORTED_IMAGE_MIME_TYPES: Array<string> = [
   'image/webp'
 ];
 
+export const MAX_UPLOAD_IMAGE_BYTES: number = 20 * 1024 * 1024;
+
+export function isUploadImageSizeSupported(sizeBytes: number): boolean {
+  return Number.isSafeInteger(sizeBytes) && sizeBytes > 0 && sizeBytes <= MAX_UPLOAD_IMAGE_BYTES;
+}
+
 function normalizedFilename(value: string, fallback: string): string {
   const normalized: string = value
     .replace(/\r/g, '')

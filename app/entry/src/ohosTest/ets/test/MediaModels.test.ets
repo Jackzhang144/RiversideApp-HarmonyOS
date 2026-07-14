@@ -4,7 +4,9 @@ import {
   CachedMedia,
   MediaUploadResult,
   MediaUploadState,
-  MediaUploadStateKind
+  MediaUploadStateKind,
+  MAX_UPLOAD_IMAGE_BYTES,
+  isUploadImageSizeSupported
 } from '../../../main/ets/models/MediaModels';
 
 export default function mediaModelsTest(): void {
@@ -44,6 +46,13 @@ export default function mediaModelsTest(): void {
         'image/png',
         0
       ) === null).assertTrue();
+    });
+
+    it('bounds in-memory multipart uploads before transport allocation', 0, () => {
+      expect(isUploadImageSizeSupported(1)).assertTrue();
+      expect(isUploadImageSizeSupported(MAX_UPLOAD_IMAGE_BYTES)).assertTrue();
+      expect(isUploadImageSizeSupported(MAX_UPLOAD_IMAGE_BYTES + 1)).assertFalse();
+      expect(isUploadImageSizeSupported(0)).assertFalse();
     });
 
     it('exposes progress, cancellation, failure and explicit retry states', 0, () => {

@@ -1,7 +1,7 @@
 import { common } from '@kit.AbilityKit';
 import { fileIo } from '@kit.CoreFileKit';
 import { photoAccessHelper } from '@kit.MediaLibraryKit';
-import { CachedMedia } from '../models/MediaModels';
+import { CachedMedia, isUploadImageSizeSupported } from '../models/MediaModels';
 
 export enum MediaSelectionResultKind {
   SELECTED = 'selected',
@@ -111,6 +111,10 @@ export class MediaSelectionService {
       source = await fileIo.open(sourceUri, fileIo.OpenMode.READ_ONLY);
       const type: SelectedImageType | null = imageType(source.name);
       if (type === null) {
+        return null;
+      }
+      const sourceStat: fileIo.Stat = await fileIo.stat(source.fd);
+      if (!isUploadImageSizeSupported(sourceStat.size)) {
         return null;
       }
       const mediaDirectory: string = `${this.context.cacheDir}/media`;
