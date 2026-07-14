@@ -13,6 +13,7 @@ import { ForumCardPresentation } from './ForumCardPresentation';
 import { ForumContentCard } from './ForumContentCard';
 import { Category, ForumPost, PostReaction, Topic, TopicDetail } from '../models/ForumModels';
 import { AUTHORING_CATEGORY_ID } from '../models/AuthoringModels';
+import { RichEmbedProvider } from '../models/RichContentModels';
 import {
   categoryLabel,
   displayedReactions,
@@ -42,6 +43,12 @@ export struct TopicDetailPage {
   ): void => {};
   onToggleBookmark: (postId: number) => void = (_postId: number): void => {};
   onOpenSuggestedTopic: (topic: Topic) => void = (_topic: Topic): void => {};
+  onOpenRichLink: (url: string) => void = (_url: string): void => {};
+  onOpenRichEmbed: (url: string, provider: RichEmbedProvider, title: string) => void = (
+    _url: string,
+    _provider: RichEmbedProvider,
+    _title: string
+  ): void => {};
   onReadProgress: (postNumber: number) => void = (_postNumber: number): void => {};
   onReplyDraftChange: (draft: string) => void = (_draft: string): void => {};
   onSubmitReply: () => void = (): void => {};
@@ -173,6 +180,11 @@ export struct TopicDetailPage {
     Column({ space: 8 }) {
       ForumContentCard({
         presentation: ForumCardPresentation.topicStarter(detail, post, this.replyState.draft, this.canReplyHere()),
+        richCooked: post?.cooked ?? '',
+        richRaw: post?.raw ?? '',
+        onOpenRichLink: (url: string): void => this.onOpenRichLink(url),
+        onOpenRichEmbed: (url: string, provider: RichEmbedProvider, title: string): void =>
+          this.onOpenRichEmbed(url, provider, title),
         onReply: (postNumber: number | null): void => this.onOpenReply(postNumber)
       })
       if (post !== null) {
@@ -236,6 +248,11 @@ export struct TopicDetailPage {
       }
       ForumContentCard({
         presentation: ForumCardPresentation.reply(post, this.canReplyHere()),
+        richCooked: post.cooked,
+        richRaw: post.raw,
+        onOpenRichLink: (url: string): void => this.onOpenRichLink(url),
+        onOpenRichEmbed: (url: string, provider: RichEmbedProvider, title: string): void =>
+          this.onOpenRichEmbed(url, provider, title),
         onReply: (postNumber: number | null): void => this.onOpenReply(postNumber)
       })
       this.PostActions(post)

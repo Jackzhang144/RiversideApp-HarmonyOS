@@ -8,12 +8,22 @@ import {
   ForumCardStatistic,
   ForumCardStatisticKind
 } from './ForumCardPresentation';
+import { RichEmbedProvider } from '../models/RichContentModels';
+import { RichPostContent } from './RichPostContent';
 
 @Component
 export struct ForumContentCard {
   @Require @Prop presentation: ForumCardPresentation;
+  @Prop richCooked: string = '';
+  @Prop richRaw: string = '';
   onOpenTopic: () => void = (): void => {};
   onReply: (postNumber: number | null) => void = (_postNumber: number | null): void => {};
+  onOpenRichLink: (url: string) => void = (_url: string): void => {};
+  onOpenRichEmbed: (url: string, provider: RichEmbedProvider, title: string) => void = (
+    _url: string,
+    _provider: RichEmbedProvider,
+    _title: string
+  ): void => {};
 
   @Builder
   private Badge(badge: ForumCardBadge): void {
@@ -85,7 +95,15 @@ export struct ForumContentCard {
           .lineHeight(25)
           .width('100%')
       }
-      if (this.presentation.body.length > 0) {
+      if (this.richCooked.length > 0 || this.richRaw.length > 0) {
+        RichPostContent({
+          cooked: this.richCooked,
+          raw: this.richRaw,
+          onOpenLink: (url: string): void => this.onOpenRichLink(url),
+          onOpenEmbed: (url: string, provider: RichEmbedProvider, title: string): void =>
+            this.onOpenRichEmbed(url, provider, title)
+        })
+      } else if (this.presentation.body.length > 0) {
         Text(this.presentation.body)
           .fontSize(14)
           .lineHeight(22)
