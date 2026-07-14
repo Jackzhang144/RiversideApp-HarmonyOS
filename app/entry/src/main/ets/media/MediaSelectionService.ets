@@ -33,19 +33,29 @@ export class MediaSelectionResult {
   }
 }
 
-function imageType(filename: string): { extension: string; mimeType: string } | null {
+class SelectedImageType {
+  public readonly extension: string;
+  public readonly mimeType: string;
+
+  public constructor(extension: string, mimeType: string) {
+    this.extension = extension;
+    this.mimeType = mimeType;
+  }
+}
+
+function imageType(filename: string): SelectedImageType | null {
   const normalized: string = filename.trim().toLowerCase();
   if (normalized.endsWith('.jpg') || normalized.endsWith('.jpeg')) {
-    return { extension: 'jpg', mimeType: 'image/jpeg' };
+    return new SelectedImageType('jpg', 'image/jpeg');
   }
   if (normalized.endsWith('.png')) {
-    return { extension: 'png', mimeType: 'image/png' };
+    return new SelectedImageType('png', 'image/png');
   }
   if (normalized.endsWith('.gif')) {
-    return { extension: 'gif', mimeType: 'image/gif' };
+    return new SelectedImageType('gif', 'image/gif');
   }
   if (normalized.endsWith('.webp')) {
-    return { extension: 'webp', mimeType: 'image/webp' };
+    return new SelectedImageType('webp', 'image/webp');
   }
   return null;
 }
@@ -99,7 +109,7 @@ export class MediaSelectionService {
     let source: fileIo.File | null = null;
     try {
       source = await fileIo.open(sourceUri, fileIo.OpenMode.READ_ONLY);
-      const type: { extension: string; mimeType: string } | null = imageType(source.name);
+      const type: SelectedImageType | null = imageType(source.name);
       if (type === null) {
         return null;
       }

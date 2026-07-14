@@ -53,7 +53,7 @@ export struct ImageViewerPage {
 
       Row({ space: 10 }) {
         SaveButton()
-          .layoutWeight(1)
+          .width('32%')
           .height(46)
           .enabled(this.presentation().canSave())
           .onClick((_event: ClickEvent, result: SaveButtonOnClickResult): void => {
