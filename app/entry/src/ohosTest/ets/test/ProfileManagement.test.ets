@@ -1,12 +1,16 @@
 import { describe, expect, it } from '@ohos/hypium';
 import { RepositoryResult, RepositoryResultKind } from '../../../main/ets/core/RepositoryResult';
 import {
+  UserBookmarkItem,
   ProfileNotificationLevel,
   ProfileUpdateRequest,
+  UserReplyItem,
   UserEmailInfo,
   UserProfile,
   UserProfileSummary
 } from '../../../main/ets/models/ProfileModels';
+import { Topic } from '../../../main/ets/models/ForumModels';
+import { ServerDraft } from '../../../main/ets/models/AuthoringModels';
 import { HttpTextResult } from '../../../main/ets/network/DiscourseHttpClient';
 import { DiscourseForumRepository } from '../../../main/ets/repositories/DiscourseForumRepository';
 import { StubForumHttpClient } from './DiscourseForumRepository.test';
@@ -103,6 +107,51 @@ export default function profileManagementTest(): void {
         expect(client.formPutRequests[0]).assertEqual(
           '/u/member.json|name=%E6%96%B0%E5%90%8D%E5%AD%97&bio_raw=%E6%96%B0%E7%AE%80%E4%BB%8B'
         );
+        done();
+      });
+
+    it('loads the authenticated users topics replies bookmarks and drafts from their native contracts', 0,
+      async (done: Function) => {
+        const client: StubForumHttpClient = new StubForumHttpClient();
+        client.results.push(HttpTextResult.success(200,
+          '{"users":[{"id":24,"username":"member"}],"topic_list":{"topics":[' +
+          '{"id":301,"title":"我的主题","category_id":111,"posts_count":3,"views":20,' +
+          '"like_count":2,"excerpt":"主题摘要","bumped_at":"2026-07-14T01:00:00Z",' +
+          '"pinned":false,"posters":[{"user_id":24}]}' +
+          ']}}'
+        ));
+        client.results.push(HttpTextResult.success(200,
+          '{"user_actions":[{"id":902,"topic_id":302,"topic_title":"回复所在主题",' +
+          '"category_id":111,"post_number":4,"created_at":"2026-07-14T02:00:00Z",' +
+          '"username":"member","excerpt":"我的回复摘要"}]}'
+        ));
+        client.results.push(HttpTextResult.success(200,
+          '{"user_bookmark_list":{"bookmarks":[{"id":701,"title":"收藏主题",' +
+          '"excerpt":"收藏摘要","topic_id":303,"linked_post_number":6,"category_id":111,' +
+          '"highest_post_number":8,"bumped_at":"2026-07-14T03:00:00Z",' +
+          '"user":{"username":"author"}}]}}'
+        ));
+        client.results.push(HttpTextResult.success(200,
+          '{"drafts":[{"draft_key":"new_topic","sequence":3,' +
+          '"data":"{\\"title\\":\\"待发布主题\\",\\"reply\\":\\"草稿正文\\"}"}]}'
+        ));
+        const repository: DiscourseForumRepository = new DiscourseForumRepository(client);
+
+        const topics: RepositoryResult<Array<Topic>> = await repository.loadUserTopics('member', 2);
+        const replies: RepositoryResult<Array<UserReplyItem>> = await repository.loadUserReplies('member', 20);
+        const bookmarks: RepositoryResult<Array<UserBookmarkItem>> = await repository.loadUserBookmarks('member', 1);
+        const drafts: RepositoryResult<Array<ServerDraft>> = await repository.loadDrafts();
+
+        expect(client.paths[0]).assertEqual('/topics/created-by/member.json?page=2');
+        expect(client.paths[1]).assertEqual('/user_actions.json?offset=20&username=member&filter=5');
+        expect(client.paths[2]).assertEqual('/u/member/bookmarks.json?page=1');
+        expect(client.paths[3]).assertEqual('/drafts.json');
+        expect(topics.data?.[0].id).assertEqual(301);
+        expect(replies.data?.[0].topicId).assertEqual(302);
+        expect(replies.data?.[0].postNumber).assertEqual(4);
+        expect(bookmarks.data?.[0].bookmarkId).assertEqual(701);
+        expect(bookmarks.data?.[0].postNumber).assertEqual(6);
+        expect(drafts.data?.[0].title).assertEqual('待发布主题');
         done();
       });
   });

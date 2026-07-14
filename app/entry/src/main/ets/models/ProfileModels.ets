@@ -237,6 +237,71 @@ export class UserEmailInfo {
   }
 }
 
+export class UserReplyItem {
+  public readonly actionId: number;
+  public readonly topicId: number;
+  public readonly topicTitle: string;
+  public readonly categoryId: number;
+  public readonly postNumber: number;
+  public readonly createdAt: string;
+  public readonly username: string;
+  public readonly excerpt: string;
+
+  public constructor(
+    actionId: number,
+    topicId: number,
+    topicTitle: string,
+    categoryId: number,
+    postNumber: number,
+    createdAt: string,
+    username: string,
+    excerpt: string
+  ) {
+    this.actionId = Math.max(0, Math.trunc(actionId));
+    this.topicId = Math.max(0, Math.trunc(topicId));
+    this.topicTitle = topicTitle.trim();
+    this.categoryId = Math.max(0, Math.trunc(categoryId));
+    this.postNumber = Math.max(1, Math.trunc(postNumber));
+    this.createdAt = createdAt.trim();
+    this.username = username.trim();
+    this.excerpt = excerpt.trim();
+  }
+}
+
+export class UserBookmarkItem {
+  public readonly bookmarkId: number;
+  public readonly topicId: number;
+  public readonly title: string;
+  public readonly excerpt: string;
+  public readonly postNumber: number;
+  public readonly categoryId: number;
+  public readonly highestPostNumber: number;
+  public readonly bumpedAt: string;
+  public readonly username: string;
+
+  public constructor(
+    bookmarkId: number,
+    topicId: number,
+    title: string,
+    excerpt: string,
+    postNumber: number,
+    categoryId: number,
+    highestPostNumber: number,
+    bumpedAt: string,
+    username: string
+  ) {
+    this.bookmarkId = Math.max(0, Math.trunc(bookmarkId));
+    this.topicId = Math.max(0, Math.trunc(topicId));
+    this.title = title.trim();
+    this.excerpt = excerpt.trim();
+    this.postNumber = Math.max(1, Math.trunc(postNumber));
+    this.categoryId = Math.max(0, Math.trunc(categoryId));
+    this.highestPostNumber = Math.max(this.postNumber, Math.trunc(highestPostNumber));
+    this.bumpedAt = bumpedAt.trim();
+    this.username = username.trim();
+  }
+}
+
 export class ProfileUpdateRequest {
   public readonly username: string;
   public readonly name: string | null;

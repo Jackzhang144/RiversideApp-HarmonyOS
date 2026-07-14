@@ -22,9 +22,11 @@ import { CurrentUser } from '../models/ReplyModels';
 import { ServerDraft } from '../models/AuthoringModels';
 import {
   ProfileGroup,
+  UserBookmarkItem,
   UserEmailInfo,
   UserProfile,
-  UserProfileSummary
+  UserProfileSummary,
+  UserReplyItem
 } from '../models/ProfileModels';
 
 interface UserDto {
@@ -1157,6 +1159,74 @@ export class ForumResponseParser {
       }
     }
     return RepositoryResult.success(topics);
+  }
+
+  public parseUserReplies(text: string): RepositoryResult<Array<UserReplyItem>> {
+    const envelope: JsonObjectReader | null = JsonObjectReader.parse(text);
+    const values: Array<Object | null> | null = envelope?.array('user_actions') ?? null;
+    if (envelope === null || values === null) {
+      return RepositoryResult.failure<Array<UserReplyItem>>('服务器响应缺少用户回复列表');
+    }
+    const replies: Array<UserReplyItem> = [];
+    for (const value of values) {
+      const item: JsonObjectReader | null = JsonObjectReader.fromValue(value);
+      if (item === null) {
+        continue;
+      }
+      const topicId: number | null = item.number('topic_id');
+      const topicTitle: string = item.string('topic_title')?.trim() ?? '';
+      const postNumber: number | null = item.number('post_number');
+      if (topicId === null || topicId <= 0 || topicTitle.length === 0 || postNumber === null || postNumber <= 0) {
+        continue;
+      }
+      replies.push(new UserReplyItem(
+        item.number('id') ?? 0,
+        topicId,
+        topicTitle,
+        item.number('category_id') ?? 0,
+        postNumber,
+        item.string('created_at') ?? '',
+        item.string('username') ?? '',
+        item.string('excerpt') ?? ''
+      ));
+    }
+    return RepositoryResult.success<Array<UserReplyItem>>(replies);
+  }
+
+  public parseUserBookmarks(text: string): RepositoryResult<Array<UserBookmarkItem>> {
+    const envelope: JsonObjectReader | null = JsonObjectReader.parse(text);
+    const list: JsonObjectReader | null = envelope?.object('user_bookmark_list') ?? null;
+    const values: Array<Object | null> | null = list?.array('bookmarks') ?? null;
+    if (envelope === null || list === null || values === null) {
+      return RepositoryResult.failure<Array<UserBookmarkItem>>('服务器响应缺少用户收藏列表');
+    }
+    const bookmarks: Array<UserBookmarkItem> = [];
+    for (const value of values) {
+      const item: JsonObjectReader | null = JsonObjectReader.fromValue(value);
+      if (item === null) {
+        continue;
+      }
+      const bookmarkId: number | null = item.number('id');
+      const topicId: number | null = item.number('topic_id');
+      const title: string = item.string('title')?.trim() ?? '';
+      const postNumber: number | null = item.number('linked_post_number');
+      if (bookmarkId === null || bookmarkId <= 0 || topicId === null || topicId <= 0 ||
+        title.length === 0 || postNumber === null || postNumber <= 0) {
+        continue;
+      }
+      bookmarks.push(new UserBookmarkItem(
+        bookmarkId,
+        topicId,
+        title,
+        item.string('excerpt') ?? '',
+        postNumber,
+        item.number('category_id') ?? 0,
+        item.number('highest_post_number') ?? postNumber,
+        item.string('bumped_at') ?? '',
+        item.object('user')?.string('username') ?? ''
+      ));
+    }
+    return RepositoryResult.success<Array<UserBookmarkItem>>(bookmarks);
   }
 
   public parseCategories(siteText: string, directoryText: string): RepositoryResult<Array<Category>> {

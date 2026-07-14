@@ -22,9 +22,11 @@ import { ForumResponseParser } from './ForumResponseParser';
 import {
   ProfileNotificationLevel,
   ProfileUpdateRequest,
+  UserBookmarkItem,
   UserEmailInfo,
   UserProfile,
-  UserProfileSummary
+  UserProfileSummary,
+  UserReplyItem
 } from '../models/ProfileModels';
 
 interface DraftSavePayload {
@@ -58,6 +60,60 @@ export class DiscourseForumRepository implements ForumRepository {
       return RepositoryResult.failure<Array<Topic>>(response.message);
     }
     return this.parser.parseLatestTopics(response.body);
+  }
+
+  public async loadUserTopics(username: string, page: number): Promise<RepositoryResult<Array<Topic>>> {
+    const normalizedUsername: string = username.trim();
+    if (normalizedUsername.length === 0 || !Number.isInteger(page) || page < 0) {
+      return RepositoryResult.failure<Array<Topic>>('用户主题查询参数无效');
+    }
+    const response: HttpTextResult = await this.client.get(
+      `/topics/created-by/${encodeURIComponent(normalizedUsername)}.json?page=${page}`
+    );
+    if (response.kind === HttpTextResultKind.UNAUTHORIZED) {
+      return RepositoryResult.unauthorized<Array<Topic>>();
+    }
+    if (!response.isSuccess()) {
+      return RepositoryResult.failure<Array<Topic>>(response.message);
+    }
+    return this.parser.parseLatestTopics(response.body);
+  }
+
+  public async loadUserReplies(username: string, offset: number): Promise<RepositoryResult<Array<UserReplyItem>>> {
+    const normalizedUsername: string = username.trim();
+    if (normalizedUsername.length === 0 || !Number.isInteger(offset) || offset < 0) {
+      return RepositoryResult.failure<Array<UserReplyItem>>('用户回复查询参数无效');
+    }
+    const response: HttpTextResult = await this.client.get(
+      `/user_actions.json?offset=${offset}&username=${encodeURIComponent(normalizedUsername)}&filter=5`
+    );
+    if (response.kind === HttpTextResultKind.UNAUTHORIZED) {
+      return RepositoryResult.unauthorized<Array<UserReplyItem>>();
+    }
+    if (!response.isSuccess()) {
+      return RepositoryResult.failure<Array<UserReplyItem>>(response.message);
+    }
+    return this.parser.parseUserReplies(response.body);
+  }
+
+  public async loadUserBookmarks(
+    username: string,
+    page: number
+  ): Promise<RepositoryResult<Array<UserBookmarkItem>>> {
+    const normalizedUsername: string = username.trim();
+    if (normalizedUsername.length === 0 || !Number.isInteger(page) || page < 0) {
+      return RepositoryResult.failure<Array<UserBookmarkItem>>('用户收藏查询参数无效');
+    }
+    const response: HttpTextResult = await this.client.get(
+      `/u/${encodeURIComponent(normalizedUsername)}/bookmarks.json?page=${page}`
+    );
+    if (response.kind === HttpTextResultKind.UNAUTHORIZED) {
+      return RepositoryResult.unauthorized<Array<UserBookmarkItem>>();
+    }
+    if (!response.isSuccess()) {
+      return RepositoryResult.failure<Array<UserBookmarkItem>>(response.message);
+    }
+    return this.parser.parseUserBookmarks(response.body);
   }
 
   public async loadCategories(): Promise<RepositoryResult<Array<Category>>> {
