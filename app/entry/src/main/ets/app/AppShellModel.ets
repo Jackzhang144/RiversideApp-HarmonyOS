@@ -2155,6 +2155,15 @@ export class AppShellModel {
     return result;
   }
 
+  public async loadUserProfile(username: string): Promise<RepositoryResult<CurrentUser>> {
+    const result: RepositoryResult<CurrentUser> = await this.repository.loadUserProfile(username);
+    if (result.isUnauthorized()) {
+      this.requiresAuthentication = true;
+      await this.notifyUnauthorized(true);
+    }
+    return result;
+  }
+
   public async loadHome(): Promise<void> {
     this.homeRequestVersion += 1;
     const requestVersion: number = this.homeRequestVersion;

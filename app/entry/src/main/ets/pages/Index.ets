@@ -1,4 +1,6 @@
 import { common } from '@kit.AbilityKit';
+import { webview } from '@kit.ArkWeb';
+import { BusinessError } from '@kit.BasicServicesKit';
 import {
   hdsMaterial,
   HdsNavDestination,
@@ -41,13 +43,22 @@ import {
 } from '../components/ForumComposerPresentation';
 import { LoginPage } from '../components/LoginPage';
 import { SearchPage } from '../components/SearchPage';
+import { SecureRichEmbedPage } from '../components/SecureRichEmbedPage';
 import { TopicDetailPage } from '../components/TopicDetailPage';
+import { UserProfileSummaryPage } from '../components/UserProfileSummaryPage';
 import { selectedBookmarkPostIds } from '../components/TopicReadingPresentation';
 import { UiPrototypePage } from '../components/prototype/UiPrototypePage';
 import { Category, Topic } from '../models/ForumModels';
 import { HomeChannel, SearchPost } from '../models/DiscoveryModels';
 import { CurrentUser } from '../models/ReplyModels';
 import { AUTHORING_CATEGORY_ID } from '../models/AuthoringModels';
+import {
+  classifyRichNavigation,
+  isAllowedEmbedNavigation,
+  RichEmbedProvider,
+  RichNavigationKind,
+  RichNavigationTarget
+} from '../models/RichContentModels';
 import {
   AuthenticatedSessionProvider,
   DiscourseHttpClient
@@ -60,6 +71,8 @@ const TOPIC_ROUTE: string = 'topic';
 const LOGIN_ROUTE: string = 'login';
 const SEARCH_ROUTE: string = 'search';
 const TOPIC_COMPOSER_ROUTE: string = 'topic-composer';
+const USER_PROFILE_ROUTE: string = 'user-profile';
+const RICH_EMBED_ROUTE: string = 'rich-embed';
 const UI_PROTOTYPE_ROUTE: string = 'ui-prototype';
 const RIVERSIDE_BASE_URL: string = 'https://river-side.cc';
 const ROOT_TAB_SELECTED_COLOR: string = '#317AF7';
@@ -84,6 +97,7 @@ struct Index {
   private model: AppShellModel | null = null;
   private authRepository: AuthRepository | null = null;
   private snackBar: HdsSnackBar | null = null;
+  private richEmbedController: webview.WebviewController = new webview.WebviewController();
 
   @Env(SystemProperties.WINDOW_AVOID_AREA) avoidAreasVp: window.UIEnvWindowAvoidAreaInfoVP;
   @State selectedRoot: RootDestination = RootDestination.HOME;
@@ -106,7 +120,15 @@ struct Index {
   @State accountIdentityLoading: boolean = false;
   @State accountIdentityError: string = '';
   @State searchState: SearchState = SearchState.initial();
+  @State profileUsername: string = '';
+  @State profileUser: CurrentUser | null = null;
+  @State profileLoading: boolean = false;
+  @State profileError: string = '';
+  @State richEmbedUrl: string = '';
+  @State richEmbedTitle: string = '';
+  @State richEmbedProvider: RichEmbedProvider = RichEmbedProvider.NONE;
   private accountIdentityRequestVersion: number = 0;
+  private profileRequestVersion: number = 0;
 
   private topAvoidHeight(): number {
     const statusBarBottom: number =
@@ -439,6 +461,106 @@ struct Index {
     await task;
     this.synchronizeTopicState(model);
     this.synchronizeReplyState(model);
+  }
+
+  private handleRichLink(url: string): void {
+    const target: RichNavigationTarget = classifyRichNavigation(url);
+    if (target.kind === RichNavigationKind.TOPIC) {
+      const topic: Topic = new Topic(target.topicId, 'Topic', 0, 0, 0, 0, '', '', false, '');
+      this.openTopic(topic, target.postNumber);
+      return;
+    }
+    if (target.kind === RichNavigationKind.PROFILE) {
+      this.openUserProfile(target.username);
+      return;
+    }
+    if (target.kind === RichNavigationKind.EXTERNAL) {
+      this.confirmExternalNavigation(target.url);
+      return;
+    }
+    this.showAuthenticationMessage('链接已拦截', '仅允许安全 HTTPS、邮件或电话链接');
+  }
+
+  private openUserProfile(username: string): void {
+    this.profileUsername = username;
+    this.profileUser = null;
+    this.profileError = '';
+    this.pathStack.pushPath({ name: USER_PROFILE_ROUTE });
+    this.loadSelectedUserProfile();
+  }
+
+  private async loadSelectedUserProfile(): Promise<void> {
+    const model: AppShellModel | null = this.model;
+    if (model === null || this.profileUsername.length === 0) {
+      return;
+    }
+    const requestVersion: number = this.profileRequestVersion + 1;
+    this.profileRequestVersion = requestVersion;
+    this.profileLoading = true;
+    this.profileError = '';
+    const result: RepositoryResult<CurrentUser> = await model.loadUserProfile(this.profileUsername);
+    if (requestVersion !== this.profileRequestVersion) {
+      return;
+    }
+    this.profileLoading = false;
+    if (!result.isSuccess() || result.data === null) {
+      this.profileUser = null;
+      this.profileError = result.message;
+      return;
+    }
+    this.profileUser = result.data;
+  }
+
+  private openRichEmbed(url: string, provider: RichEmbedProvider, title: string): void {
+    if (!isAllowedEmbedNavigation(provider, url)) {
+      this.showAuthenticationMessage('嵌入已拦截', '播放器 URL 不在已验证白名单中');
+      return;
+    }
+    this.richEmbedUrl = url;
+    this.richEmbedProvider = provider;
+    this.richEmbedTitle = title;
+    this.richEmbedController = new webview.WebviewController();
+    this.pathStack.pushPath({ name: RICH_EMBED_ROUTE });
+  }
+
+  private handleRichEmbedBack(): boolean {
+    try {
+      if (this.richEmbedController.accessBackward()) {
+        this.richEmbedController.backward();
+        return true;
+      }
+    } catch (_) {
+      return false;
+    }
+    return false;
+  }
+
+  private confirmExternalNavigation(url: string): void {
+    this.getUIContext().showAlertDialog({
+      title: '打开外部链接？',
+      message: url,
+      primaryButton: {
+        value: '取消',
+        action: (): void => {}
+      },
+      secondaryButton: {
+        value: '继续打开',
+        action: (): void => this.openExternalLink(url)
+      },
+      cancel: (): void => {}
+    });
+  }
+
+  private openExternalLink(url: string): void {
+    const hostContext: common.Context | undefined = this.getUIContext().getHostContext();
+    if (hostContext === undefined) {
+      this.showAuthenticationMessage('链接未打开', '无法获取应用运行环境');
+      return;
+    }
+    const abilityContext: common.UIAbilityContext = hostContext as common.UIAbilityContext;
+    abilityContext.openLink(url).catch((error: BusinessError): void => {
+      this.showAuthenticationMessage('链接未打开', error.message);
+    });
   }
 
   private async retryTopic(): Promise<void> {
@@ -947,6 +1069,12 @@ struct Index {
           onOpenSuggestedTopic: (topic: Topic): void => {
             this.openTopic(topic);
           },
+          onOpenRichLink: (url: string): void => {
+            this.handleRichLink(url);
+          },
+          onOpenRichEmbed: (url: string, provider: RichEmbedProvider, title: string): void => {
+            this.openRichEmbed(url, provider, title);
+          },
           onReadProgress: (postNumber: number): void => {
             this.reportTopicReadProgress(postNumber);
           },
@@ -984,6 +1112,44 @@ struct Index {
         }
       })
       .onBackPressed((): boolean => this.handleSecondaryBack())
+    } else if (name === USER_PROFILE_ROUTE) {
+      HdsNavDestination() {
+        UserProfileSummaryPage({
+          username: this.profileUsername,
+          profile: this.profileUser,
+          loading: this.profileLoading,
+          errorMessage: this.profileError,
+          onRetry: (): void => {
+            this.loadSelectedUserProfile();
+          }
+        })
+      }
+      .titleBar({
+        enableComponentSafeArea: true,
+        content: {
+          title: { mainTitle: 'Profile' },
+          backIcon: { label: '返回 Topic' }
+        }
+      })
+      .onBackPressed((): boolean => false)
+    } else if (name === RICH_EMBED_ROUTE) {
+      HdsNavDestination() {
+        SecureRichEmbedPage({
+          url: this.richEmbedUrl,
+          title: this.richEmbedTitle,
+          provider: this.richEmbedProvider,
+          controller: this.richEmbedController,
+          onRequestExternalOpen: (url: string): void => this.confirmExternalNavigation(url)
+        })
+      }
+      .titleBar({
+        enableComponentSafeArea: true,
+        content: {
+          title: { mainTitle: this.richEmbedTitle },
+          backIcon: { label: '返回 Topic' }
+        }
+      })
+      .onBackPressed((): boolean => this.handleRichEmbedBack())
     } else if (name === TOPIC_COMPOSER_ROUTE) {
       HdsNavDestination() {
         ForumComposer({
