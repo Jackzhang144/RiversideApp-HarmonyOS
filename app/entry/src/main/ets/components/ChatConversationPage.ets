@@ -1,6 +1,7 @@
 import { ChatComposerState, ChatConversationState, ChatStateKind } from '../app/ChatModel';
 import {
   absoluteChatUrl,
+  ChatChannel,
   ChatEmoji,
   ChatMessage,
   ChatReaction,
@@ -16,6 +17,7 @@ export struct ChatConversationPage {
   @Prop emojis: Array<ChatEmoji> = [];
   @Prop uploadState: MediaUploadState | null = null;
   @Prop currentUsername: string = '';
+  @State emojiQuery: string = '';
   onRetry: () => void = (): void => {};
   onLoadOlder: () => void = (): void => {};
   onLoadNewer: () => void = (): void => {};
@@ -64,6 +66,26 @@ export struct ChatConversationPage {
       });
     });
     return usernames.join('、');
+  }
+
+  private canDelete(message: ChatMessage): boolean {
+    const channel: ChatChannel | null = this.state.channel;
+    if (channel === null) {
+      return false;
+    }
+    return message.username === this.currentUsername
+      ? channel.canDeleteSelf
+      : channel.canDeleteOthers;
+  }
+
+  private canWrite(): boolean {
+    return this.state.channel !== null && !this.state.channel.userSilenced;
+  }
+
+  private visibleEmojis(): Array<ChatEmoji> {
+    const query: string = this.emojiQuery.trim().toLowerCase();
+    return this.emojis.filter((emoji: ChatEmoji): boolean => query.length === 0 ||
+      emoji.name.toLowerCase().includes(query) || emoji.group.toLowerCase().includes(query)).slice(0, 40);
   }
 
   @Builder
@@ -136,7 +158,7 @@ export struct ChatConversationPage {
         ForEach(message.uploadUrls, (url: string): void => {
           Image(absoluteChatUrl(url)).width('100%').height(180).borderRadius(10)
             .objectFit(ImageFit.Contain).backgroundColor('#E8EBF0')
-            .onClick((): void => this.onOpenImage(url)).accessibilityText('打开 Chat 图片')
+            .onClick((): void => this.onOpenImage(absoluteChatUrl(url))).accessibilityText('打开 Chat 图片')
         }, (url: string): string => url)
       }
 
@@ -152,7 +174,7 @@ export struct ChatConversationPage {
       }
 
       Row({ space: 6 }) {
-        if (!message.deleted) {
+        if (!message.deleted && this.canWrite()) {
           Button('回复', { type: ButtonType.Normal }).height(30).fontSize(11)
             .onClick((): void => this.onReply(message.id))
           Button('@', { type: ButtonType.Normal }).height(30).fontSize(11)
@@ -168,10 +190,10 @@ export struct ChatConversationPage {
             }, (emoji: ChatEmoji): string => emoji.name)
           }
         }
-        if (message.username === this.currentUsername && !message.deleted) {
+        if (this.canDelete(message) && !message.deleted) {
           Button('删除', { type: ButtonType.Normal }).height(30).fontSize(11).fontColor('#C62828')
             .onClick((): void => this.onDelete(message.id))
-        } else if (message.username === this.currentUsername && message.deleted) {
+        } else if (this.canDelete(message) && message.deleted) {
           Button('恢复', { type: ButtonType.Normal }).height(30).fontSize(11)
             .onClick((): void => this.onRestore(message.id))
         }
@@ -192,8 +214,10 @@ export struct ChatConversationPage {
             if (this.state.message.length > 0) {
               Text(this.state.message).fontSize(11).fontColor('#C62828').textAlign(TextAlign.Center)
             }
-            Button(this.state.loadingPast ? '正在加载' : '加载更早消息')
-              .enabled(!this.state.loadingPast).height(34).onClick(this.onLoadOlder)
+            if (this.state.canLoadMorePast || this.state.loadingPast) {
+              Button(this.state.loadingPast ? '正在加载' : '加载更早消息')
+                .enabled(!this.state.loadingPast).height(34).onClick(this.onLoadOlder)
+            }
           }.width('100%')
         }
       }
@@ -219,19 +243,26 @@ export struct ChatConversationPage {
   @Builder
   private EmojiBar(): void {
     if (this.emojis.length > 0) {
-      List({ space: 6 }) {
-        ForEach(this.emojis.slice(0, 24), (emoji: ChatEmoji): void => {
-          ListItem() {
-            Button() {
-              Image(emoji.imageUrl()).width(22).height(22).objectFit(ImageFit.Contain)
+      Column({ space: 5 }) {
+        TextInput({ text: this.emojiQuery, placeholder: '搜索 Emoji 名称或分组' })
+          .width('100%').height(34).fontSize(11).backgroundColor('#F1F3F5')
+          .enabled(this.canWrite())
+          .onChange((value: string): void => { this.emojiQuery = value; })
+        List({ space: 6 }) {
+          ForEach(this.visibleEmojis(), (emoji: ChatEmoji): void => {
+            ListItem() {
+              Button() {
+                Image(emoji.imageUrl()).width(22).height(22).objectFit(ImageFit.Contain)
+              }
+              .width(34).height(34).backgroundColor('#EEF1F5').enabled(this.canWrite())
+              .onClick((): void => this.onInsertEmoji(emoji.name))
+              .accessibilityText(`插入 Emoji ${emoji.name}`)
             }
-            .width(34).height(34).backgroundColor('#EEF1F5')
-            .onClick((): void => this.onInsertEmoji(emoji.name))
-            .accessibilityText(`插入 Emoji ${emoji.name}`)
-          }
-        }, (emoji: ChatEmoji): string => emoji.name)
+          }, (emoji: ChatEmoji): string => emoji.name)
+        }
+        .width('100%').height(40).listDirection(Axis.Horizontal).edgeEffect(EdgeEffect.Spring)
       }
-      .width('100%').height(40).listDirection(Axis.Horizontal).edgeEffect(EdgeEffect.Spring)
+      .width('100%')
     }
   }
 
@@ -276,13 +307,14 @@ export struct ChatConversationPage {
       this.EmojiBar()
       Row({ space: 8 }) {
         Button() { SymbolGlyph($r('sys.symbol.ohos_photo')).fontSize(20) }
-          .width(40).height(40).backgroundColor('#EEF1F5').enabled(!this.composer.sending)
+          .width(40).height(40).backgroundColor('#EEF1F5')
+          .enabled(!this.composer.sending && this.canWrite())
           .onClick(this.onSelectImages).accessibilityText('选择并上传 Chat 图片')
         TextArea({ text: this.composer.draft, placeholder: '输入消息，支持 @ 与 Emoji' })
           .layoutWeight(1).constraintSize({ minHeight: 42, maxHeight: 100 })
-          .backgroundColor('#F1F3F5').onChange(this.onDraftChange)
+          .backgroundColor('#F1F3F5').enabled(this.canWrite()).onChange(this.onDraftChange)
         Button() { SymbolGlyph($r('sys.symbol.paperplane')).fontSize(20) }
-          .width(44).height(44).enabled(!this.composer.sending &&
+          .width(44).height(44).enabled(this.canWrite() && !this.composer.sending &&
             (this.composer.draft.trim().length > 0 || this.composer.uploads.length > 0))
           .onClick(this.onSend).accessibilityText('发送 Chat 消息')
       }
@@ -304,6 +336,11 @@ export struct ChatConversationPage {
           Button('离开频道', { type: ButtonType.Normal }).height(30).fontSize(10).fontColor('#C62828')
             .onClick(this.onLeaveChannel)
         }.width('100%').padding({ left: 12, right: 12, top: 5, bottom: 5 }).backgroundColor('#FFFFFF')
+      }
+      if (this.state.channel?.userSilenced === true) {
+        Text('当前账号不能在此频道发言；历史消息仍可阅读。')
+          .fontSize(11).fontColor('#C62828').width('100%')
+          .padding({ left: 12, right: 12, top: 6, bottom: 6 }).backgroundColor('#FFF4F4')
       }
       if (this.state.kind === ChatStateKind.LOADING) {
         this.LoadingState()

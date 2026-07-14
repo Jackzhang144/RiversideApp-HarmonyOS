@@ -11,6 +11,7 @@ enum ChatRootSection {
 export struct ChatRootPage {
   @Prop authenticated: boolean = false;
   @Prop capabilityLoading: boolean = false;
+  @Prop capabilityError: string = '';
   @Prop canChat: boolean = false;
   @Prop canStartDirectChat: boolean = false;
   @Prop state: ChatChannelState = ChatChannelState.initial();
@@ -19,6 +20,7 @@ export struct ChatRootPage {
   @State searchText: string = '';
   @State directUsername: string = '';
   onLogin: () => void = (): void => {};
+  onRetryCapability: () => void = (): void => {};
   onRefresh: () => void = (): void => {};
   onOpenChannel: (channel: ChatChannel) => void = (_channel: ChatChannel): void => {};
   onOpenSearchResult: (result: ChatSearchResult) => void = (_result: ChatSearchResult): void => {};
@@ -85,6 +87,17 @@ export struct ChatRootPage {
       if (!this.authenticated) {
         Button('登录并授权').onClick(this.onLogin)
       }
+    }
+    .width('100%').height('100%').padding(32).justifyContent(FlexAlign.Center)
+  }
+
+  @Builder
+  private CapabilityErrorState(): void {
+    Column({ space: 14 }) {
+      SymbolGlyph($r('sys.symbol.exclamationmark_circle')).fontSize(42).fontColor(['#C62828'])
+      Text('无法确认 Chat 权限').fontSize(18).fontWeight(FontWeight.Bold)
+      Text(this.capabilityError).fontSize(13).fontColor('#52606D').textAlign(TextAlign.Center)
+      Button('重试账号能力检查').onClick(this.onRetryCapability)
     }
     .width('100%').height('100%').padding(32).justifyContent(FlexAlign.Center)
   }
@@ -222,6 +235,8 @@ export struct ChatRootPage {
         LoadingProgress().width(36).height(36)
         Text('正在确认 Chat 权限').fontSize(13).fontColor('#52606D')
       }.width('100%').height('100%').justifyContent(FlexAlign.Center)
+    } else if (this.authenticated && this.capabilityError.length > 0) {
+      this.CapabilityErrorState()
     } else if (!this.authenticated || !this.canChat) {
       this.AuthenticationState()
     } else {

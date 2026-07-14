@@ -2301,11 +2301,13 @@ struct Index {
           ChatRootPage({
             authenticated: this.authState.kind === AuthStateKind.AUTHENTICATED,
             capabilityLoading: this.accountIdentityLoading,
+            capabilityError: this.accountIdentityError,
             canChat: this.accountProfileState.profile?.canChat === true,
             canStartDirectChat: this.accountProfileState.profile?.canStartDirectChat() === true,
             state: this.chatChannelState,
             searchState: this.chatSearchState,
             onLogin: (): void => { this.openLogin(); },
+            onRetryCapability: (): void => { this.refreshAccountIdentity(); },
             onRefresh: (): void => { this.loadChatChannels(); },
             onOpenChannel: (channel: ChatChannel): void => { this.openChatChannel(channel); },
             onOpenSearchResult: (result: ChatSearchResult): void => { this.openChatSearchResult(result); },
