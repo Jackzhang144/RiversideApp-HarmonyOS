@@ -10,6 +10,7 @@ import forumComposerPresentationTest from './ForumComposerPresentation.test';
 import homePresentationTest from './HomePresentation.test';
 import jsonBoundaryTest from './JsonBoundary.test';
 import mediaModelsTest from './MediaModels.test';
+import mediaRepositoryTest from './MediaRepository.test';
 import replyBoundaryTest from './ReplyBoundary.test';
 import replyTransportTest from './ReplyTransport.test';
 import richContentTest from './RichContent.test';
@@ -30,6 +31,7 @@ export default function tests(): void {
   homePresentationTest();
   jsonBoundaryTest();
   mediaModelsTest();
+  mediaRepositoryTest();
   replyBoundaryTest();
   replyTransportTest();
   richContentTest();

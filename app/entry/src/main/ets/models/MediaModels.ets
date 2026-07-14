@@ -129,6 +129,89 @@ export class MediaUploadResult {
   }
 }
 
+export enum MediaUploadPurpose {
+  COMPOSER = 'composer',
+  CHAT = 'chat',
+  AVATAR = 'avatar',
+  PROFILE_BACKGROUND = 'profile-background'
+}
+
+export class MediaUploadField {
+  public readonly name: string;
+  public readonly value: string;
+
+  public constructor(name: string, value: string) {
+    this.name = name;
+    this.value = value;
+  }
+}
+
+export class MediaUploadRequest {
+  public readonly purpose: MediaUploadPurpose;
+  public readonly media: CachedMedia;
+  public readonly userId: number | null;
+
+  private constructor(purpose: MediaUploadPurpose, media: CachedMedia, userId: number | null) {
+    this.purpose = purpose;
+    this.media = media;
+    this.userId = userId;
+  }
+
+  public static composer(media: CachedMedia): MediaUploadRequest {
+    return new MediaUploadRequest(MediaUploadPurpose.COMPOSER, media, null);
+  }
+
+  public static chat(media: CachedMedia): MediaUploadRequest {
+    return new MediaUploadRequest(MediaUploadPurpose.CHAT, media, null);
+  }
+
+  public static avatar(media: CachedMedia, userId: number): MediaUploadRequest | null {
+    if (!Number.isSafeInteger(userId) || userId <= 0) {
+      return null;
+    }
+    return new MediaUploadRequest(MediaUploadPurpose.AVATAR, media, userId);
+  }
+
+  public static profileBackground(media: CachedMedia): MediaUploadRequest {
+    return new MediaUploadRequest(MediaUploadPurpose.PROFILE_BACKGROUND, media, null);
+  }
+
+  public transportPath(): string {
+    if (this.purpose === MediaUploadPurpose.COMPOSER || this.purpose === MediaUploadPurpose.CHAT) {
+      return '/uploads.json';
+    }
+    return `/uploads.json?client_id=${this.clientId()}`;
+  }
+
+  public fields(): Array<MediaUploadField> {
+    if (this.purpose === MediaUploadPurpose.COMPOSER || this.purpose === MediaUploadPurpose.CHAT) {
+      return [
+        new MediaUploadField('type', 'composer'),
+        new MediaUploadField('synchronous', 'true')
+      ];
+    }
+    const fields: Array<MediaUploadField> = [
+      new MediaUploadField('client_id', this.clientId()),
+      new MediaUploadField(
+        'upload_type',
+        this.purpose === MediaUploadPurpose.AVATAR ? 'avatar' : 'profile_background'
+      ),
+      new MediaUploadField('pasted', 'undefined'),
+      new MediaUploadField('name', this.media.filename),
+      new MediaUploadField('type', this.media.mimeType)
+    ];
+    if (this.purpose === MediaUploadPurpose.AVATAR && this.userId !== null) {
+      fields.push(new MediaUploadField('user_id', this.userId.toString()));
+    }
+    return fields;
+  }
+
+  private clientId(): string {
+    const normalized: string = this.media.operationId.replace(/[^a-zA-Z0-9]/g, '');
+    return normalized.length > 0 ? normalized : 'riversidemedia';
+  }
+}
+
 export enum MediaUploadStateKind {
   SELECTED = 'selected',
   UPLOADING = 'uploading',
