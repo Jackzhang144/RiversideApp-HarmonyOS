@@ -1,5 +1,5 @@
 import { AuthState, AuthStateKind } from '../auth/AuthRepository';
-import { CurrentUser } from '../models/ReplyModels';
+import { UserProfile } from '../models/ProfileModels';
 import {
   AccountPlaceholder,
   AccountPlaceholderKind,
@@ -12,12 +12,13 @@ import {
 @Component
 export struct AccountPage {
   @Prop state: AuthState = AuthState.idle();
-  @Prop identity: CurrentUser | null = null;
+  @Prop identity: UserProfile | null = null;
   @Prop identityLoading: boolean = false;
   @Prop identityError: string = '';
   onLogin: () => void = (): void => {};
   onLogout: () => void = (): void => {};
   onRetryIdentity: () => void = (): void => {};
+  onOpenPlaceholder: (kind: AccountPlaceholderKind) => void = (): void => {};
   onOpenUiPrototype: () => void = (): void => {};
 
   private placeholderIcon(kind: AccountPlaceholderKind): Resource {
@@ -131,21 +132,31 @@ export struct AccountPage {
         .fontColor([$r('sys.color.font_tertiary')])
       Text(placeholder.label)
         .fontSize(15)
-        .fontColor($r('sys.color.font_secondary'))
+        .fontColor(placeholder.available ? '#24262B' : $r('sys.color.font_secondary'))
         .layoutWeight(1)
-      Text('未实现')
-        .fontSize(11)
-        .fontColor($r('sys.color.font_tertiary'))
-        .padding({ left: 8, right: 8, top: 4, bottom: 4 })
-        .backgroundColor('#F0F1F3')
-        .borderRadius(10)
+      if (placeholder.available) {
+        SymbolGlyph($r('sys.symbol.chevron_right'))
+          .fontSize(16)
+          .fontColor([$r('sys.color.font_tertiary')])
+      } else {
+        Text('未实现')
+          .fontSize(11)
+          .fontColor($r('sys.color.font_tertiary'))
+          .padding({ left: 8, right: 8, top: 4, bottom: 4 })
+          .backgroundColor('#F0F1F3')
+          .borderRadius(10)
+      }
     }
     .width('100%')
     .height(52)
     .padding({ left: 16, right: 16 })
-    .opacity(0.72)
+    .opacity(placeholder.available ? 1 : 0.72)
     .enabled(placeholder.available)
-    .hitTestBehavior(HitTestMode.None)
+    .onClick((): void => {
+      if (placeholder.available) {
+        this.onOpenPlaceholder(placeholder.kind);
+      }
+    })
     .accessibilityText(placeholder.accessibilityText)
   }
 

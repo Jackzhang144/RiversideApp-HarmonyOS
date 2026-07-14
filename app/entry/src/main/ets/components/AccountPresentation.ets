@@ -1,5 +1,5 @@
 import { AuthState, AuthStateKind } from '../auth/AuthRepository';
-import { CurrentUser } from '../models/ReplyModels';
+import { UserProfile } from '../models/ProfileModels';
 
 export enum AccountPrimaryAction {
   NONE = 'none',
@@ -27,12 +27,13 @@ export class AccountPlaceholder {
   public readonly kind: AccountPlaceholderKind;
   public readonly label: string;
   public readonly accessibilityText: string;
-  public readonly available: boolean = false;
+  public readonly available: boolean;
 
-  public constructor(kind: AccountPlaceholderKind, label: string) {
+  public constructor(kind: AccountPlaceholderKind, label: string, available: boolean = false) {
     this.kind = kind;
     this.label = label;
-    this.accessibilityText = `${label}，未实现`;
+    this.available = available;
+    this.accessibilityText = available ? label : `${label}，未实现`;
   }
 }
 
@@ -75,15 +76,15 @@ export class AccountPresentation {
   }
 }
 
-function accountPlaceholderSections(): Array<AccountPlaceholderSection> {
+function accountPlaceholderSections(actionsAvailable: boolean = false): Array<AccountPlaceholderSection> {
   return [
     new AccountPlaceholderSection(AccountPlaceholderSectionKind.ACCOUNT, [
-      new AccountPlaceholder(AccountPlaceholderKind.PERSONAL_INFORMATION, '个人信息'),
+      new AccountPlaceholder(AccountPlaceholderKind.PERSONAL_INFORMATION, '个人信息', actionsAvailable),
       new AccountPlaceholder(AccountPlaceholderKind.RSC_WALLET, 'RSC 钱包'),
-      new AccountPlaceholder(AccountPlaceholderKind.MY_TOPICS, '我的 Topic'),
-      new AccountPlaceholder(AccountPlaceholderKind.MY_REPLIES, '我的 Reply'),
-      new AccountPlaceholder(AccountPlaceholderKind.MY_DRAFTS, '我的草稿'),
-      new AccountPlaceholder(AccountPlaceholderKind.MY_BOOKMARKS, '我的书签')
+      new AccountPlaceholder(AccountPlaceholderKind.MY_TOPICS, '我的 Topic', actionsAvailable),
+      new AccountPlaceholder(AccountPlaceholderKind.MY_REPLIES, '我的 Reply', actionsAvailable),
+      new AccountPlaceholder(AccountPlaceholderKind.MY_DRAFTS, '我的草稿', actionsAvailable),
+      new AccountPlaceholder(AccountPlaceholderKind.MY_BOOKMARKS, '我的书签', actionsAvailable)
     ]),
     new AccountPlaceholderSection(AccountPlaceholderSectionKind.APPLICATION, [
       new AccountPlaceholder(AccountPlaceholderKind.APP_SETTINGS, '应用设置'),
@@ -92,19 +93,16 @@ function accountPlaceholderSections(): Array<AccountPlaceholderSection> {
   ];
 }
 
-function detailForIdentity(identity: CurrentUser): string {
-  const unreadText: string = identity.unreadNotifications > 0
-    ? `${identity.unreadNotifications} 条未读`
-    : '暂无未读';
-  return `${identity.roleLabel} · ${identity.isVerified ? '已认证' : '未认证'} · 信任等级 ${identity.trustLevel} · ${unreadText}`;
+function detailForIdentity(identity: UserProfile): string {
+  return `${identity.roleLabel} · ${identity.isVerified ? '已认证' : '未认证'} · 信任等级 ${identity.trustLevel}`;
 }
 
-function capabilityDetailFor(identity: CurrentUser): string {
+function capabilityDetailFor(identity: UserProfile): string {
   const capabilities: Array<string> = [];
-  if (identity.canReply) {
+  if (identity.canCreatePost) {
     capabilities.push('可发帖');
   }
-  if (identity.canStartDirectChat) {
+  if (identity.canStartDirectChat()) {
     capabilities.push('可发起私聊');
   }
   return capabilities.length === 0 ? '当前服务端未授予发帖或私聊许可' : capabilities.join(' · ');
@@ -112,11 +110,13 @@ function capabilityDetailFor(identity: CurrentUser): string {
 
 export function accountPresentationFor(
   state: AuthState,
-  identity: CurrentUser | null = null,
+  identity: UserProfile | null = null,
   identityLoading: boolean = false,
   identityError: string = ''
 ): AccountPresentation {
-  const placeholderSections: Array<AccountPlaceholderSection> = accountPlaceholderSections();
+  const placeholderSections: Array<AccountPlaceholderSection> = accountPlaceholderSections(
+    state.kind === AuthStateKind.AUTHENTICATED && identity !== null
+  );
   if (state.kind === AuthStateKind.AUTHENTICATED) {
     if (identity !== null) {
       return new AccountPresentation(

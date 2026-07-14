@@ -1,7 +1,8 @@
 import { AuthenticationLifecycle } from '../app/AppShellModel';
+import { ProfileSessionLifecycle } from '../app/ProfileManagementModel';
 import { AuthRepository, AuthStateKind } from './AuthRepository';
 
-export class RepositoryAuthenticationLifecycle implements AuthenticationLifecycle {
+export class RepositoryAuthenticationLifecycle implements AuthenticationLifecycle, ProfileSessionLifecycle {
   private readonly repository: AuthRepository;
   private readonly onChanged: () => void;
   private activeTask: Promise<void> | null = null;

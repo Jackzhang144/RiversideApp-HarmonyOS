@@ -25,6 +25,7 @@ import {
   TopicComposerStateKind,
   TopicReadState
 } from '../app/AppShellModel';
+import { ProfileManagementModel, ProfileViewState } from '../app/ProfileManagementModel';
 import { AuthenticatedSession } from '../auth/AuthModels';
 import { AuthRepository, AuthState, AuthStateKind } from '../auth/AuthRepository';
 import { HuksAuthenticatedSessionStore } from '../auth/HuksAuthenticatedSessionStore';
@@ -48,13 +49,22 @@ import { SearchPage } from '../components/SearchPage';
 import { SecureRichEmbedPage } from '../components/SecureRichEmbedPage';
 import { TopicDetailPage } from '../components/TopicDetailPage';
 import { UserProfileSummaryPage } from '../components/UserProfileSummaryPage';
+import { ProfileEditorPage } from '../components/ProfileEditorPage';
+import { ProfileContentKind, ProfileContentPage } from '../components/ProfileContentPage';
+import { AccountPlaceholderKind } from '../components/AccountPresentation';
 import { ImageViewerPage } from '../components/ImageViewerPage';
 import { selectedBookmarkPostIds } from '../components/TopicReadingPresentation';
 import { UiPrototypePage } from '../components/prototype/UiPrototypePage';
 import { Category, Topic } from '../models/ForumModels';
 import { HomeChannel, SearchPost } from '../models/DiscoveryModels';
 import { CurrentUser } from '../models/ReplyModels';
-import { AUTHORING_CATEGORY_ID } from '../models/AuthoringModels';
+import { AUTHORING_CATEGORY_ID, ServerDraft } from '../models/AuthoringModels';
+import {
+  ProfileNotificationLevel,
+  ProfileUpdateRequest,
+  UserBookmarkItem,
+  UserReplyItem
+} from '../models/ProfileModels';
 import {
   classifyRichNavigation,
   isAllowedEmbedNavigation,
@@ -67,6 +77,7 @@ import {
   DiscourseHttpClient
 } from '../network/DiscourseHttpClient';
 import { DiscourseForumRepository } from '../repositories/DiscourseForumRepository';
+import { ProfileRepository } from '../repositories/ProfileRepository';
 import { DiscourseMediaRepository } from '../repositories/MediaRepository';
 import { DiscourseMediaTransport } from '../network/ForumMediaTransport';
 import {
@@ -88,6 +99,8 @@ const LOGIN_ROUTE: string = 'login';
 const SEARCH_ROUTE: string = 'search';
 const TOPIC_COMPOSER_ROUTE: string = 'topic-composer';
 const USER_PROFILE_ROUTE: string = 'user-profile';
+const PROFILE_EDITOR_ROUTE: string = 'profile-editor';
+const PROFILE_CONTENT_ROUTE: string = 'profile-content';
 const RICH_EMBED_ROUTE: string = 'rich-embed';
 const IMAGE_VIEWER_ROUTE: string = 'image-viewer';
 const UI_PROTOTYPE_ROUTE: string = 'ui-prototype';
@@ -112,6 +125,9 @@ struct Index {
   private readonly pathStack: NavPathStack = new NavPathStack();
   private readonly tabsController: HdsTabsController = new HdsTabsController();
   private model: AppShellModel | null = null;
+  private profileRepository: ProfileRepository | null = null;
+  private accountProfileModel: ProfileManagementModel | null = null;
+  private selectedProfileModel: ProfileManagementModel | null = null;
   private authRepository: AuthRepository | null = null;
   private authenticationLifecycle: RepositoryAuthenticationLifecycle | null = null;
   private snackBar: HdsSnackBar | null = null;
@@ -139,17 +155,24 @@ struct Index {
   @State accountIdentity: CurrentUser | null = null;
   @State accountIdentityLoading: boolean = false;
   @State accountIdentityError: string = '';
+  @State accountProfileState: ProfileViewState = ProfileViewState.initial();
   @State searchState: SearchState = SearchState.initial();
   @State profileUsername: string = '';
-  @State profileUser: CurrentUser | null = null;
-  @State profileLoading: boolean = false;
-  @State profileError: string = '';
+  @State profileState: ProfileViewState = ProfileViewState.initial();
+  @State profileIsOwn: boolean = false;
+  @State profileContentKind: ProfileContentKind = ProfileContentKind.TOPICS;
+  @State profileContentLoading: boolean = false;
+  @State profileContentMessage: string = '';
+  @State profileTopics: Array<Topic> = [];
+  @State profileReplies: Array<UserReplyItem> = [];
+  @State profileDrafts: Array<ServerDraft> = [];
+  @State profileBookmarks: Array<UserBookmarkItem> = [];
   @State richEmbedUrl: string = '';
   @State richEmbedTitle: string = '';
   @State richEmbedProvider: RichEmbedProvider = RichEmbedProvider.NONE;
   @State imageViewerState: ImageViewerState = ImageViewerState.preparing('', '');
   private accountIdentityRequestVersion: number = 0;
-  private profileRequestVersion: number = 0;
+  private profileContentRequestVersion: number = 0;
 
   private topAvoidHeight(): number {
     const statusBarBottom: number =
@@ -193,13 +216,30 @@ struct Index {
       }
     );
     this.authenticationLifecycle = authenticationLifecycle;
+    const forumRepository: DiscourseForumRepository = new DiscourseForumRepository(
+      new DiscourseHttpClient(RIVERSIDE_BASE_URL, sessionProvider)
+    );
+    const mediaRepository: DiscourseMediaRepository = new DiscourseMediaRepository(
+      new DiscourseMediaTransport(RIVERSIDE_BASE_URL, sessionProvider)
+    );
+    this.profileRepository = forumRepository;
+    this.accountProfileModel = new ProfileManagementModel(
+      forumRepository,
+      authenticationLifecycle,
+      mediaRepository
+    );
+    this.selectedProfileModel = new ProfileManagementModel(
+      forumRepository,
+      authenticationLifecycle,
+      mediaRepository
+    );
     const model: AppShellModel = new AppShellModel(
-      new DiscourseForumRepository(new DiscourseHttpClient(RIVERSIDE_BASE_URL, sessionProvider)),
+      forumRepository,
       new PreferencesCategoryCache(context),
       this.categoryCacheScope(authRepository),
       authenticationLifecycle,
       new PreferencesDiscoverySettingsStore(context),
-      new DiscourseMediaRepository(new DiscourseMediaTransport(RIVERSIDE_BASE_URL, sessionProvider))
+      mediaRepository
     );
     await model.restoreDiscoverySettings();
     this.selectedHomeChannel = model.selectedHomeChannel;
@@ -242,6 +282,8 @@ struct Index {
       this.accountIdentity = null;
       this.accountIdentityLoading = false;
       this.accountIdentityError = '';
+      this.accountProfileState = ProfileViewState.initial();
+      this.profileState = ProfileViewState.initial();
     }
     this.categoryState = model.categoryState;
     if (reloadCategories) {
@@ -259,6 +301,7 @@ struct Index {
     this.accountIdentity = null;
     this.accountIdentityLoading = true;
     this.accountIdentityError = '';
+    this.accountProfileState = ProfileViewState.loading();
     this.loadAccountIdentity(model, requestVersion);
   }
 
@@ -270,12 +313,14 @@ struct Index {
     ) {
       return;
     }
-    this.accountIdentityLoading = false;
     if (!result.isSuccess() || result.data === null) {
+      this.accountIdentityLoading = false;
       this.accountIdentityError = result.message;
       return;
     }
     this.accountIdentity = result.data;
+    await this.loadAccountProfile(result.data.username);
+    this.accountIdentityLoading = false;
     const channelChanged: boolean = model.selectedHomeChannel !== result.data.defaultHomeChannel &&
       result.data.defaultHomeChannel !== null;
     if (result.data.defaultHomeChannel !== null) {
@@ -284,6 +329,20 @@ struct Index {
       if (channelChanged) {
         await this.loadHome();
       }
+    }
+  }
+
+  private async loadAccountProfile(username: string): Promise<void> {
+    const profileModel: ProfileManagementModel | null = this.accountProfileModel;
+    if (profileModel === null || this.authState.kind !== AuthStateKind.AUTHENTICATED) {
+      return;
+    }
+    const task: Promise<void> = profileModel.loadProfile(username, true);
+    this.accountProfileState = profileModel.state;
+    await task;
+    this.accountProfileState = profileModel.state;
+    if (profileModel.state.profile === null && profileModel.state.message.length > 0) {
+      this.accountIdentityError = profileModel.state.message;
     }
   }
 
@@ -508,34 +567,23 @@ struct Index {
     this.showAuthenticationMessage('链接已拦截', '仅允许安全 HTTPS、邮件或电话链接');
   }
 
-  private openUserProfile(username: string): void {
+  private openUserProfile(username: string, ownProfile: boolean = false): void {
     this.profileUsername = username;
-    this.profileUser = null;
-    this.profileError = '';
+    this.profileIsOwn = ownProfile;
+    this.profileState = ProfileViewState.loading();
     this.pathStack.pushPath({ name: USER_PROFILE_ROUTE });
     this.loadSelectedUserProfile();
   }
 
   private async loadSelectedUserProfile(): Promise<void> {
-    const model: AppShellModel | null = this.model;
-    if (model === null || this.profileUsername.length === 0) {
+    const profileModel: ProfileManagementModel | null = this.selectedProfileModel;
+    if (profileModel === null || this.profileUsername.length === 0) {
       return;
     }
-    const requestVersion: number = this.profileRequestVersion + 1;
-    this.profileRequestVersion = requestVersion;
-    this.profileLoading = true;
-    this.profileError = '';
-    const result: RepositoryResult<CurrentUser> = await model.loadUserProfile(this.profileUsername);
-    if (requestVersion !== this.profileRequestVersion) {
-      return;
-    }
-    this.profileLoading = false;
-    if (!result.isSuccess() || result.data === null) {
-      this.profileUser = null;
-      this.profileError = result.message;
-      return;
-    }
-    this.profileUser = result.data;
+    const task: Promise<void> = profileModel.loadProfile(this.profileUsername, this.profileIsOwn);
+    this.profileState = profileModel.state;
+    await task;
+    this.profileState = profileModel.state;
   }
 
   private openRichEmbed(url: string, provider: RichEmbedProvider, title: string): void {
@@ -1052,6 +1100,230 @@ struct Index {
     this.pathStack.pushPath({ name: UI_PROTOTYPE_ROUTE });
   }
 
+  private openAccountPlaceholder(kind: AccountPlaceholderKind): void {
+    const profile = this.accountProfileState.profile;
+    if (profile === null) {
+      return;
+    }
+    if (kind === AccountPlaceholderKind.PERSONAL_INFORMATION) {
+      this.openUserProfile(profile.username, true);
+      return;
+    }
+    if (kind === AccountPlaceholderKind.MY_TOPICS) {
+      this.openProfileContent(ProfileContentKind.TOPICS);
+    } else if (kind === AccountPlaceholderKind.MY_REPLIES) {
+      this.openProfileContent(ProfileContentKind.REPLIES);
+    } else if (kind === AccountPlaceholderKind.MY_DRAFTS) {
+      this.openProfileContent(ProfileContentKind.DRAFTS);
+    } else if (kind === AccountPlaceholderKind.MY_BOOKMARKS) {
+      this.openProfileContent(ProfileContentKind.BOOKMARKS);
+    }
+  }
+
+  private openProfileContent(kind: ProfileContentKind): void {
+    this.profileContentKind = kind;
+    this.profileContentMessage = '';
+    this.pathStack.pushPath({ name: PROFILE_CONTENT_ROUTE });
+    this.loadProfileContent();
+  }
+
+  private async loadProfileContent(): Promise<void> {
+    const repository: ProfileRepository | null = this.profileRepository;
+    const username: string = this.accountProfileState.profile?.username ?? '';
+    if (repository === null || username.length === 0) {
+      return;
+    }
+    const requestVersion: number = this.profileContentRequestVersion + 1;
+    this.profileContentRequestVersion = requestVersion;
+    this.profileContentLoading = true;
+    this.profileContentMessage = '';
+    if (this.profileContentKind === ProfileContentKind.TOPICS) {
+      const result: RepositoryResult<Array<Topic>> = await repository.loadUserTopics(username, 0);
+      if (requestVersion !== this.profileContentRequestVersion) {
+        return;
+      }
+      this.profileTopics = result.data ?? [];
+      this.profileContentMessage = result.message;
+      if (result.isUnauthorized()) {
+        await this.authenticationLifecycle?.handleUnauthorized();
+      }
+    } else if (this.profileContentKind === ProfileContentKind.REPLIES) {
+      const result: RepositoryResult<Array<UserReplyItem>> = await repository.loadUserReplies(username, 0);
+      if (requestVersion !== this.profileContentRequestVersion) {
+        return;
+      }
+      this.profileReplies = result.data ?? [];
+      this.profileContentMessage = result.message;
+      if (result.isUnauthorized()) {
+        await this.authenticationLifecycle?.handleUnauthorized();
+      }
+    } else if (this.profileContentKind === ProfileContentKind.DRAFTS) {
+      const result: RepositoryResult<Array<ServerDraft>> = await repository.loadDrafts();
+      if (requestVersion !== this.profileContentRequestVersion) {
+        return;
+      }
+      this.profileDrafts = result.data ?? [];
+      this.profileContentMessage = result.message;
+      if (result.isUnauthorized()) {
+        await this.authenticationLifecycle?.handleUnauthorized();
+      }
+    } else {
+      const result: RepositoryResult<Array<UserBookmarkItem>> = await repository.loadUserBookmarks(username, 0);
+      if (requestVersion !== this.profileContentRequestVersion) {
+        return;
+      }
+      this.profileBookmarks = result.data ?? [];
+      this.profileContentMessage = result.message;
+      if (result.isUnauthorized()) {
+        await this.authenticationLifecycle?.handleUnauthorized();
+      }
+    }
+    this.profileContentLoading = false;
+  }
+
+  private profileContentTitle(): string {
+    if (this.profileContentKind === ProfileContentKind.TOPICS) {
+      return '我的 Topic';
+    }
+    if (this.profileContentKind === ProfileContentKind.REPLIES) {
+      return '我的 Reply';
+    }
+    if (this.profileContentKind === ProfileContentKind.DRAFTS) {
+      return '我的草稿';
+    }
+    return '我的书签';
+  }
+
+  private async changeProfileFollowing(following: boolean): Promise<void> {
+    const model: ProfileManagementModel | null = this.selectedProfileModel;
+    if (model === null) {
+      return;
+    }
+    const task: Promise<boolean> = model.setFollowing(following);
+    this.profileState = model.state;
+    await task;
+    this.profileState = model.state;
+  }
+
+  private async changeProfileNotificationLevel(level: ProfileNotificationLevel): Promise<void> {
+    const model: ProfileManagementModel | null = this.selectedProfileModel;
+    const actingUserId: number = this.accountProfileState.profile?.id ?? 0;
+    if (model === null || actingUserId <= 0) {
+      return;
+    }
+    const task: Promise<boolean> = model.setNotificationLevel(level, actingUserId);
+    this.profileState = model.state;
+    await task;
+    this.profileState = model.state;
+  }
+
+  private openProfileEditor(): void {
+    if (!this.profileIsOwn || this.profileState.profile === null) {
+      return;
+    }
+    this.pathStack.pushPath({ name: PROFILE_EDITOR_ROUTE });
+  }
+
+  private async saveProfile(name: string, title: string, bio: string, location: string): Promise<void> {
+    const model: ProfileManagementModel | null = this.selectedProfileModel;
+    const profile = this.profileState.profile;
+    if (model === null || profile === null) {
+      return;
+    }
+    const request: ProfileUpdateRequest | null = ProfileUpdateRequest.create(
+      profile.username,
+      name,
+      title,
+      bio,
+      location,
+      null
+    );
+    if (request === null) {
+      return;
+    }
+    const task: Promise<boolean> = model.saveProfile(request);
+    this.profileState = model.state;
+    const saved: boolean = await task;
+    this.profileState = model.state;
+    if (saved) {
+      this.showAuthenticationMessage('资料已保存', '完整 Profile 已从服务端刷新');
+      this.refreshAccountIdentity();
+    }
+  }
+
+  private async selectProfileMedia(avatar: boolean): Promise<void> {
+    const context: common.UIAbilityContext | null = AbilityContextRegistry.current();
+    const model: ProfileManagementModel | null = this.selectedProfileModel;
+    if (context === null || model === null) {
+      return;
+    }
+    const selection: MediaSelectionResult = await new MediaSelectionService(context).selectImages(1);
+    if (selection.kind !== MediaSelectionResultKind.SELECTED || selection.media.length === 0) {
+      if (selection.kind === MediaSelectionResultKind.FAILURE) {
+        this.showAuthenticationMessage('无法选择图片', selection.message);
+      }
+      return;
+    }
+    const task: Promise<boolean> = avatar
+      ? model.uploadAvatar(selection.media[0])
+      : model.uploadProfileBackground(selection.media[0]);
+    this.profileState = model.state;
+    await task;
+    this.profileState = model.state;
+    if (model.state.message.length === 0) {
+      this.refreshAccountIdentity();
+    }
+  }
+
+  private openProfileReply(reply: UserReplyItem): void {
+    this.openTopic(new Topic(
+      reply.topicId,
+      reply.topicTitle,
+      reply.categoryId,
+      0,
+      0,
+      0,
+      reply.excerpt,
+      reply.createdAt,
+      false,
+      reply.username
+    ), reply.postNumber);
+  }
+
+  private openProfileBookmark(bookmark: UserBookmarkItem): void {
+    this.openTopic(new Topic(
+      bookmark.topicId,
+      bookmark.title,
+      bookmark.categoryId,
+      bookmark.highestPostNumber,
+      0,
+      0,
+      bookmark.excerpt,
+      bookmark.bumpedAt,
+      false,
+      bookmark.username
+    ), bookmark.postNumber);
+  }
+
+  private openProfileDraft(draft: ServerDraft): void {
+    if (draft.topicId === null) {
+      this.openNewTopic();
+      return;
+    }
+    this.openTopic(new Topic(
+      draft.topicId,
+      draft.title.length > 0 ? draft.title : '草稿所在 Topic',
+      draft.categoryId ?? 0,
+      0,
+      0,
+      0,
+      draft.raw,
+      '',
+      false,
+      this.accountProfileState.profile?.username ?? ''
+    ), draft.replyToPostNumber);
+  }
+
   private closeUiPrototype(): void {
     const model: AppShellModel | null = this.model;
     if (model !== null) {
@@ -1276,12 +1548,19 @@ struct Index {
     } else if (name === USER_PROFILE_ROUTE) {
       HdsNavDestination() {
         UserProfileSummaryPage({
-          username: this.profileUsername,
-          profile: this.profileUser,
-          loading: this.profileLoading,
-          errorMessage: this.profileError,
+          state: this.profileState,
+          ownProfile: this.profileIsOwn,
           onRetry: (): void => {
             this.loadSelectedUserProfile();
+          },
+          onEdit: (): void => {
+            this.openProfileEditor();
+          },
+          onFollowingChange: (following: boolean): void => {
+            this.changeProfileFollowing(following);
+          },
+          onNotificationLevelChange: (level: ProfileNotificationLevel): void => {
+            this.changeProfileNotificationLevel(level);
           }
         })
       }
@@ -1290,6 +1569,68 @@ struct Index {
         content: {
           title: { mainTitle: 'Profile' },
           backIcon: { label: '返回 Topic' }
+        }
+      })
+      .onBackPressed((): boolean => false)
+    } else if (name === PROFILE_EDITOR_ROUTE) {
+      HdsNavDestination() {
+        ProfileEditorPage({
+          profile: this.profileState.profile,
+          emails: this.profileState.emails,
+          mediaState: this.selectedProfileModel?.mediaState ?? null,
+          busy: this.profileState.busy,
+          message: this.profileState.message,
+          onSave: (name: string, title: string, bio: string, location: string): void => {
+            this.saveProfile(name, title, bio, location);
+          },
+          onSelectAvatar: (): void => {
+            this.selectProfileMedia(true);
+          },
+          onSelectBackground: (): void => {
+            this.selectProfileMedia(false);
+          }
+        })
+      }
+      .titleBar({
+        enableComponentSafeArea: true,
+        content: {
+          title: { mainTitle: '编辑个人资料' },
+          backIcon: { label: '返回 Profile' }
+        }
+      })
+      .onBackPressed((): boolean => false)
+    } else if (name === PROFILE_CONTENT_ROUTE) {
+      HdsNavDestination() {
+        ProfileContentPage({
+          kind: this.profileContentKind,
+          loading: this.profileContentLoading,
+          message: this.profileContentMessage,
+          topics: this.profileTopics,
+          replies: this.profileReplies,
+          drafts: this.profileDrafts,
+          bookmarks: this.profileBookmarks,
+          onRetry: (): void => {
+            this.loadProfileContent();
+          },
+          onOpenTopic: (topic: Topic): void => {
+            this.openTopic(topic);
+          },
+          onOpenReply: (reply: UserReplyItem): void => {
+            this.openProfileReply(reply);
+          },
+          onOpenDraft: (draft: ServerDraft): void => {
+            this.openProfileDraft(draft);
+          },
+          onOpenBookmark: (bookmark: UserBookmarkItem): void => {
+            this.openProfileBookmark(bookmark);
+          }
+        })
+      }
+      .titleBar({
+        enableComponentSafeArea: true,
+        content: {
+          title: { mainTitle: this.profileContentTitle() },
+          backIcon: { label: '返回我的' }
         }
       })
       .onBackPressed((): boolean => false)
@@ -1578,7 +1919,7 @@ struct Index {
         TabContent() {
           AccountPage({
             state: this.authState,
-            identity: this.accountIdentity,
+            identity: this.accountProfileState.profile,
             identityLoading: this.accountIdentityLoading,
             identityError: this.accountIdentityError,
             onLogin: (): void => {
@@ -1589,6 +1930,9 @@ struct Index {
             },
             onRetryIdentity: (): void => {
               this.refreshAccountIdentity();
+            },
+            onOpenPlaceholder: (kind: AccountPlaceholderKind): void => {
+              this.openAccountPlaceholder(kind);
             },
             onOpenUiPrototype: (): void => {
               this.openUiPrototype();

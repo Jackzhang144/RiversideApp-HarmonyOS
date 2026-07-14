@@ -1,7 +1,7 @@
 import { describe, expect, it } from '@ohos/hypium';
 import { AuthenticatedSession } from '../../../main/ets/auth/AuthModels';
 import { AuthState } from '../../../main/ets/auth/AuthRepository';
-import { CurrentUser } from '../../../main/ets/models/ReplyModels';
+import { ProfileGroup, UserProfile } from '../../../main/ets/models/ProfileModels';
 import {
   AccountPrimaryAction,
   AccountPresentation,
@@ -19,15 +19,18 @@ const PLACEHOLDER_LABELS: Array<string> = [
   '关于 RiverSide'
 ];
 
-function assertPersistentContent(presentation: AccountPresentation): void {
+function assertPersistentContent(presentation: AccountPresentation, actionsAvailable: boolean = false): void {
   expect(presentation.prototypeEntryVisible).assertTrue();
   expect(presentation.placeholderSections.length).assertEqual(2);
   let placeholderIndex: number = 0;
   for (const section of presentation.placeholderSections) {
     for (const placeholder of section.placeholders) {
       expect(placeholder.label).assertEqual(PLACEHOLDER_LABELS[placeholderIndex]);
-      expect(placeholder.accessibilityText).assertEqual(`${PLACEHOLDER_LABELS[placeholderIndex]}，未实现`);
-      expect(placeholder.available).assertFalse();
+      const expectedAvailable: boolean = actionsAvailable && [0, 2, 3, 4, 5].includes(placeholderIndex);
+      expect(placeholder.accessibilityText).assertEqual(expectedAvailable
+        ? PLACEHOLDER_LABELS[placeholderIndex]
+        : `${PLACEHOLDER_LABELS[placeholderIndex]}，未实现`);
+      expect(placeholder.available).assertEqual(expectedAvailable);
       placeholderIndex += 1;
     }
   }
@@ -107,7 +110,7 @@ export default function accountPresentationTest(): void {
         'user-api-key',
         '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'
       );
-      const user: CurrentUser | null = CurrentUser.create(
+      const user: UserProfile | null = UserProfile.create(
         24,
         'co-admin',
         {
@@ -117,9 +120,10 @@ export default function accountPresentationTest(): void {
           trustLevel: 3,
           canCreatePost: true,
           canChatWithUser: true,
-          unreadNotifications: 4,
-          groupNames: ['scuer', 'rs_developer'],
-          groupIds: [45, 50],
+          groups: [
+            new ProfileGroup(45, 'scuer'),
+            new ProfileGroup(50, 'rs_developer')
+          ],
           primaryGroupId: 45,
           flairGroupId: 50
         }
@@ -137,8 +141,9 @@ export default function accountPresentationTest(): void {
       );
 
       expect(presentation.title).assertEqual('协管员');
-      expect(presentation.detail).assertEqual('版主 · 已认证 · 信任等级 3 · 4 条未读');
+      expect(presentation.detail).assertEqual('版主 · 已认证 · 信任等级 3');
       expect(presentation.capabilityDetail).assertEqual('可发帖 · 可发起私聊');
+      assertPersistentContent(presentation, true);
     });
   });
 }
