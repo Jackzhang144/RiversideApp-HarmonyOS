@@ -21,8 +21,10 @@ import richContentTest from './RichContent.test';
 import sessionStoreTest from './SessionStore.test';
 import topicReadingTest from './TopicReading.test';
 import topicReadingPresentationTest from './TopicReadingPresentation.test';
+import chatModelsTest from './ChatModels.test';
 
 export default function tests(): void {
+  chatModelsTest();
   accountPresentationTest();
   appShellModelTest();
   authoringModelsTest();
