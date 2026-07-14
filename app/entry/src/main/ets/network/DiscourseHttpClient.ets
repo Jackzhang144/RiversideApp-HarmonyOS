@@ -155,6 +155,12 @@ export interface ForumHttpClient {
   get(path: string): Promise<HttpTextResult>;
 
   postReply(request: ReplyRequest): Promise<HttpTextResult>;
+
+  put(path: string): Promise<HttpTextResult>;
+
+  postForm(path: string, body: string): Promise<HttpTextResult>;
+
+  delete(path: string): Promise<HttpTextResult>;
 }
 
 export class DiscourseHttpClient implements ForumHttpClient {
@@ -170,7 +176,7 @@ export class DiscourseHttpClient implements ForumHttpClient {
   }
 
   public async get(path: string): Promise<HttpTextResult> {
-    return await this.requestText(path, http.RequestMethod.GET, null);
+    return await this.requestText(path, http.RequestMethod.GET, null, null);
   }
 
   public async postReply(reply: ReplyRequest): Promise<HttpTextResult> {
@@ -178,14 +184,28 @@ export class DiscourseHttpClient implements ForumHttpClient {
     return await this.requestText(
       '/posts.json',
       http.RequestMethod.POST,
-      JSON.stringify(payload.toHttpExtraData())
+      JSON.stringify(payload.toHttpExtraData()),
+      'application/json'
     );
+  }
+
+  public async put(path: string): Promise<HttpTextResult> {
+    return await this.requestText(path, http.RequestMethod.PUT, null, null);
+  }
+
+  public async postForm(path: string, body: string): Promise<HttpTextResult> {
+    return await this.requestText(path, http.RequestMethod.POST, body, 'application/x-www-form-urlencoded');
+  }
+
+  public async delete(path: string): Promise<HttpTextResult> {
+    return await this.requestText(path, http.RequestMethod.DELETE, null, null);
   }
 
   private async requestText(
     path: string,
     method: http.RequestMethod,
-    requestBody: string | null
+    requestBody: string | null,
+    contentType: string | null
   ): Promise<HttpTextResult> {
     if (!path.startsWith('/')) {
       return HttpTextResult.failure(0, '请求路径无效');
@@ -195,7 +215,7 @@ export class DiscourseHttpClient implements ForumHttpClient {
     const headers: DiscourseHeaders = this.headersFactory.create();
     const options: http.HttpRequestOptions = {
       method: method,
-      header: headers.toHttpHeaderValues(requestBody === null ? null : 'application/json'),
+      header: headers.toHttpHeaderValues(contentType),
       expectDataType: http.HttpDataType.STRING,
       connectTimeout: CONNECT_TIMEOUT_MS,
       readTimeout: READ_TIMEOUT_MS,

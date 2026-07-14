@@ -19,6 +19,12 @@ class StubForumHttpClient implements ForumHttpClient {
   public replyResults: Array<HttpTextResult> = [];
   public paths: Array<string> = [];
   public replyRequests: Array<ReplyRequest> = [];
+  public putResults: Array<HttpTextResult> = [];
+  public formResults: Array<HttpTextResult> = [];
+  public deleteResults: Array<HttpTextResult> = [];
+  public putPaths: Array<string> = [];
+  public formRequests: Array<string> = [];
+  public deletePaths: Array<string> = [];
 
   public async get(path: string): Promise<HttpTextResult> {
     this.paths.push(path);
@@ -30,6 +36,21 @@ class StubForumHttpClient implements ForumHttpClient {
     this.replyRequests.push(request);
     const result: HttpTextResult | undefined = this.replyResults.shift();
     return result ?? HttpTextResult.failure(0, 'missing Reply result');
+  }
+
+  public async put(path: string): Promise<HttpTextResult> {
+    this.putPaths.push(path);
+    return this.putResults.shift() ?? HttpTextResult.failure(0, 'missing PUT result');
+  }
+
+  public async postForm(path: string, body: string): Promise<HttpTextResult> {
+    this.formRequests.push(`${path}|${body}`);
+    return this.formResults.shift() ?? HttpTextResult.failure(0, 'missing form result');
+  }
+
+  public async delete(path: string): Promise<HttpTextResult> {
+    this.deletePaths.push(path);
+    return this.deleteResults.shift() ?? HttpTextResult.failure(0, 'missing DELETE result');
   }
 }
 
@@ -248,6 +269,43 @@ export default function discourseForumRepositoryTest(): void {
       expect(client.paths[0]).assertEqual('/t/2725.json');
       expect(result.kind).assertEqual(RepositoryResultKind.SUCCESS);
       expect(result.data?.[0].id).assertEqual(2800);
+      done();
+    });
+
+    it('toggles a Reaction and returns only the server-updated Post', 0, async (done: Function) => {
+      const client: StubForumHttpClient = new StubForumHttpClient();
+      client.putResults.push(HttpTextResult.success(200,
+        '{"id":102728,"user_id":24,"username":"Co-admin","cooked":"<p>正文</p>",' +
+        '"raw":"正文","post_number":1,"reactions":[{"id":"heart","count":2}],' +
+        '"current_user_reaction":{"id":"heart"},"created_at":"2026-01-27T14:46:08Z"}'
+      ));
+      const repository: DiscourseForumRepository = new DiscourseForumRepository(client);
+
+      const result: RepositoryResult<ForumPost> = await repository.togglePostReaction(102728, 'heart');
+
+      expect(client.putPaths[0]).assertEqual(
+        '/discourse-reactions/posts/102728/custom-reactions/heart/toggle.json'
+      );
+      expect(result.data?.currentUserReaction).assertEqual('heart');
+      expect(result.data?.likeCount).assertEqual(2);
+      done();
+    });
+
+    it('creates and deletes a Post bookmark through the frozen Discourse contract', 0, async (done: Function) => {
+      const client: StubForumHttpClient = new StubForumHttpClient();
+      client.formResults.push(HttpTextResult.success(200, '{"id":901}'));
+      client.deleteResults.push(HttpTextResult.success(200, '{}'));
+      const repository: DiscourseForumRepository = new DiscourseForumRepository(client);
+
+      const created: RepositoryResult<number> = await repository.createPostBookmark(102728);
+      const deleted: RepositoryResult<boolean> = await repository.deletePostBookmark(901);
+
+      expect(client.formRequests[0]).assertEqual(
+        '/bookmarks.json|reminder_at=&auto_delete_preference=3&bookmarkable_id=102728&bookmarkable_type=Post'
+      );
+      expect(created.data).assertEqual(901);
+      expect(client.deletePaths[0]).assertEqual('/bookmarks/901.json');
+      expect(deleted.data).assertTrue();
       done();
     });
 

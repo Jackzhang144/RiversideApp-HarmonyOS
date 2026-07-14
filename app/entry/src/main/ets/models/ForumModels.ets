@@ -224,6 +224,38 @@ export class ForumPost {
   public isSystemAction(): boolean {
     return this.postType === 3 && this.actionCode.length > 0;
   }
+
+  public withBookmark(bookmarked: boolean, bookmarkId: number | null): ForumPost {
+    return new ForumPost(
+      this.id,
+      this.userId,
+      this.username,
+      this.cooked,
+      this.raw,
+      this.postNumber,
+      this.replyToPostNumber,
+      this.createdAt,
+      new ForumPostMetadata(
+        this.userTitle,
+        this.avatarUrl,
+        this.flairUrl,
+        this.replyToUsername,
+        this.replyToAvatarUrl,
+        this.likeCount,
+        this.reactions,
+        this.currentUserReaction,
+        this.canEdit,
+        this.canDelete,
+        this.acceptedAnswer,
+        this.canAcceptAnswer,
+        this.canUnacceptAnswer,
+        bookmarked,
+        bookmarkId,
+        this.postType,
+        this.actionCode
+      )
+    );
+  }
 }
 
 export class TopicDetailMetadata {

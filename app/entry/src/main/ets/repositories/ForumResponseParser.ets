@@ -1104,6 +1104,14 @@ export class ForumResponseParser {
       : RepositoryResult.success<Array<Topic>>(decodeSuggestedTopics(envelope));
   }
 
+  public parseBookmarkId(text: string): RepositoryResult<number> {
+    const envelope: JsonObjectReader | null = JsonObjectReader.parse(text);
+    const id: number | null = envelope?.number('id') ?? null;
+    return id === null || !Number.isInteger(id) || id <= 0
+      ? RepositoryResult.failure<number>('服务器响应缺少书签标识')
+      : RepositoryResult.success<number>(id);
+  }
+
   public parseCreatedReply(text: string): RepositoryResult<ForumPost> {
     const envelope: JsonObjectReader | null = JsonObjectReader.parse(text);
     if (envelope === null) {

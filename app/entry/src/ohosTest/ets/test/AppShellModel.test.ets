@@ -94,6 +94,18 @@ class StubForumRepository implements ForumRepository {
     return RepositoryResult.success<Array<Topic>>([]);
   }
 
+  public async togglePostReaction(_postId: number, _reaction: string): Promise<RepositoryResult<ForumPost>> {
+    return RepositoryResult.failure<ForumPost>('missing Reaction result');
+  }
+
+  public async createPostBookmark(_postId: number): Promise<RepositoryResult<number>> {
+    return RepositoryResult.failure<number>('missing bookmark result');
+  }
+
+  public async deletePostBookmark(_bookmarkId: number): Promise<RepositoryResult<boolean>> {
+    return RepositoryResult.failure<boolean>('missing bookmark result');
+  }
+
   public async submitReply(_request: ReplyRequest): Promise<ReplySubmitResult> {
     return ReplySubmitResult.rejected('missing Reply result');
   }

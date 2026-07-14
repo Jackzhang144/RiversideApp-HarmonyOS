@@ -14,6 +14,8 @@ import { RepositoryResult } from '../../../main/ets/core/RepositoryResult';
 import {
   Category,
   ForumPost,
+  ForumPostMetadata,
+  PostReaction,
   Topic,
   TopicDetail,
   TopicPostBatch
@@ -53,6 +55,9 @@ class TopicReadingRepository implements ForumRepository {
   public topicDetailResults: Array<RepositoryResult<TopicDetail>> = [];
   public topicPostResults: Array<RepositoryResult<TopicPostBatch>> = [];
   public topicSuggestionResults: Array<RepositoryResult<Array<Topic>>> = [];
+  public reactionResults: Array<RepositoryResult<ForumPost>> = [];
+  public createBookmarkResults: Array<RepositoryResult<number>> = [];
+  public deleteBookmarkResults: Array<RepositoryResult<boolean>> = [];
   public categoryTopicResults: Array<RepositoryResult<Array<Topic>>> = [];
   public topicDetailTasks: Array<Promise<RepositoryResult<TopicDetail>>> = [];
   public categoryTopicTasks: Array<Promise<RepositoryResult<Array<Topic>>>> = [];
@@ -60,6 +65,9 @@ class TopicReadingRepository implements ForumRepository {
   public requestedPostIds: Array<Array<number>> = [];
   public requestedTopicPostNumbers: Array<number | null> = [];
   public requestedSuggestionTopicIds: Array<number> = [];
+  public requestedReactions: Array<string> = [];
+  public requestedBookmarkPostIds: Array<number> = [];
+  public requestedDeleteBookmarkIds: Array<number> = [];
   public currentUserResults: Array<RepositoryResult<CurrentUser>> = [];
   public replySubmitResults: Array<ReplySubmitResult> = [];
   public replyRecoveryResults: Array<ReplyRecoveryResult> = [];
@@ -121,6 +129,21 @@ class TopicReadingRepository implements ForumRepository {
     return result ?? RepositoryResult.success<Array<Topic>>([]);
   }
 
+  public async togglePostReaction(postId: number, reaction: string): Promise<RepositoryResult<ForumPost>> {
+    this.requestedReactions.push(`${postId}:${reaction}`);
+    return this.reactionResults.shift() ?? RepositoryResult.failure<ForumPost>('missing Reaction result');
+  }
+
+  public async createPostBookmark(postId: number): Promise<RepositoryResult<number>> {
+    this.requestedBookmarkPostIds.push(postId);
+    return this.createBookmarkResults.shift() ?? RepositoryResult.failure<number>('missing bookmark result');
+  }
+
+  public async deletePostBookmark(bookmarkId: number): Promise<RepositoryResult<boolean>> {
+    this.requestedDeleteBookmarkIds.push(bookmarkId);
+    return this.deleteBookmarkResults.shift() ?? RepositoryResult.failure<boolean>('missing bookmark result');
+  }
+
   public async submitReply(request: ReplyRequest): Promise<ReplySubmitResult> {
     this.submittedReplies.push(request);
     const result: ReplySubmitResult | undefined = this.replySubmitResults.shift();
@@ -177,6 +200,20 @@ function thirdPost(): ForumPost {
 
 function fourthPost(): ForumPost {
   return new ForumPost(102731, 24, 'Co-admin', '<p>收到</p>', '收到', 4, 3, '2026-01-28T00:02:00Z');
+}
+
+function reactedFirstPost(): ForumPost {
+  return new ForumPost(
+    102728,
+    24,
+    'Co-admin',
+    '<h1>站务公告</h1>',
+    '站务公告',
+    1,
+    null,
+    '2026-01-27T14:46:08.722Z',
+    new ForumPostMetadata('', '', '', null, null, 1, [new PostReaction('heart', 1)], 'heart')
+  );
 }
 
 function authenticatedUserResult(): RepositoryResult<CurrentUser> {
@@ -624,6 +661,62 @@ export default function topicReadingTest(): void {
       expect(model.replyState.draft).assertEqual('');
       expect(model.topicState.posts.length).assertEqual(4);
       expect(model.topicState.posts[3].id).assertEqual(102731);
+      done();
+    });
+
+    it('updates a Reaction only after the server returns the authoritative Post', 0, async (done: Function) => {
+      const repository: TopicReadingRepository = new TopicReadingRepository();
+      repository.topicDetailResults.push(RepositoryResult.success<TopicDetail>(new TopicDetail(
+        2725, 'Reaction Topic', 10, 1, 0, false, false, true, [102728], [firstPost()]
+      )));
+      repository.reactionResults.push(
+        RepositoryResult.failure<ForumPost>('Reaction 更新失败'),
+        RepositoryResult.success<ForumPost>(reactedFirstPost())
+      );
+      const model: AppShellModel = new AppShellModel(
+        repository, new MemoryCategoryCache(), CategoryCacheScope.anonymous()
+      );
+      await model.openTopic(topic());
+
+      await model.togglePostReaction(102728, 'heart');
+      expect(model.topicState.posts[0].currentUserReaction).assertNull();
+      expect(model.topicState.postActionState.message).assertEqual('Reaction 更新失败');
+
+      await model.togglePostReaction(102728, 'heart');
+      expect(repository.requestedReactions.join(',')).assertEqual('102728:heart,102728:heart');
+      expect(model.topicState.posts[0].currentUserReaction).assertEqual('heart');
+      expect(model.topicState.posts[0].likeCount).assertEqual(1);
+      expect(model.topicState.postActionState.message).assertEqual('');
+      done();
+    });
+
+    it('keeps bookmark state unchanged on failure and mutates only after success', 0, async (done: Function) => {
+      const repository: TopicReadingRepository = new TopicReadingRepository();
+      repository.topicDetailResults.push(RepositoryResult.success<TopicDetail>(new TopicDetail(
+        2725, 'Bookmark Topic', 10, 1, 0, false, false, true, [102728], [firstPost()]
+      )));
+      repository.createBookmarkResults.push(RepositoryResult.success<number>(901));
+      repository.deleteBookmarkResults.push(
+        RepositoryResult.failure<boolean>('书签删除失败'),
+        RepositoryResult.success<boolean>(true)
+      );
+      const model: AppShellModel = new AppShellModel(
+        repository, new MemoryCategoryCache(), CategoryCacheScope.anonymous()
+      );
+      await model.openTopic(topic());
+
+      await model.togglePostBookmark(102728);
+      expect(model.topicState.posts[0].bookmarked).assertTrue();
+      expect(model.topicState.posts[0].bookmarkId).assertEqual(901);
+
+      await model.togglePostBookmark(102728);
+      expect(model.topicState.posts[0].bookmarked).assertTrue();
+      expect(model.topicState.postActionState.message).assertEqual('书签删除失败');
+
+      await model.togglePostBookmark(102728);
+      expect(repository.requestedDeleteBookmarkIds.join(',')).assertEqual('901,901');
+      expect(model.topicState.posts[0].bookmarked).assertFalse();
+      expect(model.topicState.posts[0].bookmarkId).assertNull();
       done();
     });
 

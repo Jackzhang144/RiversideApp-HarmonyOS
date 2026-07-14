@@ -28,6 +28,12 @@ export interface ForumRepository {
 
   loadTopicSuggestions(topicId: number): Promise<RepositoryResult<Array<Topic>>>;
 
+  togglePostReaction(postId: number, reaction: string): Promise<RepositoryResult<ForumPost>>;
+
+  createPostBookmark(postId: number): Promise<RepositoryResult<number>>;
+
+  deletePostBookmark(bookmarkId: number): Promise<RepositoryResult<boolean>>;
+
   loadCurrentUser(): Promise<RepositoryResult<CurrentUser>>;
 
   loadUserProfile(username: string): Promise<RepositoryResult<CurrentUser>>;

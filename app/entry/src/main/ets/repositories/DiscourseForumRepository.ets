@@ -176,6 +176,54 @@ export class DiscourseForumRepository implements ForumRepository {
     return this.parser.parseTopicSuggestions(response.body);
   }
 
+  public async togglePostReaction(postId: number, reaction: string): Promise<RepositoryResult<ForumPost>> {
+    const normalizedReaction: string = reaction.trim();
+    if (!Number.isInteger(postId) || postId <= 0 || normalizedReaction.length === 0) {
+      return RepositoryResult.failure<ForumPost>('Reaction 请求无效');
+    }
+    const response: HttpTextResult = await this.client.put(
+      `/discourse-reactions/posts/${postId}/custom-reactions/${encodeURIComponent(normalizedReaction)}/toggle.json`
+    );
+    if (response.kind === HttpTextResultKind.UNAUTHORIZED) {
+      return RepositoryResult.unauthorized<ForumPost>();
+    }
+    if (!response.isSuccess()) {
+      return RepositoryResult.failure<ForumPost>(response.message);
+    }
+    return this.parser.parseCreatedReply(response.body);
+  }
+
+  public async createPostBookmark(postId: number): Promise<RepositoryResult<number>> {
+    if (!Number.isInteger(postId) || postId <= 0) {
+      return RepositoryResult.failure<number>('Post 标识无效');
+    }
+    const response: HttpTextResult = await this.client.postForm(
+      '/bookmarks.json',
+      `reminder_at=&auto_delete_preference=3&bookmarkable_id=${postId}&bookmarkable_type=Post`
+    );
+    if (response.kind === HttpTextResultKind.UNAUTHORIZED) {
+      return RepositoryResult.unauthorized<number>();
+    }
+    if (!response.isSuccess()) {
+      return RepositoryResult.failure<number>(response.message);
+    }
+    return this.parser.parseBookmarkId(response.body);
+  }
+
+  public async deletePostBookmark(bookmarkId: number): Promise<RepositoryResult<boolean>> {
+    if (!Number.isInteger(bookmarkId) || bookmarkId <= 0) {
+      return RepositoryResult.failure<boolean>('书签标识无效');
+    }
+    const response: HttpTextResult = await this.client.delete(`/bookmarks/${bookmarkId}.json`);
+    if (response.kind === HttpTextResultKind.UNAUTHORIZED) {
+      return RepositoryResult.unauthorized<boolean>();
+    }
+    if (!response.isSuccess()) {
+      return RepositoryResult.failure<boolean>(response.message);
+    }
+    return RepositoryResult.success<boolean>(true);
+  }
+
   public async submitReply(request: ReplyRequest): Promise<ReplySubmitResult> {
     const response: HttpTextResult = await this.client.postReply(request);
     if (response.kind === HttpTextResultKind.UNAUTHORIZED) {

@@ -96,6 +96,38 @@ export enum TopicReadStateKind {
   ERROR = 'error'
 }
 
+export enum TopicPostActionKind {
+  NONE = 'none',
+  REACTION = 'reaction',
+  BOOKMARK = 'bookmark'
+}
+
+export class TopicPostActionState {
+  public readonly kind: TopicPostActionKind;
+  public readonly postId: number;
+  public readonly busy: boolean;
+  public readonly message: string;
+
+  private constructor(kind: TopicPostActionKind, postId: number, busy: boolean, message: string) {
+    this.kind = kind;
+    this.postId = postId;
+    this.busy = busy;
+    this.message = message;
+  }
+
+  public static idle(): TopicPostActionState {
+    return new TopicPostActionState(TopicPostActionKind.NONE, 0, false, '');
+  }
+
+  public static loading(kind: TopicPostActionKind, postId: number): TopicPostActionState {
+    return new TopicPostActionState(kind, postId, true, '');
+  }
+
+  public static error(kind: TopicPostActionKind, postId: number, message: string): TopicPostActionState {
+    return new TopicPostActionState(kind, postId, false, message);
+  }
+}
+
 export enum ReplyComposerStateKind {
   CLOSED = 'closed',
   EDITING = 'editing',
@@ -181,6 +213,7 @@ export class TopicReadState {
   public readonly paginationMessage: string;
   public readonly isLoadingPrevious: boolean;
   public readonly previousPaginationMessage: string;
+  public readonly postActionState: TopicPostActionState;
 
   private constructor(
     kind: TopicReadStateKind,
@@ -195,7 +228,8 @@ export class TopicReadState {
     isLoadingMore: boolean,
     paginationMessage: string,
     isLoadingPrevious: boolean,
-    previousPaginationMessage: string
+    previousPaginationMessage: string,
+    postActionState: TopicPostActionState = TopicPostActionState.idle()
   ) {
     this.kind = kind;
     this.topicId = topicId;
@@ -211,6 +245,7 @@ export class TopicReadState {
     this.paginationMessage = paginationMessage;
     this.isLoadingPrevious = isLoadingPrevious;
     this.previousPaginationMessage = previousPaginationMessage;
+    this.postActionState = postActionState;
   }
 
   public static initial(): TopicReadState {
@@ -298,7 +333,8 @@ export class TopicReadState {
       isLoadingMore,
       paginationMessage,
       state.isLoadingPrevious,
-      state.previousPaginationMessage
+      state.previousPaginationMessage,
+      state.postActionState
     );
   }
 
@@ -320,7 +356,8 @@ export class TopicReadState {
       state.isLoadingMore,
       state.paginationMessage,
       isLoadingPrevious,
-      previousPaginationMessage
+      previousPaginationMessage,
+      state.postActionState
     );
   }
 
@@ -338,7 +375,46 @@ export class TopicReadState {
       state.isLoadingMore,
       state.paginationMessage,
       state.isLoadingPrevious,
-      state.previousPaginationMessage
+      state.previousPaginationMessage,
+      state.postActionState
+    );
+  }
+
+  public static withPosts(state: TopicReadState, posts: Array<ForumPost>): TopicReadState {
+    return new TopicReadState(
+      state.kind,
+      state.topicId,
+      state.title,
+      state.detail,
+      posts,
+      state.canReply,
+      state.message,
+      state.hasPreviousPosts,
+      state.hasNextPosts,
+      state.isLoadingMore,
+      state.paginationMessage,
+      state.isLoadingPrevious,
+      state.previousPaginationMessage,
+      state.postActionState
+    );
+  }
+
+  public static withPostAction(state: TopicReadState, postActionState: TopicPostActionState): TopicReadState {
+    return new TopicReadState(
+      state.kind,
+      state.topicId,
+      state.title,
+      state.detail,
+      state.posts,
+      state.canReply,
+      state.message,
+      state.hasPreviousPosts,
+      state.hasNextPosts,
+      state.isLoadingMore,
+      state.paginationMessage,
+      state.isLoadingPrevious,
+      state.previousPaginationMessage,
+      postActionState
     );
   }
 }
@@ -369,6 +445,10 @@ function orderPosts(postIds: Array<number>, posts: Array<ForumPost>): Array<Foru
     }
   }
   return ordered.concat(Array.from(byId.values()));
+}
+
+function replacePost(posts: Array<ForumPost>, replacement: ForumPost): Array<ForumPost> {
+  return posts.map((post: ForumPost): ForumPost => post.id === replacement.id ? replacement : post);
 }
 
 export class BrowseState<T> {
@@ -917,6 +997,115 @@ export class AppShellModel {
       return;
     }
     this.topicState = TopicReadState.withDetail(this.topicState, detail.withSuggestedTopics(result.data));
+  }
+
+  public async togglePostReaction(postId: number, reaction: string): Promise<void> {
+    const detail: TopicDetail | null = this.topicState.detail;
+    const normalizedReaction: string = reaction.trim();
+    const post: ForumPost | undefined = this.topicState.posts.find(
+      (candidate: ForumPost): boolean => candidate.id === postId
+    );
+    if (
+      detail === null ||
+      post === undefined ||
+      normalizedReaction.length === 0 ||
+      this.topicState.postActionState.busy ||
+      (detail.validReactions.length > 0 && !detail.validReactions.includes(normalizedReaction))
+    ) {
+      return;
+    }
+
+    const requestVersion: number = this.topicRequestVersion;
+    this.topicState = TopicReadState.withPostAction(
+      this.topicState,
+      TopicPostActionState.loading(TopicPostActionKind.REACTION, postId)
+    );
+    const result: RepositoryResult<ForumPost> =
+      await this.repository.togglePostReaction(postId, normalizedReaction);
+    if (requestVersion !== this.topicRequestVersion || this.topicState.topicId !== detail.id) {
+      return;
+    }
+    if (!result.isSuccess() || result.data === null) {
+      this.requiresAuthentication = result.isUnauthorized();
+      this.topicState = TopicReadState.withPostAction(
+        this.topicState,
+        TopicPostActionState.error(TopicPostActionKind.REACTION, postId, result.message)
+      );
+      await this.notifyUnauthorized(result.isUnauthorized());
+      return;
+    }
+    this.topicState = TopicReadState.withPosts(this.topicState, replacePost(this.topicState.posts, result.data));
+    this.topicState = TopicReadState.withPostAction(this.topicState, TopicPostActionState.idle());
+  }
+
+  public async togglePostBookmark(postId: number): Promise<void> {
+    const detail: TopicDetail | null = this.topicState.detail;
+    const post: ForumPost | undefined = this.topicState.posts.find(
+      (candidate: ForumPost): boolean => candidate.id === postId
+    );
+    if (detail === null || post === undefined || this.topicState.postActionState.busy) {
+      return;
+    }
+    if (post.bookmarked) {
+      await this.deleteBookmark(detail, post);
+    } else {
+      await this.createBookmark(detail, post);
+    }
+  }
+
+  private async createBookmark(detail: TopicDetail, post: ForumPost): Promise<void> {
+    const requestVersion: number = this.topicRequestVersion;
+    this.topicState = TopicReadState.withPostAction(
+      this.topicState,
+      TopicPostActionState.loading(TopicPostActionKind.BOOKMARK, post.id)
+    );
+    const result: RepositoryResult<number> = await this.repository.createPostBookmark(post.id);
+    if (requestVersion !== this.topicRequestVersion || this.topicState.topicId !== detail.id) {
+      return;
+    }
+    if (!result.isSuccess() || result.data === null) {
+      this.requiresAuthentication = result.isUnauthorized();
+      this.topicState = TopicReadState.withPostAction(
+        this.topicState,
+        TopicPostActionState.error(TopicPostActionKind.BOOKMARK, post.id, result.message)
+      );
+      await this.notifyUnauthorized(result.isUnauthorized());
+      return;
+    }
+    const updatedPost: ForumPost = post.withBookmark(true, result.data);
+    this.topicState = TopicReadState.withPosts(this.topicState, replacePost(this.topicState.posts, updatedPost));
+    this.topicState = TopicReadState.withPostAction(this.topicState, TopicPostActionState.idle());
+  }
+
+  private async deleteBookmark(detail: TopicDetail, post: ForumPost): Promise<void> {
+    if (post.bookmarkId === null) {
+      this.topicState = TopicReadState.withPostAction(
+        this.topicState,
+        TopicPostActionState.error(TopicPostActionKind.BOOKMARK, post.id, '书签状态缺少服务端标识，请刷新后重试')
+      );
+      return;
+    }
+    const requestVersion: number = this.topicRequestVersion;
+    this.topicState = TopicReadState.withPostAction(
+      this.topicState,
+      TopicPostActionState.loading(TopicPostActionKind.BOOKMARK, post.id)
+    );
+    const result: RepositoryResult<boolean> = await this.repository.deletePostBookmark(post.bookmarkId);
+    if (requestVersion !== this.topicRequestVersion || this.topicState.topicId !== detail.id) {
+      return;
+    }
+    if (!result.isSuccess() || result.data !== true) {
+      this.requiresAuthentication = result.isUnauthorized();
+      this.topicState = TopicReadState.withPostAction(
+        this.topicState,
+        TopicPostActionState.error(TopicPostActionKind.BOOKMARK, post.id, result.message)
+      );
+      await this.notifyUnauthorized(result.isUnauthorized());
+      return;
+    }
+    const updatedPost: ForumPost = post.withBookmark(false, null);
+    this.topicState = TopicReadState.withPosts(this.topicState, replacePost(this.topicState.posts, updatedPost));
+    this.topicState = TopicReadState.withPostAction(this.topicState, TopicPostActionState.idle());
   }
 
   public async retryTopicPosts(): Promise<void> {
