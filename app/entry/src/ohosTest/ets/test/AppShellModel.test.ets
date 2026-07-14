@@ -6,12 +6,20 @@ import {
   HomeSortTabIndex,
   RootDestination,
   RootTabIndex,
+  SearchStateKind,
   SecondaryDestination
 } from '../../../main/ets/app/AppShellModel';
 import { CategoryCacheScope } from '../../../main/ets/cache/CategoryCache';
 import { RepositoryResult } from '../../../main/ets/core/RepositoryResult';
 import { Category, ForumPost, Topic, TopicDetail } from '../../../main/ets/models/ForumModels';
-import { ForumSearchResult, HomeChannel } from '../../../main/ets/models/DiscoveryModels';
+import {
+  ForumSearchResult,
+  HomeChannel,
+  SearchGroup,
+  SearchPost,
+  SearchTag,
+  SearchUser
+} from '../../../main/ets/models/DiscoveryModels';
 import {
   CurrentUser,
   ReplyRecoveryRequest,
@@ -25,8 +33,14 @@ import { MemoryCategoryCache } from './support/MemoryCategoryCache';
 class StubForumRepository implements ForumRepository {
   public latestResults: Array<RepositoryResult<Array<Topic>>> = [];
   public categoryResults: Array<RepositoryResult<Array<Category>>> = [];
+  public categoryTopicResults: Array<RepositoryResult<Array<Topic>>> = [];
+  public searchResults: Array<RepositoryResult<ForumSearchResult>> = [];
   public latestCallCount: number = 0;
   public categoryCallCount: number = 0;
+  public requestedHomeChannels: Array<HomeChannel> = [];
+  public requestedHomePages: Array<number> = [];
+  public requestedCategoryPages: Array<number> = [];
+  public requestedSearchPages: Array<number> = [];
 
   public async loadLatestTopics(): Promise<RepositoryResult<Array<Topic>>> {
     this.latestCallCount += 1;
@@ -34,12 +48,16 @@ class StubForumRepository implements ForumRepository {
     return result ?? RepositoryResult.failure<Array<Topic>>('missing latest result');
   }
 
-  public async loadHomeTopics(_channel: HomeChannel, _page: number): Promise<RepositoryResult<Array<Topic>>> {
+  public async loadHomeTopics(channel: HomeChannel, page: number): Promise<RepositoryResult<Array<Topic>>> {
+    this.requestedHomeChannels.push(channel);
+    this.requestedHomePages.push(page);
     return this.loadLatestTopics();
   }
 
-  public async searchForum(_query: string, _page: number): Promise<RepositoryResult<ForumSearchResult>> {
-    return RepositoryResult.failure<ForumSearchResult>('missing search result');
+  public async searchForum(_query: string, page: number): Promise<RepositoryResult<ForumSearchResult>> {
+    this.requestedSearchPages.push(page);
+    const result: RepositoryResult<ForumSearchResult> | undefined = this.searchResults.shift();
+    return result ?? RepositoryResult.failure<ForumSearchResult>('missing search result');
   }
 
   public async searchSuggestions(_term: string): Promise<RepositoryResult<Array<string>>> {
@@ -52,8 +70,10 @@ class StubForumRepository implements ForumRepository {
     return result ?? RepositoryResult.failure<Array<Category>>('missing category result');
   }
 
-  public async loadCategoryTopics(_categoryId: number): Promise<RepositoryResult<Array<Topic>>> {
-    return RepositoryResult.success<Array<Topic>>([]);
+  public async loadCategoryTopics(_categoryId: number, page: number = 0): Promise<RepositoryResult<Array<Topic>>> {
+    this.requestedCategoryPages.push(page);
+    const result: RepositoryResult<Array<Topic>> | undefined = this.categoryTopicResults.shift();
+    return result ?? RepositoryResult.success<Array<Topic>>([]);
   }
 
   public async loadTopicDetail(_topicId: number): Promise<RepositoryResult<TopicDetail>> {
@@ -91,6 +111,23 @@ function topic(id: number, title: string): Topic {
 
 function category(id: number, name: string): Category {
   return new Category(id, name, '25AAE2', '', 1, null, []);
+}
+
+function searchResult(
+  topics: Array<Topic>,
+  posts: Array<SearchPost>,
+  hasMore: boolean,
+  suffix: string = ''
+): ForumSearchResult {
+  return new ForumSearchResult(
+    topics,
+    posts,
+    [new SearchUser(30 + suffix.length, `user${suffix}`, `用户${suffix}`, '')],
+    [category(60 + suffix.length, `分类${suffix}`)],
+    [new SearchTag(`tag${suffix}`, `标签${suffix}`, 1)],
+    [new SearchGroup(50 + suffix.length, `group${suffix}`, `群组${suffix}`, 2)],
+    hasMore
+  );
 }
 
 export default function appShellModelTest(): void {
@@ -149,7 +186,7 @@ export default function appShellModelTest(): void {
       done();
     });
 
-    it('keeps unavailable Home sorts outside navigation and network work', 0, () => {
+    it('selects every frozen Home channel without starting hidden network work', 0, () => {
       const repository: StubForumRepository = new StubForumRepository();
       const model: AppShellModel = new AppShellModel(
         repository,
@@ -158,12 +195,121 @@ export default function appShellModelTest(): void {
       );
 
       expect(model.selectHomeSortTab(HomeSortTabIndex.LATEST_REPLIES)).assertTrue();
-      expect(model.selectHomeSortTab(HomeSortTabIndex.LATEST_CREATED)).assertFalse();
-      expect(model.selectHomeSortTab(HomeSortTabIndex.UNREAD)).assertFalse();
-      expect(model.selectHomeSortTab(HomeSortTabIndex.HOT)).assertFalse();
-      expect(model.selectHomeSortTab(HomeSortTabIndex.FEATURED)).assertFalse();
+      expect(model.selectHomeSortTab(HomeSortTabIndex.LATEST_CREATED)).assertTrue();
+      expect(model.selectHomeSortTab(HomeSortTabIndex.UNREAD)).assertTrue();
+      expect(model.selectHomeSortTab(HomeSortTabIndex.HOT)).assertTrue();
+      expect(model.selectHomeSortTab(HomeSortTabIndex.FEATURED)).assertTrue();
+      expect(model.selectedHomeChannel).assertEqual(HomeChannel.FEATURED);
+      expect(model.selectHomeSortTab(99)).assertFalse();
       expect(repository.latestCallCount).assertEqual(0);
       expect(model.activeDestination).assertEqual(SecondaryDestination.NONE);
+    });
+
+    it('loads and deduplicates paged Home topics for the selected channel', 0, async (done: Function) => {
+      const repository: StubForumRepository = new StubForumRepository();
+      repository.latestResults.push(
+        RepositoryResult.success([topic(1, '第一页')]),
+        RepositoryResult.success([topic(1, '重复'), topic(2, '第二页')]),
+        RepositoryResult.success([])
+      );
+      const model: AppShellModel = new AppShellModel(
+        repository,
+        new MemoryCategoryCache(),
+        CategoryCacheScope.anonymous()
+      );
+      model.selectHomeSortTab(HomeSortTabIndex.HOT);
+
+      await model.loadHome();
+      await model.loadMoreHome();
+
+      expect(repository.requestedHomeChannels[0]).assertEqual(HomeChannel.HOT);
+      expect(repository.requestedHomePages[0]).assertEqual(0);
+      expect(repository.requestedHomePages[1]).assertEqual(1);
+      expect(model.homeState.items.length).assertEqual(2);
+      expect(model.homeState.items[1].id).assertEqual(2);
+      expect(model.homeState.hasMore).assertTrue();
+
+      await model.loadMoreHome();
+      expect(model.homeState.hasMore).assertFalse();
+      done();
+    });
+
+    it('loads and deduplicates Category Topic pages', 0, async (done: Function) => {
+      const repository: StubForumRepository = new StubForumRepository();
+      repository.categoryTopicResults.push(
+        RepositoryResult.success([topic(1, '第一页')]),
+        RepositoryResult.success([topic(1, '重复'), topic(2, '第二页')])
+      );
+      const model: AppShellModel = new AppShellModel(
+        repository,
+        new MemoryCategoryCache(),
+        CategoryCacheScope.anonymous()
+      );
+
+      await model.openCategory(category(60, '站务管理'));
+      await model.loadMoreCategoryTopics();
+
+      expect(repository.requestedCategoryPages[0]).assertEqual(0);
+      expect(repository.requestedCategoryPages[1]).assertEqual(1);
+      expect(model.categoryTopicsState.items.length).assertEqual(2);
+      expect(model.categoryTopicsState.hasMore).assertTrue();
+      done();
+    });
+
+    it('searches all result kinds and deduplicates the next page', 0, async (done: Function) => {
+      const repository: StubForumRepository = new StubForumRepository();
+      const firstTopic: Topic = topic(1, '第一页');
+      const secondTopic: Topic = topic(2, '第二页');
+      const firstPost: SearchPost = new SearchPost(10, firstTopic, 1, 'admin', '第一条', '');
+      const secondPost: SearchPost = new SearchPost(11, secondTopic, 2, 'user', '第二条', '');
+      repository.searchResults.push(
+        RepositoryResult.success(searchResult([firstTopic], [firstPost], true)),
+        RepositoryResult.success(searchResult([firstTopic, secondTopic], [firstPost, secondPost], false, '2'))
+      );
+      const model: AppShellModel = new AppShellModel(
+        repository,
+        new MemoryCategoryCache(),
+        CategoryCacheScope.anonymous()
+      );
+
+      await model.searchForum('河畔');
+      expect(model.searchState.kind).assertEqual(SearchStateKind.CONTENT);
+      expect(model.searchState.result.topics.length).assertEqual(1);
+      expect(model.searchState.result.users.length).assertEqual(1);
+
+      await model.loadMoreSearch();
+      expect(repository.requestedSearchPages[0]).assertEqual(1);
+      expect(repository.requestedSearchPages[1]).assertEqual(2);
+      expect(model.searchState.result.topics.length).assertEqual(2);
+      expect(model.searchState.result.posts.length).assertEqual(2);
+      expect(model.searchState.result.users.length).assertEqual(2);
+      expect(model.searchState.hasMore).assertFalse();
+      done();
+    });
+
+    it('distinguishes blank, failed and empty forum search states', 0, async (done: Function) => {
+      const repository: StubForumRepository = new StubForumRepository();
+      repository.searchResults.push(
+        RepositoryResult.failure<ForumSearchResult>('搜索失败'),
+        RepositoryResult.success(new ForumSearchResult([], [], [], [], [], [], false))
+      );
+      const model: AppShellModel = new AppShellModel(
+        repository,
+        new MemoryCategoryCache(),
+        CategoryCacheScope.anonymous()
+      );
+
+      await model.searchForum('  ');
+      expect(model.searchState.kind).assertEqual(SearchStateKind.INITIAL);
+      expect(repository.requestedSearchPages.length).assertEqual(0);
+
+      await model.searchForum('河畔');
+      expect(model.searchState.kind).assertEqual(SearchStateKind.ERROR);
+      expect(model.searchState.message).assertEqual('搜索失败');
+
+      await model.retrySearch();
+      expect(model.searchState.kind).assertEqual(SearchStateKind.EMPTY);
+      done();
     });
 
     it('distinguishes Home empty and retryable failure states', 0, async (done: Function) => {

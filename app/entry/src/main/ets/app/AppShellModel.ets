@@ -2,6 +2,14 @@ import { CategoryCache, CategoryCacheScope } from '../cache/CategoryCache';
 import { RepositoryResult } from '../core/RepositoryResult';
 import { Category, ForumPost, Topic, TopicDetail } from '../models/ForumModels';
 import {
+  ForumSearchResult,
+  HomeChannel,
+  SearchGroup,
+  SearchPost,
+  SearchTag,
+  SearchUser
+} from '../models/DiscoveryModels';
+import {
   CurrentUser,
   ReplyRecoveryKind,
   ReplyRecoveryRequest,
@@ -39,7 +47,8 @@ export enum HomeSortTabIndex {
 }
 
 export function isHomeSortTabAvailable(index: number): boolean {
-  return index === HomeSortTabIndex.LATEST_REPLIES;
+  return Number.isInteger(index) && index >= HomeSortTabIndex.LATEST_REPLIES &&
+    index <= HomeSortTabIndex.FEATURED;
 }
 
 export function rootDestinationForTabIndex(index: number): RootDestination | null {
@@ -56,6 +65,14 @@ export function rootDestinationForTabIndex(index: number): RootDestination | nul
 }
 
 export enum BrowseStateKind {
+  INITIAL = 'initial',
+  LOADING = 'loading',
+  CONTENT = 'content',
+  EMPTY = 'empty',
+  ERROR = 'error'
+}
+
+export enum SearchStateKind {
   INITIAL = 'initial',
   LOADING = 'loading',
   CONTENT = 'content',
@@ -269,33 +286,177 @@ export class BrowseState<T> {
   public readonly items: Array<T>;
   public readonly message: string;
   public readonly isRefreshing: boolean;
+  public readonly hasMore: boolean;
+  public readonly isLoadingMore: boolean;
+  public readonly paginationMessage: string;
 
-  private constructor(kind: BrowseStateKind, items: Array<T>, message: string, isRefreshing: boolean) {
+  private constructor(
+    kind: BrowseStateKind,
+    items: Array<T>,
+    message: string,
+    isRefreshing: boolean,
+    hasMore: boolean,
+    isLoadingMore: boolean,
+    paginationMessage: string
+  ) {
     this.kind = kind;
     this.items = items;
     this.message = message;
     this.isRefreshing = isRefreshing;
+    this.hasMore = hasMore;
+    this.isLoadingMore = isLoadingMore;
+    this.paginationMessage = paginationMessage;
   }
 
   public static initial<T>(): BrowseState<T> {
-    return new BrowseState<T>(BrowseStateKind.INITIAL, [], '', false);
+    return new BrowseState<T>(BrowseStateKind.INITIAL, [], '', false, false, false, '');
   }
 
   public static loading<T>(): BrowseState<T> {
-    return new BrowseState<T>(BrowseStateKind.LOADING, [], '', false);
+    return new BrowseState<T>(BrowseStateKind.LOADING, [], '', false, false, false, '');
   }
 
-  public static content<T>(items: Array<T>, isRefreshing: boolean = false, message: string = ''): BrowseState<T> {
-    return new BrowseState<T>(BrowseStateKind.CONTENT, items, message, isRefreshing);
+  public static content<T>(
+    items: Array<T>,
+    isRefreshing: boolean = false,
+    message: string = '',
+    hasMore: boolean = false,
+    isLoadingMore: boolean = false,
+    paginationMessage: string = ''
+  ): BrowseState<T> {
+    return new BrowseState<T>(
+      BrowseStateKind.CONTENT,
+      items,
+      message,
+      isRefreshing,
+      hasMore,
+      isLoadingMore,
+      paginationMessage
+    );
   }
 
   public static empty<T>(isRefreshing: boolean = false, message: string = ''): BrowseState<T> {
-    return new BrowseState<T>(BrowseStateKind.EMPTY, [], message, isRefreshing);
+    return new BrowseState<T>(BrowseStateKind.EMPTY, [], message, isRefreshing, false, false, '');
   }
 
   public static error<T>(message: string): BrowseState<T> {
-    return new BrowseState<T>(BrowseStateKind.ERROR, [], message, false);
+    return new BrowseState<T>(BrowseStateKind.ERROR, [], message, false, false, false, '');
   }
+}
+
+function emptySearchResult(): ForumSearchResult {
+  return new ForumSearchResult([], [], [], [], [], [], false);
+}
+
+export class SearchState {
+  public readonly kind: SearchStateKind;
+  public readonly query: string;
+  public readonly result: ForumSearchResult;
+  public readonly message: string;
+  public readonly isLoadingMore: boolean;
+  public readonly paginationMessage: string;
+
+  private constructor(
+    kind: SearchStateKind,
+    query: string,
+    result: ForumSearchResult,
+    message: string,
+    isLoadingMore: boolean,
+    paginationMessage: string
+  ) {
+    this.kind = kind;
+    this.query = query;
+    this.result = result;
+    this.message = message;
+    this.isLoadingMore = isLoadingMore;
+    this.paginationMessage = paginationMessage;
+  }
+
+  public static initial(): SearchState {
+    return new SearchState(SearchStateKind.INITIAL, '', emptySearchResult(), '', false, '');
+  }
+
+  public static loading(query: string): SearchState {
+    return new SearchState(SearchStateKind.LOADING, query, emptySearchResult(), '', false, '');
+  }
+
+  public static content(
+    query: string,
+    result: ForumSearchResult,
+    isLoadingMore: boolean = false,
+    paginationMessage: string = ''
+  ): SearchState {
+    return new SearchState(SearchStateKind.CONTENT, query, result, '', isLoadingMore, paginationMessage);
+  }
+
+  public static empty(query: string): SearchState {
+    return new SearchState(SearchStateKind.EMPTY, query, emptySearchResult(), '', false, '');
+  }
+
+  public static error(query: string, message: string): SearchState {
+    return new SearchState(SearchStateKind.ERROR, query, emptySearchResult(), message, false, '');
+  }
+
+  public get hasMore(): boolean {
+    return this.result.hasMore;
+  }
+}
+
+function uniqueTopics(existing: Array<Topic>, incoming: Array<Topic>): Array<Topic> {
+  const ids: Set<number> = new Set<number>();
+  const merged: Array<Topic> = [];
+  for (const topic of existing.concat(incoming)) {
+    if (!ids.has(topic.id)) {
+      ids.add(topic.id);
+      merged.push(topic);
+    }
+  }
+  return merged;
+}
+
+function mergeSearchResults(existing: ForumSearchResult, incoming: ForumSearchResult): ForumSearchResult {
+  const topics: Array<Topic> = uniqueTopics(existing.topics, incoming.topics);
+  const postIds: Set<number> = new Set<number>();
+  const posts: Array<SearchPost> = [];
+  for (const post of existing.posts.concat(incoming.posts)) {
+    if (!postIds.has(post.id)) {
+      postIds.add(post.id);
+      posts.push(post);
+    }
+  }
+  const userIds: Set<number> = new Set<number>();
+  const users: Array<SearchUser> = [];
+  for (const user of existing.users.concat(incoming.users)) {
+    if (!userIds.has(user.id)) {
+      userIds.add(user.id);
+      users.push(user);
+    }
+  }
+  const categoryIds: Set<number> = new Set<number>();
+  const categories: Array<Category> = [];
+  for (const category of existing.categories.concat(incoming.categories)) {
+    if (!categoryIds.has(category.id)) {
+      categoryIds.add(category.id);
+      categories.push(category);
+    }
+  }
+  const tagIds: Set<string> = new Set<string>();
+  const tags: Array<SearchTag> = [];
+  for (const tag of existing.tags.concat(incoming.tags)) {
+    if (!tagIds.has(tag.id)) {
+      tagIds.add(tag.id);
+      tags.push(tag);
+    }
+  }
+  const groupIds: Set<number> = new Set<number>();
+  const groups: Array<SearchGroup> = [];
+  for (const group of existing.groups.concat(incoming.groups)) {
+    if (!groupIds.has(group.id)) {
+      groupIds.add(group.id);
+      groups.push(group);
+    }
+  }
+  return new ForumSearchResult(topics, posts, users, categories, tags, groups, incoming.hasMore);
 }
 
 export class AppShellModel {
@@ -303,11 +464,13 @@ export class AppShellModel {
   public activeDestination: SecondaryDestination = SecondaryDestination.NONE;
   public requiresAuthentication: boolean = false;
   public homeState: BrowseState<Topic> = BrowseState.initial<Topic>();
+  public selectedHomeChannel: HomeChannel = HomeChannel.LATEST_REPLIES;
   public categoryState: BrowseState<Category> = BrowseState.initial<Category>();
   public selectedCategory: Category | null = null;
   public categoryTopicsState: BrowseState<Topic> = BrowseState.initial<Topic>();
   public topicState: TopicReadState = TopicReadState.initial();
   public replyState: ReplyComposerState = ReplyComposerState.closed();
+  public searchState: SearchState = SearchState.initial();
 
   private readonly repository: ForumRepository;
   private readonly categoryCache: CategoryCache;
@@ -318,6 +481,11 @@ export class AppShellModel {
   private topicReturnDestination: SecondaryDestination = SecondaryDestination.NONE;
   private selectedTopic: Topic | null = null;
   private categoryRequestVersion: number = 0;
+  private homeRequestVersion: number = 0;
+  private searchRequestVersion: number = 0;
+  private homePage: number = 0;
+  private categoryTopicsPage: number = 0;
+  private searchNextPage: number = 1;
   private topicRequestVersion: number = 0;
   private replyRequestVersion: number = 0;
 
@@ -347,7 +515,17 @@ export class AppShellModel {
   }
 
   public selectHomeSortTab(index: number): boolean {
-    return isHomeSortTabAvailable(index);
+    if (!isHomeSortTabAvailable(index)) {
+      return false;
+    }
+    const channel: HomeChannel = index as HomeChannel;
+    if (this.selectedHomeChannel !== channel) {
+      this.selectedHomeChannel = channel;
+      this.homeRequestVersion += 1;
+      this.homePage = 0;
+      this.homeState = BrowseState.initial<Topic>();
+    }
+    return true;
   }
 
   public updateCategoryCacheScope(scope: CategoryCacheScope): void {
@@ -366,7 +544,8 @@ export class AppShellModel {
     this.activeDestination = SecondaryDestination.CATEGORY_TOPICS;
     this.selectedCategory = category;
     this.categoryTopicsState = BrowseState.loading<Topic>();
-    const result: RepositoryResult<Array<Topic>> = await this.repository.loadCategoryTopics(category.id);
+    this.categoryTopicsPage = 0;
+    const result: RepositoryResult<Array<Topic>> = await this.repository.loadCategoryTopics(category.id, 0);
     if (requestVersion !== this.categoryRequestVersion || this.selectedCategory?.id !== category.id) {
       return;
     }
@@ -378,7 +557,39 @@ export class AppShellModel {
     }
     this.categoryTopicsState = result.data.length === 0
       ? BrowseState.empty<Topic>()
-      : BrowseState.content<Topic>(result.data);
+      : BrowseState.content<Topic>(result.data, false, '', true);
+  }
+
+  public async loadMoreCategoryTopics(): Promise<void> {
+    const category: Category | null = this.selectedCategory;
+    const state: BrowseState<Topic> = this.categoryTopicsState;
+    if (category === null || state.kind !== BrowseStateKind.CONTENT || !state.hasMore || state.isLoadingMore) {
+      return;
+    }
+    const requestVersion: number = this.categoryRequestVersion;
+    const nextPage: number = this.categoryTopicsPage + 1;
+    this.categoryTopicsState = BrowseState.content<Topic>(state.items, false, '', true, true);
+    const result: RepositoryResult<Array<Topic>> = await this.repository.loadCategoryTopics(category.id, nextPage);
+    if (requestVersion !== this.categoryRequestVersion || this.selectedCategory?.id !== category.id) {
+      return;
+    }
+    if (!result.isSuccess() || result.data === null) {
+      this.requiresAuthentication = result.isUnauthorized();
+      this.categoryTopicsState = BrowseState.content<Topic>(
+        state.items,
+        false,
+        '',
+        false,
+        false,
+        result.message
+      );
+      await this.notifyUnauthorized(result.isUnauthorized());
+      return;
+    }
+    const merged: Array<Topic> = uniqueTopics(state.items, result.data);
+    const addedCount: number = merged.length - state.items.length;
+    this.categoryTopicsPage = nextPage;
+    this.categoryTopicsState = BrowseState.content<Topic>(merged, false, '', addedCount > 0);
   }
 
   public async retryCategoryTopics(): Promise<void> {
@@ -695,9 +906,16 @@ export class AppShellModel {
   }
 
   public async loadHome(): Promise<void> {
+    this.homeRequestVersion += 1;
+    const requestVersion: number = this.homeRequestVersion;
+    const channel: HomeChannel = this.selectedHomeChannel;
     this.requiresAuthentication = false;
     this.homeState = BrowseState.loading<Topic>();
-    const result: RepositoryResult<Array<Topic>> = await this.repository.loadLatestTopics();
+    this.homePage = 0;
+    const result: RepositoryResult<Array<Topic>> = await this.repository.loadHomeTopics(channel, 0);
+    if (requestVersion !== this.homeRequestVersion || channel !== this.selectedHomeChannel) {
+      return;
+    }
     if (!result.isSuccess() || result.data === null) {
       this.requiresAuthentication = result.isUnauthorized();
       this.homeState = BrowseState.error<Topic>(result.message);
@@ -706,7 +924,7 @@ export class AppShellModel {
     }
     this.homeState = result.data.length === 0
       ? BrowseState.empty<Topic>()
-      : BrowseState.content<Topic>(result.data);
+      : BrowseState.content<Topic>(result.data, false, '', true);
   }
 
   public async refreshHome(): Promise<void> {
@@ -721,22 +939,117 @@ export class AppShellModel {
       return;
     }
 
-    const result: RepositoryResult<Array<Topic>> = await this.repository.loadLatestTopics();
+    this.homeRequestVersion += 1;
+    const requestVersion: number = this.homeRequestVersion;
+    const channel: HomeChannel = this.selectedHomeChannel;
+    const result: RepositoryResult<Array<Topic>> = await this.repository.loadHomeTopics(channel, 0);
+    if (requestVersion !== this.homeRequestVersion || channel !== this.selectedHomeChannel) {
+      return;
+    }
     if (!result.isSuccess() || result.data === null) {
       this.requiresAuthentication = result.isUnauthorized();
       this.homeState = previousState.kind === BrowseStateKind.CONTENT
-        ? BrowseState.content<Topic>(previousState.items, false, result.message)
+        ? BrowseState.content<Topic>(previousState.items, false, result.message, previousState.hasMore)
         : BrowseState.empty<Topic>(false, result.message);
       await this.notifyUnauthorized(result.isUnauthorized());
       return;
     }
     this.homeState = result.data.length === 0
       ? BrowseState.empty<Topic>()
-      : BrowseState.content<Topic>(result.data);
+      : BrowseState.content<Topic>(result.data, false, '', true);
+    this.homePage = 0;
+  }
+
+  public async loadMoreHome(): Promise<void> {
+    const state: BrowseState<Topic> = this.homeState;
+    if (state.kind !== BrowseStateKind.CONTENT || !state.hasMore || state.isLoadingMore) {
+      return;
+    }
+    const requestVersion: number = this.homeRequestVersion;
+    const channel: HomeChannel = this.selectedHomeChannel;
+    const nextPage: number = this.homePage + 1;
+    this.homeState = BrowseState.content<Topic>(state.items, false, '', true, true);
+    const result: RepositoryResult<Array<Topic>> = await this.repository.loadHomeTopics(channel, nextPage);
+    if (requestVersion !== this.homeRequestVersion || channel !== this.selectedHomeChannel) {
+      return;
+    }
+    if (!result.isSuccess() || result.data === null) {
+      this.requiresAuthentication = result.isUnauthorized();
+      this.homeState = BrowseState.content<Topic>(state.items, false, '', false, false, result.message);
+      await this.notifyUnauthorized(result.isUnauthorized());
+      return;
+    }
+    const merged: Array<Topic> = uniqueTopics(state.items, result.data);
+    const addedCount: number = merged.length - state.items.length;
+    this.homePage = nextPage;
+    this.homeState = BrowseState.content<Topic>(merged, false, '', addedCount > 0);
   }
 
   public async retryHome(): Promise<void> {
     await this.loadHome();
+  }
+
+  public async searchForum(query: string): Promise<void> {
+    const normalizedQuery: string = query.trim();
+    this.searchRequestVersion += 1;
+    const requestVersion: number = this.searchRequestVersion;
+    if (normalizedQuery.length === 0) {
+      this.searchState = SearchState.initial();
+      this.searchNextPage = 1;
+      return;
+    }
+    this.requiresAuthentication = false;
+    this.searchState = SearchState.loading(normalizedQuery);
+    this.searchNextPage = 1;
+    const result: RepositoryResult<ForumSearchResult> = await this.repository.searchForum(normalizedQuery, 1);
+    if (requestVersion !== this.searchRequestVersion) {
+      return;
+    }
+    if (!result.isSuccess() || result.data === null) {
+      this.requiresAuthentication = result.isUnauthorized();
+      this.searchState = SearchState.error(normalizedQuery, result.message);
+      await this.notifyUnauthorized(result.isUnauthorized());
+      return;
+    }
+    this.searchNextPage = 2;
+    this.searchState = result.data.isEmpty()
+      ? SearchState.empty(normalizedQuery)
+      : SearchState.content(normalizedQuery, result.data);
+  }
+
+  public async retrySearch(): Promise<void> {
+    await this.searchForum(this.searchState.query);
+  }
+
+  public async loadMoreSearch(): Promise<void> {
+    const state: SearchState = this.searchState;
+    if (state.kind !== SearchStateKind.CONTENT || !state.hasMore || state.isLoadingMore) {
+      return;
+    }
+    const requestVersion: number = this.searchRequestVersion;
+    const page: number = this.searchNextPage;
+    this.searchState = SearchState.content(state.query, state.result, true);
+    const result: RepositoryResult<ForumSearchResult> = await this.repository.searchForum(state.query, page);
+    if (requestVersion !== this.searchRequestVersion) {
+      return;
+    }
+    if (!result.isSuccess() || result.data === null) {
+      this.requiresAuthentication = result.isUnauthorized();
+      this.searchState = SearchState.content(state.query, state.result, false, result.message);
+      await this.notifyUnauthorized(result.isUnauthorized());
+      return;
+    }
+    this.searchNextPage = page + 1;
+    this.searchState = SearchState.content(state.query, mergeSearchResults(state.result, result.data));
+  }
+
+  public async loadSearchSuggestions(term: string): Promise<RepositoryResult<Array<string>>> {
+    const result: RepositoryResult<Array<string>> = await this.repository.searchSuggestions(term);
+    if (result.isUnauthorized()) {
+      this.requiresAuthentication = true;
+      await this.notifyUnauthorized(true);
+    }
+    return result;
   }
 
   public async loadCategories(): Promise<void> {
