@@ -30,6 +30,8 @@ export function chatPlainText(value: string): string {
   return value
     .replace(/<script[\s\S]*?<\/script>/gi, '')
     .replace(/<style[\s\S]*?<\/style>/gi, '')
+    .replace(/<img[^>]*alt=["']([^"']*)["'][^>]*>/gi, ' $1 ')
+    .replace(/<img[^>]*title=["']([^"']*)["'][^>]*>/gi, ' $1 ')
     .replace(/<br\s*\/?>/gi, '\n')
     .replace(/<\/(p|div|li)>/gi, '\n')
     .replace(/<[^>]+>/g, '')
@@ -46,6 +48,10 @@ export function chatPlainText(value: string): string {
 
 export function absoluteChatUrl(value: string): string {
   const normalized: string = value.trim();
+  if (normalized.startsWith('upload://')) {
+    const shortPath: string = normalized.substring('upload://'.length).replace(/\s/g, '');
+    return shortPath.length === 0 ? '' : `${RIVERSIDE_ORIGIN}/uploads/short-url/${shortPath}`;
+  }
   if (normalized.startsWith('//')) {
     return `https:${normalized}`;
   }
@@ -66,6 +72,9 @@ export class ChatChannel {
   public readonly lastMessageId: number;
   public readonly lastMessageUsername: string;
   public readonly slug: string;
+  public readonly userSilenced: boolean;
+  public readonly canDeleteSelf: boolean;
+  public readonly canDeleteOthers: boolean;
 
   public constructor(
     id: number,
@@ -77,7 +86,10 @@ export class ChatChannel {
     unreadCount: number,
     lastMessageId: number,
     lastMessageUsername: string,
-    slug: string
+    slug: string,
+    userSilenced: boolean = false,
+    canDeleteSelf: boolean = false,
+    canDeleteOthers: boolean = false
   ) {
     this.id = id;
     this.title = title;
@@ -89,6 +101,27 @@ export class ChatChannel {
     this.lastMessageId = lastMessageId;
     this.lastMessageUsername = lastMessageUsername;
     this.slug = slug;
+    this.userSilenced = userSilenced;
+    this.canDeleteSelf = canDeleteSelf;
+    this.canDeleteOthers = canDeleteOthers;
+  }
+
+  public withUnreadCount(unreadCount: number): ChatChannel {
+    return new ChatChannel(
+      this.id,
+      this.title,
+      this.subtitle,
+      this.preview,
+      this.lastMessageAt,
+      this.isDirectMessage,
+      nonNegativeInteger(unreadCount),
+      this.lastMessageId,
+      this.lastMessageUsername,
+      this.slug,
+      this.userSilenced,
+      this.canDeleteSelf,
+      this.canDeleteOthers
+    );
   }
 }
 
@@ -358,6 +391,16 @@ export class ChatSendRequest {
   }
 }
 
+export class ChatSendConfirmation {
+  public readonly messageId: number;
+  public readonly message: ChatMessage | null;
+
+  public constructor(messageId: number, message: ChatMessage | null = null) {
+    this.messageId = messageId;
+    this.message = message;
+  }
+}
+
 function parseChannel(reader: JsonObjectReader): ChatChannel | null {
   const id: number = nonNegativeInteger(reader.number('id'));
   if (id === 0) {
@@ -366,6 +409,7 @@ function parseChannel(reader: JsonObjectReader): ChatChannel | null {
   const chatable: JsonObjectReader | null = reader.object('chatable');
   const lastMessage: JsonObjectReader | null = reader.object('last_message') ?? reader.object('last_chat_message');
   const membership: JsonObjectReader | null = reader.object('current_user_membership');
+  const meta: JsonObjectReader | null = reader.object('meta');
   const lastUser: JsonObjectReader | null = lastMessage?.object('user') ?? null;
   const rawType: string = firstString(reader, ['chatable_type', 'type']).toLowerCase() ||
     (chatable === null ? '' : firstString(chatable, ['type'])).toLowerCase();
@@ -415,7 +459,10 @@ function parseChannel(reader: JsonObjectReader): ChatChannel | null {
     unreadCount,
     lastMessageId,
     lastUsername,
-    firstString(reader, ['slug'])
+    firstString(reader, ['slug']),
+    meta?.boolean('user_silenced') === true,
+    meta?.boolean('can_delete_self') === true,
+    meta?.boolean('can_delete_others') === true
   );
 }
 
@@ -453,6 +500,16 @@ export function parseChatChannels(text: string): Array<ChatChannel> | null {
   const channels: Array<ChatChannel> = [];
   for (const name of ['channels', 'public_channels', 'direct_message_channels', 'memberships', 'data']) {
     collectChannels(envelope, name, channels);
+  }
+  const channelTracking: JsonObjectReader | null = envelope.object('tracking')?.object('channel_tracking') ?? null;
+  if (channelTracking !== null) {
+    for (let index: number = 0; index < channels.length; index += 1) {
+      const tracking: JsonObjectReader | null = channelTracking.object(channels[index].id.toString());
+      const unreadCount: number | null = tracking?.number('unread_count') ?? null;
+      if (unreadCount !== null) {
+        channels[index] = channels[index].withUnreadCount(unreadCount);
+      }
+    }
   }
   channels.sort((left: ChatChannel, right: ChatChannel): number => {
     const unread: number = right.unreadCount - left.unreadCount;
@@ -592,7 +649,12 @@ function parseMessage(reader: JsonObjectReader): ChatMessage | null {
     }
   }
   const deleted: boolean = reader.has('deleted_at') && !reader.isNull('deleted_at');
-  const message: string = chatPlainText(cooked.length > 0 ? cooked : rawMessage);
+  const parsedMessage: string = chatPlainText(cooked.length > 0 ? cooked : rawMessage);
+  const uploadPlaceholder: boolean = uploadUrls.length > 0 && (
+    parsedMessage.includes('upload://') ||
+    /^[\w.()\[\] -]+\.(?:jpe?g|png|gif|webp|avif|heic|heif)$/i.test(parsedMessage)
+  );
+  const message: string = rawMessage === '\u200B' || uploadPlaceholder ? '\u200B' : parsedMessage;
   if (!deleted && message.length === 0 && uploadUrls.length === 0 && reactions.length === 0 && replyTo === null) {
     return null;
   }
@@ -600,7 +662,7 @@ function parseMessage(reader: JsonObjectReader): ChatMessage | null {
     id,
     username,
     absoluteChatUrl(avatarTemplate.replace('{size}', '96')),
-    rawMessage === '\u200B' ? '\u200B' : message,
+    message,
     cooked,
     uploadUrls,
     reactions,
@@ -650,6 +712,18 @@ export function parseChatMessageResponse(text: string): ChatMessage | null {
   }
   const message: JsonObjectReader = envelope.object('message') ?? envelope.object('chat_message') ?? envelope;
   return parseMessage(message);
+}
+
+export function parseChatSendConfirmation(text: string): ChatSendConfirmation | null {
+  const envelope: JsonObjectReader | null = JsonObjectReader.parse(text);
+  if (envelope === null) {
+    return null;
+  }
+  const nested: JsonObjectReader | null = envelope.object('message') ?? envelope.object('chat_message');
+  const message: ChatMessage | null = nested === null ? null : parseMessage(nested);
+  const responseMessageId: number = nonNegativeInteger(envelope.number('message_id'));
+  const messageId: number = responseMessageId > 0 ? responseMessageId : (message?.id ?? 0);
+  return messageId > 0 ? new ChatSendConfirmation(messageId, message) : null;
 }
 
 export function parseChatEmojis(text: string): Array<ChatEmoji> | null {

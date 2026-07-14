@@ -7,6 +7,7 @@ import {
   ChatMessageQuery,
   ChatReactionAction,
   ChatSearchResult,
+  ChatSendConfirmation,
   ChatSendRequest
 } from '../models/ChatModels';
 import {
@@ -563,6 +564,10 @@ export class ChatModel {
     if (channel === null || this.composerState.sending) {
       return false;
     }
+    if (channel.userSilenced) {
+      this.composerState = this.composerState.failure('服务端不允许当前账号在此频道发言');
+      return false;
+    }
     const request: ChatSendRequest | null = ChatSendRequest.create(
       channel.id,
       this.composerState.draft,
@@ -576,8 +581,12 @@ export class ChatModel {
       return false;
     }
     const preserved: ChatComposerState = this.composerState;
+    const requestVersion: number = this.conversationRequestVersion;
     this.composerState = preserved.submitting();
-    const result: RepositoryResult<ChatMessage> = await this.repository.sendChatMessage(request);
+    const result: RepositoryResult<ChatSendConfirmation> = await this.repository.sendChatMessage(request);
+    if (!this.isCurrentConversation(requestVersion, channel.id)) {
+      return false;
+    }
     if (result.isUnauthorized()) {
       this.composerState = preserved.failure(result.message);
       await this.notifyUnauthorized();
@@ -587,10 +596,43 @@ export class ChatModel {
       this.composerState = preserved.failure(result.message);
       return false;
     }
-    this.conversationState = this.conversationState.withMessages(
-      mergeChatMessages(this.conversationState.messages, [result.data])
-    );
     this.composerState = new ChatComposerState();
+    let confirmedMessage: ChatMessage | null = result.data.message;
+    if (confirmedMessage === null) {
+      const confirmedMessageId: number = result.data.messageId;
+      const query: ChatMessageQuery | null = ChatMessageQuery.target(confirmedMessageId);
+      if (query !== null) {
+        const synchronized: RepositoryResult<ChatMessagePage> = await this.repository.loadChatMessages(
+          channel.id,
+          query
+        );
+        if (!this.isCurrentConversation(requestVersion, channel.id)) {
+          return false;
+        }
+        if (synchronized.isSuccess() && synchronized.data !== null) {
+          confirmedMessage = synchronized.data.messages.find(
+            (message: ChatMessage): boolean => message.id === confirmedMessageId
+          ) ?? null;
+        } else if (synchronized.isUnauthorized()) {
+          await this.notifyUnauthorized();
+          if (!this.isCurrentConversation(requestVersion, channel.id)) {
+            return false;
+          }
+        }
+      }
+    }
+    if (confirmedMessage !== null) {
+      this.conversationState = this.conversationState.withMessages(
+        mergeChatMessages(this.conversationState.messages, [confirmedMessage])
+      );
+    } else {
+      this.conversationState = this.conversationState.withMessages(
+        this.conversationState.messages,
+        this.conversationState.canLoadMorePast,
+        this.conversationState.canLoadMoreFuture,
+        '消息已发送，等待服务端同步'
+      );
+    }
     await this.markLatestRead(this.conversationRequestVersion, channel.id);
     return true;
   }
@@ -628,6 +670,12 @@ export class ChatModel {
     }
     const result: RepositoryResult<boolean> = await this.repository.deleteChatMessage(channel.id, messageId);
     if (!result.isSuccess() || result.data !== true) {
+      this.conversationState = this.conversationState.withMessages(
+        this.conversationState.messages,
+        this.conversationState.canLoadMorePast,
+        this.conversationState.canLoadMoreFuture,
+        result.message
+      );
       if (result.isUnauthorized()) {
         await this.notifyUnauthorized();
       }
@@ -643,6 +691,12 @@ export class ChatModel {
     }
     const result: RepositoryResult<boolean> = await this.repository.restoreChatMessage(channel.id, messageId);
     if (!result.isSuccess() || result.data !== true) {
+      this.conversationState = this.conversationState.withMessages(
+        this.conversationState.messages,
+        this.conversationState.canLoadMorePast,
+        this.conversationState.canLoadMoreFuture,
+        result.message
+      );
       if (result.isUnauthorized()) {
         await this.notifyUnauthorized();
       }
@@ -753,6 +807,12 @@ export class ChatModel {
     }
     const result: RepositoryResult<boolean> = await this.repository.leaveChatChannel(channel.id);
     if (!result.isSuccess() || result.data !== true) {
+      this.conversationState = this.conversationState.withMessages(
+        this.conversationState.messages,
+        this.conversationState.canLoadMorePast,
+        this.conversationState.canLoadMoreFuture,
+        result.message
+      );
       if (result.isUnauthorized()) {
         await this.notifyUnauthorized();
       }
@@ -819,7 +879,10 @@ export class ChatModel {
             0,
             channel.lastMessageId,
             channel.lastMessageUsername,
-            channel.slug
+            channel.slug,
+            channel.userSilenced,
+            channel.canDeleteSelf,
+            channel.canDeleteOthers
           )
           : channel
       ));

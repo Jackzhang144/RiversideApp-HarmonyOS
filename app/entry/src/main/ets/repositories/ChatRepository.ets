@@ -7,6 +7,7 @@ import {
   ChatMessageQuery,
   ChatReactionAction,
   ChatSearchResult,
+  ChatSendConfirmation,
   ChatSendRequest
 } from '../models/ChatModels';
 
@@ -19,7 +20,7 @@ export interface ChatRepository {
 
   markChatRead(channelId: number, messageId: number): Promise<RepositoryResult<boolean>>;
 
-  sendChatMessage(request: ChatSendRequest): Promise<RepositoryResult<ChatMessage>>;
+  sendChatMessage(request: ChatSendRequest): Promise<RepositoryResult<ChatSendConfirmation>>;
 
   reactToChatMessage(
     channelId: number,

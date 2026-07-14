@@ -8,6 +8,7 @@ import {
   ChatMessageQuery,
   ChatReactionAction,
   ChatSearchResult,
+  ChatSendConfirmation,
   ChatSendRequest
 } from '../../../main/ets/models/ChatModels';
 import { DiscourseForumRepository } from '../../../main/ets/repositories/DiscourseForumRepository';
@@ -67,13 +68,10 @@ export default function chatRepositoryTest(): void {
       done();
     });
 
-    it('returns only the server-confirmed message after a text image reply send', 0, async (done: Function) => {
+    it('accepts the real Discourse message id confirmation after a text image reply send', 0,
+      async (done: Function) => {
       const client: StubForumHttpClient = new StubForumHttpClient();
-      client.jsonPostResults.push(HttpTextResult.success(200,
-        '{"message":{"id":20,"created_at":"2026-07-12T10:00:00Z",' +
-        '"user":{"username":"member"},"message":"图片说明",' +
-        '"uploads":[{"url":"/uploads/default/original/photo.png"}]}}'
-      ));
+      client.jsonPostResults.push(HttpTextResult.success(200, '{"success":"OK","message_id":20}'));
       const repository: DiscourseForumRepository = new DiscourseForumRepository(client);
       const request: ChatSendRequest | null = ChatSendRequest.create(
         71,
@@ -89,17 +87,17 @@ export default function chatRepositoryTest(): void {
         return;
       }
 
-      const result: RepositoryResult<ChatMessage> = await repository.sendChatMessage(request);
+      const result: RepositoryResult<ChatSendConfirmation> = await repository.sendChatMessage(request);
 
       expect(client.jsonPostRequests[0]).assertEqual(
         '/chat/71.json|{"message":"图片说明","staged_id":"hm-stage-1",' +
         '"client_created_at":"2026-07-12T10:00:00.000Z","in_reply_to_id":18,"upload_ids":[801]}'
       );
       expect(result.kind).assertEqual(RepositoryResultKind.SUCCESS);
-      expect(result.data?.id).assertEqual(20);
-      expect(result.data?.uploadUrls.length).assertEqual(1);
+      expect(result.data?.messageId).assertEqual(20);
+      expect(result.data?.message).assertNull();
       done();
-    });
+      });
 
     it('rejects a successful response without a server message instead of inventing one', 0,
       async (done: Function) => {
@@ -120,10 +118,10 @@ export default function chatRepositoryTest(): void {
           return;
         }
 
-        const result: RepositoryResult<ChatMessage> = await repository.sendChatMessage(request);
+        const result: RepositoryResult<ChatSendConfirmation> = await repository.sendChatMessage(request);
 
         expect(result.kind).assertEqual(RepositoryResultKind.FAILURE);
-        expect(result.message).assertEqual('服务器未返回已发送消息');
+        expect(result.message).assertEqual('服务器未确认已发送消息');
         done();
       });
 

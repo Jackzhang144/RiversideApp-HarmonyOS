@@ -38,12 +38,13 @@ import {
   ChatMessageQuery,
   ChatReactionAction,
   ChatSearchResult,
+  ChatSendConfirmation,
   ChatSendRequest,
   parseChatChannelResponse,
   parseChatChannels,
   parseChatEmojis,
   parseChatMessagePage,
-  parseChatMessageResponse,
+  parseChatSendConfirmation,
   parseChatSearchResults
 } from '../models/ChatModels';
 
@@ -138,21 +139,21 @@ export class DiscourseForumRepository implements ForumRepository, ProfileReposit
     );
   }
 
-  public async sendChatMessage(request: ChatSendRequest): Promise<RepositoryResult<ChatMessage>> {
+  public async sendChatMessage(request: ChatSendRequest): Promise<RepositoryResult<ChatSendConfirmation>> {
     const response: HttpTextResult = await this.client.postJson(
       `/chat/${request.channelId}.json`,
       JSON.stringify(request.toHttpExtraData())
     );
     if (response.kind === HttpTextResultKind.UNAUTHORIZED) {
-      return RepositoryResult.unauthorized<ChatMessage>();
+      return RepositoryResult.unauthorized<ChatSendConfirmation>();
     }
     if (!response.isSuccess()) {
-      return RepositoryResult.failure<ChatMessage>(response.message);
+      return RepositoryResult.failure<ChatSendConfirmation>(response.message);
     }
-    const message: ChatMessage | null = parseChatMessageResponse(response.body);
-    return message === null
-      ? RepositoryResult.failure<ChatMessage>('服务器未返回已发送消息')
-      : RepositoryResult.success<ChatMessage>(message);
+    const confirmation: ChatSendConfirmation | null = parseChatSendConfirmation(response.body);
+    return confirmation === null
+      ? RepositoryResult.failure<ChatSendConfirmation>('服务器未确认已发送消息')
+      : RepositoryResult.success<ChatSendConfirmation>(confirmation);
   }
 
   public async reactToChatMessage(
