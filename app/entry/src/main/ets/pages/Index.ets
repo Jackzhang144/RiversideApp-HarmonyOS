@@ -447,6 +447,50 @@ struct Index {
     this.topicState = model.topicState;
   }
 
+  private async loadPreviousPosts(): Promise<void> {
+    const model: AppShellModel | null = this.model;
+    if (model === null) {
+      return;
+    }
+    const task: Promise<void> = model.loadPreviousPosts();
+    this.topicState = model.topicState;
+    await task;
+    this.topicState = model.topicState;
+  }
+
+  private async togglePostReaction(postId: number, reaction: string): Promise<void> {
+    const model: AppShellModel | null = this.model;
+    if (model === null) {
+      return;
+    }
+    const task: Promise<void> = model.togglePostReaction(postId, reaction);
+    this.topicState = model.topicState;
+    await task;
+    this.topicState = model.topicState;
+  }
+
+  private async togglePostBookmark(postId: number): Promise<void> {
+    const model: AppShellModel | null = this.model;
+    if (model === null) {
+      return;
+    }
+    const task: Promise<void> = model.togglePostBookmark(postId);
+    this.topicState = model.topicState;
+    await task;
+    this.topicState = model.topicState;
+  }
+
+  private async reportTopicReadProgress(postNumber: number): Promise<void> {
+    const model: AppShellModel | null = this.model;
+    if (model === null) {
+      return;
+    }
+    const task: Promise<void> = model.reportTopicReadProgress(postNumber);
+    this.topicState = model.topicState;
+    await task;
+    this.topicState = model.topicState;
+  }
+
   private synchronizeReplyState(model: AppShellModel, sheetVisible: boolean | null = null): void {
     this.replyState = model.replyState;
     if (sheetVisible !== null) {
@@ -674,12 +718,28 @@ struct Index {
         TopicDetailPage({
           state: this.topicState,
           replyState: this.replyState,
+          categories: this.categoryState.items,
           replySheetVisible: this.replySheetVisible,
           onRetry: (): void => {
             this.retryTopic();
           },
           onLoadMore: (): void => {
             this.loadMorePosts();
+          },
+          onLoadPrevious: (): void => {
+            this.loadPreviousPosts();
+          },
+          onToggleReaction: (postId: number, reaction: string): void => {
+            this.togglePostReaction(postId, reaction);
+          },
+          onToggleBookmark: (postId: number): void => {
+            this.togglePostBookmark(postId);
+          },
+          onOpenSuggestedTopic: (topic: Topic): void => {
+            this.openTopic(topic);
+          },
+          onReadProgress: (postNumber: number): void => {
+            this.reportTopicReadProgress(postNumber);
           },
           onOpenReply: (postNumber: number | null): void => {
             this.openReply(postNumber);

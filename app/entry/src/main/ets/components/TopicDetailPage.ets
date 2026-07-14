@@ -11,20 +11,58 @@ import {
 } from './ForumComposerPresentation';
 import { ForumCardPresentation } from './ForumCardPresentation';
 import { ForumContentCard } from './ForumContentCard';
-import { ForumPost, TopicDetail } from '../models/ForumModels';
+import { Category, ForumPost, Topic, TopicDetail } from '../models/ForumModels';
+import {
+  categoryLabel,
+  reactionAccessibilityLabel,
+  reactionCount,
+  reactionEmojiUrl,
+  systemActionLabel
+} from './TopicReadingPresentation';
 
 @Component
 export struct TopicDetailPage {
   @Prop state: TopicReadState = TopicReadState.initial();
   @Prop replyState: ReplyComposerState = ReplyComposerState.closed();
+  @Prop categories: Array<Category> = [];
   @Link replySheetVisible: boolean;
   onRetry: () => void = (): void => {};
   onLoadMore: () => void = (): void => {};
+  onLoadPrevious: () => void = (): void => {};
   onOpenReply: (postNumber: number | null) => void = (_postNumber: number | null): void => {};
+  onToggleReaction: (postId: number, reaction: string) => void = (
+    _postId: number,
+    _reaction: string
+  ): void => {};
+  onToggleBookmark: (postId: number) => void = (_postId: number): void => {};
+  onOpenSuggestedTopic: (topic: Topic) => void = (_topic: Topic): void => {};
+  onReadProgress: (postNumber: number) => void = (_postNumber: number): void => {};
   onReplyDraftChange: (draft: string) => void = (_draft: string): void => {};
   onSubmitReply: () => void = (): void => {};
   onDismissReply: () => void = (): void => {};
   onLoginForReply: () => void = (): void => {};
+  private readProgressTimer: number = -1;
+  private pendingReadPostNumber: number = 0;
+
+  aboutToDisappear(): void {
+    if (this.readProgressTimer >= 0) {
+      clearTimeout(this.readProgressTimer);
+      this.readProgressTimer = -1;
+    }
+  }
+
+  private scheduleReadProgress(postNumber: number): void {
+    this.pendingReadPostNumber = Math.max(this.pendingReadPostNumber, postNumber);
+    if (this.readProgressTimer >= 0) {
+      clearTimeout(this.readProgressTimer);
+    }
+    this.readProgressTimer = setTimeout((): void => {
+      const targetPostNumber: number = this.pendingReadPostNumber;
+      this.pendingReadPostNumber = 0;
+      this.readProgressTimer = -1;
+      this.onReadProgress(targetPostNumber);
+    }, 2000);
+  }
 
   private hasStarterPost(): boolean {
     return this.state.posts.length > 0 && this.state.posts[0].postNumber === 1;
@@ -100,18 +138,174 @@ export struct TopicDetailPage {
 
   @Builder
   private TopicStarter(detail: TopicDetail, post: ForumPost | null): void {
-    ForumContentCard({
-      presentation: ForumCardPresentation.topicStarter(detail, post, this.replyState.draft),
-      onReply: (postNumber: number | null): void => this.onOpenReply(postNumber)
-    })
+    Column({ space: 8 }) {
+      ForumContentCard({
+        presentation: ForumCardPresentation.topicStarter(detail, post, this.replyState.draft),
+        onReply: (postNumber: number | null): void => this.onOpenReply(postNumber)
+      })
+      if (post !== null) {
+        this.PostActions(post)
+      }
+    }
+    .width('100%')
+  }
+
+  @Builder
+  private TopicMetadata(detail: TopicDetail): void {
+    Row({ space: 8 }) {
+      Text(categoryLabel(detail.categoryId, this.categories))
+        .fontSize(12)
+        .fontColor('#2068C9')
+        .padding({ left: 9, right: 9, top: 5, bottom: 5 })
+        .backgroundColor('#EAF2FF')
+        .borderRadius(12)
+      if (detail.authorUsername.length > 0) {
+        Text(`作者 ${detail.authorUsername}`)
+          .fontSize(12)
+          .fontColor($r('sys.color.font_secondary'))
+      }
+      Blank()
+      Text(`已读 #${this.state.readProgressState.lastReadPostNumber}`)
+        .fontSize(12)
+        .fontColor($r('sys.color.font_secondary'))
+    }
+    .width('100%')
+    .padding({ left: 4, right: 4 })
+  }
+
+  @Builder
+  private ReadProgressFeedback(): void {
+    if (this.state.readProgressState.busy) {
+      Text('正在同步阅读进度')
+        .fontSize(12)
+        .fontColor($r('sys.color.font_secondary'))
+        .width('100%')
+        .textAlign(TextAlign.Center)
+    } else if (this.state.readProgressState.message.length > 0) {
+      Text(this.state.readProgressState.message)
+        .fontSize(12)
+        .fontColor('#C62828')
+        .width('100%')
+        .textAlign(TextAlign.Center)
+    }
   }
 
   @Builder
   private Reply(post: ForumPost): void {
-    ForumContentCard({
-      presentation: ForumCardPresentation.reply(post, this.state.canReply),
-      onReply: (postNumber: number | null): void => this.onOpenReply(postNumber)
-    })
+    Column({ space: 8 }) {
+      if (post.replyToPostNumber !== null) {
+        Text(post.replyToUsername === null
+          ? `回复 #${post.replyToPostNumber}`
+          : `回复 @${post.replyToUsername} · #${post.replyToPostNumber}`)
+          .fontSize(12)
+          .fontColor('#2068C9')
+          .width('100%')
+          .padding({ left: 8 })
+      }
+      ForumContentCard({
+        presentation: ForumCardPresentation.reply(post, this.state.canReply),
+        onReply: (postNumber: number | null): void => this.onOpenReply(postNumber)
+      })
+      this.PostActions(post)
+    }
+    .width('100%')
+  }
+
+  @Builder
+  private SystemAction(post: ForumPost): void {
+    Row({ space: 8 }) {
+      SymbolGlyph($r('sys.symbol.info_circle'))
+        .fontSize(16)
+        .fontColor(['#52606D'])
+      Text(`${post.username.length > 0 ? post.username : '系统'} ${systemActionLabel(post.actionCode)}`)
+        .fontSize(12)
+        .fontWeight(FontWeight.Medium)
+        .fontColor('#52606D')
+        .maxLines(2)
+        .textOverflow({ overflow: TextOverflow.Ellipsis })
+    }
+    .padding({ left: 12, right: 12, top: 8, bottom: 8 })
+    .backgroundColor('#EEF1F4')
+    .borderRadius(18)
+    .justifyContent(FlexAlign.Center)
+    .width('100%')
+    .accessibilityText(`${post.username} ${systemActionLabel(post.actionCode)}`)
+  }
+
+  @Builder
+  private ReactionAction(post: ForumPost, reaction: string): void {
+    Button() {
+      Row({ space: 5 }) {
+        Image(reactionEmojiUrl(reaction))
+          .width(18)
+          .height(18)
+          .objectFit(ImageFit.Contain)
+        Text(reactionCount(reaction, post.reactions).toString())
+          .fontSize(12)
+          .fontWeight(FontWeight.Medium)
+          .fontColor(post.currentUserReaction === reaction ? '#FFFFFF' : '#2068C9')
+      }
+    }
+      .height(34)
+      .padding({ left: 10, right: 10 })
+      .backgroundColor(post.currentUserReaction === reaction ? '#317AF7' : '#EAF2FF')
+      .margin({ right: 6, bottom: 6 })
+      .enabled(!this.state.postActionState.busy)
+      .onClick((): void => this.onToggleReaction(post.id, reaction))
+      .accessibilityText(
+        post.currentUserReaction === reaction
+          ? `取消${reactionAccessibilityLabel(reaction)}回应`
+          : `添加${reactionAccessibilityLabel(reaction)}回应`
+      )
+  }
+
+  @Builder
+  private PostActions(post: ForumPost): void {
+    Column({ space: 7 }) {
+      Flex({ direction: FlexDirection.Row, wrap: FlexWrap.Wrap, justifyContent: FlexAlign.Start }) {
+        ForEach(this.state.detail?.validReactions ?? [], (reaction: string) => {
+          this.ReactionAction(post, reaction)
+        }, (reaction: string): string => reaction)
+        Button() {
+          Row({ space: 4 }) {
+            SymbolGlyph($r('sys.symbol.bookmark'))
+              .fontSize(14)
+              .fontColor([post.bookmarked ? '#FFFFFF' : '#2068C9'])
+            Text(post.bookmarked ? '已收藏' : '收藏')
+              .fontSize(12)
+              .fontColor(post.bookmarked ? '#FFFFFF' : '#2068C9')
+          }
+        }
+        .height(34)
+        .backgroundColor(post.bookmarked ? '#317AF7' : '#EAF2FF')
+        .margin({ right: 6, bottom: 6 })
+        .enabled(!this.state.postActionState.busy)
+        .onClick((): void => this.onToggleBookmark(post.id))
+        .accessibilityText(post.bookmarked ? '删除 Post 书签' : '收藏 Post')
+      }
+      .width('100%')
+      if (this.state.postActionState.postId === post.id && this.state.postActionState.busy) {
+        Row({ space: 6 }) {
+          LoadingProgress()
+            .width(18)
+            .height(18)
+          Text('正在同步服务端状态')
+            .fontSize(12)
+            .fontColor($r('sys.color.font_secondary'))
+        }
+      } else if (
+        this.state.postActionState.postId === post.id &&
+        this.state.postActionState.message.length > 0
+      ) {
+        Text(this.state.postActionState.message)
+          .fontSize(12)
+          .fontColor('#C62828')
+          .width('100%')
+      }
+    }
+    .alignItems(HorizontalAlign.Start)
+    .width('100%')
+    .padding({ left: 8, right: 8 })
   }
 
   @Builder
@@ -200,6 +394,56 @@ export struct TopicDetailPage {
   }
 
   @Builder
+  private PreviousPagination(): void {
+    Column({ space: 8 }) {
+      if (this.state.isLoadingPrevious) {
+        LoadingProgress()
+          .width(28)
+          .height(28)
+        Text('正在加载更早的 Post')
+          .fontSize(13)
+          .fontColor($r('sys.color.font_secondary'))
+      } else if (this.state.previousPaginationMessage.length > 0) {
+        Text(this.state.previousPaginationMessage)
+          .fontSize(13)
+          .fontColor('#C62828')
+        Button('重试加载更早 Post')
+          .height(38)
+          .fontSize(13)
+          .onClick(this.onLoadPrevious)
+      } else if (this.state.hasPreviousPosts) {
+        Button('加载更早 Post')
+          .height(38)
+          .fontSize(13)
+          .onClick(this.onLoadPrevious)
+          .accessibilityText('加载当前窗口之前的 Post')
+      }
+    }
+    .width('100%')
+    .justifyContent(FlexAlign.Center)
+  }
+
+  @Builder
+  private SuggestedTopics(detail: TopicDetail): void {
+    if (detail.suggestedTopics.length > 0) {
+      Column({ space: 10 }) {
+        Text('继续阅读')
+          .fontSize(17)
+          .fontWeight(FontWeight.Bold)
+          .width('100%')
+        ForEach(detail.suggestedTopics, (topic: Topic) => {
+          ForumContentCard({
+            presentation: ForumCardPresentation.topicPreview(topic, this.categories),
+            onOpenTopic: (): void => this.onOpenSuggestedTopic(topic)
+          })
+        }, (topic: Topic): string => topic.id.toString())
+      }
+      .width('100%')
+      .padding({ top: 10 })
+    }
+  }
+
+  @Builder
   private ReadingContent(): void {
     List({ space: 10 }) {
       if (this.state.detail !== null) {
@@ -209,8 +453,25 @@ export struct TopicDetailPage {
             this.hasStarterPost() ? this.state.posts[0] : null
           )
         }
+        .onVisibleAreaApproximateChange(
+          { ratios: [0.6], expectedUpdateInterval: 500 },
+          (_isExpanding: boolean, currentRatio: number): void => {
+            if (currentRatio >= 0.6 && this.hasStarterPost()) {
+              this.scheduleReadProgress(this.state.posts[0].postNumber);
+            }
+          }
+        )
+        ListItem() {
+          this.TopicMetadata(this.state.detail)
+        }
+        ListItem() {
+          this.ReadProgressFeedback()
+        }
         ListItem() {
           this.PostSectionHeader(this.state.detail)
+        }
+        ListItem() {
+          this.PreviousPagination()
         }
       }
       if (this.state.kind === TopicReadStateKind.EMPTY) {
@@ -220,11 +481,28 @@ export struct TopicDetailPage {
       }
       ForEach(this.visiblePosts(), (post: ForumPost) => {
         ListItem() {
-          this.Reply(post)
+          if (post.isSystemAction()) {
+            this.SystemAction(post)
+          } else {
+            this.Reply(post)
+          }
         }
+        .onVisibleAreaApproximateChange(
+          { ratios: [0.6], expectedUpdateInterval: 500 },
+          (_isExpanding: boolean, currentRatio: number): void => {
+            if (currentRatio >= 0.6) {
+              this.scheduleReadProgress(post.postNumber);
+            }
+          }
+        )
       }, (post: ForumPost): string => post.id.toString())
       ListItem() {
         this.PaginationFooter()
+      }
+      if (this.state.detail !== null) {
+        ListItem() {
+          this.SuggestedTopics(this.state.detail)
+        }
       }
       ListItem() {
         Column()

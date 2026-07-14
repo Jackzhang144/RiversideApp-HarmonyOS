@@ -12,6 +12,7 @@ import replyBoundaryTest from './ReplyBoundary.test';
 import replyTransportTest from './ReplyTransport.test';
 import sessionStoreTest from './SessionStore.test';
 import topicReadingTest from './TopicReading.test';
+import topicReadingPresentationTest from './TopicReadingPresentation.test';
 
 export default function tests(): void {
   accountPresentationTest();
@@ -28,4 +29,5 @@ export default function tests(): void {
   replyTransportTest();
   sessionStoreTest();
   topicReadingTest();
+  topicReadingPresentationTest();
 }

@@ -87,7 +87,10 @@ function topicCategoryName(topic: Topic, categories: Array<Category>): string {
 
 function postAuthor(post: ForumPost): ForumCardAuthor {
   const authorBase: ForumCardAuthor = displayAuthor(post.username);
-  return new ForumCardAuthor(authorBase.name, authorBase.initial, displayTimestamp(post.createdAt));
+  const displayName: string = post.userTitle.trim().length > 0
+    ? `${authorBase.name} · ${post.userTitle.trim()}`
+    : authorBase.name;
+  return new ForumCardAuthor(displayName, authorBase.initial, displayTimestamp(post.createdAt));
 }
 
 function topicReplyRestriction(detail: TopicDetail): string {
