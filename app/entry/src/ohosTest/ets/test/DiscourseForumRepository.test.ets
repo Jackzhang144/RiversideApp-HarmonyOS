@@ -309,6 +309,48 @@ export default function discourseForumRepositoryTest(): void {
       done();
     });
 
+    it('reports sorted unique Topic timings without encoding bracket keys', 0, async (done: Function) => {
+      const client: StubForumHttpClient = new StubForumHttpClient();
+      client.formResults.push(HttpTextResult.success(200, '{}'));
+      const repository: DiscourseForumRepository = new DiscourseForumRepository(client);
+
+      const result: RepositoryResult<boolean> = await repository.markTopicRead(2725, [3, 2, 2], 1000);
+
+      expect(client.formRequests[0]).assertEqual(
+        '/topics/timings|topic_id=2725&topic_time=1000&timings[2]=1000&timings[3]=1000'
+      );
+      expect(result.data).assertTrue();
+      done();
+    });
+
+    it('clears only unread notifications reached by Topic progress', 0, async (done: Function) => {
+      const client: StubForumHttpClient = new StubForumHttpClient();
+      client.results.push(HttpTextResult.success(200,
+        '{"notifications":[' +
+        '{"id":11,"read":false,"topic_id":7,"post_number":2},' +
+        '{"id":12,"read":false,"topic_id":7,"post_number":5},' +
+        '{"id":13,"read":false,"topic_id":7,"post_number":9},' +
+        '{"id":14,"read":false,"topic_id":8,"post_number":4},' +
+        '{"id":15,"read":true,"topic_id":7,"post_number":4},' +
+        '{"id":16,"read":false,"data":{"topic_id":7}}' +
+        ']}'
+      ));
+      client.putResults.push(HttpTextResult.success(200, '{}'));
+      client.putResults.push(HttpTextResult.success(200, '{}'));
+      client.putResults.push(HttpTextResult.success(200, '{}'));
+      const repository: DiscourseForumRepository = new DiscourseForumRepository(client);
+
+      const result: RepositoryResult<number> = await repository.clearTopicNotifications(7, 5);
+
+      expect(client.paths[0]).assertEqual('/notifications.json?filter=unread');
+      expect(client.putPaths.join(',')).assertEqual(
+        '/notifications/mark-read.json?id=11,/notifications/mark-read.json?id=12,' +
+        '/notifications/mark-read.json?id=16'
+      );
+      expect(result.data).assertEqual(3);
+      done();
+    });
+
     it('returns the created Post from a nested Reply response', 0, async (done: Function) => {
       const client: StubForumHttpClient = new StubForumHttpClient();
       client.replyResults.push(HttpTextResult.success(200,

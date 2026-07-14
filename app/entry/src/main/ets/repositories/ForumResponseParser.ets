@@ -1112,6 +1112,39 @@ export class ForumResponseParser {
       : RepositoryResult.success<number>(id);
   }
 
+  public parseNotificationIdsForTopic(
+    text: string,
+    topicId: number,
+    upToPostNumber: number
+  ): RepositoryResult<Array<number>> {
+    const envelope: JsonObjectReader | null = JsonObjectReader.parse(text);
+    const values: Array<Object | null> | null = envelope?.array('notifications') ?? null;
+    if (envelope === null || values === null) {
+      return RepositoryResult.failure<Array<number>>('服务器响应缺少通知列表');
+    }
+    const uniqueIds: Set<number> = new Set<number>();
+    for (const value of values) {
+      const notification: JsonObjectReader | null = JsonObjectReader.fromValue(value);
+      if (notification === null || notification.boolean('read') === true) {
+        continue;
+      }
+      const data: JsonObjectReader | null = notification.object('data');
+      const notificationTopicId: number | null = notification.number('topic_id') ?? data?.number('topic_id') ?? null;
+      const postNumber: number | null = notification.number('post_number');
+      const id: number | null = notification.number('id');
+      if (
+        id !== null && id > 0 &&
+        notificationTopicId === topicId &&
+        (postNumber === null || postNumber <= upToPostNumber)
+      ) {
+        uniqueIds.add(id);
+      }
+    }
+    const ids: Array<number> = Array.from(uniqueIds.values());
+    ids.sort((left: number, right: number): number => left - right);
+    return RepositoryResult.success<Array<number>>(ids);
+  }
+
   public parseCreatedReply(text: string): RepositoryResult<ForumPost> {
     const envelope: JsonObjectReader | null = JsonObjectReader.parse(text);
     if (envelope === null) {

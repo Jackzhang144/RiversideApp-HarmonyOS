@@ -372,4 +372,28 @@ export class TopicDetail {
       )
     );
   }
+
+  public withLastReadPostNumber(lastReadPostNumber: number): TopicDetail {
+    return new TopicDetail(
+      this.id,
+      this.title,
+      this.viewCount,
+      this.postCount,
+      this.likeCount,
+      this.closed,
+      this.archived,
+      this.canReply,
+      this.postIds,
+      this.posts,
+      this.highestPostNumber,
+      new TopicDetailMetadata(
+        this.categoryId,
+        this.canEdit,
+        this.authorUsername,
+        this.validReactions,
+        this.suggestedTopics,
+        lastReadPostNumber
+      )
+    );
+  }
 }

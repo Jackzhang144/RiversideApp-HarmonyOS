@@ -106,6 +106,21 @@ class StubForumRepository implements ForumRepository {
     return RepositoryResult.failure<boolean>('missing bookmark result');
   }
 
+  public async markTopicRead(
+    _topicId: number,
+    _postNumbers: Array<number>,
+    _milliseconds: number
+  ): Promise<RepositoryResult<boolean>> {
+    return RepositoryResult.failure<boolean>('missing Topic timing result');
+  }
+
+  public async clearTopicNotifications(
+    _topicId: number,
+    _upToPostNumber: number
+  ): Promise<RepositoryResult<number>> {
+    return RepositoryResult.success<number>(0);
+  }
+
   public async submitReply(_request: ReplyRequest): Promise<ReplySubmitResult> {
     return ReplySubmitResult.rejected('missing Reply result');
   }

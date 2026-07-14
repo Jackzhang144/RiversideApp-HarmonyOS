@@ -34,6 +34,14 @@ export interface ForumRepository {
 
   deletePostBookmark(bookmarkId: number): Promise<RepositoryResult<boolean>>;
 
+  markTopicRead(
+    topicId: number,
+    postNumbers: Array<number>,
+    milliseconds: number
+  ): Promise<RepositoryResult<boolean>>;
+
+  clearTopicNotifications(topicId: number, upToPostNumber: number): Promise<RepositoryResult<number>>;
+
   loadCurrentUser(): Promise<RepositoryResult<CurrentUser>>;
 
   loadUserProfile(username: string): Promise<RepositoryResult<CurrentUser>>;

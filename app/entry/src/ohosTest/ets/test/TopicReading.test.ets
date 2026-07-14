@@ -58,6 +58,8 @@ class TopicReadingRepository implements ForumRepository {
   public reactionResults: Array<RepositoryResult<ForumPost>> = [];
   public createBookmarkResults: Array<RepositoryResult<number>> = [];
   public deleteBookmarkResults: Array<RepositoryResult<boolean>> = [];
+  public markTopicReadResults: Array<RepositoryResult<boolean>> = [];
+  public clearNotificationResults: Array<RepositoryResult<number>> = [];
   public categoryTopicResults: Array<RepositoryResult<Array<Topic>>> = [];
   public topicDetailTasks: Array<Promise<RepositoryResult<TopicDetail>>> = [];
   public categoryTopicTasks: Array<Promise<RepositoryResult<Array<Topic>>>> = [];
@@ -68,6 +70,8 @@ class TopicReadingRepository implements ForumRepository {
   public requestedReactions: Array<string> = [];
   public requestedBookmarkPostIds: Array<number> = [];
   public requestedDeleteBookmarkIds: Array<number> = [];
+  public requestedReadTimings: Array<string> = [];
+  public requestedNotificationProgress: Array<string> = [];
   public currentUserResults: Array<RepositoryResult<CurrentUser>> = [];
   public replySubmitResults: Array<ReplySubmitResult> = [];
   public replyRecoveryResults: Array<ReplyRecoveryResult> = [];
@@ -142,6 +146,23 @@ class TopicReadingRepository implements ForumRepository {
   public async deletePostBookmark(bookmarkId: number): Promise<RepositoryResult<boolean>> {
     this.requestedDeleteBookmarkIds.push(bookmarkId);
     return this.deleteBookmarkResults.shift() ?? RepositoryResult.failure<boolean>('missing bookmark result');
+  }
+
+  public async markTopicRead(
+    topicId: number,
+    postNumbers: Array<number>,
+    milliseconds: number
+  ): Promise<RepositoryResult<boolean>> {
+    this.requestedReadTimings.push(`${topicId}:${postNumbers.join(',')}:${milliseconds}`);
+    return this.markTopicReadResults.shift() ?? RepositoryResult.failure<boolean>('missing Topic timing result');
+  }
+
+  public async clearTopicNotifications(
+    topicId: number,
+    upToPostNumber: number
+  ): Promise<RepositoryResult<number>> {
+    this.requestedNotificationProgress.push(`${topicId}:${upToPostNumber}`);
+    return this.clearNotificationResults.shift() ?? RepositoryResult.success<number>(0);
   }
 
   public async submitReply(request: ReplyRequest): Promise<ReplySubmitResult> {
@@ -717,6 +738,39 @@ export default function topicReadingTest(): void {
       expect(repository.requestedDeleteBookmarkIds.join(',')).assertEqual('901,901');
       expect(model.topicState.posts[0].bookmarked).assertFalse();
       expect(model.topicState.posts[0].bookmarkId).assertNull();
+      done();
+    });
+
+    it('reports only loaded forward progress and retries without faking a failed read', 0, async (done: Function) => {
+      const repository: TopicReadingRepository = new TopicReadingRepository();
+      repository.topicDetailResults.push(RepositoryResult.success<TopicDetail>(new TopicDetail(
+        2725, '阅读进度', 10, 5, 0, false, false, true,
+        [102728, 102729, 102730, 102731, 102732], [firstPost(), secondPost(), thirdPost()]
+      )));
+      repository.markTopicReadResults.push(
+        RepositoryResult.failure<boolean>('阅读进度同步失败'),
+        RepositoryResult.success<boolean>(true)
+      );
+      repository.clearNotificationResults.push(RepositoryResult.success<number>(2));
+      const model: AppShellModel = new AppShellModel(
+        repository, new MemoryCategoryCache(), CategoryCacheScope.anonymous()
+      );
+      await model.openTopic(topic());
+
+      await model.reportTopicReadProgress(5);
+      expect(model.topicState.readProgressState.lastReadPostNumber).assertEqual(0);
+      expect(model.topicState.readProgressState.message).assertEqual('阅读进度同步失败');
+
+      await model.reportTopicReadProgress(5);
+      expect(repository.requestedReadTimings.join('|')).assertEqual(
+        '2725:1,2,3:1000|2725:1,2,3:1000'
+      );
+      expect(model.topicState.readProgressState.lastReadPostNumber).assertEqual(3);
+      expect(model.topicState.detail?.lastReadPostNumber).assertEqual(3);
+      expect(repository.requestedNotificationProgress.join(',')).assertEqual('2725:3');
+
+      await model.reportTopicReadProgress(2);
+      expect(repository.requestedReadTimings.length).assertEqual(2);
       done();
     });
 

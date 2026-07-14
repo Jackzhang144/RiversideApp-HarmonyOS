@@ -224,6 +224,80 @@ export class DiscourseForumRepository implements ForumRepository {
     return RepositoryResult.success<boolean>(true);
   }
 
+  public async markTopicRead(
+    topicId: number,
+    postNumbers: Array<number>,
+    milliseconds: number
+  ): Promise<RepositoryResult<boolean>> {
+    if (!Number.isInteger(topicId) || topicId <= 0 || !Number.isInteger(milliseconds) || milliseconds <= 0) {
+      return RepositoryResult.failure<boolean>('Topic 阅读进度无效');
+    }
+    const uniquePostNumbers: Set<number> = new Set<number>();
+    for (const postNumber of postNumbers) {
+      if (Number.isInteger(postNumber) && postNumber > 0) {
+        uniquePostNumbers.add(postNumber);
+      }
+    }
+    const sortedPostNumbers: Array<number> = Array.from(uniquePostNumbers.values());
+    sortedPostNumbers.sort((left: number, right: number): number => left - right);
+    if (sortedPostNumbers.length === 0) {
+      return RepositoryResult.success<boolean>(true);
+    }
+    const timingParts: Array<string> = [
+      `topic_id=${topicId}`,
+      `topic_time=${milliseconds}`
+    ];
+    for (const postNumber of sortedPostNumbers) {
+      timingParts.push(`timings[${postNumber}]=${milliseconds}`);
+    }
+    const response: HttpTextResult = await this.client.postForm('/topics/timings', timingParts.join('&'));
+    if (response.kind === HttpTextResultKind.UNAUTHORIZED) {
+      return RepositoryResult.unauthorized<boolean>();
+    }
+    return response.isSuccess()
+      ? RepositoryResult.success<boolean>(true)
+      : RepositoryResult.failure<boolean>(response.message);
+  }
+
+  public async clearTopicNotifications(
+    topicId: number,
+    upToPostNumber: number
+  ): Promise<RepositoryResult<number>> {
+    if (
+      !Number.isInteger(topicId) || topicId <= 0 ||
+      !Number.isInteger(upToPostNumber) || upToPostNumber <= 0
+    ) {
+      return RepositoryResult.failure<number>('通知阅读进度无效');
+    }
+    const listResponse: HttpTextResult = await this.client.get('/notifications.json?filter=unread');
+    if (listResponse.kind === HttpTextResultKind.UNAUTHORIZED) {
+      return RepositoryResult.unauthorized<number>();
+    }
+    if (!listResponse.isSuccess()) {
+      return RepositoryResult.failure<number>(listResponse.message);
+    }
+    const parsed: RepositoryResult<Array<number>> = this.parser.parseNotificationIdsForTopic(
+      listResponse.body,
+      topicId,
+      upToPostNumber
+    );
+    if (!parsed.isSuccess() || parsed.data === null) {
+      return RepositoryResult.failure<number>(parsed.message);
+    }
+    for (const notificationId of parsed.data) {
+      const markResponse: HttpTextResult = await this.client.put(
+        `/notifications/mark-read.json?id=${notificationId}`
+      );
+      if (markResponse.kind === HttpTextResultKind.UNAUTHORIZED) {
+        return RepositoryResult.unauthorized<number>();
+      }
+      if (!markResponse.isSuccess()) {
+        return RepositoryResult.failure<number>(markResponse.message);
+      }
+    }
+    return RepositoryResult.success<number>(parsed.data.length);
+  }
+
   public async submitReply(request: ReplyRequest): Promise<ReplySubmitResult> {
     const response: HttpTextResult = await this.client.postReply(request);
     if (response.kind === HttpTextResultKind.UNAUTHORIZED) {

@@ -1,6 +1,13 @@
 import { CategoryCache, CategoryCacheScope } from '../cache/CategoryCache';
 import { RepositoryResult } from '../core/RepositoryResult';
-import { Category, ForumPost, Topic, TopicDetail, TopicPostBatch } from '../models/ForumModels';
+import {
+  Category,
+  ForumPost,
+  Topic,
+  TopicDetail,
+  TopicDetailMetadata,
+  TopicPostBatch
+} from '../models/ForumModels';
 import {
   ForumSearchResult,
   HomeChannel,
@@ -128,6 +135,30 @@ export class TopicPostActionState {
   }
 }
 
+export class TopicReadProgressState {
+  public readonly lastReadPostNumber: number;
+  public readonly busy: boolean;
+  public readonly message: string;
+
+  private constructor(lastReadPostNumber: number, busy: boolean, message: string) {
+    this.lastReadPostNumber = Math.max(0, lastReadPostNumber);
+    this.busy = busy;
+    this.message = message;
+  }
+
+  public static idle(lastReadPostNumber: number): TopicReadProgressState {
+    return new TopicReadProgressState(lastReadPostNumber, false, '');
+  }
+
+  public static loading(lastReadPostNumber: number): TopicReadProgressState {
+    return new TopicReadProgressState(lastReadPostNumber, true, '');
+  }
+
+  public static error(lastReadPostNumber: number, message: string): TopicReadProgressState {
+    return new TopicReadProgressState(lastReadPostNumber, false, message);
+  }
+}
+
 export enum ReplyComposerStateKind {
   CLOSED = 'closed',
   EDITING = 'editing',
@@ -214,6 +245,7 @@ export class TopicReadState {
   public readonly isLoadingPrevious: boolean;
   public readonly previousPaginationMessage: string;
   public readonly postActionState: TopicPostActionState;
+  public readonly readProgressState: TopicReadProgressState;
 
   private constructor(
     kind: TopicReadStateKind,
@@ -229,7 +261,8 @@ export class TopicReadState {
     paginationMessage: string,
     isLoadingPrevious: boolean,
     previousPaginationMessage: string,
-    postActionState: TopicPostActionState = TopicPostActionState.idle()
+    postActionState: TopicPostActionState = TopicPostActionState.idle(),
+    readProgressState: TopicReadProgressState = TopicReadProgressState.idle(0)
   ) {
     this.kind = kind;
     this.topicId = topicId;
@@ -246,6 +279,7 @@ export class TopicReadState {
     this.isLoadingPrevious = isLoadingPrevious;
     this.previousPaginationMessage = previousPaginationMessage;
     this.postActionState = postActionState;
+    this.readProgressState = readProgressState;
   }
 
   public static initial(): TopicReadState {
@@ -268,7 +302,8 @@ export class TopicReadState {
     paginationMessage: string = '',
     hasPreviousPosts: boolean = false,
     isLoadingPrevious: boolean = false,
-    previousPaginationMessage: string = ''
+    previousPaginationMessage: string = '',
+    readProgressState: TopicReadProgressState | null = null
   ): TopicReadState {
     return new TopicReadState(
       TopicReadStateKind.CONTENT,
@@ -283,7 +318,9 @@ export class TopicReadState {
       isLoadingMore,
       paginationMessage,
       isLoadingPrevious,
-      previousPaginationMessage
+      previousPaginationMessage,
+      TopicPostActionState.idle(),
+      readProgressState ?? TopicReadProgressState.idle(detail.lastReadPostNumber)
     );
   }
 
@@ -294,7 +331,8 @@ export class TopicReadState {
     paginationMessage: string = '',
     hasPreviousPosts: boolean = false,
     isLoadingPrevious: boolean = false,
-    previousPaginationMessage: string = ''
+    previousPaginationMessage: string = '',
+    readProgressState: TopicReadProgressState | null = null
   ): TopicReadState {
     return new TopicReadState(
       TopicReadStateKind.EMPTY,
@@ -309,7 +347,9 @@ export class TopicReadState {
       isLoadingMore,
       paginationMessage,
       isLoadingPrevious,
-      previousPaginationMessage
+      previousPaginationMessage,
+      TopicPostActionState.idle(),
+      readProgressState ?? TopicReadProgressState.idle(detail.lastReadPostNumber)
     );
   }
 
@@ -334,7 +374,8 @@ export class TopicReadState {
       paginationMessage,
       state.isLoadingPrevious,
       state.previousPaginationMessage,
-      state.postActionState
+      state.postActionState,
+      state.readProgressState
     );
   }
 
@@ -357,7 +398,8 @@ export class TopicReadState {
       state.paginationMessage,
       isLoadingPrevious,
       previousPaginationMessage,
-      state.postActionState
+      state.postActionState,
+      state.readProgressState
     );
   }
 
@@ -376,7 +418,8 @@ export class TopicReadState {
       state.paginationMessage,
       state.isLoadingPrevious,
       state.previousPaginationMessage,
-      state.postActionState
+      state.postActionState,
+      state.readProgressState
     );
   }
 
@@ -395,7 +438,8 @@ export class TopicReadState {
       state.paginationMessage,
       state.isLoadingPrevious,
       state.previousPaginationMessage,
-      state.postActionState
+      state.postActionState,
+      state.readProgressState
     );
   }
 
@@ -414,7 +458,31 @@ export class TopicReadState {
       state.paginationMessage,
       state.isLoadingPrevious,
       state.previousPaginationMessage,
-      postActionState
+      postActionState,
+      state.readProgressState
+    );
+  }
+
+  public static withReadProgress(
+    state: TopicReadState,
+    readProgressState: TopicReadProgressState
+  ): TopicReadState {
+    return new TopicReadState(
+      state.kind,
+      state.topicId,
+      state.title,
+      state.detail,
+      state.posts,
+      state.canReply,
+      state.message,
+      state.hasPreviousPosts,
+      state.hasNextPosts,
+      state.isLoadingMore,
+      state.paginationMessage,
+      state.isLoadingPrevious,
+      state.previousPaginationMessage,
+      state.postActionState,
+      readProgressState
     );
   }
 }
@@ -931,8 +999,12 @@ export class AppShellModel {
       ? detail.withSuggestedTopics(result.data.suggestedTopics)
       : detail;
     this.topicState = posts.length === 0
-      ? TopicReadState.empty(updatedDetail, hasNextPosts, false, '', hasPreviousPosts)
-      : TopicReadState.content(updatedDetail, posts, hasNextPosts, false, '', hasPreviousPosts);
+      ? TopicReadState.empty(
+        updatedDetail, hasNextPosts, false, '', hasPreviousPosts, false, '', this.topicState.readProgressState
+      )
+      : TopicReadState.content(
+        updatedDetail, posts, hasNextPosts, false, '', hasPreviousPosts, false, '', this.topicState.readProgressState
+      );
     if (!hasNextPosts && updatedDetail.suggestedTopics.length === 0) {
       await this.refreshTopicSuggestions(requestVersion);
     }
@@ -973,8 +1045,12 @@ export class AppShellModel {
     const hasPreviousPosts: boolean = this.previousPostIds.length > 0;
     const hasNextPosts: boolean = this.nextPostIds.length > 0;
     this.topicState = posts.length === 0
-      ? TopicReadState.empty(detail, hasNextPosts, false, '', hasPreviousPosts)
-      : TopicReadState.content(detail, posts, hasNextPosts, false, '', hasPreviousPosts);
+      ? TopicReadState.empty(
+        detail, hasNextPosts, false, '', hasPreviousPosts, false, '', this.topicState.readProgressState
+      )
+      : TopicReadState.content(
+        detail, posts, hasNextPosts, false, '', hasPreviousPosts, false, '', this.topicState.readProgressState
+      );
   }
 
   public async retryPreviousTopicPosts(): Promise<void> {
@@ -1106,6 +1182,70 @@ export class AppShellModel {
     const updatedPost: ForumPost = post.withBookmark(false, null);
     this.topicState = TopicReadState.withPosts(this.topicState, replacePost(this.topicState.posts, updatedPost));
     this.topicState = TopicReadState.withPostAction(this.topicState, TopicPostActionState.idle());
+  }
+
+  public async reportTopicReadProgress(visiblePostNumber: number): Promise<void> {
+    const detail: TopicDetail | null = this.topicState.detail;
+    const currentProgress: TopicReadProgressState = this.topicState.readProgressState;
+    if (
+      detail === null ||
+      currentProgress.busy ||
+      !Number.isInteger(visiblePostNumber) ||
+      visiblePostNumber <= currentProgress.lastReadPostNumber
+    ) {
+      return;
+    }
+    const highestPostNumber: number = detail.highestPostNumber > 0
+      ? detail.highestPostNumber
+      : visiblePostNumber;
+    const safeTarget: number = Math.min(visiblePostNumber, highestPostNumber);
+    const postNumbers: Array<number> = this.topicState.posts
+      .map((post: ForumPost): number => post.postNumber)
+      .filter((postNumber: number): boolean => {
+        return postNumber > currentProgress.lastReadPostNumber && postNumber <= safeTarget;
+      });
+    const uniquePostNumbers: Array<number> = Array.from(new Set<number>(postNumbers).values());
+    uniquePostNumbers.sort((left: number, right: number): number => left - right);
+    if (uniquePostNumbers.length === 0) {
+      return;
+    }
+    const reportedPostNumber: number = uniquePostNumbers[uniquePostNumbers.length - 1];
+    const requestVersion: number = this.topicRequestVersion;
+    this.topicState = TopicReadState.withReadProgress(
+      this.topicState,
+      TopicReadProgressState.loading(currentProgress.lastReadPostNumber)
+    );
+    const result: RepositoryResult<boolean> = await this.repository.markTopicRead(
+      detail.id,
+      uniquePostNumbers,
+      1000
+    );
+    if (requestVersion !== this.topicRequestVersion || this.topicState.topicId !== detail.id) {
+      return;
+    }
+    if (!result.isSuccess() || result.data !== true) {
+      this.requiresAuthentication = result.isUnauthorized();
+      this.topicState = TopicReadState.withReadProgress(
+        this.topicState,
+        TopicReadProgressState.error(currentProgress.lastReadPostNumber, result.message)
+      );
+      await this.notifyUnauthorized(result.isUnauthorized());
+      return;
+    }
+    const updatedDetail: TopicDetail = detail.withLastReadPostNumber(reportedPostNumber);
+    this.topicState = TopicReadState.withDetail(this.topicState, updatedDetail);
+    this.topicState = TopicReadState.withReadProgress(
+      this.topicState,
+      TopicReadProgressState.idle(reportedPostNumber)
+    );
+    const notificationResult: RepositoryResult<number> = await this.repository.clearTopicNotifications(
+      detail.id,
+      reportedPostNumber
+    );
+    if (notificationResult.isUnauthorized()) {
+      this.requiresAuthentication = true;
+      await this.notifyUnauthorized(true);
+    }
   }
 
   public async retryTopicPosts(): Promise<void> {
@@ -1309,15 +1449,27 @@ export class AppShellModel {
       detail.canReply,
       postIds,
       detailPosts,
-      Math.max(detail.highestPostNumber, post.postNumber)
+      Math.max(detail.highestPostNumber, post.postNumber),
+      new TopicDetailMetadata(
+        detail.categoryId,
+        detail.canEdit,
+        detail.authorUsername,
+        detail.validReactions,
+        detail.suggestedTopics,
+        detail.lastReadPostNumber
+      )
     );
     const visiblePosts: Array<ForumPost> = uniquePosts(this.topicState.posts.concat([post]));
     this.topicState = TopicReadState.content(
       updatedDetail,
       visiblePosts,
-      this.topicState.hasMorePosts,
+      this.topicState.hasNextPosts,
       false,
-      this.topicState.paginationMessage
+      this.topicState.paginationMessage,
+      this.topicState.hasPreviousPosts,
+      false,
+      this.topicState.previousPaginationMessage,
+      this.topicState.readProgressState
     );
     this.transitionReplyState(ReplyComposerState.success('Reply 已发布'), onStateChange);
   }
