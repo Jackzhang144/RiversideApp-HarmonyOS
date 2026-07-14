@@ -1,5 +1,5 @@
 import { RepositoryResult } from '../core/RepositoryResult';
-import { Category, ForumPost, Topic, TopicDetail } from '../models/ForumModels';
+import { Category, ForumPost, Topic, TopicDetail, TopicPostBatch } from '../models/ForumModels';
 import { ForumSearchResult, HomeChannel } from '../models/DiscoveryModels';
 import {
   CurrentUser,
@@ -24,7 +24,7 @@ export interface ForumRepository {
 
   loadTopicDetail(topicId: number, postNumber?: number | null): Promise<RepositoryResult<TopicDetail>>;
 
-  loadTopicPosts(topicId: number, postIds: Array<number>): Promise<RepositoryResult<Array<ForumPost>>>;
+  loadTopicPosts(topicId: number, postIds: Array<number>): Promise<RepositoryResult<TopicPostBatch>>;
 
   loadCurrentUser(): Promise<RepositoryResult<CurrentUser>>;
 

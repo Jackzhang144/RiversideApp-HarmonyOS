@@ -63,6 +63,74 @@ export class Category {
   }
 }
 
+export class PostReaction {
+  public readonly id: string;
+  public readonly count: number;
+
+  public constructor(id: string, count: number) {
+    this.id = id;
+    this.count = Math.max(0, count);
+  }
+}
+
+export class ForumPostMetadata {
+  public readonly userTitle: string;
+  public readonly avatarUrl: string;
+  public readonly flairUrl: string;
+  public readonly replyToUsername: string | null;
+  public readonly replyToAvatarUrl: string | null;
+  public readonly likeCount: number;
+  public readonly reactions: Array<PostReaction>;
+  public readonly currentUserReaction: string | null;
+  public readonly canEdit: boolean;
+  public readonly canDelete: boolean;
+  public readonly acceptedAnswer: boolean;
+  public readonly canAcceptAnswer: boolean;
+  public readonly canUnacceptAnswer: boolean;
+  public readonly bookmarked: boolean;
+  public readonly bookmarkId: number | null;
+  public readonly postType: number;
+  public readonly actionCode: string;
+
+  public constructor(
+    userTitle: string = '',
+    avatarUrl: string = '',
+    flairUrl: string = '',
+    replyToUsername: string | null = null,
+    replyToAvatarUrl: string | null = null,
+    likeCount: number = 0,
+    reactions: Array<PostReaction> = [],
+    currentUserReaction: string | null = null,
+    canEdit: boolean = false,
+    canDelete: boolean = false,
+    acceptedAnswer: boolean = false,
+    canAcceptAnswer: boolean = false,
+    canUnacceptAnswer: boolean = false,
+    bookmarked: boolean = false,
+    bookmarkId: number | null = null,
+    postType: number = 1,
+    actionCode: string = ''
+  ) {
+    this.userTitle = userTitle;
+    this.avatarUrl = avatarUrl;
+    this.flairUrl = flairUrl;
+    this.replyToUsername = replyToUsername;
+    this.replyToAvatarUrl = replyToAvatarUrl;
+    this.likeCount = Math.max(0, likeCount);
+    this.reactions = reactions;
+    this.currentUserReaction = currentUserReaction;
+    this.canEdit = canEdit;
+    this.canDelete = canDelete;
+    this.acceptedAnswer = acceptedAnswer;
+    this.canAcceptAnswer = canAcceptAnswer;
+    this.canUnacceptAnswer = canUnacceptAnswer;
+    this.bookmarked = bookmarked;
+    this.bookmarkId = bookmarkId;
+    this.postType = postType;
+    this.actionCode = actionCode;
+  }
+}
+
 function readablePostText(raw: string, cooked: string): string {
   const source: string = cooked.trim();
   if (source.length === 0) {
@@ -96,6 +164,23 @@ export class ForumPost {
   public readonly postNumber: number;
   public readonly replyToPostNumber: number | null;
   public readonly createdAt: string;
+  public readonly userTitle: string;
+  public readonly avatarUrl: string;
+  public readonly flairUrl: string;
+  public readonly replyToUsername: string | null;
+  public readonly replyToAvatarUrl: string | null;
+  public readonly likeCount: number;
+  public readonly reactions: Array<PostReaction>;
+  public readonly currentUserReaction: string | null;
+  public readonly canEdit: boolean;
+  public readonly canDelete: boolean;
+  public readonly acceptedAnswer: boolean;
+  public readonly canAcceptAnswer: boolean;
+  public readonly canUnacceptAnswer: boolean;
+  public readonly bookmarked: boolean;
+  public readonly bookmarkId: number | null;
+  public readonly postType: number;
+  public readonly actionCode: string;
 
   public constructor(
     id: number,
@@ -105,7 +190,8 @@ export class ForumPost {
     raw: string,
     postNumber: number,
     replyToPostNumber: number | null,
-    createdAt: string
+    createdAt: string,
+    metadata: ForumPostMetadata = new ForumPostMetadata()
   ) {
     this.id = id;
     this.userId = userId;
@@ -116,6 +202,62 @@ export class ForumPost {
     this.postNumber = postNumber;
     this.replyToPostNumber = replyToPostNumber;
     this.createdAt = createdAt;
+    this.userTitle = metadata.userTitle;
+    this.avatarUrl = metadata.avatarUrl;
+    this.flairUrl = metadata.flairUrl;
+    this.replyToUsername = metadata.replyToUsername;
+    this.replyToAvatarUrl = metadata.replyToAvatarUrl;
+    this.likeCount = metadata.likeCount;
+    this.reactions = metadata.reactions;
+    this.currentUserReaction = metadata.currentUserReaction;
+    this.canEdit = metadata.canEdit;
+    this.canDelete = metadata.canDelete;
+    this.acceptedAnswer = metadata.acceptedAnswer;
+    this.canAcceptAnswer = metadata.canAcceptAnswer;
+    this.canUnacceptAnswer = metadata.canUnacceptAnswer;
+    this.bookmarked = metadata.bookmarked;
+    this.bookmarkId = metadata.bookmarkId;
+    this.postType = metadata.postType;
+    this.actionCode = metadata.actionCode;
+  }
+
+  public isSystemAction(): boolean {
+    return this.postType === 3 && this.actionCode.length > 0;
+  }
+}
+
+export class TopicDetailMetadata {
+  public readonly categoryId: number;
+  public readonly canEdit: boolean;
+  public readonly authorUsername: string;
+  public readonly validReactions: Array<string>;
+  public readonly suggestedTopics: Array<Topic>;
+  public readonly lastReadPostNumber: number;
+
+  public constructor(
+    categoryId: number = 0,
+    canEdit: boolean = false,
+    authorUsername: string = '',
+    validReactions: Array<string> = [],
+    suggestedTopics: Array<Topic> = [],
+    lastReadPostNumber: number = 0
+  ) {
+    this.categoryId = categoryId;
+    this.canEdit = canEdit;
+    this.authorUsername = authorUsername;
+    this.validReactions = validReactions;
+    this.suggestedTopics = suggestedTopics;
+    this.lastReadPostNumber = Math.max(0, lastReadPostNumber);
+  }
+}
+
+export class TopicPostBatch {
+  public readonly posts: Array<ForumPost>;
+  public readonly suggestedTopics: Array<Topic>;
+
+  public constructor(posts: Array<ForumPost>, suggestedTopics: Array<Topic> = []) {
+    this.posts = posts;
+    this.suggestedTopics = suggestedTopics;
   }
 }
 
@@ -131,6 +273,12 @@ export class TopicDetail {
   public readonly postIds: Array<number>;
   public readonly posts: Array<ForumPost>;
   public readonly highestPostNumber: number;
+  public readonly categoryId: number;
+  public readonly canEdit: boolean;
+  public readonly authorUsername: string;
+  public readonly validReactions: Array<string>;
+  public readonly suggestedTopics: Array<Topic>;
+  public readonly lastReadPostNumber: number;
 
   public constructor(
     id: number,
@@ -143,7 +291,8 @@ export class TopicDetail {
     canReply: boolean,
     postIds: Array<number>,
     posts: Array<ForumPost>,
-    highestPostNumber: number = 0
+    highestPostNumber: number = 0,
+    metadata: TopicDetailMetadata = new TopicDetailMetadata()
   ) {
     this.id = id;
     this.title = title;
@@ -155,6 +304,12 @@ export class TopicDetail {
     this.canReply = !closed && !archived && canReply;
     this.postIds = postIds;
     this.posts = posts;
+    this.categoryId = metadata.categoryId;
+    this.canEdit = metadata.canEdit;
+    this.authorUsername = metadata.authorUsername;
+    this.validReactions = metadata.validReactions;
+    this.suggestedTopics = metadata.suggestedTopics;
+    this.lastReadPostNumber = metadata.lastReadPostNumber;
     let observedHighestPostNumber: number = Math.max(postCount, highestPostNumber);
     for (const post of posts) {
       observedHighestPostNumber = Math.max(observedHighestPostNumber, post.postNumber);

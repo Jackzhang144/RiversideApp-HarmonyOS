@@ -1,6 +1,6 @@
 import { CategoryCache, CategoryCacheScope } from '../cache/CategoryCache';
 import { RepositoryResult } from '../core/RepositoryResult';
-import { Category, ForumPost, Topic, TopicDetail } from '../models/ForumModels';
+import { Category, ForumPost, Topic, TopicDetail, TopicPostBatch } from '../models/ForumModels';
 import {
   ForumSearchResult,
   HomeChannel,
@@ -728,7 +728,7 @@ export class AppShellModel {
     const requestVersion: number = this.topicRequestVersion;
     const visiblePosts: Array<ForumPost> = this.topicState.posts;
     this.topicState = TopicReadState.pagination(this.topicState, true, '');
-    const result: RepositoryResult<Array<ForumPost>> =
+    const result: RepositoryResult<TopicPostBatch> =
       await this.repository.loadTopicPosts(detail.id, requestedPostIds);
     if (requestVersion !== this.topicRequestVersion || this.topicState.topicId !== detail.id) {
       return;
@@ -742,7 +742,7 @@ export class AppShellModel {
 
     const requestedIds: Set<number> = new Set<number>(requestedPostIds);
     this.remainingPostIds = this.remainingPostIds.filter((postId: number) => !requestedIds.has(postId));
-    const posts: Array<ForumPost> = uniquePosts(visiblePosts.concat(result.data));
+    const posts: Array<ForumPost> = uniquePosts(visiblePosts.concat(result.data.posts));
     const hasMorePosts: boolean = this.remainingPostIds.length > 0;
     this.topicState = posts.length === 0
       ? TopicReadState.empty(detail, hasMorePosts)

@@ -11,7 +11,7 @@ import {
 } from '../../../main/ets/app/AppShellModel';
 import { CategoryCacheScope } from '../../../main/ets/cache/CategoryCache';
 import { RepositoryResult } from '../../../main/ets/core/RepositoryResult';
-import { Category, ForumPost, Topic, TopicDetail } from '../../../main/ets/models/ForumModels';
+import { Category, ForumPost, Topic, TopicDetail, TopicPostBatch } from '../../../main/ets/models/ForumModels';
 import {
   ForumSearchResult,
   HomeChannel,
@@ -86,8 +86,8 @@ class StubForumRepository implements ForumRepository {
     return RepositoryResult.failure<TopicDetail>('missing Topic detail result');
   }
 
-  public async loadTopicPosts(_topicId: number, _postIds: Array<number>): Promise<RepositoryResult<Array<ForumPost>>> {
-    return RepositoryResult.success<Array<ForumPost>>([]);
+  public async loadTopicPosts(_topicId: number, _postIds: Array<number>): Promise<RepositoryResult<TopicPostBatch>> {
+    return RepositoryResult.success<TopicPostBatch>(new TopicPostBatch([]));
   }
 
   public async submitReply(_request: ReplyRequest): Promise<ReplySubmitResult> {

@@ -1,5 +1,5 @@
 import { RepositoryResult } from '../core/RepositoryResult';
-import { Category, ForumPost, Topic, TopicDetail } from '../models/ForumModels';
+import { Category, ForumPost, Topic, TopicDetail, TopicPostBatch } from '../models/ForumModels';
 import { ForumSearchResult, HomeChannel, homeChannelPath } from '../models/DiscoveryModels';
 import {
   CurrentUser,
@@ -137,16 +137,16 @@ export class DiscourseForumRepository implements ForumRepository {
     return this.parser.parseTopicDetail(response.body);
   }
 
-  public async loadTopicPosts(topicId: number, postIds: Array<number>): Promise<RepositoryResult<Array<ForumPost>>> {
+  public async loadTopicPosts(topicId: number, postIds: Array<number>): Promise<RepositoryResult<TopicPostBatch>> {
     if (!Number.isInteger(topicId) || topicId <= 0) {
-      return RepositoryResult.failure<Array<ForumPost>>('Topic 标识无效');
+      return RepositoryResult.failure<TopicPostBatch>('Topic 标识无效');
     }
     if (postIds.length === 0) {
-      return RepositoryResult.success<Array<ForumPost>>([]);
+      return RepositoryResult.success<TopicPostBatch>(new TopicPostBatch([]));
     }
     for (const postId of postIds) {
       if (!Number.isInteger(postId) || postId <= 0) {
-        return RepositoryResult.failure<Array<ForumPost>>('Post 标识无效');
+        return RepositoryResult.failure<TopicPostBatch>('Post 标识无效');
       }
     }
     const postQuery: string = postIds.map((postId: number) => `post_ids[]=${postId}`).join('&');
@@ -154,12 +154,12 @@ export class DiscourseForumRepository implements ForumRepository {
       `/t/${topicId}/posts.json?${postQuery}&include_suggested=true`
     );
     if (response.kind === HttpTextResultKind.UNAUTHORIZED) {
-      return RepositoryResult.unauthorized<Array<ForumPost>>();
+      return RepositoryResult.unauthorized<TopicPostBatch>();
     }
     if (!response.isSuccess()) {
-      return RepositoryResult.failure<Array<ForumPost>>(response.message);
+      return RepositoryResult.failure<TopicPostBatch>(response.message);
     }
-    return this.parser.parseTopicPosts(response.body);
+    return this.parser.parseTopicPostBatch(response.body);
   }
 
   public async submitReply(request: ReplyRequest): Promise<ReplySubmitResult> {

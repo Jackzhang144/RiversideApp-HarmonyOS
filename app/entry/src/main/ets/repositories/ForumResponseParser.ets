@@ -1,6 +1,15 @@
 import { RepositoryResult } from '../core/RepositoryResult';
 import { JsonObjectReader } from '../core/JsonObjectReader';
-import { Category, ForumPost, Topic, TopicDetail } from '../models/ForumModels';
+import {
+  Category,
+  ForumPost,
+  ForumPostMetadata,
+  PostReaction,
+  Topic,
+  TopicDetail,
+  TopicDetailMetadata,
+  TopicPostBatch
+} from '../models/ForumModels';
 import {
   ForumSearchResult,
   HomeChannel,
@@ -544,6 +553,43 @@ function forumPostFromReader(
   if (id === null || id <= 0 || postNumber === null || postNumber <= 0) {
     return null;
   }
+  const rawReactions: Array<PostReaction> = decodeReactions(post, 'reactions');
+  const reactions: Array<PostReaction> = rawReactions.length > 0
+    ? rawReactions
+    : decodeReactions(post, 'actions_summary');
+  let likeCount: number = 0;
+  if (rawReactions.length > 0) {
+    for (const reaction of rawReactions) {
+      likeCount += reaction.count;
+    }
+  } else {
+    for (const reaction of reactions) {
+      if (reaction.id === '2') {
+        likeCount = reaction.count;
+      }
+    }
+  }
+  const currentUserReaction: JsonObjectReader | null = post.object('current_user_reaction');
+  const replyToUser: JsonObjectReader | null = post.object('reply_to_user');
+  const metadata: ForumPostMetadata = new ForumPostMetadata(
+    textOrEmpty(post.string('user_title')),
+    textOrEmpty(post.string('avatar_template')),
+    textOrEmpty(post.string('flair_url')),
+    replyToUser?.string('username') ?? null,
+    replyToUser?.string('avatar_template') ?? null,
+    likeCount,
+    reactions,
+    currentUserReaction?.string('id') ?? null,
+    booleanOrFalse(post.boolean('can_edit')),
+    booleanOrFalse(post.boolean('can_delete')),
+    booleanOrFalse(post.boolean('accepted_answer')),
+    booleanOrFalse(post.boolean('can_accept_answer')),
+    booleanOrFalse(post.boolean('can_unaccept_answer')),
+    booleanOrFalse(post.boolean('bookmarked')),
+    post.number('bookmark_id'),
+    post.number('post_type') ?? 1,
+    textOrEmpty(post.string('action_code'))
+  );
   return new ForumPost(
     id,
     numberOrZero(post.number('user_id')),
@@ -552,8 +598,92 @@ function forumPostFromReader(
     textOrEmpty(post.string('raw')),
     postNumber,
     post.number('reply_to_post_number'),
-    textOrEmpty(post.string('created_at'))
+    textOrEmpty(post.string('created_at')),
+    metadata
   );
+}
+
+function reactionId(reaction: JsonObjectReader): string {
+  const textId: string | null = reaction.string('id') ?? reaction.string('emoji') ??
+    reaction.string('emoji_name') ?? reaction.string('reaction') ?? reaction.string('name') ??
+    reaction.string('action_type');
+  if (textId !== null) {
+    return textId;
+  }
+  const numericId: number | null = reaction.number('id');
+  return numericId === null ? '' : `${numericId}`;
+}
+
+function decodeReactions(post: JsonObjectReader, name: string): Array<PostReaction> {
+  const values: Array<Object | null> | null = post.array(name);
+  const reactions: Array<PostReaction> = [];
+  if (values === null) {
+    return reactions;
+  }
+  for (const value of values) {
+    const reaction: JsonObjectReader | null = JsonObjectReader.fromValue(value);
+    if (reaction === null) {
+      continue;
+    }
+    const id: string = reactionId(reaction);
+    const count: number = numberOrZero(reaction.number('count'));
+    if (id.length > 0 && count > 0) {
+      reactions.push(new PostReaction(id, count));
+    }
+  }
+  return reactions;
+}
+
+function decodeStrings(source: JsonObjectReader, name: string): Array<string> {
+  const values: Array<Object | null> | null = source.array(name);
+  const strings: Array<string> = [];
+  if (values === null) {
+    return strings;
+  }
+  for (const value of values) {
+    if (typeof value === 'string' && value.length > 0) {
+      strings.push(value);
+    }
+  }
+  return strings;
+}
+
+function topicFromReader(topic: JsonObjectReader): Topic | null {
+  const id: number | null = topic.number('id');
+  const title: string = textOrEmpty(topic.string('title')).length > 0
+    ? textOrEmpty(topic.string('title'))
+    : textOrEmpty(topic.string('fancy_title'));
+  if (id === null || id <= 0 || title.length === 0) {
+    return null;
+  }
+  return new Topic(
+    id,
+    title,
+    numberOrZero(topic.number('category_id')),
+    numberOrZero(topic.number('posts_count')),
+    numberOrZero(topic.number('views')),
+    numberOrZero(topic.number('like_count')),
+    textOrEmpty(topic.string('excerpt')),
+    textOrEmpty(topic.string('last_posted_at')),
+    booleanOrFalse(topic.boolean('pinned')),
+    textOrEmpty(topic.string('last_poster_username'))
+  );
+}
+
+function decodeSuggestedTopics(envelope: JsonObjectReader): Array<Topic> {
+  const values: Array<Object | null> | null = envelope.array('suggested_topics');
+  const topics: Array<Topic> = [];
+  if (values === null) {
+    return topics;
+  }
+  for (const value of values) {
+    const reader: JsonObjectReader | null = JsonObjectReader.fromValue(value);
+    const topic: Topic | null = reader === null ? null : topicFromReader(reader);
+    if (topic !== null) {
+      topics.push(topic);
+    }
+  }
+  return topics;
 }
 
 function decodePostReader(post: JsonObjectReader): ForumPost | null {
@@ -928,7 +1058,17 @@ export class ForumResponseParser {
       firstReplyPermission(envelope, envelope.object('details')),
       postIds,
       posts,
-      numberOrZero(envelope.number('highest_post_number'))
+      numberOrZero(envelope.number('highest_post_number')),
+      new TopicDetailMetadata(
+        numberOrZero(envelope.number('category_id')),
+        booleanOrFalse(envelope.boolean('can_edit')) ||
+          booleanOrFalse(envelope.object('details')?.boolean('can_edit') ?? null),
+        textOrEmpty(envelope.object('details')?.object('created_by')?.string('username') ??
+          (posts.length > 0 ? posts[0].username : '')),
+        decodeStrings(envelope, 'valid_reactions'),
+        decodeSuggestedTopics(envelope),
+        numberOrZero(envelope.number('last_read_post_number'))
+      )
     );
     return RepositoryResult.success<TopicDetail>(detail);
   }
@@ -943,6 +1083,18 @@ export class ForumResponseParser {
     return posts === null
       ? RepositoryResult.failure<Array<ForumPost>>('服务器响应缺少 Post 列表')
       : RepositoryResult.success<Array<ForumPost>>(posts);
+  }
+
+  public parseTopicPostBatch(text: string): RepositoryResult<TopicPostBatch> {
+    const envelope: JsonObjectReader | null = JsonObjectReader.parse(text);
+    const postStream: JsonObjectReader | null = envelope?.object('post_stream') ?? null;
+    if (envelope === null || postStream === null) {
+      return RepositoryResult.failure<TopicPostBatch>('服务器响应缺少 Post 列表');
+    }
+    const posts: Array<ForumPost> | null = decodePosts(postStream);
+    return posts === null
+      ? RepositoryResult.failure<TopicPostBatch>('服务器响应缺少 Post 列表')
+      : RepositoryResult.success<TopicPostBatch>(new TopicPostBatch(posts, decodeSuggestedTopics(envelope)));
   }
 
   public parseCreatedReply(text: string): RepositoryResult<ForumPost> {

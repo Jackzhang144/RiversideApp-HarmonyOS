@@ -11,7 +11,13 @@ import {
 } from '../../../main/ets/app/AppShellModel';
 import { CategoryCacheScope } from '../../../main/ets/cache/CategoryCache';
 import { RepositoryResult } from '../../../main/ets/core/RepositoryResult';
-import { Category, ForumPost, Topic, TopicDetail } from '../../../main/ets/models/ForumModels';
+import {
+  Category,
+  ForumPost,
+  Topic,
+  TopicDetail,
+  TopicPostBatch
+} from '../../../main/ets/models/ForumModels';
 import { ForumSearchResult, HomeChannel } from '../../../main/ets/models/DiscoveryModels';
 import {
   CurrentUser,
@@ -45,7 +51,7 @@ class PendingRepositoryResult<T> {
 
 class TopicReadingRepository implements ForumRepository {
   public topicDetailResults: Array<RepositoryResult<TopicDetail>> = [];
-  public topicPostResults: Array<RepositoryResult<Array<ForumPost>>> = [];
+  public topicPostResults: Array<RepositoryResult<TopicPostBatch>> = [];
   public categoryTopicResults: Array<RepositoryResult<Array<Topic>>> = [];
   public topicDetailTasks: Array<Promise<RepositoryResult<TopicDetail>>> = [];
   public categoryTopicTasks: Array<Promise<RepositoryResult<Array<Topic>>>> = [];
@@ -101,10 +107,10 @@ class TopicReadingRepository implements ForumRepository {
     return result ?? RepositoryResult.failure<TopicDetail>('missing Topic detail result');
   }
 
-  public async loadTopicPosts(_topicId: number, postIds: Array<number>): Promise<RepositoryResult<Array<ForumPost>>> {
+  public async loadTopicPosts(_topicId: number, postIds: Array<number>): Promise<RepositoryResult<TopicPostBatch>> {
     this.requestedPostIds.push(postIds);
-    const result: RepositoryResult<Array<ForumPost>> | undefined = this.topicPostResults.shift();
-    return result ?? RepositoryResult.failure<Array<ForumPost>>('missing Post result');
+    const result: RepositoryResult<TopicPostBatch> | undefined = this.topicPostResults.shift();
+    return result ?? RepositoryResult.failure<TopicPostBatch>('missing Post result');
   }
 
   public async submitReply(request: ReplyRequest): Promise<ReplySubmitResult> {
@@ -448,12 +454,12 @@ export default function topicReadingTest(): void {
         [102728, 102729, 102730],
         [firstPost()]
       )));
-      repository.topicPostResults.push(RepositoryResult.failure<Array<ForumPost>>('网络连接失败'));
-      repository.topicPostResults.push(RepositoryResult.success<Array<ForumPost>>([
+      repository.topicPostResults.push(RepositoryResult.failure<TopicPostBatch>('网络连接失败'));
+      repository.topicPostResults.push(RepositoryResult.success<TopicPostBatch>(new TopicPostBatch([
         firstPost(),
         secondPost(),
         thirdPost()
-      ]));
+      ])));
       const model: AppShellModel = new AppShellModel(
         repository,
         new MemoryCategoryCache(),
@@ -493,10 +499,10 @@ export default function topicReadingTest(): void {
         [102729, 102728, 102731, 102730],
         [secondPost(), firstPost()]
       )));
-      repository.topicPostResults.push(RepositoryResult.success<Array<ForumPost>>([
+      repository.topicPostResults.push(RepositoryResult.success<TopicPostBatch>(new TopicPostBatch([
         fourthPost(),
         thirdPost()
-      ]));
+      ])));
       const model: AppShellModel = new AppShellModel(
         repository,
         new MemoryCategoryCache(),

@@ -1,6 +1,6 @@
 import { describe, expect, it } from '@ohos/hypium';
 import { RepositoryResult, RepositoryResultKind } from '../../../main/ets/core/RepositoryResult';
-import { ForumPost, Topic, TopicDetail } from '../../../main/ets/models/ForumModels';
+import { ForumPost, Topic, TopicDetail, TopicPostBatch } from '../../../main/ets/models/ForumModels';
 import { ForumSearchResult, HomeChannel } from '../../../main/ets/models/DiscoveryModels';
 import {
   CurrentUser,
@@ -158,6 +158,46 @@ export default function discourseForumRepositoryTest(): void {
       done();
     });
 
+    it('preserves Topic permissions, system actions, reactions, bookmarks and suggestions', 0,
+      async (done: Function) => {
+        const client: StubForumHttpClient = new StubForumHttpClient();
+        client.results.push(HttpTextResult.success(200,
+          '{"id":2725,"title":"完整阅读","category_id":111,"views":20,"posts_count":2,"like_count":3,' +
+          '"closed":false,"archived":false,"can_edit":true,"last_read_post_number":1,' +
+          '"highest_post_number":2,"valid_reactions":["heart","+1"],' +
+          '"details":{"can_create_post":false,"created_by":{"username":"admin"}},' +
+          '"suggested_topics":[{"id":2800,"title":"推荐 Topic","category_id":111,"posts_count":4}],' +
+          '"post_stream":{"stream":[102728,102729],"posts":[' +
+          '{"id":102728,"user_id":24,"username":"Co-admin","user_title":"管理员",' +
+          '"avatar_template":"/user_avatar/river-side.cc/co-admin/{size}/1_2.png",' +
+          '"cooked":"<p>正文</p>","raw":"正文","post_number":1,"created_at":"2026-01-27T14:46:08Z",' +
+          '"reactions":[{"id":"heart","count":2}],"current_user_reaction":{"id":"heart"},' +
+          '"can_edit":true,"can_delete":true,"bookmarked":true,"bookmark_id":901},' +
+          '{"id":102729,"user_id":-1,"username":"system","cooked":"","raw":"",' +
+          '"post_number":2,"post_type":3,"action_code":"closed.enabled","created_at":"2026-01-27T14:47:08Z"}' +
+          ']}}'
+        ));
+        const repository: DiscourseForumRepository = new DiscourseForumRepository(client);
+
+        const result: RepositoryResult<TopicDetail> = await repository.loadTopicDetail(2725);
+
+        expect(result.kind).assertEqual(RepositoryResultKind.SUCCESS);
+        expect(result.data?.categoryId).assertEqual(111);
+        expect(result.data?.canEdit).assertTrue();
+        expect(result.data?.canReply).assertFalse();
+        expect(result.data?.authorUsername).assertEqual('admin');
+        expect(result.data?.validReactions.join(',')).assertEqual('heart,+1');
+        expect(result.data?.lastReadPostNumber).assertEqual(1);
+        expect(result.data?.suggestedTopics[0].id).assertEqual(2800);
+        expect(result.data?.posts[0].likeCount).assertEqual(2);
+        expect(result.data?.posts[0].currentUserReaction).assertEqual('heart');
+        expect(result.data?.posts[0].bookmarked).assertTrue();
+        expect(result.data?.posts[0].bookmarkId).assertEqual(901);
+        expect(result.data?.posts[0].canEdit).assertTrue();
+        expect(result.data?.posts[1].isSystemAction()).assertTrue();
+        done();
+      });
+
     it('loads Topic detail around a searched Post number', 0, async (done: Function) => {
       const client: StubForumHttpClient = new StubForumHttpClient();
       client.results.push(HttpTextResult.success(200,
@@ -179,19 +219,20 @@ export default function discourseForumRepositoryTest(): void {
         '"raw":"第一条 Reply","post_number":2,"reply_to_post_number":null,"created_at":"2026-01-28T00:00:00Z"},' +
         '{"id":102730,"user_id":24,"username":"Co-admin","cooked":"<p>第二条 Reply</p>",' +
         '"raw":"第二条 Reply","post_number":3,"reply_to_post_number":2,"created_at":"2026-01-28T00:01:00Z"}' +
-        ']}}'
+        ']},"suggested_topics":[{"id":2800,"title":"推荐 Topic","category_id":111,"posts_count":4}]}'
       ));
       const repository: DiscourseForumRepository = new DiscourseForumRepository(client);
 
-      const result: RepositoryResult<Array<ForumPost>> =
+      const result: RepositoryResult<TopicPostBatch> =
         await repository.loadTopicPosts(2725, [102729, 102730]);
 
       expect(client.paths[0]).assertEqual(
         '/t/2725/posts.json?post_ids[]=102729&post_ids[]=102730&include_suggested=true'
       );
       expect(result.kind).assertEqual(RepositoryResultKind.SUCCESS);
-      expect(result.data?.length).assertEqual(2);
-      expect(result.data?.[1].postNumber).assertEqual(3);
+      expect(result.data?.posts.length).assertEqual(2);
+      expect(result.data?.posts[1].postNumber).assertEqual(3);
+      expect(result.data?.suggestedTopics[0].id).assertEqual(2800);
       done();
     });
 
