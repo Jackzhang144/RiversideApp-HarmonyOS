@@ -255,12 +255,19 @@ export enum ComposerTool {
   HEADING_1 = 'heading-1',
   HEADING_2 = 'heading-2',
   HEADING_3 = 'heading-3',
+  HEADING_4 = 'heading-4',
   LINK = 'link',
   QUOTE = 'quote',
   CODE_BLOCK = 'code-block',
   INLINE_CODE = 'inline-code',
   BULLET_LIST = 'bullet-list',
   ORDERED_LIST = 'ordered-list',
+  CHECKLIST = 'checklist',
+  CHECKLIST_DONE = 'checklist-done',
+  SPOILER = 'spoiler',
+  TABLE_OF_CONTENTS = 'table-of-contents',
+  TABLE = 'table',
+  MATH = 'math',
   POLL_SINGLE = 'poll-single',
   POLL_MULTIPLE = 'poll-multiple'
 }
@@ -401,6 +408,9 @@ export function applyComposerTool(
   if (tool === ComposerTool.HEADING_3) {
     return headingEdit(source, selection, '###');
   }
+  if (tool === ComposerTool.HEADING_4) {
+    return headingEdit(source, selection, '####');
+  }
   if (tool === ComposerTool.LINK) {
     if (selection.selected.trim().length > 0) {
       const label: string = selection.selected;
@@ -438,6 +448,26 @@ export function applyComposerTool(
   }
   if (tool === ComposerTool.ORDERED_LIST) {
     return listEdit(source, selection, true);
+  }
+  if (tool === ComposerTool.CHECKLIST || tool === ComposerTool.CHECKLIST_DONE) {
+    const marker: string = tool === ComposerTool.CHECKLIST ? '- [ ] ' : '- [x] ';
+    return wrapSelection(source, selection, marker, '', '列表条目');
+  }
+  if (tool === ComposerTool.SPOILER) {
+    return wrapSelection(source, selection, '[spoiler]', '[/spoiler]', '此文本将被模糊处理');
+  }
+  if (tool === ComposerTool.TABLE_OF_CONTENTS) {
+    return insertBlock(source, selection, '<div data-theme-toc="true"> </div>');
+  }
+  if (tool === ComposerTool.TABLE) {
+    return insertBlock(
+      source,
+      selection,
+      '|第 1 列 | 第 2 列 | 第 3 列 |\n|--- | --- | ---|\n|1 | 2 | 3 |'
+    );
+  }
+  if (tool === ComposerTool.MATH) {
+    return insertBlock(source, selection, '$$\nE=mc^2\n$$');
   }
   if (tool === ComposerTool.POLL_SINGLE) {
     return insertBlock(source, selection, SINGLE_POLL_TEMPLATE);

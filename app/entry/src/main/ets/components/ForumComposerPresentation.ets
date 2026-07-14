@@ -150,6 +150,10 @@ export class ForumComposerPresentation {
     return this.status === ForumComposerStatus.REAUTHENTICATE;
   }
 
+  public canEdit(): boolean {
+    return !this.isBusy() && !this.needsAuthentication();
+  }
+
   public canSubmit(): boolean {
     if (this.isBusy() || this.needsAuthentication() || this.bodyDraft.trim().length === 0) {
       return false;

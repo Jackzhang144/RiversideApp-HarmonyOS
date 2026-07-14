@@ -96,12 +96,23 @@ export struct ForumComposer {
     Button(label)
       .height(34)
       .fontSize(12)
-      .enabled(!this.presentation.isBusy())
+      .enabled(this.presentation.canEdit())
       .backgroundColor('#EAF2FF')
       .fontColor('#2068C9')
       .margin({ right: 7, bottom: 7 })
       .onClick((): void => this.applyTool(tool))
       .accessibilityText(accessibilityText)
+  }
+
+  @Builder
+  private EmojiPicker(): void {
+    Menu() {
+      ForEach(['😀', '😂', '😍', '👍', '🎉', '❤️', '🤔', '🙏'], (emoji: string) => {
+        MenuItem({ content: emoji })
+          .enabled(this.presentation.canEdit())
+          .onClick((): void => this.insertText(emoji))
+      }, (emoji: string): string => emoji)
+    }
   }
 
   @Builder
@@ -112,21 +123,33 @@ export struct ForumComposer {
       this.ToolButton('H1', ComposerTool.HEADING_1, '一级标题')
       this.ToolButton('H2', ComposerTool.HEADING_2, '二级标题')
       this.ToolButton('H3', ComposerTool.HEADING_3, '三级标题')
+      this.ToolButton('H4', ComposerTool.HEADING_4, '四级标题')
       this.ToolButton('链接', ComposerTool.LINK, '插入链接')
       this.ToolButton('引用', ComposerTool.QUOTE, '块引用')
       this.ToolButton('代码', ComposerTool.CODE_BLOCK, '代码块')
+      this.ToolButton('`code`', ComposerTool.INLINE_CODE, '行内代码')
       this.ToolButton('• 列表', ComposerTool.BULLET_LIST, '无序列表')
       this.ToolButton('1. 列表', ComposerTool.ORDERED_LIST, '有序列表')
+      this.ToolButton('☐', ComposerTool.CHECKLIST, 'Checklist')
+      this.ToolButton('☑', ComposerTool.CHECKLIST_DONE, '已完成 Checklist')
+      this.ToolButton('Spoiler', ComposerTool.SPOILER, 'Spoiler')
+      this.ToolButton('目录', ComposerTool.TABLE_OF_CONTENTS, '目录')
       this.ToolButton('单选投票', ComposerTool.POLL_SINGLE, '插入单选投票模板')
       this.ToolButton('多选投票', ComposerTool.POLL_MULTIPLE, '插入多选投票模板')
+      this.ToolButton('表格', ComposerTool.TABLE, '插入表格')
+      this.ToolButton('公式', ComposerTool.MATH, '插入公式')
       Button('😀')
         .height(34)
         .fontSize(16)
-        .enabled(!this.presentation.isBusy())
+        .enabled(this.presentation.canEdit())
         .backgroundColor('#EAF2FF')
         .margin({ right: 7, bottom: 7 })
         .onClick((): void => this.insertText('😀'))
-        .accessibilityText('插入 Emoji')
+        .bindContextMenu(this.EmojiPicker(), ResponseType.LongPress, {
+          preview: MenuPreviewMode.NONE,
+          enableArrow: true
+        })
+        .accessibilityText('插入 Emoji，长按选择其他 Emoji')
       Button() {
         SymbolGlyph($r('sys.symbol.ohos_photo'))
           .fontSize(18)
@@ -138,6 +161,15 @@ export struct ForumComposer {
       .backgroundColor('#F5F6F8')
       .margin({ right: 7, bottom: 7 })
       .accessibilityText(this.presentation.imageActionAccessibilityText)
+      Button('@')
+        .width(42)
+        .height(34)
+        .fontSize(16)
+        .enabled(this.presentation.mentionActionAvailable)
+        .backgroundColor('#F5F6F8')
+        .fontColor($r('sys.color.font_tertiary'))
+        .margin({ right: 7, bottom: 7 })
+        .accessibilityText(this.presentation.mentionActionAccessibilityText)
     }
     .width('100%')
   }
@@ -183,7 +215,7 @@ export struct ForumComposer {
         Button('保存草稿')
           .layoutWeight(1)
           .height(42)
-          .enabled(!this.presentation.isBusy())
+          .enabled(this.presentation.canEdit())
           .backgroundColor('#EAF2FF')
           .fontColor('#2068C9')
           .onClick(this.onSaveDraft)
@@ -211,7 +243,7 @@ export struct ForumComposer {
             placeholder: this.presentation.titlePlaceholder
           })
             .height(44)
-            .enabled(!this.presentation.isBusy())
+            .enabled(this.presentation.canEdit())
             .backgroundColor('#F5F6F8')
             .onChange((value: string): void => this.onTitleChange(value))
             .accessibilityText('Topic 标题')
@@ -222,7 +254,7 @@ export struct ForumComposer {
           controller: this.bodyController
         })
           .height(190)
-          .enabled(!this.presentation.isBusy())
+          .enabled(this.presentation.canEdit())
           .backgroundColor('#F5F6F8')
           .borderRadius(10)
           .onChange((value: string): void => this.onBodyChange(value))

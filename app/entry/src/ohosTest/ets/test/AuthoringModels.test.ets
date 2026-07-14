@@ -37,6 +37,19 @@ export default function authoringModelsTest(): void {
       );
     });
 
+    it('covers every frozen non-media composer template', 0, () => {
+      expect(applyComposerTool('', 0, 0, ComposerTool.HEADING_4).text).assertEqual('#### 标题');
+      expect(applyComposerTool('', 0, 0, ComposerTool.INLINE_CODE).text).assertEqual('`code`');
+      expect(applyComposerTool('', 0, 0, ComposerTool.CHECKLIST).text).assertEqual('- [ ] 列表条目');
+      expect(applyComposerTool('', 0, 0, ComposerTool.CHECKLIST_DONE).text).assertEqual('- [x] 列表条目');
+      expect(applyComposerTool('', 0, 0, ComposerTool.SPOILER).text)
+        .assertEqual('[spoiler]此文本将被模糊处理[/spoiler]');
+      expect(applyComposerTool('', 0, 0, ComposerTool.TABLE_OF_CONTENTS).text)
+        .assertEqual('<div data-theme-toc="true"> </div>');
+      expect(applyComposerTool('', 0, 0, ComposerTool.TABLE).text).assertContain('|第 1 列');
+      expect(applyComposerTool('', 0, 0, ComposerTool.MATH).text).assertEqual('$$\nE=mc^2\n$$');
+    });
+
     it('auto-quotes a non-adjacent Post with author Topic and Post identity', 0, () => {
       const post = new ForumPost(
         103066,

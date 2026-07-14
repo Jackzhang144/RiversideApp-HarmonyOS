@@ -66,6 +66,7 @@ export default function forumComposerPresentationTest(): void {
       expect(checking.canSubmit()).assertFalse();
       expect(checking.submitLabel()).assertEqual('正在确认');
       expect(reauthenticate.needsAuthentication()).assertTrue();
+      expect(reauthenticate.canEdit()).assertFalse();
       expect(reauthenticate.canSubmit()).assertFalse();
     });
 
