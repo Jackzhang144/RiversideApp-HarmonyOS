@@ -11,6 +11,11 @@ export struct ImageViewerPage {
   onOpenExternally: () => void = (): void => {};
   onSaveAuthorized: () => void = (): void => {};
   onSaveAuthorizationFailure: () => void = (): void => {};
+  private readonly saveButtonOptions: SaveButtonOptions = {
+    icon: SaveIconStyle.FULL_FILLED,
+    text: SaveDescription.SAVE_IMAGE,
+    buttonType: ButtonType.Capsule
+  };
 
   private presentation(): ImageViewerPresentation {
     return new ImageViewerPresentation(this.state);
@@ -52,7 +57,7 @@ export struct ImageViewerPage {
       }
 
       Row({ space: 10 }) {
-        SaveButton()
+        SaveButton(this.saveButtonOptions)
           .width('32%')
           .height(46)
           .enabled(this.presentation().canSave())
