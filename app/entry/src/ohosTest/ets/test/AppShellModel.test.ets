@@ -28,6 +28,10 @@ import {
   ReplySubmitResult
 } from '../../../main/ets/models/ReplyModels';
 import { ForumRepository } from '../../../main/ets/repositories/ForumRepository';
+import {
+  DiscoverySettings,
+  DiscoverySettingsStore
+} from '../../../main/ets/settings/DiscoverySettingsStore';
 import { MemoryCategoryCache } from './support/MemoryCategoryCache';
 
 class StubForumRepository implements ForumRepository {
@@ -102,6 +106,20 @@ class StubAuthenticationLifecycle implements AuthenticationLifecycle {
 
   public async handleUnauthorized(): Promise<void> {
     this.unauthorizedCallCount += 1;
+  }
+}
+
+class MemoryDiscoverySettingsStore implements DiscoverySettingsStore {
+  public stored: DiscoverySettings | null = null;
+  public writes: Array<DiscoverySettings> = [];
+
+  public async read(): Promise<DiscoverySettings | null> {
+    return this.stored;
+  }
+
+  public async write(settings: DiscoverySettings): Promise<void> {
+    this.stored = settings;
+    this.writes.push(settings);
   }
 }
 
@@ -309,6 +327,45 @@ export default function appShellModelTest(): void {
 
       await model.retrySearch();
       expect(model.searchState.kind).assertEqual(SearchStateKind.EMPTY);
+      done();
+    });
+
+    it('restores and persists the Home channel and World Cup entry setting', 0, async (done: Function) => {
+      const settings: MemoryDiscoverySettingsStore = new MemoryDiscoverySettingsStore();
+      settings.stored = new DiscoverySettings(HomeChannel.HOT, false);
+      const model: AppShellModel = new AppShellModel(
+        new StubForumRepository(),
+        new MemoryCategoryCache(),
+        CategoryCacheScope.anonymous(),
+        null,
+        settings
+      );
+
+      await model.restoreDiscoverySettings();
+      expect(model.selectedHomeChannel).assertEqual(HomeChannel.HOT);
+      expect(model.worldCupEntryEnabled).assertFalse();
+
+      expect(await model.selectHomeChannel(HomeSortTabIndex.FEATURED)).assertTrue();
+      await model.setWorldCupEntryEnabled(true);
+      expect(settings.writes.length).assertEqual(2);
+      expect(settings.stored?.homeChannel).assertEqual(HomeChannel.FEATURED);
+      expect(settings.stored?.worldCupEntryEnabled).assertTrue();
+      done();
+    });
+
+    it('applies a supported server Home preference and persists it', 0, async (done: Function) => {
+      const settings: MemoryDiscoverySettingsStore = new MemoryDiscoverySettingsStore();
+      const model: AppShellModel = new AppShellModel(
+        new StubForumRepository(),
+        new MemoryCategoryCache(),
+        CategoryCacheScope.anonymous(),
+        null,
+        settings
+      );
+
+      expect(await model.applyServerHomeChannel(HomeChannel.LATEST_CREATED)).assertTrue();
+      expect(model.selectedHomeChannel).assertEqual(HomeChannel.LATEST_CREATED);
+      expect(settings.stored?.homeChannel).assertEqual(HomeChannel.LATEST_CREATED);
       done();
     });
 

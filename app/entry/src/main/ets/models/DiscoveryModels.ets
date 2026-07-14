@@ -8,6 +8,25 @@ export enum HomeChannel {
   FEATURED = 4
 }
 
+export function homeChannelFromIndex(index: number): HomeChannel | null {
+  if (index === HomeChannel.LATEST_REPLIES) {
+    return HomeChannel.LATEST_REPLIES;
+  }
+  if (index === HomeChannel.LATEST_CREATED) {
+    return HomeChannel.LATEST_CREATED;
+  }
+  if (index === HomeChannel.UNREAD) {
+    return HomeChannel.UNREAD;
+  }
+  if (index === HomeChannel.HOT) {
+    return HomeChannel.HOT;
+  }
+  if (index === HomeChannel.FEATURED) {
+    return HomeChannel.FEATURED;
+  }
+  return null;
+}
+
 export function homeChannelLabel(channel: HomeChannel): string {
   if (channel === HomeChannel.LATEST_CREATED) {
     return '最新发表';

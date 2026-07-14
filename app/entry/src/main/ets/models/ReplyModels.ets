@@ -1,4 +1,5 @@
 import { ForumPost } from './ForumModels';
+import { HomeChannel } from './DiscoveryModels';
 
 export interface CurrentUserAttributes {
   name?: string;
@@ -15,6 +16,7 @@ export interface CurrentUserAttributes {
   groupIds?: Array<number>;
   primaryGroupId?: number | null;
   flairGroupId?: number | null;
+  defaultHomeChannel?: HomeChannel | null;
 }
 
 export class CurrentUser {
@@ -38,6 +40,7 @@ export class CurrentUser {
   public readonly roleLabel: string;
   public readonly canReply: boolean;
   public readonly canStartDirectChat: boolean;
+  public readonly defaultHomeChannel: HomeChannel | null;
 
   private constructor(
     id: number,
@@ -57,7 +60,8 @@ export class CurrentUser {
     primaryGroupId: number | null,
     flairGroupId: number | null,
     isVerified: boolean,
-    roleLabel: string
+    roleLabel: string,
+    defaultHomeChannel: HomeChannel | null
   ) {
     this.id = id;
     this.username = username;
@@ -79,6 +83,7 @@ export class CurrentUser {
     this.roleLabel = roleLabel;
     this.canReply = admin || moderator || canCreatePost;
     this.canStartDirectChat = canChatWithUser || (canChat && canDirectMessage);
+    this.defaultHomeChannel = defaultHomeChannel;
   }
 
   public static create(
@@ -145,7 +150,8 @@ export class CurrentUser {
       attributes.primaryGroupId ?? null,
       attributes.flairGroupId ?? null,
       isVerified,
-      roleLabel
+      roleLabel,
+      attributes.defaultHomeChannel ?? null
     );
   }
 }

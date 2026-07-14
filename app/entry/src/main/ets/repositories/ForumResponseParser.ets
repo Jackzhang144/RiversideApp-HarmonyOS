@@ -1,7 +1,14 @@
 import { RepositoryResult } from '../core/RepositoryResult';
 import { JsonObjectReader } from '../core/JsonObjectReader';
 import { Category, ForumPost, Topic, TopicDetail } from '../models/ForumModels';
-import { ForumSearchResult, SearchGroup, SearchPost, SearchTag, SearchUser } from '../models/DiscoveryModels';
+import {
+  ForumSearchResult,
+  HomeChannel,
+  SearchGroup,
+  SearchPost,
+  SearchTag,
+  SearchUser
+} from '../models/DiscoveryModels';
 import { CurrentUser } from '../models/ReplyModels';
 
 interface UserDto {
@@ -211,6 +218,37 @@ function canCreatePost(user: JsonObjectReader): boolean {
     ['can_create_post', 'can_create_posts', 'can_create_topic', 'can_create_topics'],
     true
   );
+}
+
+function homeChannelFromUserOption(userOption: JsonObjectReader | null): HomeChannel | null {
+  if (userOption === null) {
+    return null;
+  }
+  const numericPreference: number | null = userOption.number('homepage_id') ??
+    userOption.number('homepage') ?? userOption.number('default_homepage');
+  if (numericPreference === 1) {
+    return HomeChannel.LATEST_REPLIES;
+  }
+  if (numericPreference === 4) {
+    return HomeChannel.LATEST_CREATED;
+  }
+  if (numericPreference === 5) {
+    return HomeChannel.HOT;
+  }
+  const textPreference: string = (
+    userOption.string('homepage_id') ?? userOption.string('homepage') ??
+      userOption.string('default_homepage') ?? ''
+  ).trim().toLowerCase();
+  if (textPreference === 'latest') {
+    return HomeChannel.LATEST_REPLIES;
+  }
+  if (textPreference === 'new' || textPreference === 'created') {
+    return HomeChannel.LATEST_CREATED;
+  }
+  if (textPreference === 'top' || textPreference === 'hot') {
+    return HomeChannel.HOT;
+  }
+  return null;
 }
 
 function usernameForTopic(
@@ -785,7 +823,8 @@ export class ForumResponseParser {
           groupNames: groups.names,
           groupIds: groups.ids,
           primaryGroupId: user.number('primary_group_id'),
-          flairGroupId: user.number('flair_group_id')
+          flairGroupId: user.number('flair_group_id'),
+          defaultHomeChannel: homeChannelFromUserOption(userOption)
         }
       );
     return currentUser === null

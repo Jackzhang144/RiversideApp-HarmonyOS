@@ -245,7 +245,7 @@ export default function discourseForumRepositoryTest(): void {
         '{"current_user":{"id":24,"username":"Co-admin","name":"协管员",' +
         '"title":"社区维护","admin":false,"moderator":true,"trust_level":3,' +
         '"can_create_post":true,"can_create_topic":true,"can_chat":false,' +
-        '"user_option":{"chat_enabled":true},"can_send_private_messages":true,' +
+        '"user_option":{"chat_enabled":true,"homepage_id":5},"can_send_private_messages":true,' +
         '"unread_notifications":4,"primary_group_id":45,"flair_group_id":50,' +
         '"groups":[{"id":45,"name":"scuer"},{"id":50,"name":"rs_developer"}]}}'
       ));
@@ -262,6 +262,7 @@ export default function discourseForumRepositoryTest(): void {
       expect(result.data?.isVerified).assertTrue();
       expect(result.data?.canReply).assertTrue();
       expect(result.data?.canStartDirectChat).assertTrue();
+      expect(result.data?.defaultHomeChannel).assertEqual(HomeChannel.HOT);
       expect(result.data?.unreadNotifications).assertEqual(4);
       done();
     });

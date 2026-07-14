@@ -4,11 +4,13 @@ import { Category, ForumPost, Topic, TopicDetail } from '../models/ForumModels';
 import {
   ForumSearchResult,
   HomeChannel,
+  homeChannelFromIndex,
   SearchGroup,
   SearchPost,
   SearchTag,
   SearchUser
 } from '../models/DiscoveryModels';
+import { DiscoverySettings, DiscoverySettingsStore } from '../settings/DiscoverySettingsStore';
 import {
   CurrentUser,
   ReplyRecoveryKind,
@@ -465,6 +467,7 @@ export class AppShellModel {
   public requiresAuthentication: boolean = false;
   public homeState: BrowseState<Topic> = BrowseState.initial<Topic>();
   public selectedHomeChannel: HomeChannel = HomeChannel.LATEST_REPLIES;
+  public worldCupEntryEnabled: boolean = true;
   public categoryState: BrowseState<Category> = BrowseState.initial<Category>();
   public selectedCategory: Category | null = null;
   public categoryTopicsState: BrowseState<Topic> = BrowseState.initial<Topic>();
@@ -476,6 +479,7 @@ export class AppShellModel {
   private readonly categoryCache: CategoryCache;
   private categoryCacheScope: CategoryCacheScope;
   private readonly authenticationLifecycle: AuthenticationLifecycle | null;
+  private readonly discoverySettingsStore: DiscoverySettingsStore | null;
   private cachedCategories: Array<Category> | null = null;
   private remainingPostIds: Array<number> = [];
   private topicReturnDestination: SecondaryDestination = SecondaryDestination.NONE;
@@ -493,12 +497,14 @@ export class AppShellModel {
     repository: ForumRepository,
     categoryCache: CategoryCache,
     categoryCacheScope: CategoryCacheScope,
-    authenticationLifecycle: AuthenticationLifecycle | null = null
+    authenticationLifecycle: AuthenticationLifecycle | null = null,
+    discoverySettingsStore: DiscoverySettingsStore | null = null
   ) {
     this.repository = repository;
     this.categoryCache = categoryCache;
     this.categoryCacheScope = categoryCacheScope;
     this.authenticationLifecycle = authenticationLifecycle;
+    this.discoverySettingsStore = discoverySettingsStore;
   }
 
   public selectRoot(destination: RootDestination): void {
@@ -518,7 +524,10 @@ export class AppShellModel {
     if (!isHomeSortTabAvailable(index)) {
       return false;
     }
-    const channel: HomeChannel = index as HomeChannel;
+    const channel: HomeChannel | null = homeChannelFromIndex(index);
+    if (channel === null) {
+      return false;
+    }
     if (this.selectedHomeChannel !== channel) {
       this.selectedHomeChannel = channel;
       this.homeRequestVersion += 1;
@@ -526,6 +535,59 @@ export class AppShellModel {
       this.homeState = BrowseState.initial<Topic>();
     }
     return true;
+  }
+
+  public async restoreDiscoverySettings(): Promise<void> {
+    const store: DiscoverySettingsStore | null = this.discoverySettingsStore;
+    if (store === null) {
+      return;
+    }
+    try {
+      const settings: DiscoverySettings | null = await store.read();
+      if (settings === null) {
+        return;
+      }
+      this.selectedHomeChannel = settings.homeChannel;
+      this.worldCupEntryEnabled = settings.worldCupEntryEnabled;
+    } catch (_) {
+      // Settings restoration is best effort and falls back to the product defaults.
+    }
+  }
+
+  public async selectHomeChannel(index: number): Promise<boolean> {
+    if (!this.selectHomeSortTab(index)) {
+      return false;
+    }
+    await this.persistDiscoverySettings();
+    return true;
+  }
+
+  public async applyServerHomeChannel(channel: HomeChannel): Promise<boolean> {
+    if (!this.selectHomeSortTab(channel)) {
+      return false;
+    }
+    await this.persistDiscoverySettings();
+    return true;
+  }
+
+  public async setWorldCupEntryEnabled(enabled: boolean): Promise<void> {
+    if (this.worldCupEntryEnabled === enabled) {
+      return;
+    }
+    this.worldCupEntryEnabled = enabled;
+    await this.persistDiscoverySettings();
+  }
+
+  private async persistDiscoverySettings(): Promise<void> {
+    const store: DiscoverySettingsStore | null = this.discoverySettingsStore;
+    if (store === null) {
+      return;
+    }
+    try {
+      await store.write(new DiscoverySettings(this.selectedHomeChannel, this.worldCupEntryEnabled));
+    } catch (_) {
+      // A failed preference write does not invalidate current browse content.
+    }
   }
 
   public updateCategoryCacheScope(scope: CategoryCacheScope): void {
