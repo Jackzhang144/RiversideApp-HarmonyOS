@@ -484,6 +484,7 @@ export class AppShellModel {
   private remainingPostIds: Array<number> = [];
   private topicReturnDestination: SecondaryDestination = SecondaryDestination.NONE;
   private selectedTopic: Topic | null = null;
+  private selectedTopicPostNumber: number | null = null;
   private categoryRequestVersion: number = 0;
   private homeRequestVersion: number = 0;
   private searchRequestVersion: number = 0;
@@ -662,19 +663,21 @@ export class AppShellModel {
     await this.openCategory(category);
   }
 
-  public async openTopic(topic: Topic): Promise<void> {
+  public async openTopic(topic: Topic, initialPostNumber: number | null = null): Promise<void> {
     this.topicRequestVersion += 1;
     const requestVersion: number = this.topicRequestVersion;
     this.requiresAuthentication = false;
     this.replyRequestVersion += 1;
     this.replyState = ReplyComposerState.closed();
     this.selectedTopic = topic;
+    this.selectedTopicPostNumber = initialPostNumber;
     this.topicReturnDestination = this.activeDestination === SecondaryDestination.CATEGORY_TOPICS
       ? SecondaryDestination.CATEGORY_TOPICS
       : SecondaryDestination.NONE;
     this.activeDestination = SecondaryDestination.TOPIC;
     this.topicState = TopicReadState.loading(topic);
-    const result: RepositoryResult<TopicDetail> = await this.repository.loadTopicDetail(topic.id);
+    const result: RepositoryResult<TopicDetail> =
+      await this.repository.loadTopicDetail(topic.id, initialPostNumber);
     if (requestVersion !== this.topicRequestVersion || this.selectedTopic?.id !== topic.id) {
       return;
     }
@@ -703,7 +706,7 @@ export class AppShellModel {
       return;
     }
     const returnDestination: SecondaryDestination = this.topicReturnDestination;
-    await this.openTopic(topic);
+    await this.openTopic(topic, this.selectedTopicPostNumber);
     if (this.activeDestination === SecondaryDestination.TOPIC) {
       this.topicReturnDestination = returnDestination;
     }
@@ -890,6 +893,7 @@ export class AppShellModel {
       this.activeDestination = SecondaryDestination.NONE;
     }
     this.remainingPostIds = [];
+    this.selectedTopicPostNumber = null;
   }
 
   private nextExpectedPostNumber(detail: TopicDetail): number {

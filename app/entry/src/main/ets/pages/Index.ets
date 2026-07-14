@@ -37,7 +37,7 @@ import { SearchPage } from '../components/SearchPage';
 import { TopicDetailPage } from '../components/TopicDetailPage';
 import { UiPrototypePage } from '../components/prototype/UiPrototypePage';
 import { Category, Topic } from '../models/ForumModels';
-import { HomeChannel } from '../models/DiscoveryModels';
+import { HomeChannel, SearchPost } from '../models/DiscoveryModels';
 import { CurrentUser } from '../models/ReplyModels';
 import {
   AuthenticatedSessionProvider,
@@ -410,12 +410,12 @@ struct Index {
     this.categoryTopicsState = model.categoryTopicsState;
   }
 
-  private async openTopic(topic: Topic): Promise<void> {
+  private async openTopic(topic: Topic, initialPostNumber: number | null = null): Promise<void> {
     const model: AppShellModel | null = this.model;
     if (model === null) {
       return;
     }
-    const task: Promise<void> = model.openTopic(topic);
+    const task: Promise<void> = model.openTopic(topic, initialPostNumber);
     this.topicState = model.topicState;
     this.synchronizeReplyState(model, false);
     this.pathStack.pushPath({ name: TOPIC_ROUTE });
@@ -652,6 +652,9 @@ struct Index {
           },
           onOpenTopic: (topic: Topic): void => {
             this.openTopic(topic);
+          },
+          onOpenPost: (post: SearchPost): void => {
+            this.openTopic(post.topic, post.postNumber);
           },
           onOpenCategory: (category: Category): void => {
             this.openCategory(category);

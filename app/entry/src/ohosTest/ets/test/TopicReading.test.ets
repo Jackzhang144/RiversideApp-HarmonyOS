@@ -51,6 +51,7 @@ class TopicReadingRepository implements ForumRepository {
   public categoryTopicTasks: Array<Promise<RepositoryResult<Array<Topic>>>> = [];
   public requestedCategoryIds: Array<number> = [];
   public requestedPostIds: Array<Array<number>> = [];
+  public requestedTopicPostNumbers: Array<number | null> = [];
   public currentUserResults: Array<RepositoryResult<CurrentUser>> = [];
   public replySubmitResults: Array<ReplySubmitResult> = [];
   public replyRecoveryResults: Array<ReplyRecoveryResult> = [];
@@ -87,7 +88,11 @@ class TopicReadingRepository implements ForumRepository {
     return result ?? RepositoryResult.failure<Array<Topic>>('missing Category Topic result');
   }
 
-  public async loadTopicDetail(_topicId: number): Promise<RepositoryResult<TopicDetail>> {
+  public async loadTopicDetail(
+    _topicId: number,
+    postNumber: number | null = null
+  ): Promise<RepositoryResult<TopicDetail>> {
+    this.requestedTopicPostNumbers.push(postNumber);
     const task: Promise<RepositoryResult<TopicDetail>> | undefined = this.topicDetailTasks.shift();
     if (task !== undefined) {
       return await task;
@@ -357,6 +362,44 @@ export default function topicReadingTest(): void {
       await model.retryTopic();
       expect(model.topicState.kind).assertEqual(TopicReadStateKind.CONTENT);
       expect(model.topicState.topicId).assertEqual(2725);
+      done();
+    });
+
+    it('opens and retries a searched Post from its requested floor', 0, async (done: Function) => {
+      const repository: TopicReadingRepository = new TopicReadingRepository();
+      repository.topicDetailResults.push(RepositoryResult.failure<TopicDetail>('网络连接失败'));
+      repository.topicDetailResults.push(RepositoryResult.success<TopicDetail>(new TopicDetail(
+        2725,
+        '站务管理区重要主题导航',
+        1959,
+        12,
+        4,
+        false,
+        false,
+        true,
+        [102739],
+        [new ForumPost(
+          102739,
+          24,
+          'Co-admin',
+          '<p>命中的 Post</p>',
+          '命中的 Post',
+          12,
+          null,
+          '2026-01-28T00:00:00Z'
+        )]
+      )));
+      const model: AppShellModel = new AppShellModel(
+        repository,
+        new MemoryCategoryCache(),
+        CategoryCacheScope.anonymous()
+      );
+
+      await model.openTopic(topic(), 12);
+      await model.retryTopic();
+
+      expect(repository.requestedTopicPostNumbers.join(',')).assertEqual('12,12');
+      expect(model.topicState.posts[0].postNumber).assertEqual(12);
       done();
     });
 

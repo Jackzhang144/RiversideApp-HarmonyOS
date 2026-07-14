@@ -22,7 +22,7 @@ export interface ForumRepository {
 
   searchSuggestions(term: string): Promise<RepositoryResult<Array<string>>>;
 
-  loadTopicDetail(topicId: number): Promise<RepositoryResult<TopicDetail>>;
+  loadTopicDetail(topicId: number, postNumber?: number | null): Promise<RepositoryResult<TopicDetail>>;
 
   loadTopicPosts(topicId: number, postIds: Array<number>): Promise<RepositoryResult<Array<ForumPost>>>;
 

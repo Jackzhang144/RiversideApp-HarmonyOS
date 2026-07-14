@@ -158,6 +158,19 @@ export default function discourseForumRepositoryTest(): void {
       done();
     });
 
+    it('loads Topic detail around a searched Post number', 0, async (done: Function) => {
+      const client: StubForumHttpClient = new StubForumHttpClient();
+      client.results.push(HttpTextResult.success(200,
+        '{"id":2725,"title":"站务管理区重要主题导航","post_stream":{"stream":[],"posts":[]}}'
+      ));
+      const repository: DiscourseForumRepository = new DiscourseForumRepository(client);
+
+      await repository.loadTopicDetail(2725, 12);
+
+      expect(client.paths[0]).assertEqual('/t/2725/12.json?track_visit=true');
+      done();
+    });
+
     it('loads a Post window in the requested id order', 0, async (done: Function) => {
       const client: StubForumHttpClient = new StubForumHttpClient();
       client.results.push(HttpTextResult.success(200,

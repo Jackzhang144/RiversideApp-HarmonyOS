@@ -13,6 +13,7 @@ export struct SearchPage {
   onRetry: () => void = (): void => {};
   onLoadMore: () => void = (): void => {};
   onOpenTopic: (topic: Topic) => void = (_topic: Topic): void => {};
+  onOpenPost: (post: SearchPost) => void = (_post: SearchPost): void => {};
   onOpenCategory: (category: Category) => void = (_category: Category): void => {};
 
   private submit(): void {
@@ -114,7 +115,7 @@ export struct SearchPage {
     .backgroundColor('#FFFFFF')
     .borderRadius(12)
     .border({ width: 1, color: '#E8EBF0' })
-    .onClick((): void => this.onOpenTopic(post.topic))
+    .onClick((): void => this.onOpenPost(post))
     .accessibilityText(`${post.topic.title}，第 ${post.postNumber} 条 Post`)
   }
 

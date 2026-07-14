@@ -116,11 +116,18 @@ export class DiscourseForumRepository implements ForumRepository {
     return this.parser.parseSearchSuggestions(response.body);
   }
 
-  public async loadTopicDetail(topicId: number): Promise<RepositoryResult<TopicDetail>> {
+  public async loadTopicDetail(
+    topicId: number,
+    postNumber: number | null = null
+  ): Promise<RepositoryResult<TopicDetail>> {
     if (!Number.isInteger(topicId) || topicId <= 0) {
       return RepositoryResult.failure<TopicDetail>('Topic 标识无效');
     }
-    const response: HttpTextResult = await this.client.get(`/t/${topicId}.json?track_visit=true`);
+    if (postNumber !== null && (!Number.isInteger(postNumber) || postNumber <= 0)) {
+      return RepositoryResult.failure<TopicDetail>('Post 楼层无效');
+    }
+    const path: string = postNumber === null ? `/t/${topicId}.json` : `/t/${topicId}/${postNumber}.json`;
+    const response: HttpTextResult = await this.client.get(`${path}?track_visit=true`);
     if (response.kind === HttpTextResultKind.UNAUTHORIZED) {
       return RepositoryResult.unauthorized<TopicDetail>();
     }
