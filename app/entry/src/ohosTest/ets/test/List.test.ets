@@ -22,9 +22,11 @@ import sessionStoreTest from './SessionStore.test';
 import topicReadingTest from './TopicReading.test';
 import topicReadingPresentationTest from './TopicReadingPresentation.test';
 import chatModelsTest from './ChatModels.test';
+import chatRepositoryTest from './ChatRepository.test';
 
 export default function tests(): void {
   chatModelsTest();
+  chatRepositoryTest();
   accountPresentationTest();
   appShellModelTest();
   authoringModelsTest();

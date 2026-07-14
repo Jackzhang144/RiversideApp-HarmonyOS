@@ -212,6 +212,145 @@ export class ChatSearchResult {
   }
 }
 
+export class ChatMessageQuery {
+  public readonly targetMessageId: number | null;
+  public readonly direction: string;
+  public readonly fetchFromLastRead: boolean;
+
+  private constructor(targetMessageId: number | null, direction: string, fetchFromLastRead: boolean) {
+    this.targetMessageId = targetMessageId;
+    this.direction = direction;
+    this.fetchFromLastRead = fetchFromLastRead;
+  }
+
+  public static initial(): ChatMessageQuery {
+    return new ChatMessageQuery(null, '', true);
+  }
+
+  public static latest(): ChatMessageQuery {
+    return new ChatMessageQuery(null, '', false);
+  }
+
+  public static around(targetMessageId: number, direction: string): ChatMessageQuery | null {
+    const normalizedDirection: string = direction.trim().toLowerCase();
+    if (
+      !Number.isSafeInteger(targetMessageId) ||
+      targetMessageId <= 0 ||
+      (normalizedDirection !== 'past' && normalizedDirection !== 'future')
+    ) {
+      return null;
+    }
+    return new ChatMessageQuery(targetMessageId, normalizedDirection, false);
+  }
+
+  public queryString(): string {
+    const values: Array<string> = ['page_size=30'];
+    if (this.fetchFromLastRead && this.targetMessageId === null) {
+      values.push('fetch_from_last_read=true');
+    }
+    if (this.targetMessageId !== null) {
+      values.push(`target_message_id=${this.targetMessageId}`);
+    }
+    if (this.direction.length > 0) {
+      values.push(`direction=${this.direction}`);
+    }
+    return values.join('&');
+  }
+}
+
+export enum ChatReactionAction {
+  ADD = 'add',
+  REMOVE = 'remove'
+}
+
+interface ChatSendPayload {
+  message: string;
+  staged_id: string;
+  client_created_at: string;
+  in_reply_to_id?: number;
+  upload_ids?: Array<number>;
+}
+
+export class ChatSendRequest {
+  public readonly channelId: number;
+  public readonly message: string;
+  public readonly uploadIds: Array<number>;
+  public readonly inReplyToId: number | null;
+  public readonly stagedId: string;
+  public readonly clientCreatedAt: string;
+
+  private constructor(
+    channelId: number,
+    message: string,
+    uploadIds: Array<number>,
+    inReplyToId: number | null,
+    stagedId: string,
+    clientCreatedAt: string
+  ) {
+    this.channelId = channelId;
+    this.message = message;
+    this.uploadIds = uploadIds;
+    this.inReplyToId = inReplyToId;
+    this.stagedId = stagedId;
+    this.clientCreatedAt = clientCreatedAt;
+  }
+
+  public static create(
+    channelId: number,
+    message: string,
+    uploadIds: Array<number>,
+    inReplyToId: number | null,
+    stagedId: string,
+    clientCreatedAt: string
+  ): ChatSendRequest | null {
+    const normalizedMessage: string = message.trim();
+    const normalizedStagedId: string = stagedId.trim();
+    const normalizedCreatedAt: string = clientCreatedAt.trim();
+    const normalizedUploadIds: Array<number> = [];
+    for (const uploadId of uploadIds) {
+      if (!Number.isSafeInteger(uploadId) || uploadId <= 0) {
+        return null;
+      }
+      if (!normalizedUploadIds.includes(uploadId)) {
+        normalizedUploadIds.push(uploadId);
+      }
+    }
+    if (
+      !Number.isSafeInteger(channelId) ||
+      channelId <= 0 ||
+      (normalizedMessage.length === 0 && normalizedUploadIds.length === 0) ||
+      (inReplyToId !== null && (!Number.isSafeInteger(inReplyToId) || inReplyToId <= 0)) ||
+      normalizedStagedId.length === 0 ||
+      normalizedCreatedAt.length === 0
+    ) {
+      return null;
+    }
+    return new ChatSendRequest(
+      channelId,
+      normalizedMessage.length === 0 ? '\u200B' : normalizedMessage,
+      normalizedUploadIds,
+      inReplyToId,
+      normalizedStagedId,
+      normalizedCreatedAt
+    );
+  }
+
+  public toHttpExtraData(): ChatSendPayload {
+    const payload: ChatSendPayload = {
+      message: this.message,
+      staged_id: this.stagedId,
+      client_created_at: this.clientCreatedAt
+    };
+    if (this.inReplyToId !== null) {
+      payload.in_reply_to_id = this.inReplyToId;
+    }
+    if (this.uploadIds.length > 0) {
+      payload.upload_ids = this.uploadIds;
+    }
+    return payload;
+  }
+}
+
 function parseChannel(reader: JsonObjectReader): ChatChannel | null {
   const id: number = nonNegativeInteger(reader.number('id'));
   if (id === 0) {
@@ -319,6 +458,16 @@ export function parseChatChannels(text: string): Array<ChatChannel> | null {
   return channels;
 }
 
+export function parseChatChannelResponse(text: string): ChatChannel | null {
+  const envelope: JsonObjectReader | null = JsonObjectReader.parse(text);
+  if (envelope === null) {
+    return null;
+  }
+  const channel: JsonObjectReader = envelope.object('channel') ??
+    envelope.object('direct_message_channel') ?? envelope;
+  return parseChannel(channel);
+}
+
 function parseReactionUser(value: Object | null): ChatReactionUser | null {
   const reader: JsonObjectReader | null = JsonObjectReader.fromValue(value);
   if (reader === null) {
@@ -328,7 +477,7 @@ function parseReactionUser(value: Object | null): ChatReactionUser | null {
   if (username.length === 0) {
     return null;
   }
-  const avatarTemplate: string = firstString(reader, ['avatar_template']);
+  const avatarTemplate: string = firstString(reader, ['avatar_url', 'avatar_template']);
   return new ChatReactionUser(username, absoluteChatUrl(avatarTemplate.replace('{size}', '96')));
 }
 
@@ -470,6 +619,12 @@ export function parseChatMessagePage(text: string): ChatMessagePage | null {
     }
   }
   messages.sort((left: ChatMessage, right: ChatMessage): number => {
+    if (left.createdAt.length === 0 && right.createdAt.length > 0) {
+      return 1;
+    }
+    if (right.createdAt.length === 0 && left.createdAt.length > 0) {
+      return -1;
+    }
     const time: number = left.createdAt.localeCompare(right.createdAt);
     return time !== 0 ? time : left.id - right.id;
   });
@@ -479,4 +634,59 @@ export function parseChatMessagePage(text: string): ChatMessagePage | null {
     meta?.boolean('can_load_more_past') === true,
     meta?.boolean('can_load_more_future') === true
   );
+}
+
+export function parseChatMessageResponse(text: string): ChatMessage | null {
+  const envelope: JsonObjectReader | null = JsonObjectReader.parse(text);
+  if (envelope === null) {
+    return null;
+  }
+  const message: JsonObjectReader = envelope.object('message') ?? envelope.object('chat_message') ?? envelope;
+  return parseMessage(message);
+}
+
+export function parseChatEmojis(text: string): Array<ChatEmoji> | null {
+  const envelope: JsonObjectReader | null = JsonObjectReader.parse(text);
+  if (envelope === null) {
+    return null;
+  }
+  const emojis: Array<ChatEmoji> = [];
+  for (const entry of envelope.entries()) {
+    if (!Array.isArray(entry[1])) {
+      continue;
+    }
+    const values: Array<Object | null> = Array.from<Object | null>(entry[1]);
+    for (const value of values) {
+      const reader: JsonObjectReader | null = JsonObjectReader.fromValue(value);
+      if (reader === null) {
+        continue;
+      }
+      const name: string = firstString(reader, ['name']);
+      if (name.length > 0 && !emojis.some((emoji: ChatEmoji): boolean => emoji.name === name)) {
+        emojis.push(new ChatEmoji(name, firstString(reader, ['url']), firstString(reader, ['group']) || entry[0]));
+      }
+    }
+  }
+  return emojis;
+}
+
+export function parseChatSearchResults(text: string): Array<ChatSearchResult> | null {
+  const envelope: JsonObjectReader | null = JsonObjectReader.parse(text);
+  if (envelope === null) {
+    return null;
+  }
+  const results: Array<ChatSearchResult> = [];
+  for (const value of envelope.array('messages') ?? []) {
+    const reader: JsonObjectReader | null = JsonObjectReader.fromValue(value);
+    if (reader === null) {
+      continue;
+    }
+    const message: ChatMessage | null = parseMessage(reader);
+    const channelReader: JsonObjectReader | null = reader.object('channel');
+    const channel: ChatChannel | null = channelReader === null ? null : parseChannel(channelReader);
+    if (message !== null && channel !== null) {
+      results.push(new ChatSearchResult(message, channel));
+    }
+  }
+  return results;
 }

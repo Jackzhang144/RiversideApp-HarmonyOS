@@ -69,6 +69,10 @@ export class JsonObjectReader {
     return items;
   }
 
+  public entries(): Array<[string, Object]> {
+    return Object.entries(this.value);
+  }
+
   private property(name: string): Object | null {
     const entries: Array<[string, Object]> = Object.entries(this.value);
     for (const entry of entries) {
