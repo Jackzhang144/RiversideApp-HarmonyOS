@@ -31,6 +31,7 @@ import { RepositoryAuthenticationLifecycle } from '../auth/RepositoryAuthenticat
 import { RsaAuthorizationCryptoFactory } from '../auth/RsaAuthorizationCrypto';
 import { CategoryCacheScope } from '../cache/CategoryCache';
 import { PreferencesCategoryCache } from '../cache/PreferencesCategoryCache';
+import { AbilityContextRegistry } from '../core/AbilityContextRegistry';
 import { RepositoryResult } from '../core/RepositoryResult';
 import { AccountPage } from '../components/AccountPage';
 import { CategoryBrowsePage } from '../components/CategoryBrowsePage';
@@ -552,12 +553,11 @@ struct Index {
   }
 
   private openExternalLink(url: string): void {
-    const hostContext: common.Context | undefined = this.getUIContext().getHostContext();
-    if (hostContext === undefined) {
+    const abilityContext: common.UIAbilityContext | null = AbilityContextRegistry.current();
+    if (abilityContext === null) {
       this.showAuthenticationMessage('链接未打开', '无法获取应用运行环境');
       return;
     }
-    const abilityContext: common.UIAbilityContext = hostContext as common.UIAbilityContext;
     abilityContext.openLink(url).catch((error: BusinessError): void => {
       this.showAuthenticationMessage('链接未打开', error.message);
     });
