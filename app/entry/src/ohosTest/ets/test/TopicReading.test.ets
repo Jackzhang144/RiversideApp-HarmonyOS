@@ -1026,6 +1026,39 @@ export default function topicReadingTest(): void {
       done();
     });
 
+    it('restores, saves, and discards the server Reply draft for the active Topic', 0,
+      async (done: Function) => {
+        const repository: TopicReadingRepository = new TopicReadingRepository();
+        repository.topicDetailResults.push(RepositoryResult.success<TopicDetail>(new TopicDetail(
+          2725, '草稿语义', 10, 7, 0, false, false, true,
+          [102728, 102729, 102730], [firstPost(), secondPost(), thirdPost()], 7
+        )));
+        repository.draftResults.push(RepositoryResult.success<Array<ServerDraft>>([
+          new ServerDraft('topic_2725', 4, 'reply', '', '服务端 Reply 草稿', null, 2725, 3)
+        ]));
+        repository.savedDraftResults.push(RepositoryResult.success<number>(5));
+        const model: AppShellModel = new AppShellModel(
+          repository, new MemoryCategoryCache(), CategoryCacheScope.anonymous()
+        );
+        await model.openTopic(topic());
+
+        model.openReply(null);
+        await model.restoreReplyDraft();
+        expect(model.replyState.draft).assertEqual('服务端 Reply 草稿');
+        expect(model.replyState.replyToPostNumber).assertEqual(3);
+
+        model.updateReplyDraft('更新后的服务端草稿');
+        expect(await model.saveReplyDraft()).assertTrue();
+        expect(repository.savedDrafts[0].draftKey).assertEqual('topic_2725');
+        expect(repository.savedDrafts[0].sequence).assertEqual(4);
+
+        await model.discardReplyDraft();
+        expect(repository.deletedDrafts[0]).assertEqual('topic_2725:5');
+        expect(model.replyState.kind).assertEqual(ReplyComposerStateKind.CLOSED);
+        expect(model.replyState.draft).assertEqual('');
+        done();
+      });
+
     it('restores and retries a rejected new Topic draft without leaving Category 111', 0,
       async (done: Function) => {
         const repository: TopicReadingRepository = new TopicReadingRepository();

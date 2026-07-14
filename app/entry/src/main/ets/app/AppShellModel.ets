@@ -879,6 +879,8 @@ export class AppShellModel {
   private searchNextPage: number = 1;
   private topicRequestVersion: number = 0;
   private replyRequestVersion: number = 0;
+  private replyDraftRequestVersion: number = 0;
+  private replyDraftSequence: number = 0;
   private topicComposerRequestVersion: number = 0;
   private topicEditingOriginalTitle: string = '';
 
@@ -1056,6 +1058,8 @@ export class AppShellModel {
     const requestVersion: number = this.topicRequestVersion;
     this.requiresAuthentication = false;
     this.replyRequestVersion += 1;
+    this.replyDraftRequestVersion += 1;
+    this.replyDraftSequence = 0;
     this.replyState = ReplyComposerState.closed();
     this.selectedTopic = topic;
     this.selectedTopicPostNumber = initialPostNumber;
@@ -1420,6 +1424,7 @@ export class AppShellModel {
         draft = autoReplyQuote(post, this.topicState.detail.id, this.topicState.detail.highestPostNumber, draft);
       }
     }
+    this.replyDraftRequestVersion += 1;
     this.replyState = ReplyComposerState.editing(draft, replyToPostNumber);
   }
 
@@ -1462,6 +1467,92 @@ export class AppShellModel {
       this.replyState.draft,
       this.replyState.replyToPostNumber
     );
+  }
+
+  public async restoreReplyDraft(): Promise<void> {
+    const detail: TopicDetail | null = this.topicState.detail;
+    if (
+      detail === null ||
+      this.replyState.kind !== ReplyComposerStateKind.EDITING ||
+      this.replyState.isEditingPost()
+    ) {
+      return;
+    }
+    const requestVersion: number = this.replyDraftRequestVersion;
+    const draft: string = this.replyState.draft;
+    const replyToPostNumber: number | null = this.replyState.replyToPostNumber;
+    const result: RepositoryResult<Array<ServerDraft>> = await this.repository.loadDrafts();
+    if (
+      requestVersion !== this.replyDraftRequestVersion ||
+      this.topicState.topicId !== detail.id ||
+      this.replyState.draft !== draft ||
+      this.replyState.replyToPostNumber !== replyToPostNumber
+    ) {
+      return;
+    }
+    if (result.isUnauthorized()) {
+      this.requiresAuthentication = true;
+      this.replyState = ReplyComposerState.reauthenticate(draft, replyToPostNumber);
+      await this.notifyUnauthorized(true);
+      return;
+    }
+    if (!result.isSuccess() || result.data === null) {
+      this.replyState = ReplyComposerState.error(draft, replyToPostNumber, result.message);
+      return;
+    }
+    const serverDraft: ServerDraft | undefined = result.data.find(
+      (candidate: ServerDraft): boolean => candidate.draftKey === `topic_${detail.id}` &&
+        (candidate.topicId === null || candidate.topicId === detail.id)
+    );
+    if (serverDraft !== undefined) {
+      this.replyDraftSequence = serverDraft.sequence;
+      this.replyState = ReplyComposerState.editing(serverDraft.raw, serverDraft.replyToPostNumber);
+    }
+  }
+
+  public async saveReplyDraft(): Promise<boolean> {
+    const detail: TopicDetail | null = this.topicState.detail;
+    if (detail === null || this.replyState.isBusy() || this.replyState.isEditingPost()) {
+      return false;
+    }
+    const request: DraftWriteRequest | null = DraftWriteRequest.reply(
+      detail.id,
+      this.replyState.draft,
+      this.replyState.replyToPostNumber,
+      this.replyDraftSequence
+    );
+    if (request === null) {
+      this.replyState = ReplyComposerState.error(
+        this.replyState.draft,
+        this.replyState.replyToPostNumber,
+        '草稿内容为空'
+      );
+      return false;
+    }
+    const result: RepositoryResult<number> = await this.repository.saveDraft(request);
+    if (result.isUnauthorized()) {
+      this.requiresAuthentication = true;
+      this.replyState = ReplyComposerState.reauthenticate(request.raw, request.replyToPostNumber);
+      await this.notifyUnauthorized(true);
+      return false;
+    }
+    if (!result.isSuccess() || result.data === null) {
+      this.replyState = ReplyComposerState.error(request.raw, request.replyToPostNumber, result.message);
+      return false;
+    }
+    this.replyDraftSequence = result.data;
+    this.replyState = ReplyComposerState.editing(request.raw, request.replyToPostNumber);
+    return true;
+  }
+
+  public async discardReplyDraft(): Promise<void> {
+    const detail: TopicDetail | null = this.topicState.detail;
+    if (detail !== null && this.replyDraftSequence > 0) {
+      await this.repository.deleteDraft(`topic_${detail.id}`, this.replyDraftSequence);
+    }
+    this.replyDraftRequestVersion += 1;
+    this.replyDraftSequence = 0;
+    this.replyState = ReplyComposerState.closed();
   }
 
   public resumeReplyAfterAuthentication(): void {
@@ -1892,7 +1983,16 @@ export class AppShellModel {
       this.topicState.previousPaginationMessage,
       this.topicState.readProgressState
     );
+    this.clearReplyDraftInBackground(detail.id);
     this.transitionReplyState(ReplyComposerState.success('Reply 已发布'), onStateChange);
+  }
+
+  private async clearReplyDraftInBackground(topicId: number): Promise<void> {
+    const sequence: number = this.replyDraftSequence;
+    this.replyDraftSequence = 0;
+    if (sequence > 0) {
+      await this.repository.deleteDraft(`topic_${topicId}`, sequence);
+    }
   }
 
   public async loadCurrentUser(): Promise<RepositoryResult<CurrentUser>> {
