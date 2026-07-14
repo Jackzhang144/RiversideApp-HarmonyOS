@@ -96,6 +96,7 @@ class TopicReadingRepository implements ForumRepository {
   public savedDrafts: Array<DraftWriteRequest> = [];
   public savedDraftResults: Array<RepositoryResult<number>> = [];
   public deletedDrafts: Array<string> = [];
+  public deletedDraftResults: Array<RepositoryResult<boolean>> = [];
 
   public async loadLatestTopics(): Promise<RepositoryResult<Array<Topic>>> {
     return RepositoryResult.success<Array<Topic>>([]);
@@ -234,7 +235,7 @@ class TopicReadingRepository implements ForumRepository {
 
   public async deleteDraft(draftKey: string, sequence: number): Promise<RepositoryResult<boolean>> {
     this.deletedDrafts.push(`${draftKey}:${sequence}`);
-    return RepositoryResult.success<boolean>(true);
+    return this.deletedDraftResults.shift() ?? RepositoryResult.success<boolean>(true);
   }
 }
 
@@ -303,7 +304,8 @@ export default function topicReadingTest(): void {
         repository.categoryTopicResults.push(RepositoryResult.success<Array<Topic>>([topic()]));
         repository.topicDetailResults.push(RepositoryResult.success<TopicDetail>(new TopicDetail(
           2725, '站务管理区重要主题导航', 1959, 3, 4, false, false, true,
-          [102728, 102729, 102730], [firstPost(), secondPost(), thirdPost()]
+          [102728, 102729, 102730], [firstPost(), secondPost(), thirdPost()], 0,
+          new TopicDetailMetadata(111)
         )));
         repository.currentUserResults.push(authenticatedUserResult());
         repository.replySubmitResults.push(ReplySubmitResult.created(fourthPost()));
@@ -712,7 +714,8 @@ export default function topicReadingTest(): void {
       const repository: TopicReadingRepository = new TopicReadingRepository();
       repository.topicDetailResults.push(RepositoryResult.success<TopicDetail>(new TopicDetail(
         2725, '站务管理区重要主题导航', 1959, 3, 4, false, false, true,
-        [102728, 102729, 102730], [firstPost(), secondPost(), thirdPost()]
+        [102728, 102729, 102730], [firstPost(), secondPost(), thirdPost()], 0,
+        new TopicDetailMetadata(111)
       )));
       repository.currentUserResults.push(authenticatedUserResult());
       repository.replySubmitResults.push(ReplySubmitResult.created(fourthPost()));
@@ -733,6 +736,27 @@ export default function topicReadingTest(): void {
       expect(model.replyState.draft).assertEqual('');
       expect(model.topicState.posts.length).assertEqual(4);
       expect(model.topicState.posts[3].id).assertEqual(102731);
+      done();
+    });
+
+    it('rejects Reply authoring outside Category 111 before any server write', 0, async (done: Function) => {
+      const repository: TopicReadingRepository = new TopicReadingRepository();
+      repository.topicDetailResults.push(RepositoryResult.success<TopicDetail>(new TopicDetail(
+        2725, '非创作分区', 10, 1, 0, false, false, true,
+        [102728], [firstPost()], 1, new TopicDetailMetadata(54)
+      )));
+      const model: AppShellModel = new AppShellModel(
+        repository, new MemoryCategoryCache(), CategoryCacheScope.anonymous()
+      );
+      await model.openTopic(topic());
+
+      model.openReply(null);
+      expect(model.replyState.kind).assertEqual(ReplyComposerStateKind.CLOSED);
+      model.updateReplyDraft('不应发布');
+      await model.submitReply();
+
+      expect(model.replyState.kind).assertEqual(ReplyComposerStateKind.CLOSED);
+      expect(repository.submittedReplies.length).assertEqual(0);
       done();
     });
 
@@ -829,7 +853,8 @@ export default function topicReadingTest(): void {
       const repository: TopicReadingRepository = new TopicReadingRepository();
       repository.topicDetailResults.push(RepositoryResult.success<TopicDetail>(new TopicDetail(
         2725, '阅读进度', 10, 5, 0, false, false, true,
-        [102728, 102729, 102730], [firstPost(), secondPost(), thirdPost()]
+        [102728, 102729, 102730], [firstPost(), secondPost(), thirdPost()], 0,
+        new TopicDetailMetadata(111)
       )));
       repository.markTopicReadResults.push(RepositoryResult.success<boolean>(true));
       const pendingCleanup: PendingRepositoryResult<number> = new PendingRepositoryResult<number>();
@@ -861,7 +886,8 @@ export default function topicReadingTest(): void {
       const repository: TopicReadingRepository = new TopicReadingRepository();
       repository.topicDetailResults.push(RepositoryResult.success<TopicDetail>(new TopicDetail(
         2725, '站务管理区重要主题导航', 1959, 3, 4, false, false, true,
-        [102728, 102729, 102730], [firstPost(), secondPost(), thirdPost()]
+        [102728, 102729, 102730], [firstPost(), secondPost(), thirdPost()], 0,
+        new TopicDetailMetadata(111)
       )));
       repository.currentUserResults.push(authenticatedUserResult());
       repository.replySubmitResults.push(ReplySubmitResult.created(fourthPost()));
@@ -885,7 +911,8 @@ export default function topicReadingTest(): void {
       const repository: TopicReadingRepository = new TopicReadingRepository();
       repository.topicDetailResults.push(RepositoryResult.success<TopicDetail>(new TopicDetail(
         2725, '站务管理区重要主题导航', 1959, 3, 4, false, false, true,
-        [102728, 102729, 102730], [firstPost(), secondPost(), thirdPost()], 7
+        [102728, 102729, 102730], [firstPost(), secondPost(), thirdPost()], 7,
+        new TopicDetailMetadata(111)
       )));
       repository.currentUserResults.push(authenticatedUserResult());
       repository.replySubmitResults.push(ReplySubmitResult.uncertain('连接中断'));
@@ -915,7 +942,8 @@ export default function topicReadingTest(): void {
       const repository: TopicReadingRepository = new TopicReadingRepository();
       repository.topicDetailResults.push(RepositoryResult.success<TopicDetail>(new TopicDetail(
         2725, '站务管理区重要主题导航', 1959, 3, 4, false, false, true,
-        [102728, 102729, 102730], [firstPost(), secondPost(), thirdPost()]
+        [102728, 102729, 102730], [firstPost(), secondPost(), thirdPost()], 0,
+        new TopicDetailMetadata(111)
       )));
       repository.currentUserResults.push(authenticatedUserResult(), authenticatedUserResult());
       repository.replySubmitResults.push(
@@ -948,7 +976,8 @@ export default function topicReadingTest(): void {
       const repository: TopicReadingRepository = new TopicReadingRepository();
       repository.topicDetailResults.push(RepositoryResult.success<TopicDetail>(new TopicDetail(
         2725, '站务管理区重要主题导航', 1959, 3, 4, false, false, true,
-        [102728, 102729, 102730], [firstPost(), secondPost(), thirdPost()]
+        [102728, 102729, 102730], [firstPost(), secondPost(), thirdPost()], 0,
+        new TopicDetailMetadata(111)
       )));
       repository.currentUserResults.push(authenticatedUserResult(), authenticatedUserResult());
       repository.replySubmitResults.push(
@@ -977,7 +1006,8 @@ export default function topicReadingTest(): void {
       const repository: TopicReadingRepository = new TopicReadingRepository();
       repository.topicDetailResults.push(RepositoryResult.success<TopicDetail>(new TopicDetail(
         2725, '站务管理区重要主题导航', 1959, 3, 4, false, false, true,
-        [102728, 102729, 102730], [firstPost(), secondPost(), thirdPost()]
+        [102728, 102729, 102730], [firstPost(), secondPost(), thirdPost()], 0,
+        new TopicDetailMetadata(111)
       )));
       repository.currentUserResults.push(RepositoryResult.unauthorized<CurrentUser>());
       const lifecycle: TopicAuthenticationLifecycle = new TopicAuthenticationLifecycle();
@@ -1011,7 +1041,8 @@ export default function topicReadingTest(): void {
       const repository: TopicReadingRepository = new TopicReadingRepository();
       repository.topicDetailResults.push(RepositoryResult.success<TopicDetail>(new TopicDetail(
         2725, '引用语义', 10, 7, 0, false, false, true,
-        [102728, 102729, 102730], [firstPost(), secondPost(), thirdPost()], 7
+        [102728, 102729, 102730], [firstPost(), secondPost(), thirdPost()], 7,
+        new TopicDetailMetadata(111)
       )));
       const model: AppShellModel = new AppShellModel(
         repository, new MemoryCategoryCache(), CategoryCacheScope.anonymous()
@@ -1032,7 +1063,8 @@ export default function topicReadingTest(): void {
         const repository: TopicReadingRepository = new TopicReadingRepository();
         repository.topicDetailResults.push(RepositoryResult.success<TopicDetail>(new TopicDetail(
           2725, '草稿语义', 10, 7, 0, false, false, true,
-          [102728, 102729, 102730], [firstPost(), secondPost(), thirdPost()], 7
+          [102728, 102729, 102730], [firstPost(), secondPost(), thirdPost()], 7,
+          new TopicDetailMetadata(111)
         )));
         repository.draftResults.push(RepositoryResult.success<Array<ServerDraft>>([
           new ServerDraft('topic_2725', 4, 'reply', '', '服务端 Reply 草稿', null, 2725, 3)
@@ -1053,9 +1085,45 @@ export default function topicReadingTest(): void {
         expect(repository.savedDrafts[0].draftKey).assertEqual('topic_2725');
         expect(repository.savedDrafts[0].sequence).assertEqual(4);
 
-        await model.discardReplyDraft();
+        expect(await model.discardReplyDraft()).assertTrue();
         expect(repository.deletedDrafts[0]).assertEqual('topic_2725:5');
         expect(model.replyState.kind).assertEqual(ReplyComposerStateKind.CLOSED);
+        expect(model.replyState.draft).assertEqual('');
+        done();
+      });
+
+    it('publishes a Reply once and suppresses its stale server draft when cleanup fails', 0,
+      async (done: Function) => {
+        const repository: TopicReadingRepository = new TopicReadingRepository();
+        repository.topicDetailResults.push(RepositoryResult.success<TopicDetail>(new TopicDetail(
+          2725, '草稿清理', 10, 3, 0, false, false, true,
+          [102728, 102729, 102730], [firstPost(), secondPost(), thirdPost()], 3,
+          new TopicDetailMetadata(111)
+        )));
+        const staleDraft: ServerDraft = new ServerDraft(
+          'topic_2725', 4, 'reply', '', '已发布的 Reply 草稿', null, 2725, null
+        );
+        repository.draftResults.push(
+          RepositoryResult.success<Array<ServerDraft>>([staleDraft]),
+          RepositoryResult.success<Array<ServerDraft>>([staleDraft])
+        );
+        repository.currentUserResults.push(authenticatedUserResult());
+        repository.replySubmitResults.push(ReplySubmitResult.created(fourthPost()));
+        repository.deletedDraftResults.push(RepositoryResult.failure<boolean>('网络中断'));
+        const model: AppShellModel = new AppShellModel(
+          repository, new MemoryCategoryCache(), CategoryCacheScope.anonymous()
+        );
+        await model.openTopic(topic());
+
+        model.openReply(null);
+        await model.restoreReplyDraft();
+        await model.submitReply();
+        expect(model.replyState.kind).assertEqual(ReplyComposerStateKind.SUCCESS);
+        expect(model.replyState.message.includes('草稿清理失败')).assertTrue();
+        expect(repository.submittedReplies.length).assertEqual(1);
+
+        model.openReply(null);
+        await model.restoreReplyDraft();
         expect(model.replyState.draft).assertEqual('');
         done();
       });
@@ -1091,6 +1159,36 @@ export default function topicReadingTest(): void {
         expect(model.topicComposerState.createdTopicId).assertEqual(19139);
         expect(repository.submittedTopics.length).assertEqual(2);
         expect(repository.deletedDrafts[0]).assertEqual('new_topic:2');
+        done();
+      });
+
+    it('reports new Topic draft cleanup failure without restoring the published draft again', 0,
+      async (done: Function) => {
+        const repository: TopicReadingRepository = new TopicReadingRepository();
+        const staleDraft: ServerDraft = new ServerDraft(
+          'new_topic', 2, 'createTopic', '已发布标题', '已发布正文', 111, null, null
+        );
+        repository.draftResults.push(
+          RepositoryResult.success<Array<ServerDraft>>([staleDraft]),
+          RepositoryResult.success<Array<ServerDraft>>([staleDraft])
+        );
+        repository.topicSubmitResults.push(TopicSubmitResult.created(19139));
+        repository.deletedDraftResults.push(RepositoryResult.failure<boolean>('网络中断'));
+        const model: AppShellModel = new AppShellModel(
+          repository, new MemoryCategoryCache(), CategoryCacheScope.anonymous()
+        );
+
+        model.openNewTopic();
+        await model.restoreTopicDraft();
+        await model.submitTopicComposer();
+        expect(model.topicComposerState.kind).assertEqual(TopicComposerStateKind.SUCCESS);
+        expect(model.topicComposerState.message.includes('草稿清理失败')).assertTrue();
+
+        model.dismissTopicComposer();
+        model.openNewTopic();
+        await model.restoreTopicDraft();
+        expect(model.topicComposerState.title).assertEqual('');
+        expect(model.topicComposerState.raw).assertEqual('');
         done();
       });
 

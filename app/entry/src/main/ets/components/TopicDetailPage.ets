@@ -12,6 +12,7 @@ import {
 import { ForumCardPresentation } from './ForumCardPresentation';
 import { ForumContentCard } from './ForumContentCard';
 import { Category, ForumPost, PostReaction, Topic, TopicDetail } from '../models/ForumModels';
+import { AUTHORING_CATEGORY_ID } from '../models/AuthoringModels';
 import {
   categoryLabel,
   displayedReactions,
@@ -120,10 +121,14 @@ export struct TopicDetailPage {
   }
 
   private canEditPost(post: ForumPost): boolean {
-    if (!post.canEdit) {
+    if (!post.canEdit || this.state.detail?.categoryId !== AUTHORING_CATEGORY_ID) {
       return false;
     }
     return post.postNumber !== 1 || this.state.detail?.canEdit === true;
+  }
+
+  private canReplyHere(): boolean {
+    return this.state.canReply && this.state.detail?.categoryId === AUTHORING_CATEGORY_ID;
   }
 
   @Builder
@@ -167,7 +172,7 @@ export struct TopicDetailPage {
   private TopicStarter(detail: TopicDetail, post: ForumPost | null): void {
     Column({ space: 8 }) {
       ForumContentCard({
-        presentation: ForumCardPresentation.topicStarter(detail, post, this.replyState.draft),
+        presentation: ForumCardPresentation.topicStarter(detail, post, this.replyState.draft, this.canReplyHere()),
         onReply: (postNumber: number | null): void => this.onOpenReply(postNumber)
       })
       if (post !== null) {
@@ -230,7 +235,7 @@ export struct TopicDetailPage {
           .padding({ left: 8 })
       }
       ForumContentCard({
-        presentation: ForumCardPresentation.reply(post, this.state.canReply),
+        presentation: ForumCardPresentation.reply(post, this.canReplyHere()),
         onReply: (postNumber: number | null): void => this.onOpenReply(postNumber)
       })
       this.PostActions(post)

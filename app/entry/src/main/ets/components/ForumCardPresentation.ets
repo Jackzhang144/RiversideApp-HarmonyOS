@@ -170,11 +170,14 @@ export class ForumCardPresentation {
   public static topicStarter(
     detail: TopicDetail,
     post: ForumPost | null,
-    replyDraft: string
+    replyDraft: string,
+    canReply: boolean = detail.canReply
   ): ForumCardPresentation {
     let author: ForumCardAuthor | null = null;
     const replyCount: number = Math.max(detail.postCount - 1, 0);
-    const restrictionText: string = topicReplyRestriction(detail);
+    const restrictionText: string = canReply
+      ? ''
+      : (detail.canReply ? '仅允许在 Category #111 Reply' : topicReplyRestriction(detail));
     const replyAction: ForumCardReplyAction | null = restrictionText.length === 0
       ? new ForumCardReplyAction(
         replyDraft.trim().length > 0 ? '继续 Reply' : 'Reply',

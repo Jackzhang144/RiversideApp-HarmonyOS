@@ -359,8 +359,8 @@ export class TopicComposerState {
     );
   }
 
-  public static success(topicId: number): TopicComposerState {
-    return new TopicComposerState(TopicComposerStateKind.SUCCESS, '', '', 0, topicId, 'Topic 已发布');
+  public static success(topicId: number, message: string = 'Topic 已发布'): TopicComposerState {
+    return new TopicComposerState(TopicComposerStateKind.SUCCESS, '', '', 0, topicId, message);
   }
 
   public withTitle(title: string): TopicComposerState {
@@ -906,7 +906,10 @@ export class AppShellModel {
   private replyRequestVersion: number = 0;
   private replyDraftRequestVersion: number = 0;
   private replyDraftSequence: number = 0;
+  private ignoredReplyDraftKey: string = '';
+  private ignoredReplyDraftSequence: number = 0;
   private topicComposerRequestVersion: number = 0;
+  private ignoredTopicDraftSequence: number = 0;
   private topicEditingOriginalTitle: string = '';
 
   public constructor(
@@ -1437,7 +1440,12 @@ export class AppShellModel {
   }
 
   public openReply(replyToPostNumber: number | null): void {
-    if (!this.topicState.canReply || this.topicState.detail === null || this.replyState.isBusy()) {
+    if (
+      !this.topicState.canReply ||
+      this.topicState.detail === null ||
+      this.topicState.detail.categoryId !== AUTHORING_CATEGORY_ID ||
+      this.replyState.isBusy()
+    ) {
       return;
     }
     let draft: string = this.replyState.isEditingPost() ? '' : this.replyState.draft;
@@ -1482,7 +1490,10 @@ export class AppShellModel {
   }
 
   public updateReplyDraft(draft: string): void {
-    if (this.replyState.isBusy()) {
+    if (
+      this.replyState.kind !== ReplyComposerStateKind.EDITING &&
+      this.replyState.kind !== ReplyComposerStateKind.ERROR
+    ) {
       return;
     }
     this.replyState = this.replyState.editingPostId === null
@@ -1533,7 +1544,9 @@ export class AppShellModel {
     }
     const serverDraft: ServerDraft | undefined = result.data.find(
       (candidate: ServerDraft): boolean => candidate.draftKey === `topic_${detail.id}` &&
-        (candidate.topicId === null || candidate.topicId === detail.id)
+        (candidate.topicId === null || candidate.topicId === detail.id) &&
+        (candidate.draftKey !== this.ignoredReplyDraftKey ||
+          candidate.sequence !== this.ignoredReplyDraftSequence)
     );
     if (serverDraft !== undefined) {
       this.replyDraftSequence = serverDraft.sequence;
@@ -1572,18 +1585,43 @@ export class AppShellModel {
       return false;
     }
     this.replyDraftSequence = result.data;
+    this.ignoredReplyDraftKey = '';
+    this.ignoredReplyDraftSequence = 0;
     this.replyState = ReplyComposerState.editing(request.raw, request.replyToPostNumber);
     return true;
   }
 
-  public async discardReplyDraft(): Promise<void> {
+  public async discardReplyDraft(): Promise<boolean> {
     const detail: TopicDetail | null = this.topicState.detail;
     if (detail !== null && this.replyDraftSequence > 0) {
-      await this.repository.deleteDraft(`topic_${detail.id}`, this.replyDraftSequence);
+      const result: RepositoryResult<boolean> = await this.repository.deleteDraft(
+        `topic_${detail.id}`,
+        this.replyDraftSequence
+      );
+      if (result.isUnauthorized()) {
+        this.requiresAuthentication = true;
+        this.replyState = ReplyComposerState.reauthenticate(
+          this.replyState.draft,
+          this.replyState.replyToPostNumber
+        );
+        await this.notifyUnauthorized(true);
+        return false;
+      }
+      if (!result.isSuccess() || result.data !== true) {
+        this.replyState = ReplyComposerState.error(
+          this.replyState.draft,
+          this.replyState.replyToPostNumber,
+          result.message
+        );
+        return false;
+      }
     }
     this.replyDraftRequestVersion += 1;
     this.replyDraftSequence = 0;
+    this.ignoredReplyDraftKey = '';
+    this.ignoredReplyDraftSequence = 0;
     this.replyState = ReplyComposerState.closed();
+    return true;
   }
 
   public resumeReplyAfterAuthentication(): void {
@@ -1602,6 +1640,7 @@ export class AppShellModel {
     const detail: TopicDetail | null = this.topicState.detail;
     if (
       detail === null ||
+      detail.categoryId !== AUTHORING_CATEGORY_ID ||
       this.replyState.isBusy() ||
       (this.replyState.editingPostId === null && !this.topicState.canReply)
     ) {
@@ -1653,7 +1692,7 @@ export class AppShellModel {
       return;
     }
     if (submitResult.kind === ReplySubmitKind.CREATED && submitResult.post !== null) {
-      this.completeReply(submitResult.post, onStateChange);
+      await this.completeReply(submitResult.post, onStateChange);
       return;
     }
     if (submitResult.kind === ReplySubmitKind.UNAUTHORIZED) {
@@ -1687,7 +1726,7 @@ export class AppShellModel {
       return;
     }
     if (recoveryResult.kind === ReplyRecoveryKind.CONFIRMED && recoveryResult.post !== null) {
-      this.completeReply(recoveryResult.post, onStateChange);
+      await this.completeReply(recoveryResult.post, onStateChange);
     } else if (recoveryResult.kind === ReplyRecoveryKind.UNAUTHORIZED) {
       await this.handleReplyUnauthorized(request.raw, replyToPostNumber, onStateChange);
     } else {
@@ -1743,13 +1782,19 @@ export class AppShellModel {
   }
 
   public updateTopicComposerTitle(title: string): void {
-    if (!this.topicComposerState.isBusy()) {
+    if (
+      this.topicComposerState.kind === TopicComposerStateKind.EDITING ||
+      this.topicComposerState.kind === TopicComposerStateKind.ERROR
+    ) {
       this.topicComposerState = this.topicComposerState.withTitle(title);
     }
   }
 
   public updateTopicComposerRaw(raw: string): void {
-    if (!this.topicComposerState.isBusy()) {
+    if (
+      this.topicComposerState.kind === TopicComposerStateKind.EDITING ||
+      this.topicComposerState.kind === TopicComposerStateKind.ERROR
+    ) {
       this.topicComposerState = this.topicComposerState.withRaw(raw);
     }
   }
@@ -1781,7 +1826,8 @@ export class AppShellModel {
     }
     const draft: ServerDraft | undefined = result.data.find(
       (candidate: ServerDraft): boolean => candidate.draftKey === 'new_topic' &&
-        (candidate.categoryId === null || candidate.categoryId === 111)
+        (candidate.categoryId === null || candidate.categoryId === AUTHORING_CATEGORY_ID) &&
+        candidate.sequence !== this.ignoredTopicDraftSequence
     );
     if (draft !== undefined) {
       this.topicComposerState = TopicComposerState.editing(draft.title, draft.raw, draft.sequence);
@@ -1815,6 +1861,7 @@ export class AppShellModel {
       return false;
     }
     this.topicComposerState = TopicComposerState.editing(editing.title, editing.raw, result.data);
+    this.ignoredTopicDraftSequence = 0;
     return true;
   }
 
@@ -1851,6 +1898,7 @@ export class AppShellModel {
       this.topicComposerState = TopicComposerState.error(editing, result.message);
       return false;
     }
+    this.ignoredTopicDraftSequence = 0;
     this.dismissTopicComposer();
     return true;
   }
@@ -1896,8 +1944,20 @@ export class AppShellModel {
       return;
     }
     if (editing.draftSequence > 0) {
-      await this.repository.deleteDraft('new_topic', editing.draftSequence);
+      const cleanupResult: RepositoryResult<boolean> = await this.repository.deleteDraft(
+        'new_topic',
+        editing.draftSequence
+      );
+      if (!cleanupResult.isSuccess() || cleanupResult.data !== true) {
+        this.ignoredTopicDraftSequence = editing.draftSequence;
+        this.topicComposerState = TopicComposerState.success(
+          result.topicId,
+          `Topic 已发布；服务器草稿清理失败：${cleanupResult.message}`
+        );
+        return;
+      }
     }
+    this.ignoredTopicDraftSequence = 0;
     this.topicComposerState = TopicComposerState.success(result.topicId);
   }
 
@@ -2004,10 +2064,10 @@ export class AppShellModel {
     await this.notifyUnauthorized(true);
   }
 
-  private completeReply(
+  private async completeReply(
     post: ForumPost,
     onStateChange: (state: ReplyComposerState) => void
-  ): void {
+  ): Promise<void> {
     const detail: TopicDetail | null = this.topicState.detail;
     if (detail === null) {
       return;
@@ -2049,16 +2109,24 @@ export class AppShellModel {
       this.topicState.previousPaginationMessage,
       this.topicState.readProgressState
     );
-    this.clearReplyDraftInBackground(detail.id);
-    this.transitionReplyState(ReplyComposerState.success('Reply 已发布'), onStateChange);
-  }
-
-  private async clearReplyDraftInBackground(topicId: number): Promise<void> {
     const sequence: number = this.replyDraftSequence;
-    this.replyDraftSequence = 0;
     if (sequence > 0) {
-      await this.repository.deleteDraft(`topic_${topicId}`, sequence);
+      const result: RepositoryResult<boolean> = await this.repository.deleteDraft(`topic_${detail.id}`, sequence);
+      if (!result.isSuccess() || result.data !== true) {
+        this.ignoredReplyDraftKey = `topic_${detail.id}`;
+        this.ignoredReplyDraftSequence = sequence;
+        this.replyDraftSequence = 0;
+        this.transitionReplyState(
+          ReplyComposerState.success(`Reply 已发布；服务器草稿清理失败：${result.message}`),
+          onStateChange
+        );
+        return;
+      }
     }
+    this.replyDraftSequence = 0;
+    this.ignoredReplyDraftKey = '';
+    this.ignoredReplyDraftSequence = 0;
+    this.transitionReplyState(ReplyComposerState.success('Reply 已发布'), onStateChange);
   }
 
   public async loadCurrentUser(): Promise<RepositoryResult<CurrentUser>> {

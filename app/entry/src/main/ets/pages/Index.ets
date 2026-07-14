@@ -598,8 +598,8 @@ struct Index {
     if (model === null) {
       return;
     }
-    await model.discardReplyDraft();
-    this.synchronizeReplyState(model, false);
+    const discarded: boolean = await model.discardReplyDraft();
+    this.synchronizeReplyState(model, discarded ? false : null);
   }
 
   private async openNewTopic(): Promise<void> {
@@ -727,7 +727,11 @@ struct Index {
       this.pathStack.pop();
       this.showAuthenticationMessage(
         editing ? 'Topic 已保存' : 'Topic 已发布',
-        editing ? '标题和首个 Post 已更新' : '已发布到 Category #111'
+        editing
+          ? '标题和首个 Post 已更新'
+          : (model.topicComposerState.message === 'Topic 已发布'
+            ? '已发布到 Category #111'
+            : model.topicComposerState.message)
       );
       if (!editing) {
         this.refreshHome();
