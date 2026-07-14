@@ -18,6 +18,7 @@ import {
 } from '../models/ReplyModels';
 import { ForumHttpClient, HttpTextResult, HttpTextResultKind } from '../network/DiscourseHttpClient';
 import { ForumRepository } from './ForumRepository';
+import { ProfileRepository } from './ProfileRepository';
 import { ForumResponseParser } from './ForumResponseParser';
 import {
   ProfileNotificationLevel,
@@ -35,7 +36,7 @@ interface DraftSavePayload {
   sequence: number;
 }
 
-export class DiscourseForumRepository implements ForumRepository {
+export class DiscourseForumRepository implements ForumRepository, ProfileRepository {
   private readonly client: ForumHttpClient;
   private readonly parser: ForumResponseParser;
 
