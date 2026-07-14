@@ -14,6 +14,7 @@ import { ForumContentCard } from './ForumContentCard';
 import { Category, ForumPost, PostReaction, Topic, TopicDetail } from '../models/ForumModels';
 import { AUTHORING_CATEGORY_ID } from '../models/AuthoringModels';
 import { RichEmbedProvider } from '../models/RichContentModels';
+import { MediaUploadState } from '../models/MediaModels';
 import {
   categoryLabel,
   displayedReactions,
@@ -30,6 +31,7 @@ export struct TopicDetailPage {
   @Link readProgressBusy: boolean;
   @Link readProgressMessage: string;
   @Prop replyState: ReplyComposerState = ReplyComposerState.closed();
+  @Prop mediaState: MediaUploadState | null = null;
   @Prop categories: Array<Category> = [];
   @Link replySheetVisible: boolean;
   onRetry: () => void = (): void => {};
@@ -56,6 +58,10 @@ export struct TopicDetailPage {
   onDiscardReplyDraft: () => void = (): void => {};
   onDismissReply: () => void = (): void => {};
   onLoginForReply: () => void = (): void => {};
+  onSelectMedia: () => void = (): void => {};
+  onCancelMedia: () => void = (): void => {};
+  onRetryMedia: () => void = (): void => {};
+  onRemoveMedia: () => void = (): void => {};
   private readProgressTimer: number = -1;
   private pendingReadPostNumber: number = 0;
 
@@ -114,7 +120,8 @@ export struct TopicDetailPage {
         this.state.title,
         this.replyState.draft,
         this.composerStatus(),
-        this.replyState.message
+        this.replyState.message,
+        this.mediaState
       );
     }
     return ForumComposerPresentation.reply(
@@ -123,7 +130,8 @@ export struct TopicDetailPage {
       this.replyState.replyToPostNumber,
       this.replyState.draft,
       this.composerStatus(),
-      this.replyState.message
+      this.replyState.message,
+      this.mediaState
     );
   }
 
@@ -449,7 +457,11 @@ export struct TopicDetailPage {
       onSubmit: (): void => this.onSubmitReply(),
       onSaveDraft: (): void => this.onSaveReplyDraft(),
       onDiscard: (): void => this.onDiscardReplyDraft(),
-      onReauthenticate: (): void => this.onLoginForReply()
+      onReauthenticate: (): void => this.onLoginForReply(),
+      onSelectMedia: (): void => this.onSelectMedia(),
+      onCancelMedia: (): void => this.onCancelMedia(),
+      onRetryMedia: (): void => this.onRetryMedia(),
+      onRemoveMedia: (): void => this.onRemoveMedia()
     })
   }
 

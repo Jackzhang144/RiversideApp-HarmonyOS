@@ -1,3 +1,5 @@
+import { MediaUploadState, MediaUploadStateKind } from '../models/MediaModels';
+
 export enum ForumComposerMode {
   REPLY = 'reply',
   EDIT_POST = 'edit-post',
@@ -28,10 +30,11 @@ export class ForumComposerPresentation {
   public readonly titlePlaceholder: string;
   public readonly bodyPlaceholder: string;
   public readonly showsDraftActions: boolean;
-  public readonly imageActionAvailable: boolean = false;
-  public readonly imageActionAccessibilityText: string = '图片，未实现';
+  public readonly imageActionAvailable: boolean;
+  public readonly imageActionAccessibilityText: string = '选择并上传图片';
   public readonly mentionActionAvailable: boolean = false;
   public readonly mentionActionAccessibilityText: string = '@ 提及，未实现';
+  public readonly mediaState: MediaUploadState | null;
 
   private constructor(
     mode: ForumComposerMode,
@@ -41,7 +44,8 @@ export class ForumComposerPresentation {
     titleDraft: string,
     bodyDraft: string,
     status: ForumComposerStatus,
-    message: string
+    message: string,
+    mediaState: MediaUploadState | null
   ) {
     this.mode = mode;
     this.sheetTitle = this.isReplyMode() ? 'Reply 编辑器' : '发帖 编辑器';
@@ -53,12 +57,14 @@ export class ForumComposerPresentation {
     this.bodyDraft = bodyDraft;
     this.status = status;
     this.message = message;
+    this.mediaState = mediaState;
     this.showsTitleInput = this.isTopicMode();
     this.showsDraftActions = mode === ForumComposerMode.REPLY || mode === ForumComposerMode.TOPIC;
     this.titlePlaceholder = 'Topic 标题';
     this.bodyPlaceholder = this.isReplyMode()
       ? '输入纯文本或 Markdown Reply'
       : '分享内容、问题或想法';
+    this.imageActionAvailable = this.canEdit() && !this.isMediaPending();
   }
 
   public static reply(
@@ -67,7 +73,8 @@ export class ForumComposerPresentation {
     replyToPostNumber: number | null,
     draft: string,
     status: ForumComposerStatus,
-    message: string
+    message: string,
+    mediaState: MediaUploadState | null = null
   ): ForumComposerPresentation {
     const targetsPost: boolean = replyToPostNumber !== null;
     return new ForumComposerPresentation(
@@ -78,7 +85,8 @@ export class ForumComposerPresentation {
       '',
       draft,
       status,
-      message
+      message,
+      mediaState
     );
   }
 
@@ -87,7 +95,8 @@ export class ForumComposerPresentation {
     titleDraft: string,
     bodyDraft: string,
     status: ForumComposerStatus,
-    message: string
+    message: string,
+    mediaState: MediaUploadState | null = null
   ): ForumComposerPresentation {
     return new ForumComposerPresentation(
       ForumComposerMode.TOPIC,
@@ -97,7 +106,8 @@ export class ForumComposerPresentation {
       titleDraft,
       bodyDraft,
       status,
-      message
+      message,
+      mediaState
     );
   }
 
@@ -106,7 +116,8 @@ export class ForumComposerPresentation {
     topicTitle: string,
     draft: string,
     status: ForumComposerStatus,
-    message: string
+    message: string,
+    mediaState: MediaUploadState | null = null
   ): ForumComposerPresentation {
     return new ForumComposerPresentation(
       ForumComposerMode.EDIT_POST,
@@ -116,7 +127,8 @@ export class ForumComposerPresentation {
       '',
       draft,
       status,
-      message
+      message,
+      mediaState
     );
   }
 
@@ -124,7 +136,8 @@ export class ForumComposerPresentation {
     titleDraft: string,
     bodyDraft: string,
     status: ForumComposerStatus,
-    message: string
+    message: string,
+    mediaState: MediaUploadState | null = null
   ): ForumComposerPresentation {
     return new ForumComposerPresentation(
       ForumComposerMode.EDIT_TOPIC,
@@ -134,7 +147,8 @@ export class ForumComposerPresentation {
       titleDraft,
       bodyDraft,
       status,
-      message
+      message,
+      mediaState
     );
   }
 
@@ -155,7 +169,12 @@ export class ForumComposerPresentation {
   }
 
   public canSubmit(): boolean {
-    if (this.isBusy() || this.needsAuthentication() || this.bodyDraft.trim().length === 0) {
+    if (
+      this.isBusy() ||
+      this.needsAuthentication() ||
+      this.isMediaPending() ||
+      this.bodyDraft.trim().length === 0
+    ) {
       return false;
     }
     return this.isReplyMode() || this.titleDraft.trim().length > 0;
@@ -178,6 +197,41 @@ export class ForumComposerPresentation {
       return '保存 Topic';
     }
     return this.mode === ForumComposerMode.REPLY ? '发布 Reply' : '发布 Topic';
+  }
+
+  public hasMediaStatus(): boolean {
+    return this.mediaState !== null;
+  }
+
+  public mediaStatusText(): string {
+    const state: MediaUploadState | null = this.mediaState;
+    if (state === null) {
+      return '';
+    }
+    if (state.kind === MediaUploadStateKind.SELECTED) {
+      return `已选择 ${state.media.filename}，等待上传`;
+    }
+    if (state.kind === MediaUploadStateKind.UPLOADING) {
+      return `正在上传 ${state.media.filename} · ${state.progressPercent}%`;
+    }
+    return `${state.media.filename} · ${state.message}`;
+  }
+
+  public canCancelMedia(): boolean {
+    return this.mediaState?.canCancel() ?? false;
+  }
+
+  public canRetryMedia(): boolean {
+    return this.mediaState?.canRetry() ?? false;
+  }
+
+  public canRemoveMedia(): boolean {
+    return this.mediaState !== null && !this.mediaState.canCancel();
+  }
+
+  private isMediaPending(): boolean {
+    return this.mediaState?.kind === MediaUploadStateKind.SELECTED ||
+      this.mediaState?.kind === MediaUploadStateKind.UPLOADING;
   }
 
   private isReplyMode(): boolean {

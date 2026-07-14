@@ -26,6 +26,10 @@ export struct ForumComposer {
   onSaveDraft: () => void = (): void => {};
   onDiscard: () => void = (): void => {};
   onReauthenticate: () => void = (): void => {};
+  onSelectMedia: () => void = (): void => {};
+  onCancelMedia: () => void = (): void => {};
+  onRetryMedia: () => void = (): void => {};
+  onRemoveMedia: () => void = (): void => {};
   private readonly bodyController: TextAreaController = new TextAreaController();
   private selectionStart: number = 0;
   private selectionEnd: number = 0;
@@ -160,6 +164,7 @@ export struct ForumComposer {
       .enabled(this.presentation.imageActionAvailable)
       .backgroundColor('#F5F6F8')
       .margin({ right: 7, bottom: 7 })
+      .onClick(this.onSelectMedia)
       .accessibilityText(this.presentation.imageActionAccessibilityText)
       Button('@')
         .width(42)
@@ -172,6 +177,49 @@ export struct ForumComposer {
         .accessibilityText(this.presentation.mentionActionAccessibilityText)
     }
     .width('100%')
+  }
+
+  @Builder
+  private MediaStatus(): void {
+    if (this.presentation.hasMediaStatus()) {
+      Column({ space: 8 }) {
+        Text(this.presentation.mediaStatusText())
+          .fontSize(12)
+          .fontColor($r('sys.color.font_secondary'))
+          .width('100%')
+        Row({ space: 8 }) {
+          if (this.presentation.canCancelMedia()) {
+            Button('取消上传')
+              .height(34)
+              .fontSize(12)
+              .backgroundColor('#F5F6F8')
+              .fontColor('#C62828')
+              .onClick(this.onCancelMedia)
+          }
+          if (this.presentation.canRetryMedia()) {
+            Button('重试上传')
+              .height(34)
+              .fontSize(12)
+              .backgroundColor('#EAF2FF')
+              .fontColor('#2068C9')
+              .onClick(this.onRetryMedia)
+          }
+          if (this.presentation.canRemoveMedia()) {
+            Button('移除状态')
+              .height(34)
+              .fontSize(12)
+              .backgroundColor('#F5F6F8')
+              .fontColor($r('sys.color.font_secondary'))
+              .onClick(this.onRemoveMedia)
+          }
+        }
+        .width('100%')
+      }
+      .width('100%')
+      .padding(10)
+      .backgroundColor('#F5F7FA')
+      .borderRadius(10)
+    }
   }
 
   @Builder
@@ -273,12 +321,7 @@ export struct ForumComposer {
           .fontColor($r('sys.color.font_tertiary'))
           .width('100%')
         this.ComposerTools()
-        Row() {
-          Text('图片上传将在媒体切片接入')
-            .fontSize(11)
-            .fontColor($r('sys.color.font_tertiary'))
-        }
-        .width('100%')
+        this.MediaStatus()
         this.StatusMessage()
         this.DraftActions()
         this.PrimaryAction()

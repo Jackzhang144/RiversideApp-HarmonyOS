@@ -39,6 +39,17 @@ import {
   ReplySubmitResult
 } from '../models/ReplyModels';
 import { ForumRepository } from '../repositories/ForumRepository';
+import {
+  CachedMedia,
+  MediaUploadRequest,
+  MediaUploadResult,
+  MediaUploadState,
+  MediaUploadStateKind,
+  appendUploadedImageMarkdown
+} from '../models/MediaModels';
+import { MediaRepository, MediaUploadOperation } from '../repositories/MediaRepository';
+
+export type MediaUploadStateListener = (state: MediaUploadState) => void;
 
 export interface AuthenticationLifecycle {
   handleUnauthorized(): Promise<void>;
@@ -890,6 +901,10 @@ export class AppShellModel {
   private categoryCacheScope: CategoryCacheScope;
   private readonly authenticationLifecycle: AuthenticationLifecycle | null;
   private readonly discoverySettingsStore: DiscoverySettingsStore | null;
+  private readonly mediaRepository: MediaRepository | null;
+  private activeMediaUpload: MediaUploadOperation | null = null;
+  private activeMediaState: MediaUploadState | null = null;
+  private activeMediaStateListener: MediaUploadStateListener | null = null;
   private cachedCategories: Array<Category> | null = null;
   private previousPostIds: Array<number> = [];
   private nextPostIds: Array<number> = [];
@@ -917,13 +932,15 @@ export class AppShellModel {
     categoryCache: CategoryCache,
     categoryCacheScope: CategoryCacheScope,
     authenticationLifecycle: AuthenticationLifecycle | null = null,
-    discoverySettingsStore: DiscoverySettingsStore | null = null
+    discoverySettingsStore: DiscoverySettingsStore | null = null,
+    mediaRepository: MediaRepository | null = null
   ) {
     this.repository = repository;
     this.categoryCache = categoryCache;
     this.categoryCacheScope = categoryCacheScope;
     this.authenticationLifecycle = authenticationLifecycle;
     this.discoverySettingsStore = discoverySettingsStore;
+    this.mediaRepository = mediaRepository;
   }
 
   public selectRoot(destination: RootDestination): void {
@@ -1499,6 +1516,116 @@ export class AppShellModel {
     this.replyState = this.replyState.editingPostId === null
       ? ReplyComposerState.editing(draft, this.replyState.replyToPostNumber)
       : ReplyComposerState.editingPost(this.replyState.editingPostId, draft);
+  }
+
+  public async uploadComposerMedia(
+    media: CachedMedia,
+    onStateChange: MediaUploadStateListener
+  ): Promise<MediaUploadState> {
+    let state: MediaUploadState = MediaUploadState.selected(media);
+    onStateChange(state);
+    if (!this.hasEditableComposer()) {
+      state = state.failed('编辑器已关闭，未开始图片上传');
+      onStateChange(state);
+      return state;
+    }
+    if (this.mediaRepository === null) {
+      state = state.failed('图片上传服务不可用');
+      onStateChange(state);
+      return state;
+    }
+    if (this.activeMediaUpload !== null) {
+      state = state.failed('已有图片正在上传');
+      onStateChange(state);
+      return state;
+    }
+
+    state = state.uploading(0, media.sizeBytes);
+    onStateChange(state);
+    const operation: MediaUploadOperation = this.mediaRepository.upload(
+      MediaUploadRequest.composer(media),
+      (uploadedBytes: number, totalBytes: number): void => {
+        if (this.activeMediaState?.kind !== MediaUploadStateKind.CANCELLED) {
+          state = state.uploading(uploadedBytes, totalBytes);
+          this.activeMediaState = state;
+          onStateChange(state);
+        }
+      }
+    );
+    this.activeMediaUpload = operation;
+    this.activeMediaState = state;
+    this.activeMediaStateListener = onStateChange;
+    const result: RepositoryResult<MediaUploadResult> = await operation.completion;
+    if (this.activeMediaState?.kind === MediaUploadStateKind.CANCELLED) {
+      const cancelled: MediaUploadState = this.activeMediaState;
+      this.clearActiveMediaUpload(operation);
+      return cancelled;
+    }
+    this.clearActiveMediaUpload(operation);
+    if (!result.isSuccess() || result.data === null) {
+      if (result.isUnauthorized()) {
+        this.requiresAuthentication = true;
+        await this.notifyUnauthorized(true);
+      }
+      state = state.failed(result.message);
+      onStateChange(state);
+      return state;
+    }
+    if (!this.appendComposerMedia(result.data)) {
+      state = state.failed('编辑器已关闭，上传结果未插入草稿');
+      onStateChange(state);
+      return state;
+    }
+    state = state.succeeded(result.data);
+    onStateChange(state);
+    return state;
+  }
+
+  public cancelComposerMediaUpload(): void {
+    const operation: MediaUploadOperation | null = this.activeMediaUpload;
+    const state: MediaUploadState | null = this.activeMediaState;
+    const listener: MediaUploadStateListener | null = this.activeMediaStateListener;
+    if (operation === null || state === null || listener === null || !state.canCancel()) {
+      return;
+    }
+    const cancelled: MediaUploadState = state.cancelled();
+    this.activeMediaState = cancelled;
+    listener(cancelled);
+    operation.cancel();
+  }
+
+  private hasEditableComposer(): boolean {
+    return this.replyState.kind === ReplyComposerStateKind.EDITING ||
+      this.replyState.kind === ReplyComposerStateKind.ERROR ||
+      this.topicComposerState.kind === TopicComposerStateKind.EDITING ||
+      this.topicComposerState.kind === TopicComposerStateKind.ERROR;
+  }
+
+  private appendComposerMedia(result: MediaUploadResult): boolean {
+    if (
+      this.replyState.kind === ReplyComposerStateKind.EDITING ||
+      this.replyState.kind === ReplyComposerStateKind.ERROR
+    ) {
+      this.updateReplyDraft(appendUploadedImageMarkdown(this.replyState.draft, result));
+      return true;
+    }
+    if (
+      this.topicComposerState.kind === TopicComposerStateKind.EDITING ||
+      this.topicComposerState.kind === TopicComposerStateKind.ERROR
+    ) {
+      this.updateTopicComposerRaw(appendUploadedImageMarkdown(this.topicComposerState.raw, result));
+      return true;
+    }
+    return false;
+  }
+
+  private clearActiveMediaUpload(operation: MediaUploadOperation): void {
+    if (this.activeMediaUpload !== operation) {
+      return;
+    }
+    this.activeMediaUpload = null;
+    this.activeMediaState = null;
+    this.activeMediaStateListener = null;
   }
 
   public dismissReply(): void {

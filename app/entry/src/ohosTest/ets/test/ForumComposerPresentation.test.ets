@@ -4,6 +4,22 @@ import {
   ForumComposerPresentation,
   ForumComposerStatus
 } from '../../../main/ets/components/ForumComposerPresentation';
+import { CachedMedia, MediaUploadState } from '../../../main/ets/models/MediaModels';
+
+function cachedImage(): CachedMedia {
+  const media: CachedMedia | null = CachedMedia.create(
+    'composer-image',
+    '/data/storage/el2/base/cache/media/composer-image.png',
+    'internal://cache/media/composer-image.png',
+    'composer-image.png',
+    'image/png',
+    1000
+  );
+  if (media === null) {
+    throw new Error('测试图片缓存模型创建失败');
+  }
+  return media;
+}
 
 export default function forumComposerPresentationTest(): void {
   describe('Forum composer presentation contract', () => {
@@ -22,13 +38,51 @@ export default function forumComposerPresentationTest(): void {
       expect(presentation.contextTitle).assertEqual('回复 Topic #2725');
       expect(presentation.contextBadge).assertEqual('Topic');
       expect(presentation.showsTitleInput).assertFalse();
-      expect(presentation.imageActionAvailable).assertFalse();
-      expect(presentation.imageActionAccessibilityText).assertEqual('图片，未实现');
+      expect(presentation.imageActionAvailable).assertTrue();
+      expect(presentation.imageActionAccessibilityText).assertEqual('选择并上传图片');
       expect(presentation.mentionActionAvailable).assertFalse();
       expect(presentation.mentionActionAccessibilityText).assertEqual('@ 提及，未实现');
       expect(presentation.showsDraftActions).assertTrue();
       expect(presentation.canSubmit()).assertTrue();
       expect(presentation.submitLabel()).assertEqual('发布 Reply');
+    });
+
+    it('blocks submission while an image is uploading and exposes cancel progress', 0, () => {
+      const uploading: MediaUploadState = MediaUploadState.selected(cachedImage()).uploading(300, 1000);
+      const presentation: ForumComposerPresentation = ForumComposerPresentation.reply(
+        2725,
+        'Topic',
+        null,
+        '正文',
+        ForumComposerStatus.EDITING,
+        '',
+        uploading
+      );
+
+      expect(presentation.imageActionAvailable).assertFalse();
+      expect(presentation.canSubmit()).assertFalse();
+      expect(presentation.hasMediaStatus()).assertTrue();
+      expect(presentation.mediaStatusText()).assertEqual('正在上传 composer-image.png · 30%');
+      expect(presentation.canCancelMedia()).assertTrue();
+      expect(presentation.canRetryMedia()).assertFalse();
+    });
+
+    it('keeps failed media retryable without hiding the composer draft', 0, () => {
+      const failed: MediaUploadState = MediaUploadState.selected(cachedImage()).failed('服务器拒绝上传');
+      const presentation: ForumComposerPresentation = ForumComposerPresentation.topic(
+        '水手之家',
+        '标题',
+        '正文',
+        ForumComposerStatus.EDITING,
+        '',
+        failed
+      );
+
+      expect(presentation.imageActionAvailable).assertTrue();
+      expect(presentation.canSubmit()).assertTrue();
+      expect(presentation.mediaStatusText()).assertEqual('composer-image.png · 服务器拒绝上传');
+      expect(presentation.canRetryMedia()).assertTrue();
+      expect(presentation.canRemoveMedia()).assertTrue();
     });
 
     it('keeps long Post Reply drafts valid and exposes explicit retry after an error', 0, () => {

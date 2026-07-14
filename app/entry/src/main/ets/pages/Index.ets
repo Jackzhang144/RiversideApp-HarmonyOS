@@ -65,6 +65,14 @@ import {
   DiscourseHttpClient
 } from '../network/DiscourseHttpClient';
 import { DiscourseForumRepository } from '../repositories/DiscourseForumRepository';
+import { DiscourseMediaRepository } from '../repositories/MediaRepository';
+import { DiscourseMediaTransport } from '../network/ForumMediaTransport';
+import {
+  MediaSelectionResult,
+  MediaSelectionResultKind,
+  MediaSelectionService
+} from '../media/MediaSelectionService';
+import { CachedMedia, MediaUploadState, MediaUploadStateKind } from '../models/MediaModels';
 import { PreferencesDiscoverySettingsStore } from '../settings/PreferencesDiscoverySettingsStore';
 
 const CATEGORY_TOPICS_ROUTE: string = 'category-topics';
@@ -116,6 +124,7 @@ struct Index {
   @State replyState: ReplyComposerState = ReplyComposerState.closed();
   @State replySheetVisible: boolean = false;
   @State topicComposerState: TopicComposerState = TopicComposerState.closed();
+  @State composerMediaState: MediaUploadState | null = null;
   @State authState: AuthState = AuthState.idle();
   @State accountIdentity: CurrentUser | null = null;
   @State accountIdentityLoading: boolean = false;
@@ -173,7 +182,8 @@ struct Index {
       new PreferencesCategoryCache(context),
       this.categoryCacheScope(authRepository),
       authenticationLifecycle,
-      new PreferencesDiscoverySettingsStore(context)
+      new PreferencesDiscoverySettingsStore(context),
+      new DiscourseMediaRepository(new DiscourseMediaTransport(RIVERSIDE_BASE_URL, sessionProvider))
     );
     await model.restoreDiscoverySettings();
     this.selectedHomeChannel = model.selectedHomeChannel;
@@ -651,6 +661,7 @@ struct Index {
       return;
     }
     model.openReply(postNumber);
+    this.composerMediaState = null;
     this.synchronizeReplyState(
       model,
       model.replyState.kind !== ReplyComposerStateKind.CLOSED &&
@@ -682,6 +693,7 @@ struct Index {
       return;
     }
     model.dismissReply();
+    this.composerMediaState = null;
     this.synchronizeReplyState(model, false);
   }
 
@@ -730,6 +742,7 @@ struct Index {
       return;
     }
     model.openNewTopic();
+    this.composerMediaState = null;
     this.topicComposerState = model.topicComposerState;
     this.pathStack.pushPath({ name: TOPIC_COMPOSER_ROUTE });
     await model.restoreTopicDraft();
@@ -752,6 +765,7 @@ struct Index {
     }
     this.synchronizeTopicState(model);
     if (model.topicEditingTopicId !== null) {
+      this.composerMediaState = null;
       this.topicComposerState = model.topicComposerState;
       this.pathStack.pushPath({ name: TOPIC_COMPOSER_ROUTE });
       return;
@@ -782,7 +796,8 @@ struct Index {
         this.topicComposerState.title,
         this.topicComposerState.raw,
         this.topicComposerStatus(),
-        this.topicComposerState.message
+        this.topicComposerState.message,
+        this.composerMediaState
       );
     }
     return ForumComposerPresentation.topic(
@@ -790,8 +805,69 @@ struct Index {
       this.topicComposerState.title,
       this.topicComposerState.raw,
       this.topicComposerStatus(),
-      this.topicComposerState.message
+      this.topicComposerState.message,
+      this.composerMediaState
     );
+  }
+
+  private synchronizeComposerDrafts(model: AppShellModel): void {
+    this.replyState = model.replyState;
+    this.topicComposerState = model.topicComposerState;
+  }
+
+  private async selectComposerImages(): Promise<void> {
+    const context: common.UIAbilityContext | null = AbilityContextRegistry.current();
+    if (context === null) {
+      this.showAuthenticationMessage('无法选择图片', '无法获取应用运行环境');
+      return;
+    }
+    const result: MediaSelectionResult = await new MediaSelectionService(context).selectImages(5);
+    if (result.kind === MediaSelectionResultKind.CANCELLED) {
+      return;
+    }
+    if (result.kind === MediaSelectionResultKind.FAILURE) {
+      this.showAuthenticationMessage('无法选择图片', result.message);
+      return;
+    }
+    for (const media of result.media) {
+      const state: MediaUploadState = await this.uploadComposerImage(media);
+      if (state.kind !== MediaUploadStateKind.SUCCEEDED) {
+        return;
+      }
+    }
+  }
+
+  private async uploadComposerImage(media: CachedMedia): Promise<MediaUploadState> {
+    const model: AppShellModel | null = this.model;
+    if (model === null) {
+      const unavailable: MediaUploadState = MediaUploadState.selected(media).failed('图片上传服务不可用');
+      this.composerMediaState = unavailable;
+      return unavailable;
+    }
+    const state: MediaUploadState = await model.uploadComposerMedia(
+      media,
+      (nextState: MediaUploadState): void => {
+        this.composerMediaState = nextState;
+        this.synchronizeComposerDrafts(model);
+      }
+    );
+    this.synchronizeComposerDrafts(model);
+    return state;
+  }
+
+  private cancelComposerImageUpload(): void {
+    this.model?.cancelComposerMediaUpload();
+  }
+
+  private retryComposerImageUpload(): void {
+    const media: CachedMedia | undefined = this.composerMediaState?.media;
+    if (media !== undefined) {
+      this.uploadComposerImage(media);
+    }
+  }
+
+  private removeComposerImageState(): void {
+    this.composerMediaState = null;
   }
 
   private updateTopicTitle(title: string): void {
@@ -1049,6 +1125,7 @@ struct Index {
           readProgressBusy: $readProgressBusy,
           readProgressMessage: $readProgressMessage,
           replyState: this.replyState,
+          mediaState: this.composerMediaState,
           categories: this.categoryState.items,
           replySheetVisible: this.replySheetVisible,
           onRetry: (): void => {
@@ -1101,6 +1178,18 @@ struct Index {
           },
           onLoginForReply: (): void => {
             this.loginForReply();
+          },
+          onSelectMedia: (): void => {
+            this.selectComposerImages();
+          },
+          onCancelMedia: (): void => {
+            this.cancelComposerImageUpload();
+          },
+          onRetryMedia: (): void => {
+            this.retryComposerImageUpload();
+          },
+          onRemoveMedia: (): void => {
+            this.removeComposerImageState();
           }
         })
       }
@@ -1171,6 +1260,18 @@ struct Index {
           },
           onReauthenticate: (): void => {
             this.loginForTopicComposer();
+          },
+          onSelectMedia: (): void => {
+            this.selectComposerImages();
+          },
+          onCancelMedia: (): void => {
+            this.cancelComposerImageUpload();
+          },
+          onRetryMedia: (): void => {
+            this.retryComposerImageUpload();
+          },
+          onRemoveMedia: (): void => {
+            this.removeComposerImageState();
           }
         })
       }
