@@ -4,6 +4,7 @@ import { photoAccessHelper } from '@kit.MediaLibraryKit';
 import { http } from '@kit.NetworkKit';
 import { RepositoryResult } from '../core/RepositoryResult';
 import { CachedMedia } from '../models/MediaModels';
+import { isSameHttpsOrigin } from '../models/ImageViewerModels';
 import {
   AuthenticatedSessionProvider,
   DiscourseHeaders,
@@ -11,6 +12,7 @@ import {
 } from '../network/DiscourseHttpClient';
 
 const MAX_IMAGE_BYTES: number = 30 * 1024 * 1024;
+const DEFAULT_TRUSTED_BASE_URL: string = 'https://river-side.cc';
 
 class DetectedImageType {
   public readonly extension: string;
@@ -52,19 +54,27 @@ function detectImageType(bytes: Uint8Array): DetectedImageType | null {
 export class MediaGalleryService {
   private readonly context: common.UIAbilityContext;
   private readonly headersFactory: DiscourseRequestHeadersFactory;
+  private readonly anonymousHeadersFactory: DiscourseRequestHeadersFactory;
+  private readonly trustedBaseUrl: string;
   private operationSequence: number = 0;
 
   public constructor(
     context: common.UIAbilityContext,
-    sessionProvider: AuthenticatedSessionProvider | null = null
+    sessionProvider: AuthenticatedSessionProvider | null = null,
+    trustedBaseUrl: string = DEFAULT_TRUSTED_BASE_URL
   ) {
     this.context = context;
     this.headersFactory = new DiscourseRequestHeadersFactory(sessionProvider);
+    this.anonymousHeadersFactory = new DiscourseRequestHeadersFactory(null);
+    this.trustedBaseUrl = trustedBaseUrl;
   }
 
   public async prepareOriginal(remoteUrl: string): Promise<RepositoryResult<CachedMedia>> {
     const request: http.HttpRequest = http.createHttp();
-    const headers: DiscourseHeaders = this.headersFactory.create();
+    const trustedOrigin: boolean = isSameHttpsOrigin(remoteUrl, this.trustedBaseUrl);
+    const headers: DiscourseHeaders = trustedOrigin
+      ? this.headersFactory.create()
+      : this.anonymousHeadersFactory.create();
     try {
       const response: http.HttpResponse = await request.request(remoteUrl, {
         method: http.RequestMethod.GET,
@@ -72,7 +82,8 @@ export class MediaGalleryService {
         expectDataType: http.HttpDataType.ARRAY_BUFFER,
         connectTimeout: 8000,
         readTimeout: 30000,
-        usingCache: false
+        usingCache: false,
+        maxRedirects: trustedOrigin ? 0 : 5
       });
       if (response.responseCode === 401) {
         return RepositoryResult.unauthorized<CachedMedia>();

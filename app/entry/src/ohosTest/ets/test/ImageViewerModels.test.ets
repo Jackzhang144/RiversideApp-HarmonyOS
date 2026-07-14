@@ -3,6 +3,7 @@ import {
   ImageViewerPresentation,
   ImageViewerState,
   ImageViewerStateKind,
+  isSameHttpsOrigin,
   normalizeRemoteImageUrl
 } from '../../../main/ets/models/ImageViewerModels';
 import { CachedMedia } from '../../../main/ets/models/MediaModels';
@@ -29,8 +30,12 @@ export default function imageViewerModelsTest(): void {
         .assertEqual('https://river-side.cc/uploads/default/original/1X/a.jpg');
       expect(normalizeRemoteImageUrl('https://cdn.example.com/a.png', 'https://river-side.cc'))
         .assertEqual('https://cdn.example.com/a.png');
+      expect(normalizeRemoteImageUrl('http://cdn.example.com/a.png', 'https://river-side.cc')).assertEqual('');
       expect(normalizeRemoteImageUrl('file:///data/private/a.png', 'https://river-side.cc')).assertEqual('');
       expect(normalizeRemoteImageUrl('javascript:alert(1)', 'https://river-side.cc')).assertEqual('');
+      expect(isSameHttpsOrigin('https://river-side.cc/a.jpg', 'https://river-side.cc')).assertTrue();
+      expect(isSameHttpsOrigin('https://cdn.example.com/a.jpg', 'https://river-side.cc')).assertFalse();
+      expect(isSameHttpsOrigin('https://river-side.cc.evil.example/a.jpg', 'https://river-side.cc')).assertFalse();
     });
 
     it('offers copy and external open while preparing a gallery-safe cache copy', 0, () => {

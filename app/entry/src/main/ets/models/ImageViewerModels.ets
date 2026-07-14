@@ -1,18 +1,43 @@
 import { CachedMedia } from './MediaModels';
 
+function httpsOrigin(value: string): string {
+  const normalized: string = value.trim();
+  if (!normalized.startsWith('https://')) {
+    return '';
+  }
+  const authorityStart: number = 'https://'.length;
+  let authorityEnd: number = normalized.length;
+  for (const delimiter of ['/', '?', '#']) {
+    const index: number = normalized.indexOf(delimiter, authorityStart);
+    if (index >= 0) {
+      authorityEnd = Math.min(authorityEnd, index);
+    }
+  }
+  const authority: string = normalized.substring(authorityStart, authorityEnd).toLowerCase();
+  if (authority.length === 0 || authority.includes('@') || authority.includes(' ')) {
+    return '';
+  }
+  return `https://${authority}`;
+}
+
 export function normalizeRemoteImageUrl(value: string, baseUrl: string): string {
   const normalized: string = value.trim();
-  if (normalized.startsWith('https://') || normalized.startsWith('http://')) {
-    return normalized;
+  if (normalized.startsWith('https://')) {
+    return httpsOrigin(normalized).length > 0 ? normalized : '';
   }
   const normalizedBase: string = baseUrl.trim().replace(/\/$/, '');
   if (
     normalized.startsWith('/') &&
-    (normalizedBase.startsWith('https://') || normalizedBase.startsWith('http://'))
+    httpsOrigin(normalizedBase).length > 0
   ) {
     return `${normalizedBase}${normalized}`;
   }
   return '';
+}
+
+export function isSameHttpsOrigin(url: string, baseUrl: string): boolean {
+  const urlOrigin: string = httpsOrigin(url);
+  return urlOrigin.length > 0 && urlOrigin === httpsOrigin(baseUrl);
 }
 
 export enum ImageViewerStateKind {
