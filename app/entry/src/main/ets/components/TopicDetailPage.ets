@@ -416,13 +416,7 @@ export struct TopicDetailPage {
           .fontSize(13)
           .onClick(this.onLoadMore)
           .accessibilityText('重试加载更多 Post')
-      } else if (this.state.hasMorePosts) {
-        Button('加载更多 Post')
-          .height(40)
-          .fontSize(13)
-          .onClick(this.onLoadMore)
-          .accessibilityText('加载更多 Post')
-      } else if (this.state.posts.length > 0) {
+      } else if (!this.state.hasNextPosts && this.state.posts.length > 0) {
         Text('已显示全部 Post')
           .fontSize(13)
           .fontColor($r('sys.color.font_tertiary'))
@@ -555,6 +549,7 @@ export struct TopicDetailPage {
     .padding({ left: 12, right: 12, top: 10 })
     .backgroundColor('#F5F6F8')
     .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
+    .onReachEnd(this.onLoadMore)
     .bindSheet($$this.replySheetVisible, this.ReplyComposerSheet(), {
       detents: [SheetSize.MEDIUM, SheetSize.LARGE],
       detentSelection: SheetSize.MEDIUM,
