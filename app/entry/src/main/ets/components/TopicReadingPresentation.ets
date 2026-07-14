@@ -51,6 +51,16 @@ export function reactionCount(reactionId: string, reactions: Array<PostReaction>
   return 0;
 }
 
+export function displayedReactions(reactions: Array<PostReaction>): Array<PostReaction> {
+  const displayed: Array<PostReaction> = [];
+  for (const reaction of reactions) {
+    if (reaction.count > 0) {
+      displayed.push(reaction);
+    }
+  }
+  return displayed;
+}
+
 export function reactionEmojiKey(value: string): string {
   return value
     .replace('reaction.', '')

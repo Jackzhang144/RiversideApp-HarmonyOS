@@ -2,6 +2,7 @@ import { describe, expect, it } from '@ohos/hypium';
 import { Category, PostReaction } from '../../../main/ets/models/ForumModels';
 import {
   categoryLabel,
+  displayedReactions,
   reactionAccessibilityLabel,
   reactionCount,
   reactionEmojiKey,
@@ -40,6 +41,19 @@ export default function topicReadingPresentationTest(): void {
       expect(reactionAccessibilityLabel('+1')).assertEqual('赞同');
       expect(reactionAccessibilityLabel('open_mouth')).assertEqual('惊讶');
       expect(reactionAccessibilityLabel('future_reaction')).assertEqual('回应');
+    });
+
+    it('shows only Reactions that already have server-proven counts', 0, () => {
+      const reactions: Array<PostReaction> = [
+        new PostReaction('+1', 0),
+        new PostReaction('heart', 2),
+        new PostReaction('thinking', 0)
+      ];
+
+      expect(displayedReactions([]).length).assertEqual(0);
+      expect(displayedReactions(reactions).length).assertEqual(1);
+      expect(displayedReactions(reactions)[0].id).assertEqual('heart');
+      expect(displayedReactions(reactions)[0].count).assertEqual(2);
     });
   });
 }

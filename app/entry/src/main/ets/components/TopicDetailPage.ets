@@ -11,11 +11,11 @@ import {
 } from './ForumComposerPresentation';
 import { ForumCardPresentation } from './ForumCardPresentation';
 import { ForumContentCard } from './ForumContentCard';
-import { Category, ForumPost, Topic, TopicDetail } from '../models/ForumModels';
+import { Category, ForumPost, PostReaction, Topic, TopicDetail } from '../models/ForumModels';
 import {
   categoryLabel,
+  displayedReactions,
   reactionAccessibilityLabel,
-  reactionCount,
   reactionEmojiUrl,
   systemActionLabel
 } from './TopicReadingPresentation';
@@ -233,39 +233,72 @@ export struct TopicDetailPage {
   }
 
   @Builder
-  private ReactionAction(post: ForumPost, reaction: string): void {
-    Button() {
-      Row({ space: 5 }) {
-        Image(reactionEmojiUrl(reaction))
-          .width(18)
-          .height(18)
-          .objectFit(ImageFit.Contain)
-        Text(reactionCount(reaction, post.reactions).toString())
-          .fontSize(12)
-          .fontWeight(FontWeight.Medium)
-          .fontColor(post.currentUserReaction === reaction ? '#FFFFFF' : '#2068C9')
-      }
+  private ReactionSummary(reaction: PostReaction): void {
+    Row({ space: 5 }) {
+      Image(reactionEmojiUrl(reaction.id))
+        .width(18)
+        .height(18)
+        .objectFit(ImageFit.Contain)
+      Text(reaction.count.toString())
+        .fontSize(12)
+        .fontWeight(FontWeight.Medium)
+        .fontColor('#2068C9')
     }
-      .height(34)
-      .padding({ left: 10, right: 10 })
-      .backgroundColor(post.currentUserReaction === reaction ? '#317AF7' : '#EAF2FF')
-      .margin({ right: 6, bottom: 6 })
-      .enabled(!this.state.postActionState.busy)
-      .onClick((): void => this.onToggleReaction(post.id, reaction))
-      .accessibilityText(
-        post.currentUserReaction === reaction
-          ? `取消${reactionAccessibilityLabel(reaction)}回应`
-          : `添加${reactionAccessibilityLabel(reaction)}回应`
-      )
+    .height(34)
+    .padding({ left: 10, right: 10 })
+    .backgroundColor('#EAF2FF')
+    .borderRadius(17)
+    .margin({ right: 6, bottom: 6 })
+    .accessibilityText(`${reactionAccessibilityLabel(reaction.id)}回应，${reaction.count} 次`)
+  }
+
+  @Builder
+  private ReactionPicker(post: ForumPost): void {
+    Menu() {
+      ForEach(this.state.detail?.validReactions ?? [], (reaction: string) => {
+        MenuItem({
+          startIcon: reactionEmojiUrl(reaction),
+          content: reactionAccessibilityLabel(reaction)
+        })
+          .enabled(!this.state.postActionState.busy)
+          .onClick((): void => this.onToggleReaction(post.id, reaction))
+      }, (reaction: string): string => reaction)
+    }
+  }
+
+  @Builder
+  private ReactionTrigger(post: ForumPost): void {
+    Button() {
+      Image(reactionEmojiUrl('+1'))
+        .width(18)
+        .height(18)
+        .objectFit(ImageFit.Contain)
+    }
+    .width(42)
+    .height(34)
+    .backgroundColor(post.currentUserReaction === '+1' ? '#317AF7' : '#EAF2FF')
+    .margin({ right: 6, bottom: 6 })
+    .enabled(!this.state.postActionState.busy)
+    .onClick((): void => this.onToggleReaction(post.id, '+1'))
+    .bindContextMenu(this.ReactionPicker(post), ResponseType.LongPress, {
+      preview: MenuPreviewMode.NONE,
+      enableArrow: true
+    })
+    .accessibilityText(
+      post.currentUserReaction === '+1'
+        ? '取消赞同回应，长按选择其他回应'
+        : '添加赞同回应，长按选择其他回应'
+    )
   }
 
   @Builder
   private PostActions(post: ForumPost): void {
     Column({ space: 7 }) {
       Flex({ direction: FlexDirection.Row, wrap: FlexWrap.Wrap, justifyContent: FlexAlign.Start }) {
-        ForEach(this.state.detail?.validReactions ?? [], (reaction: string) => {
-          this.ReactionAction(post, reaction)
-        }, (reaction: string): string => reaction)
+        ForEach(displayedReactions(post.reactions), (reaction: PostReaction) => {
+          this.ReactionSummary(reaction)
+        }, (reaction: PostReaction): string => reaction.id)
+        this.ReactionTrigger(post)
         Button() {
           Row({ space: 4 }) {
             SymbolGlyph($r('sys.symbol.bookmark'))
