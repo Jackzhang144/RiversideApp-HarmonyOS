@@ -300,21 +300,17 @@ export struct TopicDetailPage {
         }, (reaction: PostReaction): string => reaction.id)
         this.ReactionTrigger(post)
         Button() {
-          Row({ space: 4 }) {
-            SymbolGlyph($r('sys.symbol.bookmark'))
-              .fontSize(14)
-              .fontColor([post.bookmarked ? '#FFFFFF' : '#2068C9'])
-            Text(post.bookmarked ? '已收藏' : '收藏')
-              .fontSize(12)
-              .fontColor(post.bookmarked ? '#FFFFFF' : '#2068C9')
-          }
+          SymbolGlyph($r('sys.symbol.bookmark'))
+            .fontSize(18)
+            .fontColor([post.bookmarked ? '#FFFFFF' : '#2068C9'])
         }
+        .width(42)
         .height(34)
         .backgroundColor(post.bookmarked ? '#317AF7' : '#EAF2FF')
         .margin({ right: 6, bottom: 6 })
         .enabled(!this.state.postActionState.busy)
         .onClick((): void => this.onToggleBookmark(post.id))
-        .accessibilityText(post.bookmarked ? '删除 Post 书签' : '收藏 Post')
+        .accessibilityText(post.bookmarked ? '取消收藏' : '收藏')
       }
       .width('100%')
       if (this.state.postActionState.postId === post.id && this.state.postActionState.busy) {
