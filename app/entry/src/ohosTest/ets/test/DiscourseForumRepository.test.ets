@@ -1,6 +1,7 @@
 import { describe, expect, it } from '@ohos/hypium';
 import { RepositoryResult, RepositoryResultKind } from '../../../main/ets/core/RepositoryResult';
 import { ForumPost, Topic, TopicDetail } from '../../../main/ets/models/ForumModels';
+import { ForumSearchResult, HomeChannel } from '../../../main/ets/models/DiscoveryModels';
 import {
   CurrentUser,
   ReplyRecoveryKind,
@@ -34,6 +35,27 @@ class StubForumHttpClient implements ForumHttpClient {
 
 export default function discourseForumRepositoryTest(): void {
   describe('Discourse ForumRepository contract', () => {
+    it('loads every Home channel and page through the frozen Flutter paths', 0, async (done: Function) => {
+      const client: StubForumHttpClient = new StubForumHttpClient();
+      for (let index: number = 0; index < 5; index += 1) {
+        client.results.push(HttpTextResult.success(200, '{"topic_list":{"topics":[]}}'));
+      }
+      const repository: DiscourseForumRepository = new DiscourseForumRepository(client);
+
+      await repository.loadHomeTopics(HomeChannel.LATEST_REPLIES, 0);
+      await repository.loadHomeTopics(HomeChannel.LATEST_CREATED, 2);
+      await repository.loadHomeTopics(HomeChannel.UNREAD, 1);
+      await repository.loadHomeTopics(HomeChannel.HOT, 3);
+      await repository.loadHomeTopics(HomeChannel.FEATURED, 4);
+
+      expect(client.paths[0]).assertEqual('/latest.json');
+      expect(client.paths[1]).assertEqual('/latest.json?order=created&page=2');
+      expect(client.paths[2]).assertEqual('/new.json?page=1');
+      expect(client.paths[3]).assertEqual('/hot.json?page=3');
+      expect(client.paths[4]).assertEqual('/tag/2-tag/2.json?page=4');
+      done();
+    });
+
     it('loads a Category Topic list through its canonical path', 0, async (done: Function) => {
       const client: StubForumHttpClient = new StubForumHttpClient();
       client.results.push(HttpTextResult.success(200,
@@ -43,11 +65,57 @@ export default function discourseForumRepositoryTest(): void {
       ));
       const repository: DiscourseForumRepository = new DiscourseForumRepository(client);
 
-      const result: RepositoryResult<Array<Topic>> = await repository.loadCategoryTopics(60);
+      const result: RepositoryResult<Array<Topic>> = await repository.loadCategoryTopics(60, 2);
 
-      expect(client.paths[0]).assertEqual('/c/60.json');
+      expect(client.paths[0]).assertEqual('/c/60.json?page=2');
       expect(result.kind).assertEqual(RepositoryResultKind.SUCCESS);
       expect(result.data?.[0].id).assertEqual(2725);
+      done();
+    });
+
+    it('parses Topic, Post, user, Category, tag and group search results with pagination', 0,
+      async (done: Function) => {
+        const client: StubForumHttpClient = new StubForumHttpClient();
+        client.results.push(HttpTextResult.success(200,
+          '{"posts":[{"id":103066,"username":"admin","blurb":"<b>河畔</b> 回复",' +
+          '"post_number":2,"topic_id":2764,"created_at":"2026-01-28T02:24:17.848Z"}],' +
+          '"topics":[{"id":2764,"title":"河畔公告","category_id":54,"posts_count":3}],' +
+          '"users":[{"id":38290,"username":"河畔流浪者","name":"河畔流浪者"}],' +
+          '"categories":[{"id":111,"name":"测试专用","color":"25AAE2","position":2}],' +
+          '"tags":[{"id":"2-tag","name":"2-tag","topic_count":8}],' +
+          '"groups":[{"id":50,"name":"rs_developer","full_name":"河畔开发者","user_count":8}],' +
+          '"grouped_search_result":{"more_full_page_results":false,"more_users":true}}'
+        ));
+        const repository: DiscourseForumRepository = new DiscourseForumRepository(client);
+
+        const result: RepositoryResult<ForumSearchResult> = await repository.searchForum(' 河畔 ', 2);
+
+        expect(client.paths[0]).assertEqual('/search.json?q=%E6%B2%B3%E7%95%94&page=2');
+        expect(result.kind).assertEqual(RepositoryResultKind.SUCCESS);
+        expect(result.data?.topics[0].id).assertEqual(2764);
+        expect(result.data?.posts[0].displayText).assertEqual('河畔 回复');
+        expect(result.data?.users[0].username).assertEqual('河畔流浪者');
+        expect(result.data?.categories[0].id).assertEqual(111);
+        expect(result.data?.tags[0].name).assertEqual('2-tag');
+        expect(result.data?.groups[0].fullName).assertEqual('河畔开发者');
+        expect(result.data?.hasMore).assertTrue();
+        done();
+      });
+
+    it('loads topic search suggestions and rejects blank search without transport', 0, async (done: Function) => {
+      const client: StubForumHttpClient = new StubForumHttpClient();
+      client.results.push(HttpTextResult.success(200,
+        '{"topics":[{"title":"河畔公告"},{"title":"测试专用说明"}]}'
+      ));
+      const repository: DiscourseForumRepository = new DiscourseForumRepository(client);
+
+      const suggestions: RepositoryResult<Array<string>> = await repository.searchSuggestions('河畔');
+      const blank: RepositoryResult<ForumSearchResult> = await repository.searchForum('  ', 1);
+
+      expect(client.paths[0]).assertEqual('/search/query?term=%E6%B2%B3%E7%95%94&typeahead=true');
+      expect(client.paths.length).assertEqual(1);
+      expect(suggestions.data?.length).assertEqual(2);
+      expect(blank.kind).assertEqual(RepositoryResultKind.FAILURE);
       done();
     });
 

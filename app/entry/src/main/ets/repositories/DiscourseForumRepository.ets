@@ -1,5 +1,6 @@
 import { RepositoryResult } from '../core/RepositoryResult';
 import { Category, ForumPost, Topic, TopicDetail } from '../models/ForumModels';
+import { ForumSearchResult, HomeChannel, homeChannelPath } from '../models/DiscoveryModels';
 import {
   CurrentUser,
   ReplyRecoveryRequest,
@@ -21,7 +22,14 @@ export class DiscourseForumRepository implements ForumRepository {
   }
 
   public async loadLatestTopics(): Promise<RepositoryResult<Array<Topic>>> {
-    const response: HttpTextResult = await this.client.get('/latest.json');
+    return this.loadHomeTopics(HomeChannel.LATEST_REPLIES, 0);
+  }
+
+  public async loadHomeTopics(channel: HomeChannel, page: number): Promise<RepositoryResult<Array<Topic>>> {
+    if (!Number.isInteger(page) || page < 0) {
+      return RepositoryResult.failure<Array<Topic>>('首页页码无效');
+    }
+    const response: HttpTextResult = await this.client.get(homeChannelPath(channel, page));
     if (response.kind === HttpTextResultKind.UNAUTHORIZED) {
       return RepositoryResult.unauthorized<Array<Topic>>();
     }
@@ -53,11 +61,15 @@ export class DiscourseForumRepository implements ForumRepository {
     return this.parser.parseCategories(siteResponse.body, directoryResponse.body);
   }
 
-  public async loadCategoryTopics(categoryId: number): Promise<RepositoryResult<Array<Topic>>> {
+  public async loadCategoryTopics(categoryId: number, page: number = 0): Promise<RepositoryResult<Array<Topic>>> {
     if (!Number.isInteger(categoryId) || categoryId <= 0) {
       return RepositoryResult.failure<Array<Topic>>('Category 标识无效');
     }
-    const response: HttpTextResult = await this.client.get(`/c/${categoryId}.json`);
+    if (!Number.isInteger(page) || page < 0) {
+      return RepositoryResult.failure<Array<Topic>>('Category 页码无效');
+    }
+    const suffix: string = page > 0 ? `?page=${page}` : '';
+    const response: HttpTextResult = await this.client.get(`/c/${categoryId}.json${suffix}`);
     if (response.kind === HttpTextResultKind.UNAUTHORIZED) {
       return RepositoryResult.unauthorized<Array<Topic>>();
     }
@@ -65,6 +77,43 @@ export class DiscourseForumRepository implements ForumRepository {
       return RepositoryResult.failure<Array<Topic>>(response.message);
     }
     return this.parser.parseLatestTopics(response.body);
+  }
+
+  public async searchForum(query: string, page: number): Promise<RepositoryResult<ForumSearchResult>> {
+    const normalizedQuery: string = query.trim();
+    if (normalizedQuery.length === 0) {
+      return RepositoryResult.failure<ForumSearchResult>('请输入搜索关键词');
+    }
+    if (!Number.isInteger(page) || page < 1) {
+      return RepositoryResult.failure<ForumSearchResult>('搜索页码无效');
+    }
+    const response: HttpTextResult = await this.client.get(
+      `/search.json?q=${encodeURIComponent(normalizedQuery)}&page=${page}`
+    );
+    if (response.kind === HttpTextResultKind.UNAUTHORIZED) {
+      return RepositoryResult.unauthorized<ForumSearchResult>();
+    }
+    if (!response.isSuccess()) {
+      return RepositoryResult.failure<ForumSearchResult>(response.message);
+    }
+    return this.parser.parseSearch(response.body);
+  }
+
+  public async searchSuggestions(term: string): Promise<RepositoryResult<Array<string>>> {
+    const normalizedTerm: string = term.trim();
+    if (normalizedTerm.length < 2) {
+      return RepositoryResult.success<Array<string>>([]);
+    }
+    const response: HttpTextResult = await this.client.get(
+      `/search/query?term=${encodeURIComponent(normalizedTerm)}&typeahead=true`
+    );
+    if (response.kind === HttpTextResultKind.UNAUTHORIZED) {
+      return RepositoryResult.unauthorized<Array<string>>();
+    }
+    if (!response.isSuccess()) {
+      return RepositoryResult.failure<Array<string>>(response.message);
+    }
+    return this.parser.parseSearchSuggestions(response.body);
   }
 
   public async loadTopicDetail(topicId: number): Promise<RepositoryResult<TopicDetail>> {

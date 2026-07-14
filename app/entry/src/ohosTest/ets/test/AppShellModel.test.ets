@@ -11,6 +11,7 @@ import {
 import { CategoryCacheScope } from '../../../main/ets/cache/CategoryCache';
 import { RepositoryResult } from '../../../main/ets/core/RepositoryResult';
 import { Category, ForumPost, Topic, TopicDetail } from '../../../main/ets/models/ForumModels';
+import { ForumSearchResult, HomeChannel } from '../../../main/ets/models/DiscoveryModels';
 import {
   CurrentUser,
   ReplyRecoveryRequest,
@@ -31,6 +32,18 @@ class StubForumRepository implements ForumRepository {
     this.latestCallCount += 1;
     const result: RepositoryResult<Array<Topic>> | undefined = this.latestResults.shift();
     return result ?? RepositoryResult.failure<Array<Topic>>('missing latest result');
+  }
+
+  public async loadHomeTopics(_channel: HomeChannel, _page: number): Promise<RepositoryResult<Array<Topic>>> {
+    return this.loadLatestTopics();
+  }
+
+  public async searchForum(_query: string, _page: number): Promise<RepositoryResult<ForumSearchResult>> {
+    return RepositoryResult.failure<ForumSearchResult>('missing search result');
+  }
+
+  public async searchSuggestions(_term: string): Promise<RepositoryResult<Array<string>>> {
+    return RepositoryResult.success<Array<string>>([]);
   }
 
   public async loadCategories(): Promise<RepositoryResult<Array<Category>>> {
