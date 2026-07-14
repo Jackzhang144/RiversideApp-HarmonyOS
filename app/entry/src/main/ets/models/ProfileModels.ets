@@ -8,6 +8,22 @@ const VERIFIED_GROUP_NAMES: Array<string> = [
 ];
 const VERIFIED_GROUP_IDS: Array<number> = [41, 45, 46, 48, 49];
 
+function visibleProfileText(value: string): string {
+  return value
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/<style[\s\S]*?<\/style>/gi, '')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
 export function absoluteProfileUrl(value: string): string {
   const normalized: string = value.trim();
   if (normalized.length === 0) {
@@ -153,7 +169,7 @@ export class UserProfile {
     this.profileBackgroundUrl = absoluteProfileUrl(attributes.profileBackgroundUrl ?? '');
     this.cardBackgroundUrl = absoluteProfileUrl(attributes.cardBackgroundUrl ?? '');
     this.bioRaw = attributes.bioRaw ?? '';
-    this.bioExcerpt = (attributes.bioExcerpt ?? attributes.bioRaw ?? '').trim();
+    this.bioExcerpt = visibleProfileText(attributes.bioExcerpt ?? attributes.bioRaw ?? '');
     this.location = (attributes.location ?? '').trim();
     this.website = (attributes.website ?? '').trim();
     this.timezone = (attributes.timezone ?? '').trim();

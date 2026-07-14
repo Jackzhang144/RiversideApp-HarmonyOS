@@ -63,6 +63,20 @@ export default function profileManagementTest(): void {
         done();
       });
 
+    it('keeps Profile biography markup out of visible summary text', 0, async (done: Function) => {
+      const client: StubForumHttpClient = new StubForumHttpClient();
+      client.results.push(HttpTextResult.success(200,
+        '{"user":{"id":24,"username":"member","bio_excerpt":' +
+        '"河畔 ID：<a class=\\"mention\\" href=\\"/u/member\\">@成员</a> &amp; 校友"}}'
+      ));
+      const repository: DiscourseForumRepository = new DiscourseForumRepository(client);
+
+      const result: RepositoryResult<UserProfile> = await repository.loadFullUserProfile('member');
+
+      expect(result.data?.bioExcerpt).assertEqual('河畔 ID：@成员 & 校友');
+      done();
+    });
+
     it('loads emails through the read-only preferences contract', 0, async (done: Function) => {
       const client: StubForumHttpClient = new StubForumHttpClient();
       client.results.push(HttpTextResult.success(200,
