@@ -4,7 +4,12 @@ import { HomeChannel, homeChannelLabel, OnlineUser } from '../models/DiscoveryMo
 import { Category, Topic } from '../models/ForumModels';
 import { ForumCardPresentation } from './ForumCardPresentation';
 import { ForumContentCard } from './ForumContentCard';
-import { HomeHeaderActionPresentation } from './HomePresentation';
+import {
+  FeatureSitePresentation,
+  HomeHeaderActionPresentation,
+  featureSitePresentations
+} from './HomePresentation';
+import { RichEmbedProvider } from '../models/RichContentModels';
 
 @Component
 export struct HomeBrowsePage {
@@ -25,6 +30,58 @@ export struct HomeBrowsePage {
   onWorldCupEntryChange: (enabled: boolean) => void = (_enabled: boolean): void => {};
   onOpenOnlineUsers: () => void = (): void => {};
   onRetryOnlineUsers: () => void = (): void => {};
+  onOpenFeatureSite: (site: FeatureSitePresentation) => void = (_site: FeatureSitePresentation): void => {};
+
+  private featureIcon(provider: RichEmbedProvider): Resource {
+    if (provider === RichEmbedProvider.WHISPER) {
+      return $r('sys.symbol.message');
+    }
+    if (provider === RichEmbedProvider.REVIEW) {
+      return $r('sys.symbol.book');
+    }
+    if (provider === RichEmbedProvider.MAP) {
+      return $r('sys.symbol.pin');
+    }
+    if (provider === RichEmbedProvider.FOOD) {
+      return $r('sys.symbol.fork_knife');
+    }
+    return $r('sys.symbol.heart');
+  }
+
+  @Builder
+  private featureSites(): void {
+    Scroll() {
+      Row({ space: 9 }) {
+        ForEach(featureSitePresentations(), (site: FeatureSitePresentation) => {
+          Column({ space: 5 }) {
+            SymbolGlyph(this.featureIcon(site.provider))
+              .fontSize(22)
+              .fontColor(['#317AF7'])
+            Text(site.title)
+              .fontSize(11)
+              .fontWeight(FontWeight.Bold)
+              .fontColor('#344054')
+              .maxLines(1)
+          }
+          .width(72)
+          .height(62)
+          .justifyContent(FlexAlign.Center)
+          .backgroundColor('#F8FAFC')
+          .borderRadius(10)
+          .border({ width: 1, color: '#E8EBF0' })
+          .onClick((): void => this.onOpenFeatureSite(site))
+          .accessibilityText(`打开 ${site.title}`)
+        }, (site: FeatureSitePresentation): string => site.provider)
+      }
+      .padding({ left: 12, right: 12, top: 8, bottom: 8 })
+    }
+    .width('100%')
+    .height(78)
+    .scrollable(ScrollDirection.Horizontal)
+    .scrollBar(BarState.Off)
+    .edgeEffect(EdgeEffect.Spring)
+    .backgroundColor('#FFFFFF')
+  }
 
   @Builder
   private onlineAvatar(user: OnlineUser): void {
@@ -334,6 +391,7 @@ export struct HomeBrowsePage {
   build() {
     Column() {
       this.header()
+      this.featureSites()
       this.onlineUsersStrip()
       HdsTabs({ index: this.selectedChannel }) {
         TabContent() {

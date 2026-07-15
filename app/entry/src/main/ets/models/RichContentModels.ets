@@ -29,7 +29,12 @@ export enum RichContentBlockKind {
 export enum RichEmbedProvider {
   NONE = 'none',
   BILIBILI = 'bilibili',
-  YOUTUBE = 'youtube'
+  YOUTUBE = 'youtube',
+  WHISPER = 'whisper',
+  REVIEW = 'review',
+  MAP = 'map',
+  FOOD = 'food',
+  RSDATE = 'rsdate'
 }
 
 export enum RichNavigationKind {
@@ -739,11 +744,45 @@ export function isAllowedEmbedNavigation(provider: RichEmbedProvider, rawUrl: st
   if (provider === RichEmbedProvider.YOUTUBE) {
     return (host === 'www.youtube.com' || host === 'www.youtube-nocookie.com') && path.startsWith('/embed/');
   }
+  if (provider === RichEmbedProvider.WHISPER) {
+    return host === 'whisper.river-side.cc';
+  }
+  if (provider === RichEmbedProvider.REVIEW) {
+    return host === 'review.river-side.cc';
+  }
+  if (provider === RichEmbedProvider.MAP) {
+    return host === 'map.river-side.cc';
+  }
+  if (provider === RichEmbedProvider.FOOD) {
+    return host === 'food.river-side.cc';
+  }
+  if (provider === RichEmbedProvider.RSDATE) {
+    return host === 'rsdate.river-side.cc';
+  }
   return false;
 }
 
 export function embedTrustList(provider: RichEmbedProvider): string {
-  return provider === RichEmbedProvider.BILIBILI
-    ? BILIBILI_URL_TRUST_LIST
-    : YOUTUBE_URL_TRUST_LIST;
+  if (provider === RichEmbedProvider.BILIBILI) {
+    return BILIBILI_URL_TRUST_LIST;
+  }
+  if (provider === RichEmbedProvider.YOUTUBE) {
+    return YOUTUBE_URL_TRUST_LIST;
+  }
+  let host: string = 'river-side.cc';
+  if (provider === RichEmbedProvider.WHISPER) {
+    host = 'whisper.river-side.cc';
+  } else if (provider === RichEmbedProvider.REVIEW) {
+    host = 'review.river-side.cc';
+  } else if (provider === RichEmbedProvider.MAP) {
+    host = 'map.river-side.cc';
+  } else if (provider === RichEmbedProvider.FOOD) {
+    host = 'food.river-side.cc';
+  } else if (provider === RichEmbedProvider.RSDATE) {
+    host = 'rsdate.river-side.cc';
+  }
+  return '{"UrlPermissionList":[' +
+    '{"scheme":"https","host":"river-side.cc"},' +
+    `{"scheme":"https","host":"${host}"}` +
+    ']}';
 }

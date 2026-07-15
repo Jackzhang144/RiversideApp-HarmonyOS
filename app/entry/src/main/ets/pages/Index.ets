@@ -55,6 +55,7 @@ import { ChatRootPage } from '../components/ChatRootPage';
 import { NotificationCentrePage } from '../components/NotificationCentrePage';
 import { CategoryTopicsPage } from '../components/CategoryTopicsPage';
 import { HomeBrowsePage } from '../components/HomeBrowsePage';
+import { FeatureSitePresentation } from '../components/HomePresentation';
 import { ForumComposer } from '../components/ForumComposer';
 import {
   ForumComposerPresentation,
@@ -2491,6 +2492,9 @@ struct Index {
             },
             onRetryOnlineUsers: (): void => {
               this.loadOnlineUsers();
+            },
+            onOpenFeatureSite: (site: FeatureSitePresentation): void => {
+              this.openRichEmbed(site.entryUrl, site.provider, site.title);
             },
             onRetry: (): void => {
               this.loadHome();

@@ -130,6 +130,14 @@ export default function richContentTest(): void {
       )).assertFalse();
       expect(isAllowedEmbedNavigation(RichEmbedProvider.YOUTUBE, 'http://www.youtube.com/embed/1'))
         .assertFalse();
+      expect(isAllowedEmbedNavigation(
+        RichEmbedProvider.WHISPER,
+        'https://whisper.river-side.cc/auth/start?mode=interactive'
+      )).assertTrue();
+      expect(isAllowedEmbedNavigation(
+        RichEmbedProvider.WHISPER,
+        'https://review.river-side.cc/'
+      )).assertFalse();
       expect(BILIBILI_URL_TRUST_LIST.includes('*')).assertFalse();
       expect(YOUTUBE_URL_TRUST_LIST.includes('*')).assertFalse();
     });

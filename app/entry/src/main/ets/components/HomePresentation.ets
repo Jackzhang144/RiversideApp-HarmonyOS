@@ -1,3 +1,54 @@
+import { RichEmbedProvider } from '../models/RichContentModels';
+
+export class FeatureSitePresentation {
+  public readonly title: string;
+  public readonly homeUrl: string;
+  public readonly entryUrl: string;
+  public readonly provider: RichEmbedProvider;
+
+  public constructor(title: string, homeUrl: string, entryUrl: string, provider: RichEmbedProvider) {
+    this.title = title;
+    this.homeUrl = homeUrl;
+    this.entryUrl = entryUrl;
+    this.provider = provider;
+  }
+}
+
+export function featureSitePresentations(): Array<FeatureSitePresentation> {
+  return [
+    new FeatureSitePresentation(
+      '树洞',
+      'https://whisper.river-side.cc/',
+      'https://whisper.river-side.cc/auth/start?mode=interactive',
+      RichEmbedProvider.WHISPER
+    ),
+    new FeatureSitePresentation(
+      '选课指南',
+      'https://review.river-side.cc/',
+      'https://review.river-side.cc/auth/start?mode=interactive',
+      RichEmbedProvider.REVIEW
+    ),
+    new FeatureSitePresentation(
+      '校友地图',
+      'https://map.river-side.cc/',
+      'https://map.river-side.cc/auth/start?mode=interactive',
+      RichEmbedProvider.MAP
+    ),
+    new FeatureSitePresentation(
+      '觅电',
+      'https://food.river-side.cc/',
+      'https://food.river-side.cc/auth/discourse',
+      RichEmbedProvider.FOOD
+    ),
+    new FeatureSitePresentation(
+      'RS date',
+      'https://rsdate.river-side.cc/',
+      'https://rsdate.river-side.cc/auth/start?mode=interactive',
+      RichEmbedProvider.RSDATE
+    )
+  ];
+}
+
 export enum HomeHeaderActionKind {
   SEARCH = 'search',
   NEW_TOPIC = 'new-topic'
