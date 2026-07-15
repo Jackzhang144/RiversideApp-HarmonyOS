@@ -91,7 +91,7 @@ function accountPlaceholderSections(actionsAvailable: boolean = false): Array<Ac
     ]),
     new AccountPlaceholderSection(AccountPlaceholderSectionKind.APPLICATION, [
       new AccountPlaceholder(AccountPlaceholderKind.APP_SETTINGS, '应用设置'),
-      new AccountPlaceholder(AccountPlaceholderKind.ABOUT_RIVERSIDE, '关于 RiverSide')
+      new AccountPlaceholder(AccountPlaceholderKind.ABOUT_RIVERSIDE, '关于 RiverSide', true)
     ])
   ];
 }

@@ -26,7 +26,8 @@ function assertPersistentContent(presentation: AccountPresentation, actionsAvail
   for (const section of presentation.placeholderSections) {
     for (const placeholder of section.placeholders) {
       expect(placeholder.label).assertEqual(PLACEHOLDER_LABELS[placeholderIndex]);
-      const expectedAvailable: boolean = actionsAvailable && [0, 2, 3, 4, 5].includes(placeholderIndex);
+      const expectedAvailable: boolean = placeholderIndex === 7 ||
+        actionsAvailable && [0, 2, 3, 4, 5].includes(placeholderIndex);
       expect(placeholder.accessibilityText).assertEqual(expectedAvailable
         ? PLACEHOLDER_LABELS[placeholderIndex]
         : `${PLACEHOLDER_LABELS[placeholderIndex]}，未实现`);

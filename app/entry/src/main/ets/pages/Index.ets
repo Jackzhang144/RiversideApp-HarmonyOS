@@ -50,6 +50,7 @@ import { PreferencesCategoryCache } from '../cache/PreferencesCategoryCache';
 import { AbilityContextRegistry } from '../core/AbilityContextRegistry';
 import { RepositoryResult } from '../core/RepositoryResult';
 import { AccountPage } from '../components/AccountPage';
+import { AboutPage, AppVersionInfo } from '../components/AboutPage';
 import { CategoryBrowsePage } from '../components/CategoryBrowsePage';
 import { ChatConversationPage } from '../components/ChatConversationPage';
 import { ChatRootPage } from '../components/ChatRootPage';
@@ -124,6 +125,7 @@ const TOPIC_ROUTE: string = 'topic';
 const LOGIN_ROUTE: string = 'login';
 const SEARCH_ROUTE: string = 'search';
 const ONLINE_USERS_ROUTE: string = 'online-users';
+const ABOUT_ROUTE: string = 'about';
 const TOPIC_COMPOSER_ROUTE: string = 'topic-composer';
 const USER_PROFILE_ROUTE: string = 'user-profile';
 const PROFILE_EDITOR_ROUTE: string = 'profile-editor';
@@ -207,6 +209,7 @@ struct Index {
   @State richEmbedTitle: string = '';
   @State richEmbedProvider: RichEmbedProvider = RichEmbedProvider.NONE;
   @State imageViewerState: ImageViewerState = ImageViewerState.preparing('', '');
+  @State appVersion: AppVersionInfo = AppVersionInfo.current();
   private accountIdentityRequestVersion: number = 0;
 
   private topAvoidHeight(): number {
@@ -1635,6 +1638,10 @@ struct Index {
   }
 
   private openAccountPlaceholder(kind: AccountPlaceholderKind): void {
+    if (kind === AccountPlaceholderKind.ABOUT_RIVERSIDE) {
+      this.pathStack.pushPath({ name: ABOUT_ROUTE });
+      return;
+    }
     const profile = this.accountProfileState.profile;
     if (profile === null) {
       return;
@@ -1970,7 +1977,24 @@ struct Index {
 
   @Builder
   private SecondaryPage(name: string, _param: Object): void {
-    if (name === ONLINE_USERS_ROUTE) {
+    if (name === ABOUT_ROUTE) {
+      HdsNavDestination() {
+        AboutPage({
+          version: this.appVersion,
+          onOpenWebsite: (): void => {
+            this.openRichEmbed('https://river-side.cc/about', RichEmbedProvider.NONE, '关于 RiverSide');
+          }
+        })
+      }
+      .titleBar({
+        enableComponentSafeArea: true,
+        content: {
+          title: { mainTitle: '关于 RiverSide' },
+          backIcon: { label: '返回我的' }
+        }
+      })
+      .onBackPressed((): boolean => false)
+    } else if (name === ONLINE_USERS_ROUTE) {
       HdsNavDestination() {
         OnlineUsersPage({
           count: this.onlineUserCount,
