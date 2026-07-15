@@ -570,7 +570,7 @@ export default function appShellModelTest(): void {
         settings
       );
 
-      expect(await model.applyServerHomeChannel(HomeChannel.LATEST_CREATED)).assertTrue();
+      expect(await model.applyHomeChannelPreference(HomeChannel.LATEST_CREATED)).assertTrue();
       expect(model.selectedHomeChannel).assertEqual(HomeChannel.LATEST_CREATED);
       expect(settings.stored?.homeChannel).assertEqual(HomeChannel.LATEST_CREATED);
       done();

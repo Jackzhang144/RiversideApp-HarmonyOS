@@ -1,5 +1,6 @@
 import appShellModelTest from './AppShellModel.test';
 import accountPresentationTest from './AccountPresentation.test';
+import appSettingsPresentationTest from './AppSettingsPresentation.test';
 import authoringModelsTest from './AuthoringModels.test';
 import authBoundaryTest from './AuthBoundary.test';
 import authRepositoryTest from './AuthRepository.test';
@@ -39,6 +40,7 @@ export default function tests(): void {
   chatRepositoryTest();
   chatModelTest();
   accountPresentationTest();
+  appSettingsPresentationTest();
   appShellModelTest();
   authoringModelsTest();
   authBoundaryTest();

@@ -55,6 +55,7 @@ import { PreferencesCategoryCache } from '../cache/PreferencesCategoryCache';
 import { AbilityContextRegistry } from '../core/AbilityContextRegistry';
 import { RepositoryResult } from '../core/RepositoryResult';
 import { AccountPage } from '../components/AccountPage';
+import { AppSettingsPage } from '../components/AppSettingsPage';
 import { AboutPage, AppVersionInfo } from '../components/AboutPage';
 import { CategoryBrowsePage } from '../components/CategoryBrowsePage';
 import { ChatConversationPage } from '../components/ChatConversationPage';
@@ -89,7 +90,14 @@ import {
   ChatSearchResult
 } from '../models/ChatModels';
 import { NotificationBucket, NotificationItem } from '../models/NotificationModels';
-import { HomeChannel, OnlineUser, OnlineUsers, SearchPost, SearchUser } from '../models/DiscoveryModels';
+import {
+  HomeChannel,
+  homeChannelFromIndex,
+  OnlineUser,
+  OnlineUsers,
+  SearchPost,
+  SearchUser
+} from '../models/DiscoveryModels';
 import { CurrentUser } from '../models/ReplyModels';
 import { ComposerEdit, ServerDraft } from '../models/AuthoringModels';
 import {
@@ -132,6 +140,7 @@ const LOGIN_ROUTE: string = 'login';
 const SEARCH_ROUTE: string = 'search';
 const ONLINE_USERS_ROUTE: string = 'online-users';
 const ABOUT_ROUTE: string = 'about';
+const APP_SETTINGS_ROUTE: string = 'app-settings';
 const TOPIC_COMPOSER_ROUTE: string = 'topic-composer';
 const USER_PROFILE_ROUTE: string = 'user-profile';
 const PROFILE_EDITOR_ROUTE: string = 'profile-editor';
@@ -398,7 +407,7 @@ struct Index {
     const channelChanged: boolean = model.selectedHomeChannel !== result.data.defaultHomeChannel &&
       result.data.defaultHomeChannel !== null;
     if (result.data.defaultHomeChannel !== null) {
-      await model.applyServerHomeChannel(result.data.defaultHomeChannel);
+      await model.applyHomeChannelPreference(result.data.defaultHomeChannel);
       this.selectedHomeChannel = model.selectedHomeChannel;
       if (channelChanged) {
         await this.loadHome();
@@ -482,8 +491,16 @@ struct Index {
   }
 
   private async selectHomeChannel(index: number): Promise<void> {
+    const channel: HomeChannel | null = homeChannelFromIndex(index);
+    if (channel === null) {
+      return;
+    }
+    await this.applyHomeChannelPreference(channel);
+  }
+
+  private async applyHomeChannelPreference(channel: HomeChannel): Promise<void> {
     const model: AppShellModel | null = this.model;
-    if (model === null || !await model.selectHomeChannel(index)) {
+    if (model === null || !await model.applyHomeChannelPreference(channel)) {
       return;
     }
     this.selectedHomeChannel = model.selectedHomeChannel;
@@ -1679,6 +1696,10 @@ struct Index {
   }
 
   private openAccountPlaceholder(kind: AccountPlaceholderKind): void {
+    if (kind === AccountPlaceholderKind.APP_SETTINGS) {
+      this.pathStack.pushPath({ name: APP_SETTINGS_ROUTE });
+      return;
+    }
     if (kind === AccountPlaceholderKind.ABOUT_RIVERSIDE) {
       this.pathStack.pushPath({ name: ABOUT_ROUTE });
       return;
@@ -2019,7 +2040,24 @@ struct Index {
 
   @Builder
   private SecondaryPage(name: string, _param: Object): void {
-    if (name === ABOUT_ROUTE) {
+    if (name === APP_SETTINGS_ROUTE) {
+      HdsNavDestination() {
+        AppSettingsPage({
+          selectedHomeChannel: this.selectedHomeChannel,
+          onSelectHomeChannel: (channel: HomeChannel): void => {
+            this.applyHomeChannelPreference(channel);
+          }
+        })
+      }
+      .titleBar({
+        enableComponentSafeArea: true,
+        content: {
+          title: { mainTitle: '应用设置' },
+          backIcon: { label: '返回我的' }
+        }
+      })
+      .onBackPressed((): boolean => false)
+    } else if (name === ABOUT_ROUTE) {
       HdsNavDestination() {
         AboutPage({
           version: this.appVersion,

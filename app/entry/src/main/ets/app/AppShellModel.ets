@@ -1099,14 +1099,14 @@ export class AppShellModel {
   }
 
   public async selectHomeChannel(index: number): Promise<boolean> {
-    if (!this.selectHomeSortTab(index)) {
+    const channel: HomeChannel | null = homeChannelFromIndex(index);
+    if (channel === null) {
       return false;
     }
-    await this.persistDiscoverySettings();
-    return true;
+    return this.applyHomeChannelPreference(channel);
   }
 
-  public async applyServerHomeChannel(channel: HomeChannel): Promise<boolean> {
+  public async applyHomeChannelPreference(channel: HomeChannel): Promise<boolean> {
     if (!this.selectHomeSortTab(channel)) {
       return false;
     }

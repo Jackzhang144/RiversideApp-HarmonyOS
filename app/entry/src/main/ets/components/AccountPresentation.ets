@@ -90,7 +90,7 @@ function accountPlaceholderSections(actionsAvailable: boolean = false): Array<Ac
       new AccountPlaceholder(AccountPlaceholderKind.MY_BOOKMARKS, '我的书签', actionsAvailable)
     ]),
     new AccountPlaceholderSection(AccountPlaceholderSectionKind.APPLICATION, [
-      new AccountPlaceholder(AccountPlaceholderKind.APP_SETTINGS, '应用设置'),
+      new AccountPlaceholder(AccountPlaceholderKind.APP_SETTINGS, '应用设置', true),
       new AccountPlaceholder(AccountPlaceholderKind.ABOUT_RIVERSIDE, '关于 RiverSide', true)
     ])
   ];
