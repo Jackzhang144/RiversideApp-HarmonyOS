@@ -34,44 +34,84 @@ export struct ChatRootPage {
     );
   }
 
-  @Builder
-  private Header(): void {
-    Column({ space: 12 }) {
-      Row() {
-        Text('聊天').fontSize(24).fontWeight(FontWeight.Bold).layoutWeight(1)
-        Button() {
-          SymbolGlyph($r('sys.symbol.arrow_clockwise')).fontSize(20)
-        }
-        .width(40).height(40).backgroundColor(Color.Transparent)
-        .enabled(!this.state.refreshing)
-        .onClick(this.onRefresh)
-        .accessibilityText('刷新聊天频道与未读状态')
-      }
-      .width('100%')
-
-      Row({ space: 8 }) {
-        this.SectionButton('频道', ChatRootSection.CHANNELS)
-        this.SectionButton('直接消息', ChatRootSection.DIRECT_MESSAGES)
-        this.SectionButton('搜索', ChatRootSection.SEARCH)
-      }
-      .width('100%')
+  private channelTimeText(value: string): string {
+    const normalized: string = value.trim();
+    if (normalized.length >= 16 && normalized.includes('T')) {
+      return normalized.slice(5, 16).replace('T', ' ');
     }
-    .width('100%')
-    .padding({ left: 16, right: 16, top: 12, bottom: 10 })
-    .backgroundColor($r('sys.color.comp_background_primary'))
+    return normalized;
   }
 
   @Builder
-  private SectionButton(label: string, section: ChatRootSection): void {
-    Button(label, { type: ButtonType.Normal })
+  private Header(): void {
+    Row({ space: 8 }) {
+      Text('聊天')
+        .fontSize(20)
+        .fontWeight(FontWeight.Bold)
+        .layoutWeight(1)
+      Button() {
+        SymbolGlyph($r('sys.symbol.arrow_clockwise'))
+          .fontSize(20)
+          .fontColor([$r('sys.color.font_primary')])
+          .hitTestBehavior(HitTestMode.None)
+      }
+      .width(40)
+      .height(40)
+      .backgroundColor(Color.Transparent)
+      .enabled(!this.state.refreshing)
+      .onClick(this.onRefresh)
+      .accessibilityText('刷新聊天频道与未读状态')
+    }
+    .width('100%')
+    .height(56)
+    .padding({ left: 12, right: 10 })
+    .backgroundColor($r('sys.color.comp_background_primary'))
+    .border({ width: { bottom: 1 }, color: $r('sys.color.comp_divider') })
+  }
+
+  @Builder
+  private SectionButton(label: string, icon: Resource, section: ChatRootSection): void {
+    Button() {
+      Row({ space: 6 }) {
+        SymbolGlyph(icon)
+          .fontSize(17)
+          .fontColor([this.section === section ? '#245D86' : $r('sys.color.font_secondary')])
+        Text(label)
+          .fontSize(13)
+          .fontColor(this.section === section ? '#245D86' : $r('sys.color.font_primary'))
+      }
+      .justifyContent(FlexAlign.Center)
+    }
       .layoutWeight(1)
-      .height(36)
-      .fontSize(13)
-      .fontColor(this.section === section ? '#FFFFFF' : $r('sys.color.font_secondary'))
-      .backgroundColor(this.section === section ? '#317AF7' : $r('sys.color.background_secondary'))
+      .height(42)
+      .borderRadius(0)
+      .backgroundColor(this.section === section ? '#DCEBFA' : $r('sys.color.comp_background_primary'))
       .onClick((): void => {
         this.section = section;
       })
+      .accessibilityText(`${label}${this.section === section ? '，已选择' : ''}`)
+  }
+
+  @Builder
+  private SectionSwitcher(): void {
+    Column() {
+      Row() {
+        this.SectionButton('频道', $r('sys.symbol.message'), ChatRootSection.CHANNELS)
+        Divider().vertical(true).height(42).color($r('sys.color.comp_divider'))
+        this.SectionButton('直接消息', $r('sys.symbol.envelope'), ChatRootSection.DIRECT_MESSAGES)
+        Divider().vertical(true).height(42).color($r('sys.color.comp_divider'))
+        this.SectionButton('搜索', $r('sys.symbol.magnifyingglass'), ChatRootSection.SEARCH)
+      }
+      .width('100%')
+      .height(42)
+      .backgroundColor($r('sys.color.comp_background_primary'))
+      .borderRadius(21)
+      .border({ width: 1, color: $r('sys.color.comp_divider') })
+      .clip(true)
+    }
+    .width('100%')
+    .padding({ left: 12, right: 12, top: 12, bottom: 8 })
+    .backgroundColor($r('sys.color.background_secondary'))
   }
 
   @Builder
@@ -104,30 +144,56 @@ export struct ChatRootPage {
 
   @Builder
   private ChannelCard(channel: ChatChannel): void {
-    Column({ space: 7 }) {
-      Row({ space: 8 }) {
-        Text(channel.title).fontSize(16).fontWeight(FontWeight.Bold).layoutWeight(1).maxLines(1)
-        if (channel.unreadCount > 0) {
-          Text(channel.unreadCount.toString())
-            .fontSize(11).fontColor('#FFFFFF').backgroundColor('#D32F2F')
-            .padding({ left: 7, right: 7, top: 3, bottom: 3 }).borderRadius(10)
+    Row({ space: 12 }) {
+      SymbolGlyph(channel.isDirectMessage ? $r('sys.symbol.envelope') : $r('sys.symbol.message'))
+        .fontSize(26)
+        .fontColor(['#317AF7'])
+        .width(44)
+        .height(44)
+        .padding(9)
+        .backgroundColor('#EAF2FF')
+        .borderRadius(22)
+      Column({ space: 5 }) {
+        Text(channel.title)
+          .fontSize(16)
+          .fontWeight(FontWeight.Bold)
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+          .width('100%')
+        Row({ space: 8 }) {
+          Text(channel.preview.length > 0
+            ? (channel.lastMessageUsername.length > 0
+              ? `${channel.lastMessageUsername}：${channel.preview}`
+              : channel.preview)
+            : channel.subtitle)
+            .fontSize(13)
+            .fontColor($r('sys.color.font_secondary'))
+            .maxLines(1)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
+            .layoutWeight(1)
+          if (channel.lastMessageAt.length > 0) {
+            Text(this.channelTimeText(channel.lastMessageAt))
+              .fontSize(11)
+              .fontColor($r('sys.color.font_tertiary'))
+              .maxLines(1)
+          }
         }
+        .width('100%')
       }
-      if (channel.preview.length > 0) {
-        Text(channel.lastMessageUsername.length > 0
-          ? `${channel.lastMessageUsername}：${channel.preview}`
-          : channel.preview)
-          .fontSize(13).fontColor($r('sys.color.font_secondary')).maxLines(2).width('100%')
-      } else {
-        Text(channel.subtitle).fontSize(12).fontColor($r('sys.color.font_tertiary')).maxLines(1).width('100%')
-      }
-      if (channel.lastMessageAt.length > 0) {
-        Text(channel.lastMessageAt.replace('T', ' ').replace('Z', ''))
-          .fontSize(10).fontColor($r('sys.color.font_tertiary')).width('100%')
+      .alignItems(HorizontalAlign.Start)
+      .layoutWeight(1)
+      if (channel.unreadCount > 0) {
+        Circle()
+          .width(8)
+          .height(8)
+          .fill('#D52B32')
       }
     }
-    .width('100%').padding(14).backgroundColor($r('sys.color.comp_background_primary')).borderRadius(12)
-    .border({ width: channel.unreadCount > 0 ? 1 : 0, color: '#B9D2FF' })
+    .width('100%')
+    .padding(14)
+    .backgroundColor($r('sys.color.comp_background_primary'))
+    .borderRadius(12)
+    .border({ width: 1, color: $r('sys.color.comp_divider') })
     .onClick((): void => this.onOpenChannel(channel))
     .accessibilityText(`${channel.title}${channel.unreadCount > 0 ? `，${channel.unreadCount} 条未读` : ''}`)
   }
@@ -156,7 +222,7 @@ export struct ChatRootPage {
           ListItem() { this.ChannelCard(channel) }
         }, (channel: ChatChannel): string => channel.id.toString())
       }
-      .width('100%').height('100%').padding({ left: 12, right: 12, top: 10, bottom: 124 })
+      .width('100%').height('100%').padding({ left: 12, right: 12, top: 8, bottom: 124 })
       .backgroundColor($r('sys.color.background_secondary')).edgeEffect(EdgeEffect.Spring)
     }
   }
@@ -165,24 +231,61 @@ export struct ChatRootPage {
   private SearchPanel(): void {
     Column({ space: 10 }) {
       Row({ space: 8 }) {
+        SymbolGlyph($r('sys.symbol.magnifyingglass'))
+          .fontSize(20)
+          .fontColor([$r('sys.color.font_secondary')])
         TextInput({ text: this.searchText, placeholder: '搜索 Chat 消息' })
-          .layoutWeight(1).height(42).backgroundColor($r('sys.color.background_secondary'))
+          .layoutWeight(1)
+          .fontSize(14)
+          .backgroundColor(Color.Transparent)
           .onChange((value: string): void => { this.searchText = value; })
           .onSubmit((): void => this.onSearch(this.searchText))
-        Button('搜索').height(42).onClick((): void => this.onSearch(this.searchText))
+        Button() {
+          SymbolGlyph($r('sys.symbol.arrow_right'))
+            .fontSize(17)
+            .fontColor(['#317AF7'])
+        }
+        .width(36)
+        .height(36)
+        .backgroundColor(Color.Transparent)
+        .onClick((): void => this.onSearch(this.searchText))
+        .accessibilityText('搜索 Chat 消息')
       }
       .width('100%')
+      .height(48)
+      .padding({ left: 14, right: 8 })
+      .backgroundColor($r('sys.color.comp_background_primary'))
+      .borderRadius(12)
+      .border({ width: 1, color: $r('sys.color.comp_divider') })
 
       if (this.canStartDirectChat) {
         Row({ space: 8 }) {
+          SymbolGlyph($r('sys.symbol.envelope'))
+            .fontSize(20)
+            .fontColor([$r('sys.color.font_secondary')])
           TextInput({ text: this.directUsername, placeholder: '输入用户名发起私聊' })
-            .layoutWeight(1).height(40).backgroundColor($r('sys.color.background_secondary'))
+            .layoutWeight(1)
+            .fontSize(14)
+            .backgroundColor(Color.Transparent)
             .onChange((value: string): void => { this.directUsername = value; })
-          Button('新私聊', { type: ButtonType.Normal })
-            .height(40).enabled(this.directUsername.trim().length > 0)
+          Button() {
+            SymbolGlyph($r('sys.symbol.plus'))
+              .fontSize(17)
+              .fontColor(['#317AF7'])
+          }
+            .width(36)
+            .height(36)
+            .backgroundColor(Color.Transparent)
+            .enabled(this.directUsername.trim().length > 0)
             .onClick((): void => this.onOpenDirectChat(this.directUsername))
+            .accessibilityText('发起新私聊')
         }
         .width('100%')
+        .height(48)
+        .padding({ left: 14, right: 8 })
+        .backgroundColor($r('sys.color.comp_background_primary'))
+        .borderRadius(12)
+        .border({ width: 1, color: $r('sys.color.comp_divider') })
       }
 
       if (this.searchState.kind === ChatStateKind.INITIAL) {
@@ -211,7 +314,8 @@ export struct ChatRootPage {
                 Text(`${result.message.username}：${result.message.displayText()}`)
                   .fontSize(13).fontColor($r('sys.color.font_secondary')).maxLines(3).width('100%')
               }
-              .width('100%').padding(13).backgroundColor($r('sys.color.comp_background_primary')).borderRadius(10)
+              .width('100%').padding(14).backgroundColor($r('sys.color.comp_background_primary')).borderRadius(12)
+              .border({ width: 1, color: $r('sys.color.comp_divider') })
               .onClick((): void => this.onOpenSearchResult(result))
             }
           }, (result: ChatSearchResult): string => result.message.id.toString())
@@ -227,7 +331,7 @@ export struct ChatRootPage {
         .onReachEnd(this.onLoadMoreSearch)
       }
     }
-    .width('100%').height('100%').padding({ left: 12, right: 12, top: 10 })
+    .width('100%').height('100%').padding({ left: 12, right: 12, top: 8 })
     .backgroundColor($r('sys.color.background_secondary'))
   }
 
@@ -244,6 +348,7 @@ export struct ChatRootPage {
     } else {
       Column() {
         this.Header()
+        this.SectionSwitcher()
         if (this.section === ChatRootSection.CHANNELS) {
           this.ChannelList(false)
         } else if (this.section === ChatRootSection.DIRECT_MESSAGES) {
