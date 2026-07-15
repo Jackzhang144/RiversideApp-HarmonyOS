@@ -209,6 +209,31 @@ export class ProfileManagementModel {
     return this.finishWrite(result, profile, generation);
   }
 
+  public async setHidePresence(hidden: boolean): Promise<boolean> {
+    const profile: UserProfile | null = this.state.profile;
+    if (profile === null || profile.hidePresence === hidden || this.state.busy) {
+      return false;
+    }
+    const request: ProfileUpdateRequest | null = ProfileUpdateRequest.create(
+      profile.username,
+      null,
+      null,
+      null,
+      null,
+      null,
+      hidden
+    );
+    if (request === null) {
+      return false;
+    }
+    const generation: number = this.beginMutation(profile);
+    return this.finishWrite(
+      await this.repository.updateUserProfile(request),
+      profile,
+      generation
+    );
+  }
+
   public async setNotificationLevel(
     level: ProfileNotificationLevel,
     actingUserId: number,

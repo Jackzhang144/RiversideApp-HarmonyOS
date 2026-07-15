@@ -2331,6 +2331,25 @@ struct Index {
     }
   }
 
+  private async setHidePresence(hidden: boolean): Promise<void> {
+    const model: ProfileManagementModel | null = this.accountProfileModel;
+    if (model === null || this.authState.kind !== AuthStateKind.AUTHENTICATED) {
+      this.showAuthenticationMessage('无法更新在线状态', '请先登录 RiverSide');
+      return;
+    }
+    const task: Promise<boolean> = model.setHidePresence(hidden);
+    this.accountProfileState = model.state;
+    const saved: boolean = await task;
+    this.accountProfileState = model.state;
+    if (saved) {
+      this.showAuthenticationMessage(hidden ? '已隐藏在线状态' : '已显示在线状态', '账号隐私设置已刷新');
+      return;
+    }
+    if (model.state.message.length > 0) {
+      this.showAuthenticationMessage('无法更新在线状态', model.state.message);
+    }
+  }
+
   @Builder
   private SecondaryPage(name: string, _param: Object): void {
     if (name === APP_SETTINGS_ROUTE) {
@@ -2338,11 +2357,18 @@ struct Index {
         AppSettingsPage({
           selectedHomeChannel: this.selectedHomeChannel,
           selectedThemeMode: this.appThemeMode,
+          hidePresence: this.accountProfileState.profile?.hidePresence ?? false,
+          presenceAvailable: this.authState.kind === AuthStateKind.AUTHENTICATED &&
+            this.accountProfileState.profile !== null,
+          presenceBusy: this.accountProfileState.busy,
           onSelectHomeChannel: (channel: HomeChannel): void => {
             this.applyHomeChannelPreference(channel);
           },
           onSelectThemeMode: (mode: AppThemeMode): void => {
             this.applyAppThemePreference(mode);
+          },
+          onHidePresenceChange: (hidden: boolean): void => {
+            this.setHidePresence(hidden);
           }
         })
       }

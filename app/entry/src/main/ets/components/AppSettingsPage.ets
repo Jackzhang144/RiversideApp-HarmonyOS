@@ -11,8 +11,12 @@ import {
 export struct AppSettingsPage {
   @Prop selectedHomeChannel: HomeChannel = HomeChannel.LATEST_REPLIES;
   @Prop selectedThemeMode: AppThemeMode = AppThemeMode.SYSTEM;
+  @Prop hidePresence: boolean = false;
+  @Prop presenceAvailable: boolean = false;
+  @Prop presenceBusy: boolean = false;
   onSelectHomeChannel: (channel: HomeChannel) => void = (_channel: HomeChannel): void => {};
   onSelectThemeMode: (mode: AppThemeMode) => void = (_mode: AppThemeMode): void => {};
+  onHidePresenceChange: (hidden: boolean) => void = (_hidden: boolean): void => {};
 
   @Builder
   private HomeChannelOption(option: HomeChannelPreferenceOption): void {
@@ -130,7 +134,44 @@ export struct AppSettingsPage {
         .borderRadius(14)
         .border({ width: 1, color: $r('sys.color.comp_divider') })
 
-        Text('选择结果会保存在本机；首页频道同步到首页，外观设置会在下次冷启动时恢复。')
+        Text('隐私')
+          .fontSize(13)
+          .fontWeight(FontWeight.Medium)
+          .fontColor($r('sys.color.font_secondary'))
+          .width('100%')
+          .margin({ top: 8 })
+        Row({ space: 12 }) {
+          if (this.presenceBusy) {
+            LoadingProgress().width(22).height(22)
+          } else {
+            SymbolGlyph($r('sys.symbol.eye_slash'))
+              .fontSize(22)
+              .fontColor([$r('sys.color.font_secondary')])
+          }
+          Column({ space: 4 }) {
+            Text('隐身模式')
+              .fontSize(16)
+              .fontWeight(FontWeight.Medium)
+              .fontColor($r('sys.color.font_primary'))
+            Text('开启后不向其他用户显示你的在线状态')
+              .fontSize(12)
+              .fontColor($r('sys.color.font_secondary'))
+          }
+          .alignItems(HorizontalAlign.Start)
+          .layoutWeight(1)
+          Toggle({ type: ToggleType.Switch, isOn: this.hidePresence })
+            .enabled(this.presenceAvailable && !this.presenceBusy)
+            .onChange(this.onHidePresenceChange)
+            .accessibilityText(`隐身模式，${this.hidePresence ? '已开启' : '已关闭'}`)
+        }
+        .width('100%')
+        .height(76)
+        .padding({ left: 16, right: 16, top: 10, bottom: 10 })
+        .backgroundColor($r('sys.color.comp_background_primary'))
+        .borderRadius(14)
+        .border({ width: 1, color: $r('sys.color.comp_divider') })
+
+        Text('首页频道与外观保存在本机；隐身模式同步到 RiverSide 账号。')
           .fontSize(12)
           .fontColor($r('sys.color.font_tertiary'))
           .width('100%')

@@ -20,11 +20,11 @@ class StubProfileSessionLifecycle implements ProfileSessionLifecycle {
   }
 }
 
-function profileJson(name: string, following: boolean = false): string {
+function profileJson(name: string, following: boolean = false, hidePresence: boolean = false): string {
   return '{"user":{"id":24,"username":"member","name":"' + name + '",' +
     '"avatar_template":"/user_avatar/member/{size}/1.png","can_follow":true,' +
     '"is_followed":' + following + ',"can_mute_user":true,"can_ignore_user":true,' +
-    '"can_upload_profile_header":true}}';
+    '"can_upload_profile_header":true,"hide_presence":' + hidePresence + '}}';
 }
 
 function profileBackgroundJson(canUpload: boolean, url: string): string {
@@ -149,6 +149,27 @@ export default function profileManagementModelTest(): void {
         expect(followingAfterFailure).assertFalse();
         expect(succeeded).assertTrue();
         expect(model.state.profile?.following).assertTrue();
+        done();
+      });
+
+    it('updates hide presence and reloads the authoritative Profile', 0,
+      async (done: Function) => {
+        const client: StubForumHttpClient = new StubForumHttpClient();
+        client.results.push(HttpTextResult.success(200, profileJson('成员')));
+        client.results.push(HttpTextResult.success(200, '{}'));
+        client.formPutResults.push(HttpTextResult.success(200, '{}'));
+        client.results.push(HttpTextResult.success(200, profileJson('成员', false, true)));
+        const model: ProfileManagementModel = new ProfileManagementModel(
+          new DiscourseForumRepository(client),
+          new StubProfileSessionLifecycle()
+        );
+        await model.loadProfile('member');
+
+        const saved: boolean = await model.setHidePresence(true);
+
+        expect(saved).assertTrue();
+        expect(client.formPutRequests[0]).assertEqual('/u/member.json|hide_presence=true');
+        expect(model.state.profile?.hidePresence).assertTrue();
         done();
       });
 

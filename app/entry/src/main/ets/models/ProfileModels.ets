@@ -351,6 +351,7 @@ export class ProfileUpdateRequest {
   public readonly bioRaw: string | null;
   public readonly location: string | null;
   public readonly profileBackgroundUploadUrl: string | null;
+  public readonly hidePresence: boolean | null;
 
   private constructor(
     username: string,
@@ -358,7 +359,8 @@ export class ProfileUpdateRequest {
     title: string | null,
     bioRaw: string | null,
     location: string | null,
-    profileBackgroundUploadUrl: string | null
+    profileBackgroundUploadUrl: string | null,
+    hidePresence: boolean | null
   ) {
     this.username = username;
     this.name = name;
@@ -366,6 +368,7 @@ export class ProfileUpdateRequest {
     this.bioRaw = bioRaw;
     this.location = location;
     this.profileBackgroundUploadUrl = profileBackgroundUploadUrl;
+    this.hidePresence = hidePresence;
   }
 
   public static create(
@@ -374,11 +377,13 @@ export class ProfileUpdateRequest {
     title: string | null,
     bioRaw: string | null,
     location: string | null,
-    profileBackgroundUploadUrl: string | null
+    profileBackgroundUploadUrl: string | null,
+    hidePresence: boolean | null = null
   ): ProfileUpdateRequest | null {
     const normalizedUsername: string = username.trim();
     if (normalizedUsername.length === 0 ||
-      (name === null && title === null && bioRaw === null && location === null && profileBackgroundUploadUrl === null)) {
+      (name === null && title === null && bioRaw === null && location === null &&
+        profileBackgroundUploadUrl === null && hidePresence === null)) {
       return null;
     }
     return new ProfileUpdateRequest(
@@ -387,7 +392,8 @@ export class ProfileUpdateRequest {
       title === null ? null : title.trim(),
       bioRaw === null ? null : bioRaw.trim(),
       location === null ? null : location.trim(),
-      profileBackgroundUploadUrl === null ? null : profileBackgroundUploadUrl.trim()
+      profileBackgroundUploadUrl === null ? null : profileBackgroundUploadUrl.trim(),
+      hidePresence
     );
   }
 
@@ -407,6 +413,9 @@ export class ProfileUpdateRequest {
     }
     if (this.profileBackgroundUploadUrl !== null) {
       parts.push(`profile_background_upload_url=${encodeURIComponent(this.profileBackgroundUploadUrl)}`);
+    }
+    if (this.hidePresence !== null) {
+      parts.push(`hide_presence=${this.hidePresence}`);
     }
     return parts.join('&');
   }

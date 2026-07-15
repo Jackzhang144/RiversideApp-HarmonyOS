@@ -139,6 +139,33 @@ export default function profileManagementTest(): void {
         done();
       });
 
+    it('encodes the hide-presence preference as an explicit profile field', 0,
+      async (done: Function) => {
+        const client: StubForumHttpClient = new StubForumHttpClient();
+        client.formPutResults.push(HttpTextResult.success(200, '{}'));
+        const repository: DiscourseForumRepository = new DiscourseForumRepository(client);
+        const request: ProfileUpdateRequest | null = ProfileUpdateRequest.create(
+          'member',
+          null,
+          null,
+          null,
+          null,
+          null,
+          true
+        );
+        if (request === null) {
+          expect(false).assertTrue();
+          done();
+          return;
+        }
+
+        const result: RepositoryResult<boolean> = await repository.updateUserProfile(request);
+
+        expect(result.data).assertTrue();
+        expect(client.formPutRequests[0]).assertEqual('/u/member.json|hide_presence=true');
+        done();
+      });
+
     it('builds the four ignore expiry choices and sends the selected value', 0,
       async (done: Function) => {
         const client: StubForumHttpClient = new StubForumHttpClient();
