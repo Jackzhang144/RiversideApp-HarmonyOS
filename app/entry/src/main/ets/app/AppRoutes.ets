@@ -1,0 +1,15 @@
+export const CATEGORY_TOPICS_ROUTE: string = 'category-topics';
+export const TOPIC_ROUTE: string = 'topic';
+export const LOGIN_ROUTE: string = 'login';
+export const SEARCH_ROUTE: string = 'search';
+export const ONLINE_USERS_ROUTE: string = 'online-users';
+export const ABOUT_ROUTE: string = 'about';
+export const APP_SETTINGS_ROUTE: string = 'app-settings';
+export const TOPIC_COMPOSER_ROUTE: string = 'topic-composer';
+export const USER_PROFILE_ROUTE: string = 'user-profile';
+export const PROFILE_EDITOR_ROUTE: string = 'profile-editor';
+export const PROFILE_CONTENT_ROUTE: string = 'profile-content';
+export const RICH_EMBED_ROUTE: string = 'rich-embed';
+export const IMAGE_VIEWER_ROUTE: string = 'image-viewer';
+export const UI_PROTOTYPE_ROUTE: string = 'ui-prototype';
+export const CHAT_CONVERSATION_ROUTE: string = 'chat-conversation';

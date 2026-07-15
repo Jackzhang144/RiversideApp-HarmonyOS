@@ -14,6 +14,23 @@ import { SymbolGlyphModifier, window } from '@kit.ArkUI';
 import { AppShellModel } from '../app/AppShellModel';
 import { AppDependencyGraph } from '../app/AppDependencyGraph';
 import {
+  ABOUT_ROUTE,
+  APP_SETTINGS_ROUTE,
+  CATEGORY_TOPICS_ROUTE,
+  CHAT_CONVERSATION_ROUTE,
+  IMAGE_VIEWER_ROUTE,
+  LOGIN_ROUTE,
+  ONLINE_USERS_ROUTE,
+  PROFILE_CONTENT_ROUTE,
+  PROFILE_EDITOR_ROUTE,
+  RICH_EMBED_ROUTE,
+  SEARCH_ROUTE,
+  TOPIC_COMPOSER_ROUTE,
+  TOPIC_ROUTE,
+  UI_PROTOTYPE_ROUTE,
+  USER_PROFILE_ROUTE
+} from '../app/AppRoutes';
+import {
   ComposerMediaTarget,
   ReplyComposerState,
   ReplyComposerStateKind,
@@ -143,21 +160,6 @@ import {
   AppThemeSettingsStore
 } from '../settings/AppThemeSettings';
 
-const CATEGORY_TOPICS_ROUTE: string = 'category-topics';
-const TOPIC_ROUTE: string = 'topic';
-const LOGIN_ROUTE: string = 'login';
-const SEARCH_ROUTE: string = 'search';
-const ONLINE_USERS_ROUTE: string = 'online-users';
-const ABOUT_ROUTE: string = 'about';
-const APP_SETTINGS_ROUTE: string = 'app-settings';
-const TOPIC_COMPOSER_ROUTE: string = 'topic-composer';
-const USER_PROFILE_ROUTE: string = 'user-profile';
-const PROFILE_EDITOR_ROUTE: string = 'profile-editor';
-const PROFILE_CONTENT_ROUTE: string = 'profile-content';
-const RICH_EMBED_ROUTE: string = 'rich-embed';
-const IMAGE_VIEWER_ROUTE: string = 'image-viewer';
-const UI_PROTOTYPE_ROUTE: string = 'ui-prototype';
-const CHAT_CONVERSATION_ROUTE: string = 'chat-conversation';
 const ROOT_TAB_SELECTED_COLOR: ResourceColor = $r('app.color.brand_primary');
 
 @Entry
