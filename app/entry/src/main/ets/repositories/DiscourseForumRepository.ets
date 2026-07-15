@@ -26,6 +26,7 @@ import {
 } from '../models/ReplyModels';
 import { ForumHttpClient, HttpTextResult, HttpTextResultKind } from '../network/DiscourseHttpClient';
 import { ForumRepository } from './ForumRepository';
+import { DiscoveryResponseParser } from './DiscoveryResponseParser';
 import { ForumResponseParser } from './ForumResponseParser';
 import { ProfileResponseParser } from './ProfileResponseParser';
 import { ComposerMentionUser } from '../models/ComposerMentionModels';
@@ -39,15 +40,18 @@ interface DraftSavePayload {
 export class DiscourseForumRepository implements ForumRepository {
   private readonly client: ForumHttpClient;
   private readonly parser: ForumResponseParser;
+  private readonly discoveryParser: DiscoveryResponseParser;
   private readonly profileParser: ProfileResponseParser;
 
   public constructor(
     client: ForumHttpClient,
     parser: ForumResponseParser = new ForumResponseParser(),
+    discoveryParser: DiscoveryResponseParser = new DiscoveryResponseParser(),
     profileParser: ProfileResponseParser = new ProfileResponseParser()
   ) {
     this.client = client;
     this.parser = parser;
+    this.discoveryParser = discoveryParser;
     this.profileParser = profileParser;
   }
 
@@ -126,7 +130,7 @@ export class DiscourseForumRepository implements ForumRepository {
     if (!response.isSuccess()) {
       return RepositoryResult.failure<ForumSearchResult>(response.message);
     }
-    return this.parser.parseSearch(response.body);
+    return this.discoveryParser.parseSearch(response.body);
   }
 
   public async searchSuggestions(term: string): Promise<RepositoryResult<Array<string>>> {
@@ -143,7 +147,7 @@ export class DiscourseForumRepository implements ForumRepository {
     if (!response.isSuccess()) {
       return RepositoryResult.failure<Array<string>>(response.message);
     }
-    return this.parser.parseSearchSuggestions(response.body);
+    return this.discoveryParser.parseSearchSuggestions(response.body);
   }
 
   public async searchMentionUsers(term: string): Promise<RepositoryResult<Array<ComposerMentionUser>>> {
@@ -160,7 +164,7 @@ export class DiscourseForumRepository implements ForumRepository {
     if (!response.isSuccess()) {
       return RepositoryResult.failure<Array<ComposerMentionUser>>(response.message);
     }
-    return this.parser.parseComposerMentionUsers(response.body);
+    return this.discoveryParser.parseComposerMentionUsers(response.body);
   }
 
   public async loadOnlineUsers(): Promise<RepositoryResult<OnlineUsers>> {
@@ -171,7 +175,7 @@ export class DiscourseForumRepository implements ForumRepository {
     if (!response.isSuccess()) {
       return RepositoryResult.failure<OnlineUsers>(response.message);
     }
-    return this.parser.parseOnlineUsers(response.body);
+    return this.discoveryParser.parseOnlineUsers(response.body);
   }
 
   public async loadTopicDetail(
