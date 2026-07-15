@@ -4,6 +4,7 @@ import {
   NotificationItem,
   NotificationItemKind,
   notificationActionText,
+  notificationTimeText,
   parseReactionReceivedItems,
   parseUserActivityItems
 } from '../../../main/ets/models/NotificationModels';
@@ -66,6 +67,11 @@ export default function notificationModelsTest(): void {
     it('rejects malformed activity payloads instead of inventing an empty list', 0, () => {
       expect(parseUserActivityItems('{"user_actions":{}}')).assertNull();
       expect(parseReactionReceivedItems('{"items":[]}')).assertNull();
+    });
+
+    it('formats UTC notification timestamps with the target local offset', 0, () => {
+      expect(notificationTimeText('2026-07-15T01:02:03.000Z', 480)).assertEqual('2026-07-15 09:02');
+      expect(notificationTimeText('invalid-time', 480)).assertEqual('invalid-time');
     });
   });
 }

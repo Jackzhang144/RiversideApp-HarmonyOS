@@ -6,7 +6,8 @@ import {
   NotificationBucket,
   NotificationItem,
   notificationActionText,
-  notificationBucketLabel
+  notificationBucketLabel,
+  notificationTimeText
 } from '../models/NotificationModels';
 
 const NOTIFICATION_BUCKETS: Array<NotificationBucket> = [
@@ -93,7 +94,7 @@ export struct NotificationCentrePage {
         Text(notificationActionText(this.state.bucket, item))
           .fontSize(13).fontColor('#52606D').layoutWeight(1).maxLines(1)
         if (item.createdAt.length > 0) {
-          Text(item.createdAt.replace('T', ' ').replace('Z', ''))
+          Text(notificationTimeText(item.createdAt))
             .fontSize(10).fontColor('#98A2B3').maxLines(1)
         }
       }
@@ -147,7 +148,7 @@ export struct NotificationCentrePage {
       Column({ space: 8 }) {
         Text(`暂无${notificationBucketLabel(this.state.bucket)}消息`)
           .fontSize(17).fontWeight(FontWeight.Bold)
-        Text('下拉或点击刷新可重新检查前台状态。').fontSize(13).fontColor('#52606D')
+        Text('点击右上角刷新可重新检查前台状态。').fontSize(13).fontColor('#52606D')
       }.width('100%').height('100%').justifyContent(FlexAlign.Center)
     } else if (this.state.kind === NotificationCentreStateKind.INITIAL) {
       Column() { Text('打开消息页后将从服务器刷新。').fontSize(13).fontColor('#52606D') }

@@ -141,6 +141,23 @@ export function notificationActionText(bucket: NotificationBucket, item: Notific
   return `${actor} 回应了 ${item.reaction.length > 0 ? item.reaction : 'Reaction'}`;
 }
 
+function twoDigitNotificationTime(value: number): string {
+  return value < 10 ? `0${value}` : value.toString();
+}
+
+export function notificationTimeText(value: string, timezoneOffsetMinutes: number | null = null): string {
+  const normalized: string = value.trim();
+  if (normalized.length === 0) return '';
+  const parsed: Date = new Date(normalized);
+  const timestamp: number = parsed.getTime();
+  if (!Number.isFinite(timestamp)) return normalized;
+  const offsetMinutes: number = timezoneOffsetMinutes ?? -parsed.getTimezoneOffset();
+  const local: Date = new Date(timestamp + offsetMinutes * 60 * 1000);
+  return `${local.getUTCFullYear()}-${twoDigitNotificationTime(local.getUTCMonth() + 1)}-` +
+    `${twoDigitNotificationTime(local.getUTCDate())} ${twoDigitNotificationTime(local.getUTCHours())}:` +
+    `${twoDigitNotificationTime(local.getUTCMinutes())}`;
+}
+
 function activityItem(reader: JsonObjectReader, reaction: string = ''): NotificationItem | null {
   const topicId: number | null = reader.number('topic_id') ?? reader.number('target_topic_id');
   const postNumber: number | null = reader.number('post_number') ?? reader.number('target_post_number');
