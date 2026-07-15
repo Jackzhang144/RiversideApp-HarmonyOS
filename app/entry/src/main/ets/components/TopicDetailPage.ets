@@ -43,6 +43,10 @@ export struct TopicDetailPage {
     _reaction: string
   ): void => {};
   onToggleBookmark: (postId: number) => void = (_postId: number): void => {};
+  onCopyPostLink: (topicId: number, postNumber: number) => void = (
+    _topicId: number,
+    _postNumber: number
+  ): void => {};
   onOpenSuggestedTopic: (topic: Topic) => void = (_topic: Topic): void => {};
   onOpenRichLink: (url: string) => void = (_url: string): void => {};
   onOpenRichEmbed: (url: string, provider: RichEmbedProvider, title: string) => void = (
@@ -376,6 +380,14 @@ export struct TopicDetailPage {
         .enabled(!this.state.postActionState.busy)
         .onClick((): void => this.onToggleBookmark(post.id))
         .accessibilityText(this.isPostBookmarked(post.id) ? '取消收藏' : '收藏')
+        Button('复制链接')
+          .height(34)
+          .fontSize(12)
+          .backgroundColor('#EAF2FF')
+          .fontColor('#2068C9')
+          .margin({ right: 6, bottom: 6 })
+          .onClick((): void => this.onCopyPostLink(this.state.topicId, post.postNumber))
+          .accessibilityText(`复制 Post #${post.postNumber} 链接`)
         if (this.canEditPost(post)) {
           Button('编辑')
             .height(34)

@@ -12,7 +12,8 @@ import {
   reactionEmojiKey,
   reactionEmojiUrl,
   selectedBookmarkPostIds,
-  systemActionLabel
+  systemActionLabel,
+  topicPostUrl
 } from '../../../main/ets/components/TopicReadingPresentation';
 
 export default function topicReadingPresentationTest(): void {
@@ -71,6 +72,14 @@ export default function topicReadingPresentationTest(): void {
 
       expect(selectedPostIds.length).assertEqual(1);
       expect(selectedPostIds[0]).assertEqual(102);
+    });
+
+    it('builds canonical Flutter Post links from Topic and Post numbers', 0, () => {
+      expect(topicPostUrl(2725, 1)).assertEqual('https://river-side.cc/t/2725/1');
+      expect(topicPostUrl(2725, 37)).assertEqual('https://river-side.cc/t/2725/37');
+      expect(topicPostUrl(0, 1)).assertEqual('');
+      expect(topicPostUrl(2725, 0)).assertEqual('');
+      expect(topicPostUrl(1.5, 2)).assertEqual('');
     });
   });
 }

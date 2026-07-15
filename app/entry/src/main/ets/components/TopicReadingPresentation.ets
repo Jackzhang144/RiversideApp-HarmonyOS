@@ -1,6 +1,14 @@
 import { Category, ForumPost, PostReaction } from '../models/ForumModels';
 
 const REACTION_EMOJI_BASE_URL: string = 'https://river-side.cc/images/emoji/twitter';
+const RIVERSIDE_ORIGIN: string = 'https://river-side.cc';
+
+export function topicPostUrl(topicId: number, postNumber: number): string {
+  if (!Number.isInteger(topicId) || topicId <= 0 || !Number.isInteger(postNumber) || postNumber <= 0) {
+    return '';
+  }
+  return `${RIVERSIDE_ORIGIN}/t/${topicId}/${postNumber}`;
+}
 
 export function systemActionLabel(actionCode: string): string {
   if (actionCode === 'closed.enabled') {

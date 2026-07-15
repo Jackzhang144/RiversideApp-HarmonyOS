@@ -72,7 +72,7 @@ import { ProfileEditorPage } from '../components/ProfileEditorPage';
 import { ProfileContentPage } from '../components/ProfileContentPage';
 import { AccountPlaceholderKind } from '../components/AccountPresentation';
 import { ImageViewerPage } from '../components/ImageViewerPage';
-import { selectedBookmarkPostIds } from '../components/TopicReadingPresentation';
+import { selectedBookmarkPostIds, topicPostUrl } from '../components/TopicReadingPresentation';
 import { UiPrototypePage } from '../components/prototype/UiPrototypePage';
 import { Category, Topic } from '../models/ForumModels';
 import {
@@ -1186,6 +1186,22 @@ struct Index {
     }
   }
 
+  private async copyPostLink(topicId: number, postNumber: number): Promise<void> {
+    const url: string = topicPostUrl(topicId, postNumber);
+    if (url.length === 0) {
+      this.showAuthenticationMessage('复制失败', 'Post 链接无效');
+      return;
+    }
+    try {
+      await pasteboard.getSystemPasteboard().setData(
+        pasteboard.createData(pasteboard.MIMETYPE_TEXT_PLAIN, url)
+      );
+      this.showAuthenticationMessage('链接已复制', 'Post 链接已复制到剪贴板');
+    } catch (_) {
+      this.showAuthenticationMessage('复制失败', '无法写入系统剪贴板');
+    }
+  }
+
   private async retryTopic(): Promise<void> {
     const model: AppShellModel | null = this.model;
     if (model === null) {
@@ -2062,6 +2078,9 @@ struct Index {
           },
           onToggleBookmark: (postId: number): void => {
             this.togglePostBookmark(postId);
+          },
+          onCopyPostLink: (topicId: number, postNumber: number): void => {
+            this.copyPostLink(topicId, postNumber);
           },
           onOpenSuggestedTopic: (topic: Topic): void => {
             this.openTopic(topic);
