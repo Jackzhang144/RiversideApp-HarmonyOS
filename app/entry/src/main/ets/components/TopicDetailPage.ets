@@ -21,7 +21,8 @@ import {
   reactionAccessibilityLabel,
   reactionEmojiUrl,
   shouldShowSuggestedTopics,
-  systemActionLabel
+  systemActionLabel,
+  topicPostListIndex
 } from './TopicReadingPresentation';
 
 @Component
@@ -86,6 +87,8 @@ export struct TopicDetailPage {
   @State private selectedFloor: number = 1;
   @State private floorInput: string = '1';
   @State private floorInputMessage: string = '';
+  private synchronizedJumpTopicId: number = 0;
+  private synchronizedJumpPostNumber: number = 0;
 
   aboutToDisappear(): void {
     if (this.readProgressTimer >= 0) {
@@ -100,19 +103,33 @@ export struct TopicDetailPage {
   }
 
   private synchronizeFloorFromState(): void {
+    const requestedPostNumber: number = this.state.postJumpState.targetPostNumber;
+    const requestedPostVisible: boolean = this.state.posts.some(
+      (post: ForumPost): boolean => post.postNumber === requestedPostNumber
+    );
+    const requestedPostChanged: boolean = this.synchronizedJumpTopicId !== this.state.topicId ||
+      this.synchronizedJumpPostNumber !== requestedPostNumber;
+    if (requestedPostVisible && (requestedPostChanged || this.state.postJumpState.busy)) {
+      this.synchronizedJumpTopicId = this.state.topicId;
+      this.synchronizedJumpPostNumber = requestedPostNumber;
+      this.currentTopicId = this.state.topicId;
+      this.currentPostNumber = requestedPostNumber;
+      this.selectedFloor = requestedPostNumber;
+      this.floorInput = requestedPostNumber.toString();
+      setTimeout((): void => this.scrollToPost(requestedPostNumber), 50);
+      return;
+    }
     const currentPostVisible: boolean = this.currentTopicId === this.state.topicId && this.state.posts.some(
       (post: ForumPost): boolean => post.postNumber === this.currentPostNumber
     );
     if (currentPostVisible) {
       return;
     }
-    const requestedPostNumber: number = this.state.postJumpState.targetPostNumber;
-    const requestedPostVisible: boolean = this.state.posts.some(
-      (post: ForumPost): boolean => post.postNumber === requestedPostNumber
-    );
     const focusedPostNumber: number = requestedPostVisible
       ? requestedPostNumber
       : this.state.posts[0]?.postNumber ?? 1;
+    this.synchronizedJumpTopicId = this.state.topicId;
+    this.synchronizedJumpPostNumber = requestedPostVisible ? requestedPostNumber : 0;
     this.currentTopicId = this.state.topicId;
     this.currentPostNumber = focusedPostNumber;
     this.selectedFloor = focusedPostNumber;
@@ -220,16 +237,7 @@ export struct TopicDetailPage {
   }
 
   private listIndexForPost(postNumber: number): number {
-    const stateIndex: number = this.state.posts.findIndex(
-      (post: ForumPost): boolean => post.postNumber === postNumber
-    );
-    if (stateIndex < 0) {
-      return -1;
-    }
-    if (this.hasStarterPost() && stateIndex === 0) {
-      return 0;
-    }
-    return this.hasStarterPost() ? stateIndex + 5 : stateIndex + 6;
+    return topicPostListIndex(this.state.posts, postNumber);
   }
 
   private scrollToPost(postNumber: number): void {

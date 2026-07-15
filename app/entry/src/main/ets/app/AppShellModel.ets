@@ -1312,6 +1312,15 @@ export class AppShellModel {
     await this.openCategory(category);
   }
 
+  public shouldOpenTopicInPlace(topicId: number): boolean {
+    return Number.isSafeInteger(topicId) &&
+      topicId > 0 &&
+      this.activeDestination === SecondaryDestination.TOPIC &&
+      this.selectedTopic?.id === topicId &&
+      this.topicState.detail !== null &&
+      (this.topicState.kind === TopicReadStateKind.CONTENT || this.topicState.kind === TopicReadStateKind.EMPTY);
+  }
+
   public async openTopic(topic: Topic, initialPostNumber: number | null = null): Promise<void> {
     const opensNestedTopic: boolean = this.activeDestination === SecondaryDestination.TOPIC &&
       this.selectedTopic !== null && this.selectedTopic.id !== topic.id;

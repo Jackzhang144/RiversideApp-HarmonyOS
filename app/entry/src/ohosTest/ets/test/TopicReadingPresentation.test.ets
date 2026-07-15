@@ -15,6 +15,7 @@ import {
   selectedBookmarkPostIds,
   shouldShowSuggestedTopics,
   systemActionLabel,
+  topicPostListIndex,
   topicPostUrl
 } from '../../../main/ets/components/TopicReadingPresentation';
 
@@ -98,6 +99,25 @@ export default function topicReadingPresentationTest(): void {
       expect(normalizeTopicFloor('not-a-floor', 120)).assertEqual(null);
       expect(normalizeTopicFloor('37th', 120)).assertEqual(null);
       expect(normalizeTopicFloor('2', 0)).assertEqual(null);
+    });
+
+    it('maps a loaded Post number to its Topic List position', 0, () => {
+      const completeWindow: Array<ForumPost> = [
+        new ForumPost(101, 1, 'admin', '', '', 1, null, ''),
+        new ForumPost(102, 1, 'admin', '', '', 2, null, ''),
+        new ForumPost(103, 1, 'admin', '', '', 3, null, '')
+      ];
+      const pinpointWindow: Array<ForumPost> = [
+        new ForumPost(103, 1, 'admin', '', '', 3, null, ''),
+        new ForumPost(104, 1, 'admin', '', '', 4, null, '')
+      ];
+
+      expect(topicPostListIndex(completeWindow, 1)).assertEqual(0);
+      expect(topicPostListIndex(completeWindow, 2)).assertEqual(6);
+      expect(topicPostListIndex(completeWindow, 3)).assertEqual(7);
+      expect(topicPostListIndex(pinpointWindow, 3)).assertEqual(6);
+      expect(topicPostListIndex(pinpointWindow, 2)).assertEqual(-1);
+      expect(topicPostListIndex(completeWindow, 0)).assertEqual(-1);
     });
   });
 }

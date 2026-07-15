@@ -367,6 +367,25 @@ function authenticatedUserResult(): RepositoryResult<CurrentUser> {
 
 export default function topicReadingTest(): void {
   describe('AppShell Topic reading', () => {
+    it('opens only the current loaded Topic in place', 0, async (done: Function) => {
+      const repository: TopicReadingRepository = new TopicReadingRepository();
+      repository.topicDetailResults.push(RepositoryResult.success<TopicDetail>(new TopicDetail(
+        2725, '站务管理区重要主题导航', 1959, 3, 4, false, false, true,
+        [102728, 102729, 102730], [firstPost(), secondPost(), thirdPost()], 0,
+        new TopicDetailMetadata(111)
+      )));
+      const model: AppShellModel = new AppShellModel(
+        repository, new MemoryCategoryCache(), CategoryCacheScope.anonymous()
+      );
+
+      expect(model.shouldOpenTopicInPlace(2725)).assertFalse();
+      await model.openTopic(topic());
+      expect(model.shouldOpenTopicInPlace(2725)).assertTrue();
+      expect(model.shouldOpenTopicInPlace(3000)).assertFalse();
+      expect(model.shouldOpenTopicInPlace(0)).assertFalse();
+      done();
+    });
+
     it('composes Category, Topic, targeted Reply, and return navigation through one AppShell', 0,
       async (done: Function) => {
         const repository: TopicReadingRepository = new TopicReadingRepository();

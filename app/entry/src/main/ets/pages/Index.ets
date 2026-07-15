@@ -1161,6 +1161,11 @@ struct Index {
   private handleRichLink(url: string): void {
     const target: RichNavigationTarget = classifyRichNavigation(url);
     if (target.kind === RichNavigationKind.TOPIC) {
+      const model: AppShellModel | null = this.model;
+      if (model !== null && model.shouldOpenTopicInPlace(target.topicId)) {
+        this.jumpToTopicPost(target.postNumber ?? 1);
+        return;
+      }
       const topic: Topic = new Topic(target.topicId, 'Topic', 0, 0, 0, 0, '', '', false, '');
       this.openTopic(topic, target.postNumber);
       return;

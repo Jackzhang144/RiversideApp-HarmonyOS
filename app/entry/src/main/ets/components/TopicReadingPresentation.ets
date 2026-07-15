@@ -22,6 +22,23 @@ export function topicPostUrl(topicId: number, postNumber: number): string {
   return `${RIVERSIDE_ORIGIN}/t/${topicId}/${postNumber}`;
 }
 
+export function topicPostListIndex(posts: Array<ForumPost>, postNumber: number): number {
+  if (!Number.isSafeInteger(postNumber) || postNumber <= 0) {
+    return -1;
+  }
+  const stateIndex: number = posts.findIndex(
+    (post: ForumPost): boolean => post.postNumber === postNumber
+  );
+  if (stateIndex < 0) {
+    return -1;
+  }
+  const hasStarterPost: boolean = posts[0]?.postNumber === 1;
+  if (hasStarterPost && stateIndex === 0) {
+    return 0;
+  }
+  return hasStarterPost ? stateIndex + 5 : stateIndex + 6;
+}
+
 export function shouldShowSuggestedTopics(hasNextPosts: boolean, suggestionCount: number): boolean {
   return !hasNextPosts && Number.isInteger(suggestionCount) && suggestionCount > 0;
 }
