@@ -1,17 +1,11 @@
 import { describe, expect, it } from '@ohos/hypium';
 import { AppShellModel } from '../../../main/ets/app/AppShellModel';
 import { ComposerMediaTarget } from '../../../main/ets/app/ComposerModels';
-import {
-  BrowseStateKind,
-  SearchStateKind,
-  SearchSuggestionStateKind
-} from '../../../main/ets/app/BrowseModels';
+import { BrowseStateKind } from '../../../main/ets/app/BrowseModels';
 import { AuthenticationLifecycle } from '../../../main/ets/app/AuthenticationLifecycle';
 import {
-  HomeSortTabIndex,
   RootDestination,
-  RootTabIndex,
-  SecondaryDestination
+  RootTabIndex
 } from '../../../main/ets/app/ShellNavigationModels';
 import { CategoryCacheScope } from '../../../main/ets/cache/CategoryCache';
 import { RepositoryResult } from '../../../main/ets/core/RepositoryResult';
@@ -26,11 +20,7 @@ import {
 } from '../../../main/ets/models/ForumModels';
 import {
   ForumSearchResult,
-  HomeChannel,
-  SearchGroup,
-  SearchPost,
-  SearchTag,
-  SearchUser
+  HomeChannel
 } from '../../../main/ets/models/DiscoveryModels';
 import {
   CreateTopicRequest,
@@ -60,10 +50,6 @@ import {
   MediaTransportOperation
 } from '../../../main/ets/network/ForumMediaTransport';
 import { HttpTextResult } from '../../../main/ets/network/DiscourseHttpClient';
-import {
-  DiscoverySettings,
-  DiscoverySettingsStore
-} from '../../../main/ets/settings/DiscoverySettingsStore';
 import { MemoryCategoryCache } from './support/MemoryCategoryCache';
 
 class StubForumRepository implements ForumRepository {
@@ -255,20 +241,6 @@ class StubAuthenticationLifecycle implements AuthenticationLifecycle {
   }
 }
 
-class MemoryDiscoverySettingsStore implements DiscoverySettingsStore {
-  public stored: DiscoverySettings | null = null;
-  public writes: Array<DiscoverySettings> = [];
-
-  public async read(): Promise<DiscoverySettings | null> {
-    return this.stored;
-  }
-
-  public async write(settings: DiscoverySettings): Promise<void> {
-    this.stored = settings;
-    this.writes.push(settings);
-  }
-}
-
 function topic(id: number, title: string): Topic {
   return new Topic(id, title, 60, 1, 10, 0, '', '', false, 'Co-admin');
 }
@@ -290,23 +262,6 @@ function cachedComposerImage(): CachedMedia {
     throw new Error('测试媒体模型创建失败');
   }
   return media;
-}
-
-function searchResult(
-  topics: Array<Topic>,
-  posts: Array<SearchPost>,
-  hasMore: boolean,
-  suffix: string = ''
-): ForumSearchResult {
-  return new ForumSearchResult(
-    topics,
-    posts,
-    [new SearchUser(30 + suffix.length, `user${suffix}`, `用户${suffix}`, '')],
-    [category(60 + suffix.length, `分类${suffix}`)],
-    [new SearchTag(`tag${suffix}`, `标签${suffix}`, 1)],
-    [new SearchGroup(50 + suffix.length, `group${suffix}`, `群组${suffix}`, 2)],
-    hasMore
-  );
 }
 
 export default function appShellModelTest(): void {
@@ -391,73 +346,6 @@ export default function appShellModelTest(): void {
       expect(model.selectedRoot).assertEqual(RootDestination.HOME);
     });
 
-    it('shows Home loading then content from the repository', 0, async (done: Function) => {
-      const repository: StubForumRepository = new StubForumRepository();
-      repository.latestResults.push(RepositoryResult.success([topic(2725, '站务管理区重要主题导航')]));
-      const model: AppShellModel = new AppShellModel(
-        repository,
-        new MemoryCategoryCache(),
-        CategoryCacheScope.anonymous()
-      );
-
-      const loading: Promise<void> = model.discovery.loadHome();
-      expect(model.discovery.homeState.kind).assertEqual(BrowseStateKind.LOADING);
-      await loading;
-
-      expect(model.discovery.homeState.kind).assertEqual(BrowseStateKind.CONTENT);
-      expect(model.discovery.homeState.items.length).assertEqual(1);
-      expect(model.discovery.homeState.items[0].id).assertEqual(2725);
-      done();
-    });
-
-    it('selects every frozen Home channel without starting hidden network work', 0, () => {
-      const repository: StubForumRepository = new StubForumRepository();
-      const model: AppShellModel = new AppShellModel(
-        repository,
-        new MemoryCategoryCache(),
-        CategoryCacheScope.anonymous()
-      );
-
-      expect(model.discovery.selectHomeSortTab(HomeSortTabIndex.LATEST_REPLIES)).assertTrue();
-      expect(model.discovery.selectHomeSortTab(HomeSortTabIndex.LATEST_CREATED)).assertTrue();
-      expect(model.discovery.selectHomeSortTab(HomeSortTabIndex.UNREAD)).assertTrue();
-      expect(model.discovery.selectHomeSortTab(HomeSortTabIndex.HOT)).assertTrue();
-      expect(model.discovery.selectHomeSortTab(HomeSortTabIndex.FEATURED)).assertTrue();
-      expect(model.discovery.selectedHomeChannel).assertEqual(HomeChannel.FEATURED);
-      expect(model.discovery.selectHomeSortTab(99)).assertFalse();
-      expect(repository.latestCallCount).assertEqual(0);
-      expect(model.activeDestination).assertEqual(SecondaryDestination.NONE);
-    });
-
-    it('loads and deduplicates paged Home topics for the selected channel', 0, async (done: Function) => {
-      const repository: StubForumRepository = new StubForumRepository();
-      repository.latestResults.push(
-        RepositoryResult.success([topic(1, '第一页')]),
-        RepositoryResult.success([topic(1, '重复'), topic(2, '第二页')]),
-        RepositoryResult.success([])
-      );
-      const model: AppShellModel = new AppShellModel(
-        repository,
-        new MemoryCategoryCache(),
-        CategoryCacheScope.anonymous()
-      );
-      model.discovery.selectHomeSortTab(HomeSortTabIndex.HOT);
-
-      await model.discovery.loadHome();
-      await model.discovery.loadMoreHome();
-
-      expect(repository.requestedHomeChannels[0]).assertEqual(HomeChannel.HOT);
-      expect(repository.requestedHomePages[0]).assertEqual(0);
-      expect(repository.requestedHomePages[1]).assertEqual(1);
-      expect(model.discovery.homeState.items.length).assertEqual(2);
-      expect(model.discovery.homeState.items[1].id).assertEqual(2);
-      expect(model.discovery.homeState.hasMore).assertTrue();
-
-      await model.discovery.loadMoreHome();
-      expect(model.discovery.homeState.hasMore).assertFalse();
-      done();
-    });
-
     it('loads and deduplicates Category Topic pages', 0, async (done: Function) => {
       const repository: StubForumRepository = new StubForumRepository();
       repository.categoryTopicResults.push(
@@ -477,128 +365,6 @@ export default function appShellModelTest(): void {
       expect(repository.requestedCategoryPages[1]).assertEqual(1);
       expect(model.categoryTopicsState.items.length).assertEqual(2);
       expect(model.categoryTopicsState.hasMore).assertTrue();
-      done();
-    });
-
-    it('searches all result kinds and deduplicates the next page', 0, async (done: Function) => {
-      const repository: StubForumRepository = new StubForumRepository();
-      const firstTopic: Topic = topic(1, '第一页');
-      const secondTopic: Topic = topic(2, '第二页');
-      const firstPost: SearchPost = new SearchPost(10, firstTopic, 1, 'admin', '第一条', '');
-      const secondPost: SearchPost = new SearchPost(11, secondTopic, 2, 'user', '第二条', '');
-      repository.searchResults.push(
-        RepositoryResult.success(searchResult([firstTopic], [firstPost], true)),
-        RepositoryResult.success(searchResult([firstTopic, secondTopic], [firstPost, secondPost], false, '2'))
-      );
-      const model: AppShellModel = new AppShellModel(
-        repository,
-        new MemoryCategoryCache(),
-        CategoryCacheScope.anonymous()
-      );
-
-      await model.discovery.searchForum('河畔');
-      expect(model.discovery.searchState.kind).assertEqual(SearchStateKind.CONTENT);
-      expect(model.discovery.searchState.result.topics.length).assertEqual(1);
-      expect(model.discovery.searchState.result.users.length).assertEqual(1);
-
-      await model.discovery.loadMoreSearch();
-      expect(repository.requestedSearchPages[0]).assertEqual(1);
-      expect(repository.requestedSearchPages[1]).assertEqual(2);
-      expect(model.discovery.searchState.result.topics.length).assertEqual(2);
-      expect(model.discovery.searchState.result.posts.length).assertEqual(2);
-      expect(model.discovery.searchState.result.users.length).assertEqual(2);
-      expect(model.discovery.searchState.hasMore).assertFalse();
-      done();
-    });
-
-    it('distinguishes blank, failed and empty forum search states', 0, async (done: Function) => {
-      const repository: StubForumRepository = new StubForumRepository();
-      repository.searchResults.push(
-        RepositoryResult.unknown<ForumSearchResult>('搜索失败'),
-        RepositoryResult.success(new ForumSearchResult([], [], [], [], [], [], false))
-      );
-      const model: AppShellModel = new AppShellModel(
-        repository,
-        new MemoryCategoryCache(),
-        CategoryCacheScope.anonymous()
-      );
-
-      await model.discovery.searchForum('  ');
-      expect(model.discovery.searchState.kind).assertEqual(SearchStateKind.INITIAL);
-      expect(repository.requestedSearchPages.length).assertEqual(0);
-
-      await model.discovery.searchForum('河畔');
-      expect(model.discovery.searchState.kind).assertEqual(SearchStateKind.ERROR);
-      expect(model.discovery.searchState.message).assertEqual('搜索失败');
-
-      await model.discovery.retrySearch();
-      expect(model.discovery.searchState.kind).assertEqual(SearchStateKind.EMPTY);
-      done();
-    });
-
-    it('models search suggestion loading, content, error and blank reset', 0, async (done: Function) => {
-      const repository: StubForumRepository = new StubForumRepository();
-      repository.suggestionResults.push(
-        RepositoryResult.success<Array<string>>(['河畔开发日志', '河畔使用指南']),
-        RepositoryResult.unknown<Array<string>>('建议加载失败')
-      );
-      const model: AppShellModel = new AppShellModel(
-        repository,
-        new MemoryCategoryCache(),
-        CategoryCacheScope.anonymous()
-      );
-
-      await model.discovery.loadSearchSuggestions(' 河畔 ');
-      expect(model.discovery.searchSuggestionState.kind).assertEqual(SearchSuggestionStateKind.CONTENT);
-      expect(model.discovery.searchSuggestionState.items.length).assertEqual(2);
-      expect(repository.requestedSuggestionTerms[0]).assertEqual('河畔');
-
-      await model.discovery.loadSearchSuggestions('失败');
-      expect(model.discovery.searchSuggestionState.kind).assertEqual(SearchSuggestionStateKind.ERROR);
-      expect(model.discovery.searchSuggestionState.message).assertEqual('建议加载失败');
-
-      await model.discovery.loadSearchSuggestions('   ');
-      expect(model.discovery.searchSuggestionState.kind).assertEqual(SearchSuggestionStateKind.INITIAL);
-      expect(repository.requestedSuggestionTerms.length).assertEqual(2);
-      done();
-    });
-
-    it('restores and persists the Home channel and World Cup entry setting', 0, async (done: Function) => {
-      const settings: MemoryDiscoverySettingsStore = new MemoryDiscoverySettingsStore();
-      settings.stored = new DiscoverySettings(HomeChannel.HOT, false);
-      const model: AppShellModel = new AppShellModel(
-        new StubForumRepository(),
-        new MemoryCategoryCache(),
-        CategoryCacheScope.anonymous(),
-        null,
-        settings
-      );
-
-      await model.discovery.restoreSettings();
-      expect(model.discovery.selectedHomeChannel).assertEqual(HomeChannel.HOT);
-      expect(model.discovery.worldCupEntryEnabled).assertFalse();
-
-      expect(await model.discovery.selectHomeChannel(HomeSortTabIndex.FEATURED)).assertTrue();
-      await model.discovery.setWorldCupEntryEnabled(true);
-      expect(settings.writes.length).assertEqual(2);
-      expect(settings.stored?.homeChannel).assertEqual(HomeChannel.FEATURED);
-      expect(settings.stored?.worldCupEntryEnabled).assertTrue();
-      done();
-    });
-
-    it('applies a supported server Home preference and persists it', 0, async (done: Function) => {
-      const settings: MemoryDiscoverySettingsStore = new MemoryDiscoverySettingsStore();
-      const model: AppShellModel = new AppShellModel(
-        new StubForumRepository(),
-        new MemoryCategoryCache(),
-        CategoryCacheScope.anonymous(),
-        null,
-        settings
-      );
-
-      expect(await model.discovery.applyHomeChannelPreference(HomeChannel.LATEST_CREATED)).assertTrue();
-      expect(model.discovery.selectedHomeChannel).assertEqual(HomeChannel.LATEST_CREATED);
-      expect(settings.stored?.homeChannel).assertEqual(HomeChannel.LATEST_CREATED);
       done();
     });
 
@@ -629,61 +395,6 @@ export default function appShellModelTest(): void {
       expect(result.data?.displayName).assertEqual('会话身份');
       expect(result.data?.canReply).assertFalse();
       expect(result.data?.defaultHomeChannel).assertEqual(HomeChannel.HOT);
-      done();
-    });
-
-    it('distinguishes Home empty and retryable failure states', 0, async (done: Function) => {
-      const repository: StubForumRepository = new StubForumRepository();
-      repository.latestResults.push(RepositoryResult.unknown<Array<Topic>>('网络连接失败'));
-      repository.latestResults.push(RepositoryResult.success([]));
-      const authentication: StubAuthenticationLifecycle = new StubAuthenticationLifecycle();
-      const model: AppShellModel = new AppShellModel(
-        repository,
-        new MemoryCategoryCache(),
-        CategoryCacheScope.anonymous(),
-        authentication
-      );
-
-      await model.discovery.loadHome();
-      expect(model.discovery.homeState.kind).assertEqual(BrowseStateKind.ERROR);
-      expect(model.discovery.homeState.message).assertEqual('网络连接失败');
-
-      await model.discovery.retryHome();
-      expect(model.discovery.homeState.kind).assertEqual(BrowseStateKind.EMPTY);
-      expect(repository.latestCallCount).assertEqual(2);
-      expect(authentication.unauthorizedCallCount).assertEqual(0);
-      done();
-    });
-
-    it('keeps visible Home content when a refresh fails and replaces it on success', 0, async (done: Function) => {
-      const repository: StubForumRepository = new StubForumRepository();
-      repository.latestResults.push(
-        RepositoryResult.success([topic(2725, '已有 Topic')]),
-        RepositoryResult.unknown<Array<Topic>>('刷新失败'),
-        RepositoryResult.success([topic(3000, '新 Topic')])
-      );
-      const model: AppShellModel = new AppShellModel(
-        repository,
-        new MemoryCategoryCache(),
-        CategoryCacheScope.anonymous()
-      );
-      await model.discovery.loadHome();
-
-      const failingRefresh: Promise<void> = model.discovery.refreshHome();
-      expect(model.discovery.homeState.kind).assertEqual(BrowseStateKind.CONTENT);
-      expect(model.discovery.homeState.isRefreshing).assertTrue();
-      expect(model.discovery.homeState.items[0].id).assertEqual(2725);
-      await failingRefresh;
-
-      expect(model.discovery.homeState.kind).assertEqual(BrowseStateKind.CONTENT);
-      expect(model.discovery.homeState.isRefreshing).assertFalse();
-      expect(model.discovery.homeState.items[0].id).assertEqual(2725);
-      expect(model.discovery.homeState.message).assertEqual('刷新失败');
-
-      await model.discovery.refreshHome();
-      expect(model.discovery.homeState.kind).assertEqual(BrowseStateKind.CONTENT);
-      expect(model.discovery.homeState.items[0].id).assertEqual(3000);
-      expect(model.discovery.homeState.message).assertEqual('');
       done();
     });
 

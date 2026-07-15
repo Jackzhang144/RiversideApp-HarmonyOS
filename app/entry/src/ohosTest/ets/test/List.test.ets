@@ -6,6 +6,7 @@ import authBoundaryTest from './AuthBoundary.test';
 import authRepositoryTest from './AuthRepository.test';
 import discourseForumRepositoryTest from './DiscourseForumRepository.test';
 import discourseHttpHeadersTest from './DiscourseHttpHeaders.test';
+import discoveryCoordinatorTest from './DiscoveryCoordinator.test';
 import forumCardPresentationTest from './ForumCardPresentation.test';
 import forumComposerPresentationTest from './ForumComposerPresentation.test';
 import homePresentationTest from './HomePresentation.test';
@@ -58,6 +59,7 @@ export default function tests(): void {
   accountPresentationTest();
   appSettingsPresentationTest();
   appShellModelTest();
+  discoveryCoordinatorTest();
   authoringModelsTest();
   authBoundaryTest();
   authRepositoryTest();
