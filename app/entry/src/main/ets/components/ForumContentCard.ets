@@ -49,7 +49,7 @@ export struct ForumContentCard {
           .width(36)
           .height(36)
           .objectFit(ImageFit.Cover)
-          .borderRadius(18)
+          .borderRadius($r('app.float.forum_author_avatar_corner_radius'))
       } else {
         Text(author.initial)
           .fontSize(13)
@@ -59,7 +59,7 @@ export struct ForumContentCard {
           .height(36)
           .textAlign(TextAlign.Center)
           .backgroundColor($r('app.color.brand_tint_surface'))
-          .borderRadius(18)
+          .borderRadius($r('app.float.forum_author_avatar_corner_radius'))
       }
       Column({ space: 2 }) {
         Text(author.name)
