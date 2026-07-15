@@ -121,7 +121,6 @@ export struct UiPrototypePage {
       Row({ space: 6 }) {
         this.ComposerLaunchButton('Reply 半模态', PrototypeComposerKind.REPLY)
         this.ComposerLaunchButton('发帖半模态', PrototypeComposerKind.TOPIC)
-        Blank().layoutWeight(1)
       }
       .width('100%')
     }
