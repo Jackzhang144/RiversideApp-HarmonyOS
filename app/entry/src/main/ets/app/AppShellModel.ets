@@ -67,6 +67,7 @@ import {
   TopicReadStateKind,
   uniquePosts
 } from './TopicReadingModels';
+import { TopicPostWindow } from './TopicPostWindow';
 import { ComposerMediaCoordinator, MediaUploadStateListener } from './ComposerMediaCoordinator';
 import { DiscoveryCoordinator } from './DiscoveryCoordinator';
 import { CategoryBrowseCoordinator } from './CategoryBrowseCoordinator';
@@ -248,31 +249,18 @@ export class AppShellModel {
       await this.notifyUnauthorized(result.isUnauthorized());
       return;
     }
-    const posts: Array<ForumPost> = orderPosts(result.data.postIds, result.data.posts);
-    let firstVisibleIndex: number = result.data.postIds.length;
-    let lastVisibleIndex: number = -1;
-    for (const post of posts) {
-      const index: number = result.data.postIds.indexOf(post.id);
-      if (index >= 0) {
-        firstVisibleIndex = Math.min(firstVisibleIndex, index);
-        lastVisibleIndex = Math.max(lastVisibleIndex, index);
-      }
-    }
-    this.previousPostIds = lastVisibleIndex < 0 ? [] : result.data.postIds.slice(0, firstVisibleIndex);
-    this.nextPostIds = lastVisibleIndex < 0
-      ? result.data.postIds.slice()
-      : result.data.postIds.slice(lastVisibleIndex + 1);
-    const hasPreviousPosts: boolean = this.previousPostIds.length > 0;
-    const hasNextPosts: boolean = this.nextPostIds.length > 0;
-    this.topicState = posts.length === 0
-      ? TopicReadState.empty(result.data, hasNextPosts, false, '', hasPreviousPosts)
-      : TopicReadState.content(result.data, posts, hasNextPosts, false, '', hasPreviousPosts);
-    const focusedPostNumber: number = initialPostNumber ?? posts[0]?.postNumber ?? 1;
+    const window: TopicPostWindow = TopicPostWindow.from(result.data.postIds, result.data.posts);
+    this.previousPostIds = window.previousPostIds;
+    this.nextPostIds = window.nextPostIds;
+    this.topicState = window.posts.length === 0
+      ? TopicReadState.empty(result.data, window.hasNextPosts(), false, '', window.hasPreviousPosts())
+      : TopicReadState.content(result.data, window.posts, window.hasNextPosts(), false, '', window.hasPreviousPosts());
+    const focusedPostNumber: number = initialPostNumber ?? window.posts[0]?.postNumber ?? 1;
     this.topicState = TopicReadState.withPostJump(
       this.topicState,
       TopicPostJumpState.ready(focusedPostNumber)
     );
-    if (!hasNextPosts && result.data.suggestedTopics.length === 0) {
+    if (!window.hasNextPosts() && result.data.suggestedTopics.length === 0) {
       await this.refreshTopicSuggestions(requestVersion);
     }
   }
@@ -329,8 +317,8 @@ export class AppShellModel {
       return;
     }
 
-    const posts: Array<ForumPost> = orderPosts(result.data.postIds, result.data.posts);
-    const targetVisible: boolean = posts.some(
+    const window: TopicPostWindow = TopicPostWindow.from(result.data.postIds, result.data.posts);
+    const targetVisible: boolean = window.posts.some(
       (post: ForumPost): boolean => post.postNumber === postNumber
     );
     if (!targetVisible) {
@@ -341,33 +329,22 @@ export class AppShellModel {
       return;
     }
 
-    let firstVisibleIndex: number = result.data.postIds.length;
-    let lastVisibleIndex: number = -1;
-    for (const post of posts) {
-      const index: number = result.data.postIds.indexOf(post.id);
-      if (index >= 0) {
-        firstVisibleIndex = Math.min(firstVisibleIndex, index);
-        lastVisibleIndex = Math.max(lastVisibleIndex, index);
-      }
-    }
-    this.previousPostIds = result.data.postIds.slice(0, firstVisibleIndex);
-    this.nextPostIds = result.data.postIds.slice(lastVisibleIndex + 1);
+    this.previousPostIds = window.previousPostIds;
+    this.nextPostIds = window.nextPostIds;
     this.selectedTopicPostNumber = postNumber;
-    const hasPreviousPosts: boolean = this.previousPostIds.length > 0;
-    const hasNextPosts: boolean = this.nextPostIds.length > 0;
     const nextState: TopicReadState = TopicReadState.content(
       result.data,
-      posts,
-      hasNextPosts,
+      window.posts,
+      window.hasNextPosts(),
       false,
       '',
-      hasPreviousPosts,
+      window.hasPreviousPosts(),
       false,
       '',
       this.topicState.readProgressState
     );
     this.topicState = TopicReadState.withPostJump(nextState, TopicPostJumpState.ready(postNumber));
-    if (!hasNextPosts && result.data.suggestedTopics.length === 0) {
+    if (!window.hasNextPosts() && result.data.suggestedTopics.length === 0) {
       await this.refreshTopicSuggestions(requestVersion);
     }
   }
@@ -412,36 +389,27 @@ export class AppShellModel {
       return;
     }
 
-    const posts: Array<ForumPost> = orderPosts(result.data.postIds, result.data.posts);
-    let firstVisibleIndex: number = result.data.postIds.length;
-    let lastVisibleIndex: number = -1;
-    for (const post of posts) {
-      const index: number = result.data.postIds.indexOf(post.id);
-      if (index >= 0) {
-        firstVisibleIndex = Math.min(firstVisibleIndex, index);
-        lastVisibleIndex = Math.max(lastVisibleIndex, index);
-      }
-    }
-    this.previousPostIds = lastVisibleIndex < 0 ? [] : result.data.postIds.slice(0, firstVisibleIndex);
-    this.nextPostIds = lastVisibleIndex < 0
-      ? result.data.postIds.slice()
-      : result.data.postIds.slice(lastVisibleIndex + 1);
-    const hasPreviousPosts: boolean = this.previousPostIds.length > 0;
-    const hasNextPosts: boolean = this.nextPostIds.length > 0;
+    const window: TopicPostWindow = TopicPostWindow.from(result.data.postIds, result.data.posts);
+    this.previousPostIds = window.previousPostIds;
+    this.nextPostIds = window.nextPostIds;
     const readProgressState: TopicReadProgressState = TopicReadProgressState.idle(Math.max(
       this.topicState.readProgressState.lastReadPostNumber,
       result.data.lastReadPostNumber
     ));
-    const refreshedState: TopicReadState = posts.length === 0
-      ? TopicReadState.empty(result.data, hasNextPosts, false, '', hasPreviousPosts, false, '', readProgressState)
-      : TopicReadState.content(result.data, posts, hasNextPosts, false, '', hasPreviousPosts, false, '', readProgressState);
-    const focusedPostNumber: number = posts[0]?.postNumber ?? 1;
+    const refreshedState: TopicReadState = window.posts.length === 0
+      ? TopicReadState.empty(
+        result.data, window.hasNextPosts(), false, '', window.hasPreviousPosts(), false, '', readProgressState
+      )
+      : TopicReadState.content(
+        result.data, window.posts, window.hasNextPosts(), false, '', window.hasPreviousPosts(), false, '', readProgressState
+      );
+    const focusedPostNumber: number = window.posts[0]?.postNumber ?? 1;
     this.selectedTopicPostNumber = null;
     this.topicState = TopicReadState.withPostJump(
       refreshedState,
       TopicPostJumpState.ready(focusedPostNumber)
     );
-    if (!hasNextPosts && result.data.suggestedTopics.length === 0) {
+    if (!window.hasNextPosts() && result.data.suggestedTopics.length === 0) {
       await this.refreshTopicSuggestions(requestVersion);
     }
   }
