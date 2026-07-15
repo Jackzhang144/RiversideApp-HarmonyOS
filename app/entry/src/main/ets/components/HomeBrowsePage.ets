@@ -19,6 +19,7 @@ export struct HomeBrowsePage {
   @Prop onlineUsersState: BrowseState<OnlineUser> = BrowseState.initial<OnlineUser>();
   @Prop onlineUserCount: number = 0;
   @Prop topSafeArea: number = 0;
+  scroller: Scroller = new Scroller();
   @State private featureMenuVisible: boolean = false;
   @State private channelMenuVisible: boolean = false;
   @State private onlineUsersSheetVisible: boolean = false;
@@ -266,6 +267,8 @@ export struct HomeBrowsePage {
     .height(this.topSafeArea + 58)
     .padding({ left: 16, right: 16, top: this.topSafeArea, bottom: 8 })
     .backgroundColor(Color.Transparent)
+    .hitTestBehavior(HitTestMode.Transparent)
+    .zIndex(10)
   }
 
   @Builder
@@ -390,7 +393,7 @@ export struct HomeBrowsePage {
   @Builder
   private topicList(): void {
     Refresh({ refreshing: this.state.isRefreshing }) {
-      List({ space: 10 }) {
+      List({ space: 10, scroller: this.scroller }) {
         // ListItem() {
         //   this.worldCupPreference()
         // }
@@ -408,14 +411,16 @@ export struct HomeBrowsePage {
       }
       .width('100%')
       .height('100%')
-      .padding({ left: 12, right: 12, top: this.topSafeArea + 68 })
+      .padding({ left: 12, right: 12 })
       .backgroundColor($r('sys.color.background_secondary'))
+      .clip(false)
+      .cachedCount(3, true)
       .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
       .onReachEnd(this.onLoadMore)
     }
     .width('100%')
     .height('100%')
-    .backgroundColor($r('sys.color.background_secondary'))
+    .backgroundColor(Color.Transparent)
     .refreshOffset(64)
     .pullToRefresh(true)
     .pullUpToCancelRefresh(false)
@@ -450,7 +455,7 @@ export struct HomeBrowsePage {
     }
     .width('100%')
     .height('100%')
-    .backgroundColor($r('sys.color.background_secondary'))
+    .backgroundColor(Color.Transparent)
     .bindSheet($$this.onlineUsersSheetVisible, this.OnlineUsersSheet(), {
       detents: [SheetSize.MEDIUM, SheetSize.LARGE],
       detentSelection: SheetSize.MEDIUM,

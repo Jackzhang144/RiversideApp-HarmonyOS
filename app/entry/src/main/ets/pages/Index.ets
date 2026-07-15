@@ -196,6 +196,7 @@ const ROOT_TAB_SELECTED_COLOR: ResourceColor = $r('app.color.brand_primary');
 struct Index {
   private readonly pathStack: NavPathStack = new NavPathStack();
   private readonly tabsController: HdsTabsController = new HdsTabsController();
+  private readonly homeScroller: Scroller = new Scroller();
   private model: AppShellModel | null = null;
   private chatModel: ChatModel | null = null;
   private chatPollingController: ChatConversationPollingController | null = null;
@@ -3067,6 +3068,7 @@ struct Index {
             onlineUsersState: this.onlineUsersState,
             onlineUserCount: this.onlineUserCount,
             topSafeArea: this.topAvoidHeight(),
+            scroller: this.homeScroller,
             onOpenOnlineUser: (user: OnlineUser): void => {
               this.openUserProfile(user.username);
             },
@@ -3204,9 +3206,12 @@ struct Index {
     .hideTitleBar(true)
     .hideBackButton(true)
     .navDestination(this.SecondaryPage)
+    .bindToScrollable([this.homeScroller])
     .width('100%')
     .height('100%')
-    .padding({ top: this.topAvoidHeight() })
-    .ignoreLayoutSafeArea([LayoutSafeAreaType.SYSTEM], [LayoutSafeAreaEdge.BOTTOM])
+    .ignoreLayoutSafeArea(
+      [LayoutSafeAreaType.SYSTEM],
+      [LayoutSafeAreaEdge.TOP, LayoutSafeAreaEdge.BOTTOM]
+    )
   }
 }
