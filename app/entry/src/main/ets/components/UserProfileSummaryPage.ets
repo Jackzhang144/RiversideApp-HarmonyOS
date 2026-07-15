@@ -2,9 +2,13 @@ import { ProfileViewState, ProfileViewStateKind } from '../app/ProfileManagement
 import {
   ProfileGroup,
   ProfileNotificationLevel,
-  UserProfile,
-  UserProfileSummary
+  UserProfile
 } from '../models/ProfileModels';
+import {
+  ProfileSummaryMetric,
+  ProfileSummaryPresentation,
+  profileSummaryPresentationFor
+} from './ProfileSummaryPresentation';
 
 @Component
 export struct UserProfileSummaryPage {
@@ -48,17 +52,27 @@ export struct UserProfileSummaryPage {
   }
 
   @Builder
-  private SummaryCard(summary: UserProfileSummary): void {
+  private SummaryCard(presentation: ProfileSummaryPresentation): void {
     Column({ space: 12 }) {
       Text('活跃概览').fontSize(16).fontWeight(FontWeight.Bold).width('100%')
-      if (summary.available) {
-        Row() {
-          this.SummaryMetric('Topic', summary.topicCount)
-          this.SummaryMetric('Post', summary.postCount)
-          this.SummaryMetric('获赞', summary.likesReceived)
-          this.SummaryMetric('访问', summary.daysVisited)
+      if (presentation.available) {
+        this.SummaryMetricRow(presentation.metrics.slice(0, 3))
+        this.SummaryMetricRow(presentation.metrics.slice(3, 6))
+        if (presentation.badges.length > 0) {
+          Text('徽章').fontSize(13).fontWeight(FontWeight.Medium).width('100%')
+          Flex({ direction: FlexDirection.Row, wrap: FlexWrap.Wrap, justifyContent: FlexAlign.Start }) {
+            ForEach(presentation.badges, (badge: string): void => {
+              Text(badge)
+                .fontSize(12)
+                .fontColor('#2068C9')
+                .padding({ left: 10, right: 10, top: 5, bottom: 5 })
+                .margin({ right: 8, bottom: 8 })
+                .backgroundColor('#EAF2FF')
+                .borderRadius(12)
+            }, (badge: string, index: number): string => `${index}-${badge}`)
+          }
+          .width('100%')
         }
-        .width('100%')
       } else {
         Text('该用户活跃数据较少，暂时没有可展示的摘要。')
           .fontSize(13)
@@ -73,12 +87,17 @@ export struct UserProfileSummaryPage {
   }
 
   @Builder
-  private SummaryMetric(label: string, value: number): void {
-    Column({ space: 4 }) {
-      Text(value.toString()).fontSize(17).fontWeight(FontWeight.Bold)
-      Text(label).fontSize(11).fontColor($r('sys.color.font_secondary'))
+  private SummaryMetricRow(metrics: Array<ProfileSummaryMetric>): void {
+    Row() {
+      ForEach(metrics, (metric: ProfileSummaryMetric): void => {
+        Column({ space: 4 }) {
+          Text(metric.value.toString()).fontSize(17).fontWeight(FontWeight.Bold)
+          Text(metric.label).fontSize(11).fontColor($r('sys.color.font_secondary'))
+        }
+        .layoutWeight(1)
+      }, (metric: ProfileSummaryMetric): string => metric.label)
     }
-    .layoutWeight(1)
+    .width('100%')
   }
 
   @Builder
@@ -186,7 +205,7 @@ export struct UserProfileSummaryPage {
           .backgroundColor('#FFFFFF')
           .borderRadius(14)
         }
-        this.SummaryCard(this.state.summary)
+        this.SummaryCard(profileSummaryPresentationFor(this.state.summary))
         Row({ space: 10 }) {
           Button(this.ownProfile ? '我的 Topic' : 'TA 的 Topic', { type: ButtonType.Normal })
             .layoutWeight(1)
