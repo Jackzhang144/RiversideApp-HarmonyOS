@@ -26,7 +26,7 @@ export struct UserProfileSummaryPage {
   private LoadingState(): void {
     Column({ space: 14 }) {
       LoadingProgress().width(36).height(36)
-      Text('正在加载完整 Profile')
+      Text($r('app.string.profile_loading'))
         .fontSize(14)
         .fontColor($r('sys.color.font_secondary'))
     }
@@ -38,12 +38,12 @@ export struct UserProfileSummaryPage {
   @Builder
   private ErrorState(): void {
     Column({ space: 14 }) {
-      Text('Profile 加载失败').fontSize(21).fontWeight(FontWeight.Bold)
+      Text($r('app.string.profile_load_failed')).fontSize(21).fontWeight(FontWeight.Bold)
       Text(this.state.message)
         .fontSize(13)
         .fontColor($r('app.color.status_error'))
         .textAlign(TextAlign.Center)
-      Button('重试').onClick(this.onRetry)
+      Button($r('app.string.common_retry')).onClick(this.onRetry)
     }
     .width('100%')
     .height('100%')
@@ -54,12 +54,12 @@ export struct UserProfileSummaryPage {
   @Builder
   private SummaryCard(presentation: ProfileSummaryPresentation): void {
     Column({ space: 12 }) {
-      Text('活跃概览').fontSize(16).fontWeight(FontWeight.Bold).width('100%')
+      Text($r('app.string.profile_activity_summary')).fontSize(16).fontWeight(FontWeight.Bold).width('100%')
       if (presentation.available) {
         this.SummaryMetricRow(presentation.metrics.slice(0, 3))
         this.SummaryMetricRow(presentation.metrics.slice(3, 6))
         if (presentation.badges.length > 0) {
-          Text('徽章').fontSize(13).fontWeight(FontWeight.Medium).width('100%')
+          Text($r('app.string.profile_badges')).fontSize(13).fontWeight(FontWeight.Medium).width('100%')
           Flex({ direction: FlexDirection.Row, wrap: FlexWrap.Wrap, justifyContent: FlexAlign.Start }) {
             ForEach(presentation.badges, (badge: string): void => {
               Text(badge)
@@ -74,7 +74,7 @@ export struct UserProfileSummaryPage {
           .width('100%')
         }
       } else {
-        Text('该用户活跃数据较少，暂时没有可展示的摘要。')
+        Text($r('app.string.profile_summary_empty'))
           .fontSize(13)
           .fontColor($r('sys.color.font_secondary'))
           .width('100%')
@@ -135,17 +135,18 @@ export struct UserProfileSummaryPage {
               .fontWeight(FontWeight.Bold)
               .fontColor($r('app.color.text_link'))
             if (profile.isVerified) {
-              Text('认证校友').fontSize(12).fontWeight(FontWeight.Bold).fontColor($r('app.color.verified_identity'))
+              Text($r('app.string.profile_verified_alumnus')).fontSize(12).fontWeight(FontWeight.Bold)
+                .fontColor($r('app.color.verified_identity'))
             }
             Text(`TL ${profile.trustLevel}`).fontSize(12).fontColor($r('sys.color.font_secondary'))
           }
           if (this.ownProfile) {
-            Button('编辑个人资料', { type: ButtonType.Normal })
+            Button($r('app.string.profile_edit_action'), { type: ButtonType.Normal })
               .width('100%')
               .onClick(this.onEdit)
           } else {
             if (profile.canStartDirectChat()) {
-              Button('发送私聊', { type: ButtonType.Normal })
+              Button($r('app.string.profile_direct_chat'), { type: ButtonType.Normal })
                 .width('100%')
                 .enabled(!this.state.busy)
                 .onClick((): void => this.onOpenDirectChat(profile.username))
@@ -218,7 +219,7 @@ export struct UserProfileSummaryPage {
         .width('100%')
         if (profile.groups.length > 0) {
           Column({ space: 8 }) {
-            Text('群组').fontSize(16).fontWeight(FontWeight.Bold).width('100%')
+            Text($r('app.string.profile_groups')).fontSize(16).fontWeight(FontWeight.Bold).width('100%')
             ForEach(profile.groups, (group: ProfileGroup): void => {
               Text(group.displayName.length > 0 ? group.displayName : group.name)
                 .fontSize(13)

@@ -91,13 +91,13 @@ export struct AccountPage {
               .lineHeight(18)
           }
           if (this.state.kind === AuthStateKind.AUTHENTICATED && this.identityError.length > 0) {
-            Button('重新加载身份', { type: ButtonType.Normal })
+            Button($r('app.string.account_retry_identity'), { type: ButtonType.Normal })
               .height(32)
               .fontSize(12)
               .backgroundColor($r('sys.color.background_secondary'))
               .fontColor($r('app.color.brand_primary'))
               .onClick(this.onRetryIdentity)
-              .accessibilityText('重新加载 RiverSide 身份')
+              .accessibilityText($r('app.string.account_retry_identity_accessibility'))
           }
         }
         .alignItems(HorizontalAlign.Start)
@@ -106,14 +106,14 @@ export struct AccountPage {
       .width('100%')
 
       if (presentation.primaryAction === AccountPrimaryAction.LOGIN) {
-        Button('登录并授权 RiverSide', { type: ButtonType.Normal })
+        Button($r('app.string.account_login'), { type: ButtonType.Normal })
           .width('100%')
           .height(44)
           .borderRadius($r('app.float.card_corner_radius'))
           .onClick(this.onLogin)
-          .accessibilityText('登录并授权 RiverSide 账户')
+          .accessibilityText($r('app.string.account_login_accessibility'))
       } else if (presentation.primaryAction === AccountPrimaryAction.LOGOUT) {
-        Button('退出登录', { type: ButtonType.Normal })
+        Button($r('app.string.account_logout'), { type: ButtonType.Normal })
           .width('100%')
           .height(44)
           .fontColor($r('app.color.status_error'))
@@ -121,7 +121,7 @@ export struct AccountPage {
           .border({ width: 1, color: $r('sys.color.comp_divider') })
           .borderRadius($r('app.float.card_corner_radius'))
           .onClick(this.onLogout)
-          .accessibilityText('退出 RiverSide 账户')
+          .accessibilityText($r('app.string.account_logout_accessibility'))
       }
     }
     .width('100%')
@@ -146,7 +146,7 @@ export struct AccountPage {
           .fontSize(16)
           .fontColor([$r('sys.color.font_tertiary')])
       } else {
-        Text('未实现')
+        Text($r('app.string.account_not_implemented'))
           .fontSize(11)
           .fontColor($r('sys.color.font_tertiary'))
           .padding({ left: 8, right: 8, top: 4, bottom: 4 })
@@ -205,7 +205,7 @@ export struct AccountPage {
     Stack({ alignContent: Alignment.BottomEnd }) {
       Scroll() {
         Column({ space: 12 }) {
-          Text('我的')
+          Text($r('app.string.account_title'))
             .fontSize(24)
             .fontWeight(FontWeight.Bold)
             .fontColor($r('sys.color.font_primary'))

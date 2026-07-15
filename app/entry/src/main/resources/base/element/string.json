@@ -235,6 +235,142 @@
     {
       "name": "search_empty_title",
       "value": "没有找到相关内容"
+    },
+    {
+      "name": "account_retry_identity",
+      "value": "重新加载身份"
+    },
+    {
+      "name": "account_retry_identity_accessibility",
+      "value": "重新加载 RiverSide 身份"
+    },
+    {
+      "name": "account_login",
+      "value": "登录并授权 RiverSide"
+    },
+    {
+      "name": "account_login_accessibility",
+      "value": "登录并授权 RiverSide 账户"
+    },
+    {
+      "name": "account_logout",
+      "value": "退出登录"
+    },
+    {
+      "name": "account_logout_accessibility",
+      "value": "退出 RiverSide 账户"
+    },
+    {
+      "name": "account_not_implemented",
+      "value": "未实现"
+    },
+    {
+      "name": "account_title",
+      "value": "我的"
+    },
+    {
+      "name": "settings_home_channel",
+      "value": "首页频道"
+    },
+    {
+      "name": "settings_appearance",
+      "value": "外观"
+    },
+    {
+      "name": "settings_privacy",
+      "value": "隐私"
+    },
+    {
+      "name": "settings_presence_hidden",
+      "value": "隐身模式"
+    },
+    {
+      "name": "settings_presence_hidden_description",
+      "value": "开启后不向其他用户显示你的在线状态"
+    },
+    {
+      "name": "settings_storage_description",
+      "value": "首页频道与外观保存在本机；隐身模式同步到 RiverSide 账号。"
+    },
+    {
+      "name": "profile_edit_change_avatar",
+      "value": "更换头像"
+    },
+    {
+      "name": "profile_edit_change_background",
+      "value": "更换背景图"
+    },
+    {
+      "name": "profile_edit_clear_background",
+      "value": "清除背景图"
+    },
+    {
+      "name": "profile_edit_clear_background_accessibility",
+      "value": "清除当前个人页背景"
+    },
+    {
+      "name": "profile_edit_name",
+      "value": "姓名"
+    },
+    {
+      "name": "profile_edit_title",
+      "value": "头衔"
+    },
+    {
+      "name": "profile_edit_bio",
+      "value": "个人简介"
+    },
+    {
+      "name": "profile_edit_location",
+      "value": "所在地"
+    },
+    {
+      "name": "profile_edit_email_readonly",
+      "value": "邮箱（只读）"
+    },
+    {
+      "name": "profile_edit_email_unavailable",
+      "value": "新增、移除、重发与确认邮箱暂不开放。"
+    },
+    {
+      "name": "profile_edit_save",
+      "value": "保存资料"
+    },
+    {
+      "name": "profile_loading",
+      "value": "正在加载完整 Profile"
+    },
+    {
+      "name": "profile_load_failed",
+      "value": "Profile 加载失败"
+    },
+    {
+      "name": "profile_activity_summary",
+      "value": "活跃概览"
+    },
+    {
+      "name": "profile_badges",
+      "value": "徽章"
+    },
+    {
+      "name": "profile_summary_empty",
+      "value": "该用户活跃数据较少，暂时没有可展示的摘要。"
+    },
+    {
+      "name": "profile_verified_alumnus",
+      "value": "认证校友"
+    },
+    {
+      "name": "profile_edit_action",
+      "value": "编辑个人资料"
+    },
+    {
+      "name": "profile_direct_chat",
+      "value": "发送私聊"
+    },
+    {
+      "name": "profile_groups",
+      "value": "群组"
     }
   ]
 }

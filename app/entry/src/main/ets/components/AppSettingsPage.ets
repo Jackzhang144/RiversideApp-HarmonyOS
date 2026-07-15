@@ -87,7 +87,7 @@ export struct AppSettingsPage {
   build() {
     Scroll() {
       Column({ space: 12 }) {
-        Text('首页频道')
+        Text($r('app.string.settings_home_channel'))
           .fontSize(13)
           .fontWeight(FontWeight.Medium)
           .fontColor($r('sys.color.font_secondary'))
@@ -111,7 +111,7 @@ export struct AppSettingsPage {
         .borderRadius(14)
         .border({ width: 1, color: $r('sys.color.comp_divider') })
 
-        Text('外观')
+        Text($r('app.string.settings_appearance'))
           .fontSize(13)
           .fontWeight(FontWeight.Medium)
           .fontColor($r('sys.color.font_secondary'))
@@ -134,7 +134,7 @@ export struct AppSettingsPage {
         .borderRadius(14)
         .border({ width: 1, color: $r('sys.color.comp_divider') })
 
-        Text('隐私')
+        Text($r('app.string.settings_privacy'))
           .fontSize(13)
           .fontWeight(FontWeight.Medium)
           .fontColor($r('sys.color.font_secondary'))
@@ -149,11 +149,11 @@ export struct AppSettingsPage {
               .fontColor([$r('sys.color.font_secondary')])
           }
           Column({ space: 4 }) {
-            Text('隐身模式')
+            Text($r('app.string.settings_presence_hidden'))
               .fontSize(16)
               .fontWeight(FontWeight.Medium)
               .fontColor($r('sys.color.font_primary'))
-            Text('开启后不向其他用户显示你的在线状态')
+            Text($r('app.string.settings_presence_hidden_description'))
               .fontSize(12)
               .fontColor($r('sys.color.font_secondary'))
           }
@@ -171,7 +171,7 @@ export struct AppSettingsPage {
         .borderRadius(14)
         .border({ width: 1, color: $r('sys.color.comp_divider') })
 
-        Text('首页频道与外观保存在本机；隐身模式同步到 RiverSide 账号。')
+        Text($r('app.string.settings_storage_description'))
           .fontSize(12)
           .fontColor($r('sys.color.font_tertiary'))
           .width('100%')
