@@ -27,6 +27,12 @@ function profileJson(name: string, following: boolean = false): string {
     '"can_upload_profile_header":true}}';
 }
 
+function profileBackgroundJson(canUpload: boolean, url: string): string {
+  return '{"user":{"id":24,"username":"member","name":"成员",' +
+    '"can_upload_profile_header":' + canUpload + ',' +
+    '"profile_background_upload_url":"' + url + '"}}';
+}
+
 export default function profileManagementModelTest(): void {
   describe('Profile management state', () => {
     it('keeps a valid full Profile visible when low-activity summary data is absent', 0,
@@ -229,6 +235,28 @@ export default function profileManagementModelTest(): void {
         expect(saved).assertFalse();
         expect(client.formPutRequests.length).assertEqual(0);
         expect(model.state.message).assertEqual('背景图上传响应缺少地址');
+        done();
+      });
+
+    it('clears an existing profile background and reloads the authoritative Profile', 0,
+      async (done: Function) => {
+        const client: StubForumHttpClient = new StubForumHttpClient();
+        client.results.push(HttpTextResult.success(200,
+          profileBackgroundJson(true, '/uploads/default/original/background.png')));
+        client.results.push(HttpTextResult.success(200, '{}'));
+        client.formPutResults.push(HttpTextResult.success(200, '{}'));
+        client.results.push(HttpTextResult.success(200, profileBackgroundJson(true, '')));
+        const model: ProfileManagementModel = new ProfileManagementModel(
+          new DiscourseForumRepository(client),
+          new StubProfileSessionLifecycle()
+        );
+        await model.loadProfile('member');
+
+        const cleared: boolean = await model.clearProfileBackground();
+
+        expect(cleared).assertTrue();
+        expect(client.formPutRequests[0]).assertEqual('/u/member.json|profile_background_upload_url=');
+        expect(model.state.profile?.profileBackgroundUrl).assertEqual('');
         done();
       });
   });

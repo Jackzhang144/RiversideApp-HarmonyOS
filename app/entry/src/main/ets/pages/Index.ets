@@ -2146,6 +2146,37 @@ struct Index {
     }
   }
 
+  private confirmClearProfileBackground(): void {
+    if (this.selectedProfileModel === null || this.profileState.profile === null) {
+      return;
+    }
+    this.getUIContext().showAlertDialog({
+      title: '清除个人页背景？',
+      message: '当前背景图将从个人页移除。',
+      primaryButton: { value: '取消', action: (): void => {} },
+      secondaryButton: {
+        value: '清除',
+        action: (): void => { this.clearProfileBackground(); }
+      },
+      cancel: (): void => {}
+    });
+  }
+
+  private async clearProfileBackground(): Promise<void> {
+    const model: ProfileManagementModel | null = this.selectedProfileModel;
+    if (model === null) {
+      return;
+    }
+    const task: Promise<boolean> = model.clearProfileBackground();
+    this.profileState = model.state;
+    const cleared: boolean = await task;
+    this.profileState = model.state;
+    if (cleared) {
+      this.showAuthenticationMessage('背景已清除', '完整 Profile 已从服务端刷新');
+      this.refreshAccountIdentity();
+    }
+  }
+
   private openProfileReply(reply: UserReplyItem): void {
     this.openTopic(new Topic(
       reply.topicId,
@@ -2657,6 +2688,9 @@ struct Index {
           },
           onSelectBackground: (): void => {
             this.selectProfileMedia(false);
+          },
+          onClearBackground: (): void => {
+            this.confirmClearProfileBackground();
           }
         })
       }

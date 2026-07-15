@@ -16,6 +16,7 @@ import mediaRepositoryTest from './MediaRepository.test';
 import profileManagementTest from './ProfileManagement.test';
 import profileManagementModelTest from './ProfileManagementModel.test';
 import profileContentModelTest from './ProfileContentModel.test';
+import profileEditorPresentationTest from './ProfileEditorPresentation.test';
 import profileSummaryPresentationTest from './ProfileSummaryPresentation.test';
 import replyBoundaryTest from './ReplyBoundary.test';
 import replyTransportTest from './ReplyTransport.test';
@@ -67,6 +68,7 @@ export default function tests(): void {
   profileManagementTest();
   profileManagementModelTest();
   profileContentModelTest();
+  profileEditorPresentationTest();
   profileSummaryPresentationTest();
   replyBoundaryTest();
   replyTransportTest();

@@ -314,6 +314,31 @@ export class ProfileManagementModel {
     return true;
   }
 
+  public async clearProfileBackground(): Promise<boolean> {
+    const profile: UserProfile | null = this.state.profile;
+    if (profile === null || !profile.canUploadProfileBackground ||
+      profile.profileBackgroundUrl.length === 0 || this.state.busy) {
+      return false;
+    }
+    const request: ProfileUpdateRequest | null = ProfileUpdateRequest.create(
+      profile.username,
+      null,
+      null,
+      null,
+      null,
+      ''
+    );
+    if (request === null) {
+      return false;
+    }
+    const generation: number = this.beginMutation(profile);
+    return this.finishWrite(
+      await this.repository.updateUserProfile(request),
+      profile,
+      generation
+    );
+  }
+
   private async uploadMedia(
     request: MediaUploadRequest,
     generation: number,

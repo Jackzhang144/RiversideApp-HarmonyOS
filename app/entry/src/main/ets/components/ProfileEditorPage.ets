@@ -1,5 +1,6 @@
 import { MediaUploadState, MediaUploadStateKind } from '../models/MediaModels';
 import { UserEmailInfo, UserProfile } from '../models/ProfileModels';
+import { canClearProfileBackground } from './ProfileEditorPresentation';
 
 @Component
 export struct ProfileEditorPage {
@@ -15,6 +16,7 @@ export struct ProfileEditorPage {
   onSave: (name: string, title: string, bio: string, location: string) => void = (): void => {};
   onSelectAvatar: () => void = (): void => {};
   onSelectBackground: () => void = (): void => {};
+  onClearBackground: () => void = (): void => {};
 
   aboutToAppear(): void {
     const profile: UserProfile | null = this.profile;
@@ -52,6 +54,14 @@ export struct ProfileEditorPage {
             .onClick(this.onSelectBackground)
         }
         .width('100%')
+        if (canClearProfileBackground(this.profile)) {
+          Button('清除背景图', { type: ButtonType.Normal })
+            .width('100%')
+            .enabled(!this.busy)
+            .fontColor('#C62828')
+            .onClick(this.onClearBackground)
+            .accessibilityText('清除当前个人页背景')
+        }
         if (this.mediaState !== null) {
           Text(this.mediaState.kind === MediaUploadStateKind.UPLOADING
             ? `上传中 ${this.mediaState.progressPercent}%`
