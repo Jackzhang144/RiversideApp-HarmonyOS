@@ -12,6 +12,7 @@ import {
   reactionEmojiKey,
   reactionEmojiUrl,
   selectedBookmarkPostIds,
+  shouldShowSuggestedTopics,
   systemActionLabel,
   topicPostUrl
 } from '../../../main/ets/components/TopicReadingPresentation';
@@ -80,6 +81,12 @@ export default function topicReadingPresentationTest(): void {
       expect(topicPostUrl(0, 1)).assertEqual('');
       expect(topicPostUrl(2725, 0)).assertEqual('');
       expect(topicPostUrl(1.5, 2)).assertEqual('');
+    });
+
+    it('shows Suggested Topics only after the final Post window', 0, () => {
+      expect(shouldShowSuggestedTopics(false, 2)).assertTrue();
+      expect(shouldShowSuggestedTopics(true, 2)).assertFalse();
+      expect(shouldShowSuggestedTopics(false, 0)).assertFalse();
     });
   });
 }

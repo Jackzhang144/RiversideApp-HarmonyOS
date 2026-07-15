@@ -10,6 +10,10 @@ export function topicPostUrl(topicId: number, postNumber: number): string {
   return `${RIVERSIDE_ORIGIN}/t/${topicId}/${postNumber}`;
 }
 
+export function shouldShowSuggestedTopics(hasNextPosts: boolean, suggestionCount: number): boolean {
+  return !hasNextPosts && Number.isInteger(suggestionCount) && suggestionCount > 0;
+}
+
 export function systemActionLabel(actionCode: string): string {
   if (actionCode === 'closed.enabled') {
     return '关闭了 Topic';

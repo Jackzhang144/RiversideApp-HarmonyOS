@@ -19,6 +19,7 @@ import {
   displayedReactions,
   reactionAccessibilityLabel,
   reactionEmojiUrl,
+  shouldShowSuggestedTopics,
   systemActionLabel
 } from './TopicReadingPresentation';
 
@@ -566,7 +567,10 @@ export struct TopicDetailPage {
   @Builder
   private ReadingContent(): void {
     List({ space: 10 }) {
-      if (this.state.detail !== null) {
+      if (this.state.detail !== null && shouldShowSuggestedTopics(
+        this.state.hasNextPosts,
+        this.state.detail.suggestedTopics.length
+      )) {
         ListItem() {
           this.TopicStarter(
             this.state.detail,
