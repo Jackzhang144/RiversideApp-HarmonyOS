@@ -30,9 +30,11 @@ import chatComposerEditingTest from './ChatComposerEditing.test';
 import notificationModelsTest from './NotificationModels.test';
 import notificationRepositoryTest from './NotificationRepository.test';
 import notificationCentreModelTest from './NotificationCentreModel.test';
+import presenceHeartbeatTest from './PresenceHeartbeat.test';
 
 export default function tests(): void {
   chatComposerEditingTest();
+  presenceHeartbeatTest();
   notificationCentreModelTest();
   notificationRepositoryTest();
   notificationModelsTest();

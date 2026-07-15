@@ -151,14 +151,16 @@ export class DiscourseRequestHeadersFactory {
   }
 }
 
-export interface ForumHttpClient {
+export interface PresenceHttpClient {
+  postForm(path: string, body: string): Promise<HttpTextResult>;
+}
+
+export interface ForumHttpClient extends PresenceHttpClient {
   get(path: string): Promise<HttpTextResult>;
 
   postReply(request: ReplyRequest): Promise<HttpTextResult>;
 
   put(path: string): Promise<HttpTextResult>;
-
-  postForm(path: string, body: string): Promise<HttpTextResult>;
 
   postJson(path: string, body: string): Promise<HttpTextResult>;
 

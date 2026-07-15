@@ -27,6 +27,7 @@ import {
   TopicComposerStateKind,
   TopicReadState
 } from '../app/AppShellModel';
+import { DiscoursePresenceUpdater, PresenceHeartbeat } from '../app/PresenceHeartbeat';
 import {
   ChatChannelState,
   ChatComposerState,
@@ -181,6 +182,8 @@ struct Index {
   private richEmbedController: webview.WebviewController = new webview.WebviewController();
   private mediaGalleryService: MediaGalleryService | null = null;
   private forumRepository: DiscourseForumRepository | null = null;
+  private presenceHeartbeat: PresenceHeartbeat | null = null;
+  private foregroundVisible: boolean = false;
 
   @Env(SystemProperties.WINDOW_AVOID_AREA) avoidAreasVp: window.UIEnvWindowAvoidAreaInfoVP;
   @State selectedRoot: RootDestination = RootDestination.HOME;
@@ -249,7 +252,19 @@ struct Index {
   }
 
   onPageShow(): void {
+    this.foregroundVisible = true;
+    this.synchronizePresenceHeartbeat();
     this.refreshForegroundData();
+  }
+
+  onPageHide(): void {
+    this.foregroundVisible = false;
+    this.synchronizePresenceHeartbeat();
+  }
+
+  aboutToDisappear(): void {
+    this.foregroundVisible = false;
+    this.presenceHeartbeat?.dispose();
   }
 
   private async initialize(context: common.Context): Promise<void> {
@@ -275,10 +290,16 @@ struct Index {
       }
     );
     this.authenticationLifecycle = authenticationLifecycle;
-    const forumRepository: DiscourseForumRepository = new DiscourseForumRepository(
-      new DiscourseHttpClient(RIVERSIDE_BASE_URL, sessionProvider)
-    );
+    const httpClient: DiscourseHttpClient = new DiscourseHttpClient(RIVERSIDE_BASE_URL, sessionProvider);
+    const forumRepository: DiscourseForumRepository = new DiscourseForumRepository(httpClient);
     this.forumRepository = forumRepository;
+    this.presenceHeartbeat = new PresenceHeartbeat(
+      new DiscoursePresenceUpdater(
+        httpClient,
+        (): string | null => sessionProvider.currentSession()?.clientId ?? null
+      ),
+      authenticationLifecycle
+    );
     const mediaRepository: DiscourseMediaRepository = new DiscourseMediaRepository(
       new DiscourseMediaTransport(RIVERSIDE_BASE_URL, sessionProvider)
     );
@@ -311,6 +332,7 @@ struct Index {
     this.worldCupEntryEnabled = model.worldCupEntryEnabled;
     model.selectRoot(this.selectedRoot);
     this.model = model;
+    this.synchronizePresenceHeartbeat();
     this.refreshAccountIdentity();
     this.loadHome();
     this.loadOnlineUsers();
@@ -332,6 +354,7 @@ struct Index {
       return;
     }
     this.authState = repository.state;
+    this.synchronizePresenceHeartbeat();
     const model: AppShellModel | null = this.model;
     if (model === null) {
       return;
@@ -368,6 +391,18 @@ struct Index {
     if (reloadCategories) {
       this.loadCategories();
     }
+  }
+
+  private synchronizePresenceHeartbeat(): void {
+    const heartbeat: PresenceHeartbeat | null = this.presenceHeartbeat;
+    if (heartbeat === null) {
+      return;
+    }
+    if (this.foregroundVisible && this.authState.kind === AuthStateKind.AUTHENTICATED) {
+      heartbeat.start();
+      return;
+    }
+    heartbeat.stop();
   }
 
   private refreshAccountIdentity(): void {
@@ -2060,6 +2095,7 @@ struct Index {
     }
     const task: Promise<void> = repository.logout();
     this.authState = repository.state;
+    this.synchronizePresenceHeartbeat();
     await task;
     this.synchronizeAuthentication(true);
     if (repository.state.kind === AuthStateKind.IDLE) {
