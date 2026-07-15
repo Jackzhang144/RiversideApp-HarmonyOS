@@ -3,6 +3,8 @@ import {
   ChatMessageContextCapabilities,
   ChatMessageFragment,
   ChatMessageFragmentKind,
+  chatEmojiGroups,
+  filterChatReactionEmojis,
   formatChatMessageTimestamp,
   isChatMessageGroupStart,
   presentChatMessageBody,
@@ -132,6 +134,21 @@ export default function chatMessagePresentationTest(): void {
 
       expect(selected.map((emoji: ChatEmoji): string => emoji.name).join(','))
         .assertEqual('heart,+1,laughing,smile');
+    });
+
+    it('builds stable Reaction groups and filters the full catalog by group and search', 0, () => {
+      const emojis: Array<ChatEmoji> = [
+        new ChatEmoji('smile', '', 'people'),
+        new ChatEmoji('heart', '', 'symbols'),
+        new ChatEmoji('wave', '', 'people'),
+        new ChatEmoji('RiverSide_Love', '', 'custom'),
+        new ChatEmoji('orphan', '', '')
+      ];
+
+      expect(chatEmojiGroups(emojis).join(',')).assertEqual('people,symbols,custom');
+      expect(filterChatReactionEmojis(emojis, 'people', ' WA ')[0].name).assertEqual('wave');
+      expect(filterChatReactionEmojis(emojis, '', 'love')[0].name).assertEqual('RiverSide_Love');
+      expect(filterChatReactionEmojis(emojis, 'symbols', 'wave').length).assertEqual(0);
     });
   });
 }

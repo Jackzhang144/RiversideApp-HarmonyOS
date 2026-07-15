@@ -22,6 +22,8 @@ import {
   ChatMessageContextCapabilities,
   ChatMessageFragment,
   ChatMessageFragmentKind,
+  chatEmojiGroups,
+  filterChatReactionEmojis,
   formatChatMessageTimestamp,
   isChatMessageGroupStart,
   presentChatMessageBody,
@@ -31,7 +33,6 @@ import {
 } from './ChatMessagePresentation';
 
 const CHAT_QUICK_REACTION_LIMIT: number = 5;
-const CHAT_REACTION_SUBMENU_LIMIT: number = 20;
 const CHAT_QUICK_REACTION_PREFERRED_NAMES: Array<string> = [
   'heart',
   '+1',
@@ -50,6 +51,10 @@ export struct ChatConversationPage {
   @Prop currentUsername: string = '';
   @State emojiQuery: string = '';
   @State emojiPickerVisible: boolean = false;
+  @State reactionSheetVisible: boolean = false;
+  @State reactionMessageId: number | null = null;
+  @State reactionEmojiQuery: string = '';
+  @State reactionEmojiGroup: string = '';
   @State mentionUsers: Array<ComposerMentionUser> = [];
   @State mentionLoading: boolean = false;
   @State mentionMessage: string = '';
@@ -84,11 +89,13 @@ export struct ChatConversationPage {
   private readonly composerController: TextAreaController = new TextAreaController();
   private readonly mentionRequestGate: ComposerMentionRequestGate = new ComposerMentionRequestGate();
   private mentionTimer: number = -1;
+  private reactionSheetTimer: number = -1;
   private composerSelectionStart: number = 0;
   private composerSelectionEnd: number = 0;
 
   aboutToDisappear(): void {
     this.cancelMentionTimer();
+    this.cancelReactionSheetTimer();
     this.mentionRequestGate.invalidate();
   }
 
@@ -96,6 +103,13 @@ export struct ChatConversationPage {
     if (this.mentionTimer >= 0) {
       clearTimeout(this.mentionTimer);
       this.mentionTimer = -1;
+    }
+  }
+
+  private cancelReactionSheetTimer(): void {
+    if (this.reactionSheetTimer >= 0) {
+      clearTimeout(this.reactionSheetTimer);
+      this.reactionSheetTimer = -1;
     }
   }
 
@@ -228,12 +242,12 @@ export struct ChatConversationPage {
     );
   }
 
-  private reactionSubmenuEmojis(): Array<ChatEmoji> {
-    return selectQuickChatEmojis(
-      this.emojis,
-      CHAT_QUICK_REACTION_PREFERRED_NAMES,
-      CHAT_REACTION_SUBMENU_LIMIT
-    );
+  private reactionEmojiGroups(): Array<string> {
+    return chatEmojiGroups(this.emojis);
+  }
+
+  private visibleReactionEmojis(): Array<ChatEmoji> {
+    return filterChatReactionEmojis(this.emojis, this.reactionEmojiGroup, this.reactionEmojiQuery);
   }
 
   private visibleEmojis(): Array<ChatEmoji> {
@@ -273,6 +287,65 @@ export struct ChatConversationPage {
     );
   }
 
+  private openReactionSheet(message: ChatMessage): void {
+    this.reactionMessageId = message.id;
+    this.reactionEmojiQuery = '';
+    this.reactionEmojiGroup = '';
+    this.getUIContext().getContextMenuController().close();
+    this.cancelReactionSheetTimer();
+    this.reactionSheetTimer = setTimeout((): void => {
+      this.reactionSheetTimer = -1;
+      if (this.messageForId(message.id) !== null) {
+        this.reactionSheetVisible = true;
+      }
+    }, 120);
+  }
+
+  private selectReactionFromSheet(emoji: ChatEmoji): void {
+    const message: ChatMessage | null = this.messageForId(this.reactionMessageId);
+    if (message === null) {
+      this.reactionSheetVisible = false;
+      return;
+    }
+    this.toggleQuickReaction(message, emoji);
+    this.reactionSheetVisible = false;
+  }
+
+  private reactionGroupLabel(group: string): ResourceStr {
+    const normalizedGroup: string = group.trim().toLowerCase();
+    if (normalizedGroup === 'smileys_&_emotion') {
+      return $r('app.string.chat_reaction_group_emotion');
+    }
+    if (normalizedGroup === 'people_&_body' || normalizedGroup === 'people') {
+      return $r('app.string.chat_reaction_group_people');
+    }
+    if (normalizedGroup === 'animals_&_nature') {
+      return $r('app.string.chat_reaction_group_animals');
+    }
+    if (normalizedGroup === 'food_&_drink') {
+      return $r('app.string.chat_reaction_group_food');
+    }
+    if (normalizedGroup === 'travel_&_places') {
+      return $r('app.string.chat_reaction_group_travel');
+    }
+    if (normalizedGroup === 'activities') {
+      return $r('app.string.chat_reaction_group_activities');
+    }
+    if (normalizedGroup === 'objects') {
+      return $r('app.string.chat_reaction_group_objects');
+    }
+    if (normalizedGroup === 'symbols') {
+      return $r('app.string.chat_reaction_group_symbols');
+    }
+    if (normalizedGroup === 'flags') {
+      return $r('app.string.chat_reaction_group_flags');
+    }
+    if (normalizedGroup === 'custom') {
+      return $r('app.string.chat_reaction_group_custom');
+    }
+    return group.replace(/_/g, ' ');
+  }
+
   private showChannelActions(): void {
     const channel: ChatChannel | null = this.state.channel;
     if (channel === null || channel.isDirectMessage) {
@@ -308,32 +381,35 @@ export struct ChatConversationPage {
   }
 
   @Builder
+  private QuickReactionMoreButton(message: ChatMessage): void {
+    Button() {
+      SymbolGlyph($r('sys.symbol.square_grid_2x2'))
+        .fontSize(22)
+        .fontColor([$r('sys.color.font_primary')])
+    }
+    .width(40)
+    .height(40)
+    .borderRadius(20)
+    .backgroundColor(Color.Transparent)
+    .gesture(TapGesture().onAction((): void => this.openReactionSheet(message)))
+    .accessibilityText($r('app.string.chat_reaction_more_accessibility'))
+  }
+
+  @Builder
   private QuickReactionBar(message: ChatMessage): void {
     Row({ space: 4 }) {
       ForEach(this.quickReactionEmojis(), (emoji: ChatEmoji): void => {
         this.QuickReactionButton(message, emoji)
       }, (emoji: ChatEmoji): string => emoji.name)
+      this.QuickReactionMoreButton(message)
     }
-    .width(236)
+    .width(280)
     .height(54)
     .padding({ left: 7, right: 7 })
     .justifyContent(FlexAlign.Center)
     .backgroundColor($r('sys.color.comp_background_primary'))
     .border({ width: 1, color: $r('sys.color.comp_divider') })
     .borderRadius(27)
-  }
-
-  @Builder
-  private ReactionSubmenu(message: ChatMessage): void {
-    Menu() {
-      ForEach(this.reactionSubmenuEmojis(), (emoji: ChatEmoji): void => {
-        MenuItem({
-          startIcon: emoji.imageUrl(),
-          content: `:${emoji.name}:`
-        })
-          .onClick((): void => this.toggleQuickReaction(message, emoji))
-      }, (emoji: ChatEmoji): string => emoji.name)
-    }
   }
 
   @Builder
@@ -355,13 +431,6 @@ export struct ChatConversationPage {
             content: $r('app.string.action_reply')
           })
             .onClick((): void => this.onReply(message.id))
-        }
-        if (capabilities.canReact) {
-          MenuItem({
-            startIcon: this.quickReactionEmojis()[0].imageUrl(),
-            content: $r('app.string.chat_reaction_add'),
-            builder: this.ReactionSubmenu(message)
-          })
         }
         MenuItem({
           symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.square_and_square')),
@@ -409,6 +478,107 @@ export struct ChatConversationPage {
     }
     .width(300)
     .backgroundColor(Color.Transparent)
+  }
+
+  @Builder
+  private ReactionGroupButton(group: string, label: ResourceStr): void {
+    Button(label, { type: ButtonType.Normal })
+      .height(36)
+      .padding({ left: 14, right: 14 })
+      .fontSize(13)
+      .fontColor(this.reactionEmojiGroup === group
+        ? $r('app.color.text_link')
+        : $r('sys.color.font_secondary'))
+      .backgroundColor(this.reactionEmojiGroup === group
+        ? $r('app.color.brand_selected_surface')
+        : Color.Transparent)
+      .border({ width: 1, color: this.reactionEmojiGroup === group
+        ? $r('app.color.brand_primary')
+        : $r('sys.color.comp_divider') })
+      .borderRadius(12)
+      .onClick((): void => {
+        this.reactionEmojiGroup = group;
+      })
+  }
+
+  @Builder
+  private ReactionSheetEmojiButton(emoji: ChatEmoji): void {
+    Button() {
+      Image(emoji.imageUrl())
+        .width(34)
+        .height(34)
+        .objectFit(ImageFit.Contain)
+    }
+    .width('100%')
+    .height(50)
+    .backgroundColor(Color.Transparent)
+    .onClick((): void => this.selectReactionFromSheet(emoji))
+    .accessibilityText(`使用 ${emoji.name} 回应`)
+  }
+
+  @Builder
+  private ReactionPickerSheet(): void {
+    Column({ space: 12 }) {
+      List({ space: 8 }) {
+        ListItem() {
+          this.ReactionGroupButton('', $r('app.string.chat_reaction_group_all'))
+        }
+        ForEach(this.reactionEmojiGroups(), (group: string): void => {
+          ListItem() {
+            this.ReactionGroupButton(group, this.reactionGroupLabel(group))
+          }
+        }, (group: string): string => group)
+      }
+      .width('100%')
+      .height(52)
+      .padding({ bottom: 10 })
+      .listDirection(Axis.Horizontal)
+      .edgeEffect(EdgeEffect.Spring)
+
+      TextInput({
+        text: this.reactionEmojiQuery,
+        placeholder: $r('app.string.chat_reaction_search_placeholder')
+      })
+        .width('100%')
+        .height(44)
+        .fontSize(14)
+        .backgroundColor($r('sys.color.background_secondary'))
+        .border({ width: 1, color: $r('sys.color.comp_divider') })
+        .borderRadius(12)
+        .onChange((value: string): void => {
+          this.reactionEmojiQuery = value;
+        })
+        .accessibilityText($r('app.string.chat_reaction_search_placeholder'))
+
+      if (this.visibleReactionEmojis().length === 0) {
+        Column() {
+          Text($r('app.string.chat_reaction_empty'))
+            .fontSize(14)
+            .fontColor($r('sys.color.font_secondary'))
+        }
+        .layoutWeight(1)
+        .width('100%')
+        .justifyContent(FlexAlign.Center)
+      } else {
+        Grid() {
+          ForEach(this.visibleReactionEmojis(), (emoji: ChatEmoji): void => {
+            GridItem() {
+              this.ReactionSheetEmojiButton(emoji)
+            }
+          }, (emoji: ChatEmoji): string => emoji.name)
+        }
+        .columnsTemplate('1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr')
+        .columnsGap(4)
+        .rowsGap(4)
+        .layoutWeight(1)
+        .width('100%')
+        .edgeEffect(EdgeEffect.Spring)
+      }
+    }
+    .width('100%')
+    .height('100%')
+    .padding({ left: 14, right: 14, top: 4, bottom: 12 })
+    .backgroundColor($r('sys.color.comp_background_primary'))
   }
 
   @Builder
@@ -659,6 +829,7 @@ export struct ChatConversationPage {
     .width('100%')
     .justifyContent(message.username === this.currentUsername ? FlexAlign.End : FlexAlign.Start)
     .margin({ top: groupStart ? 10 : 3 })
+    .opacity(this.reactionSheetVisible && this.reactionMessageId !== message.id ? 0.32 : 1)
   }
 
   @Builder
@@ -978,5 +1149,22 @@ export struct ChatConversationPage {
       }
     }
     .width('100%').height('100%').backgroundColor($r('sys.color.background_secondary'))
+    .bindSheet($$this.reactionSheetVisible, this.ReactionPickerSheet(), {
+      detents: [SheetSize.MEDIUM, SheetSize.LARGE],
+      detentSelection: SheetSize.MEDIUM,
+      preferType: SheetType.BOTTOM,
+      showClose: false,
+      dragBar: true,
+      backgroundColor: $r('sys.color.comp_background_primary'),
+      maskColor: Color.Transparent,
+      enableOutsideInteractive: false,
+      keyboardAvoidMode: SheetKeyboardAvoidMode.TRANSLATE_AND_RESIZE,
+      onDisappear: (): void => {
+        this.reactionSheetVisible = false;
+        this.reactionMessageId = null;
+        this.reactionEmojiQuery = '';
+        this.reactionEmojiGroup = '';
+      }
+    })
   }
 }

@@ -99,6 +99,33 @@ export function selectQuickChatEmojis(
   return selected;
 }
 
+export function chatEmojiGroups(emojis: Array<ChatEmoji>): Array<string> {
+  const groups: Array<string> = [];
+  emojis.forEach((emoji: ChatEmoji): void => {
+    const group: string = emoji.group.trim();
+    if (group.length > 0 && !groups.includes(group)) {
+      groups.push(group);
+    }
+  });
+  return groups;
+}
+
+export function filterChatReactionEmojis(
+  emojis: Array<ChatEmoji>,
+  selectedGroup: string,
+  query: string
+): Array<ChatEmoji> {
+  const normalizedGroup: string = selectedGroup.trim().toLowerCase();
+  const normalizedQuery: string = query.trim().toLowerCase();
+  return emojis.filter((emoji: ChatEmoji): boolean => {
+    const group: string = emoji.group.trim().toLowerCase();
+    const groupMatches: boolean = normalizedGroup.length === 0 || group === normalizedGroup;
+    const queryMatches: boolean = normalizedQuery.length === 0 ||
+      emoji.name.toLowerCase().includes(normalizedQuery) || group.includes(normalizedQuery);
+    return groupMatches && queryMatches;
+  });
+}
+
 function emojiForName(emojis: Array<ChatEmoji>, name: string): ChatEmoji | null {
   return emojis.find((emoji: ChatEmoji): boolean => emoji.name === name) ?? null;
 }

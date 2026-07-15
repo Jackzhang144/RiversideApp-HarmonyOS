@@ -457,8 +457,60 @@
       "value": "加载更新消息"
     },
     {
-      "name": "chat_reaction_add",
-      "value": "添加 Reaction"
+      "name": "chat_reaction_more_accessibility",
+      "value": "查看更多 Reaction"
+    },
+    {
+      "name": "chat_reaction_group_all",
+      "value": "全部"
+    },
+    {
+      "name": "chat_reaction_group_emotion",
+      "value": "表情"
+    },
+    {
+      "name": "chat_reaction_group_people",
+      "value": "人物"
+    },
+    {
+      "name": "chat_reaction_group_animals",
+      "value": "动物"
+    },
+    {
+      "name": "chat_reaction_group_food",
+      "value": "食物"
+    },
+    {
+      "name": "chat_reaction_group_travel",
+      "value": "旅行"
+    },
+    {
+      "name": "chat_reaction_group_activities",
+      "value": "活动"
+    },
+    {
+      "name": "chat_reaction_group_objects",
+      "value": "物品"
+    },
+    {
+      "name": "chat_reaction_group_symbols",
+      "value": "符号"
+    },
+    {
+      "name": "chat_reaction_group_flags",
+      "value": "旗帜"
+    },
+    {
+      "name": "chat_reaction_group_custom",
+      "value": "自定义"
+    },
+    {
+      "name": "chat_reaction_search_placeholder",
+      "value": "搜索表情"
+    },
+    {
+      "name": "chat_reaction_empty",
+      "value": "没有匹配的表情"
     },
     {
       "name": "chat_emoji_toggle_accessibility",
