@@ -5,9 +5,11 @@ import {
   hdsMaterial,
   HdsNavDestination,
   HdsNavigation,
+  HdsNavigationTitleMode,
   HdsSnackBar,
   HdsTabs,
   HdsTabsController,
+  ScrollEffectType,
   SnackBarOperationType
 } from '@kit.UIDesignKit';
 import { SymbolGlyphModifier, window } from '@kit.ArkUI';
@@ -118,6 +120,7 @@ import { ChatRootPage } from '../components/ChatRootPage';
 import { NotificationCentrePage } from '../components/NotificationCentrePage';
 import { CategoryTopicsPage } from '../components/CategoryTopicsPage';
 import { HomeBrowsePage } from '../components/HomeBrowsePage';
+import { HomeFloatingHeader } from '../components/HomeFloatingHeader';
 import { FeatureSitePresentation } from '../components/HomePresentation';
 import { ForumComposer } from '../components/ForumComposer';
 import {
@@ -3055,6 +3058,36 @@ struct Index {
     );
   }
 
+  @Builder
+  private HomeHeader(): void {
+    if (this.selectedRoot === RootDestination.HOME) {
+      HomeFloatingHeader({
+        selectedChannel: this.selectedHomeChannel,
+        newTopicAvailable: this.canCreateAuthoringTopic(),
+        onlineUsersState: this.onlineUsersState,
+        onlineUserCount: this.onlineUserCount,
+        onOpenOnlineUser: (user: OnlineUser): void => {
+          this.openUserProfile(user.username);
+        },
+        onRetryOnlineUsers: (): void => {
+          this.loadOnlineUsers();
+        },
+        onOpenFeatureSite: (site: FeatureSitePresentation): void => {
+          this.openRichEmbed(site.entryUrl, site.provider, site.title);
+        },
+        onOpenSearch: (): void => {
+          this.openSearch();
+        },
+        onOpenNewTopic: (): void => {
+          this.openNewTopic();
+        },
+        onSelectChannel: (index: number): void => {
+          this.selectHomeChannel(index);
+        }
+      })
+    }
+  }
+
   build() {
     HdsNavigation(this.pathStack) {
       HdsTabs({ controller: this.tabsController }) {
@@ -3064,20 +3097,7 @@ struct Index {
             categories: this.categoryState.items,
             selectedChannel: this.selectedHomeChannel,
             worldCupEntryEnabled: this.worldCupEntryEnabled,
-            newTopicAvailable: this.canCreateAuthoringTopic(),
-            onlineUsersState: this.onlineUsersState,
-            onlineUserCount: this.onlineUserCount,
-            topSafeArea: this.topAvoidHeight(),
             scroller: this.homeScroller,
-            onOpenOnlineUser: (user: OnlineUser): void => {
-              this.openUserProfile(user.username);
-            },
-            onRetryOnlineUsers: (): void => {
-              this.loadOnlineUsers();
-            },
-            onOpenFeatureSite: (site: FeatureSitePresentation): void => {
-              this.openRichEmbed(site.entryUrl, site.provider, site.title);
-            },
             onRetry: (): void => {
               this.loadHome();
             },
@@ -3091,20 +3111,12 @@ struct Index {
             onOpenTopic: (topic: Topic): void => {
               this.openTopic(topic);
             },
-            onOpenSearch: (): void => {
-              this.openSearch();
-            },
-            onOpenNewTopic: (): void => {
-              this.openNewTopic();
-            },
-            onSelectChannel: (index: number): void => {
-              this.selectHomeChannel(index);
-            },
             onWorldCupEntryChange: (enabled: boolean): void => {
               this.setWorldCupEntryEnabled(enabled);
             }
           })
         }
+        .clip(false)
         .tabBar(this.rootTabStyle(ROOT_HOME_LABEL, $r('sys.symbol.house')))
 
         TabContent() {
@@ -3201,9 +3213,32 @@ struct Index {
       })
       .width('100%')
       .height('100%')
+      .clip(false)
       .ignoreLayoutSafeArea([LayoutSafeAreaType.SYSTEM], [LayoutSafeAreaEdge.BOTTOM])
     }
-    .hideTitleBar(true)
+    .titleBar({
+      avoidLayoutSafeArea: true,
+      enableComponentSafeArea: this.selectedRoot === RootDestination.HOME,
+      content: {
+        title: { mainTitle: '' },
+        stackBuilder: (): void => this.HomeHeader()
+      },
+      style: {
+        scrollEffectOpts: {
+          enableScrollEffect: false,
+          scrollEffectType: ScrollEffectType.GRADIENT_BLUR
+        },
+        originalStyle: {
+          backgroundStyle: {
+            backgroundColor: Color.Transparent,
+            maskExtraHeight: 32,
+            blurRadius: 16
+          }
+        }
+      }
+    })
+    .titleMode(HdsNavigationTitleMode.MINI)
+    .hideTitleBar(this.selectedRoot !== RootDestination.HOME)
     .hideBackButton(true)
     .navDestination(this.SecondaryPage)
     .bindToScrollable([this.homeScroller])
