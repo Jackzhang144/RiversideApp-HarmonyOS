@@ -36,6 +36,7 @@ export struct TopicDetailPage {
   @Prop categories: Array<Category> = [];
   @Link replySheetVisible: boolean;
   onRetry: () => void = (): void => {};
+  onRefresh: () => void = (): void => {};
   onLoadMore: () => void = (): void => {};
   onLoadPrevious: () => void = (): void => {};
   onOpenReply: (postNumber: number | null) => void = (_postNumber: number | null): void => {};
@@ -729,8 +730,18 @@ export struct TopicDetailPage {
   }
 
   @Builder
-  private ReadingContent(): void {
+  private ReadingList(): void {
     List({ space: 10, scroller: this.readingScroller }) {
+      if (this.state.refreshMessage.length > 0) {
+        ListItem() {
+          Text(this.state.refreshMessage)
+            .width('100%')
+            .fontSize(13)
+            .fontColor('#C62828')
+            .textAlign(TextAlign.Center)
+            .padding({ top: 6, bottom: 6 })
+        }
+      }
       if (this.state.detail !== null) {
         ListItem() {
           this.TopicStarter(
@@ -833,6 +844,20 @@ export struct TopicDetailPage {
         this.onDismissReply();
       }
     })
+  }
+
+  @Builder
+  private ReadingContent(): void {
+    Refresh({ refreshing: this.state.isRefreshing }) {
+      this.ReadingList()
+    }
+    .width('100%')
+    .height('100%')
+    .backgroundColor('#F5F6F8')
+    .refreshOffset(64)
+    .pullToRefresh(true)
+    .pullUpToCancelRefresh(false)
+    .onRefreshing(this.onRefresh)
   }
 
   build() {

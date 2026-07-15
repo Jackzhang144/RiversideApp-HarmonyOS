@@ -1310,6 +1310,17 @@ struct Index {
     this.synchronizeReplyState(model);
   }
 
+  private async refreshTopic(): Promise<void> {
+    const model: AppShellModel | null = this.model;
+    if (model === null) {
+      return;
+    }
+    const task: Promise<void> = model.refreshTopic();
+    this.synchronizeTopicState(model);
+    await task;
+    this.synchronizeTopicState(model);
+  }
+
   private async loadMorePosts(): Promise<void> {
     const model: AppShellModel | null = this.model;
     if (model === null) {
@@ -2235,6 +2246,9 @@ struct Index {
           replySheetVisible: this.replySheetVisible,
           onRetry: (): void => {
             this.retryTopic();
+          },
+          onRefresh: (): void => {
+            this.refreshTopic();
           },
           onLoadMore: (): void => {
             this.loadMorePosts();

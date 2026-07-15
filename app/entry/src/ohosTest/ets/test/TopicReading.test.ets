@@ -69,6 +69,7 @@ class TopicReadingRepository implements ForumRepository {
   public createBookmarkResults: Array<RepositoryResult<number>> = [];
   public deleteBookmarkResults: Array<RepositoryResult<boolean>> = [];
   public markTopicReadResults: Array<RepositoryResult<boolean>> = [];
+  public markTopicReadTasks: Array<Promise<RepositoryResult<boolean>>> = [];
   public clearNotificationResults: Array<RepositoryResult<number>> = [];
   public clearNotificationTasks: Array<Promise<RepositoryResult<number>>> = [];
   public categoryTopicResults: Array<RepositoryResult<Array<Topic>>> = [];
@@ -174,6 +175,10 @@ class TopicReadingRepository implements ForumRepository {
     milliseconds: number
   ): Promise<RepositoryResult<boolean>> {
     this.requestedReadTimings.push(`${topicId}:${postNumbers.join(',')}:${milliseconds}`);
+    const task: Promise<RepositoryResult<boolean>> | undefined = this.markTopicReadTasks.shift();
+    if (task !== undefined) {
+      return await task;
+    }
     return this.markTopicReadResults.shift() ?? RepositoryResult.failure<boolean>('missing Topic timing result');
   }
 
@@ -575,6 +580,120 @@ export default function topicReadingTest(): void {
       done();
     });
 
+    it('refreshes a loaded Topic without hiding its current Posts', 0, async (done: Function) => {
+      const repository: TopicReadingRepository = new TopicReadingRepository();
+      repository.topicDetailResults.push(RepositoryResult.success<TopicDetail>(new TopicDetail(
+        2725,
+        '刷新前 Topic',
+        10,
+        1,
+        4,
+        false,
+        false,
+        true,
+        [102728],
+        [firstPost()]
+      )));
+      const refreshedTopic: PendingRepositoryResult<TopicDetail> = new PendingRepositoryResult<TopicDetail>();
+      const model: AppShellModel = new AppShellModel(
+        repository,
+        new MemoryCategoryCache(),
+        CategoryCacheScope.anonymous()
+      );
+      await model.openTopic(topic());
+      repository.topicDetailTasks.push(refreshedTopic.promise);
+
+      const refreshTask: Promise<void> = model.refreshTopic();
+
+      expect(model.topicState.kind).assertEqual(TopicReadStateKind.CONTENT);
+      expect(model.topicState.posts[0].postNumber).assertEqual(1);
+      expect(model.topicState.isRefreshing).assertTrue();
+
+      refreshedTopic.complete(RepositoryResult.success<TopicDetail>(new TopicDetail(
+        2725,
+        '刷新后 Topic',
+        11,
+        2,
+        4,
+        false,
+        false,
+        true,
+        [102728, 102729],
+        [firstPost(), secondPost()]
+      )));
+      await refreshTask;
+
+      expect(model.topicState.kind).assertEqual(TopicReadStateKind.CONTENT);
+      expect(model.topicState.title).assertEqual('刷新后 Topic');
+      expect(model.topicState.posts.map((post: ForumPost): number => post.postNumber).join(','))
+        .assertEqual('1,2');
+      expect(model.topicState.isRefreshing).assertFalse();
+      expect(repository.requestedTopicPostNumbers.map((postNumber: number | null): string => {
+        return postNumber === null ? 'null' : postNumber.toString();
+      }).join(',')).assertEqual('null,null');
+      done();
+    });
+
+    it('keeps refreshed Topic metadata when an older read report finishes later', 0, async (done: Function) => {
+      const repository: TopicReadingRepository = new TopicReadingRepository();
+      repository.topicDetailResults.push(RepositoryResult.success<TopicDetail>(new TopicDetail(
+        2725, '旧标题', 10, 1, 4, false, false, true, [102728], [firstPost()]
+      )));
+      const refreshedTopic: PendingRepositoryResult<TopicDetail> = new PendingRepositoryResult<TopicDetail>();
+      const readReport: PendingRepositoryResult<boolean> = new PendingRepositoryResult<boolean>();
+      repository.markTopicReadTasks.push(readReport.promise);
+      const model: AppShellModel = new AppShellModel(
+        repository, new MemoryCategoryCache(), CategoryCacheScope.anonymous()
+      );
+      await model.openTopic(topic());
+      repository.topicDetailTasks.push(refreshedTopic.promise);
+
+      const refreshTask: Promise<void> = model.refreshTopic();
+      const progressTask: Promise<void> = model.reportTopicReadProgress(1);
+      refreshedTopic.complete(RepositoryResult.success<TopicDetail>(new TopicDetail(
+        2725, '服务端新标题', 11, 1, 4, false, false, true, [102728], [firstPost()]
+      )));
+      await refreshTask;
+      readReport.complete(RepositoryResult.success<boolean>(true));
+      await progressTask;
+
+      expect(model.topicState.title).assertEqual('服务端新标题');
+      expect(model.topicState.detail?.lastReadPostNumber).assertEqual(1);
+      done();
+    });
+
+    it('keeps the loaded Topic visible when pull-to-refresh fails', 0, async (done: Function) => {
+      const repository: TopicReadingRepository = new TopicReadingRepository();
+      repository.topicDetailResults.push(RepositoryResult.success<TopicDetail>(new TopicDetail(
+        2725,
+        '保留中的 Topic',
+        10,
+        1,
+        4,
+        false,
+        false,
+        true,
+        [102728],
+        [firstPost()]
+      )));
+      repository.topicDetailResults.push(RepositoryResult.failure<TopicDetail>('刷新失败'));
+      const model: AppShellModel = new AppShellModel(
+        repository,
+        new MemoryCategoryCache(),
+        CategoryCacheScope.anonymous()
+      );
+      await model.openTopic(topic());
+
+      await model.refreshTopic();
+
+      expect(model.topicState.kind).assertEqual(TopicReadStateKind.CONTENT);
+      expect(model.topicState.title).assertEqual('保留中的 Topic');
+      expect(model.topicState.posts[0].postNumber).assertEqual(1);
+      expect(model.topicState.isRefreshing).assertFalse();
+      expect(model.topicState.refreshMessage).assertEqual('刷新失败');
+      done();
+    });
+
     it('opens and retries a searched Post from its requested floor', 0, async (done: Function) => {
       const repository: TopicReadingRepository = new TopicReadingRepository();
       repository.topicDetailResults.push(RepositoryResult.failure<TopicDetail>('网络连接失败'));
@@ -599,6 +718,18 @@ export default function topicReadingTest(): void {
           '2026-01-28T00:00:00Z'
         )]
       )));
+      repository.topicDetailResults.push(RepositoryResult.success<TopicDetail>(new TopicDetail(
+        2725,
+        '站务管理区重要主题导航',
+        1959,
+        1,
+        4,
+        false,
+        false,
+        true,
+        [102728],
+        [firstPost()]
+      )));
       const model: AppShellModel = new AppShellModel(
         repository,
         new MemoryCategoryCache(),
@@ -607,10 +738,13 @@ export default function topicReadingTest(): void {
 
       await model.openTopic(topic(), 12);
       await model.retryTopic();
+      await model.refreshTopic();
 
-      expect(repository.requestedTopicPostNumbers.join(',')).assertEqual('12,12');
-      expect(model.topicState.posts[0].postNumber).assertEqual(12);
-      expect(model.topicState.postJumpState.targetPostNumber).assertEqual(12);
+      expect(repository.requestedTopicPostNumbers.map((postNumber: number | null): string => {
+        return postNumber === null ? 'null' : postNumber.toString();
+      }).join(',')).assertEqual('12,12,null');
+      expect(model.topicState.posts[0].postNumber).assertEqual(1);
+      expect(model.topicState.postJumpState.targetPostNumber).assertEqual(1);
       done();
     });
 
