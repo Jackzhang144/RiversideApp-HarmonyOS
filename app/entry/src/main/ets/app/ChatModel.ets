@@ -9,7 +9,6 @@ import {
   ChatMessagePage,
   ChatMessageQuery,
   ChatReactionAction,
-  ChatSearchResult,
   ChatSendConfirmation,
   ChatSendRequest
 } from '../models/ChatModels';
@@ -25,10 +24,10 @@ import {
   ChatChannelState,
   ChatComposerState,
   ChatConversationState,
-  ChatSearchState,
   ChatStateKind
 } from './ChatStateModels';
 import { MediaUploadCoordinator } from './MediaUploadCoordinator';
+import { ChatSearchCoordinator } from './ChatSearchCoordinator';
 
 const CHAT_MODEL_LOG_DOMAIN: number = 0x0000;
 const CHAT_MODEL_LOG_TAG: string = 'ChatModel';
@@ -74,7 +73,7 @@ export class ChatModel {
   public channelState: ChatChannelState = ChatChannelState.initial();
   public conversationState: ChatConversationState = ChatConversationState.initial();
   public composerState: ChatComposerState = new ChatComposerState();
-  public searchState: ChatSearchState = new ChatSearchState();
+  public readonly search: ChatSearchCoordinator;
   public emojis: Array<ChatEmoji> = [];
 
   private readonly repository: ChatRepository;
@@ -83,7 +82,6 @@ export class ChatModel {
   private readonly metadataProvider: ChatMetadataProvider;
   private channelRequestVersion: number = 0;
   private conversationRequestVersion: number = 0;
-  private searchRequestVersion: number = 0;
   private activeConversationRefresh: Promise<void> | null = null;
   private activeConversationRefreshVersion: number | null = null;
 
@@ -98,6 +96,10 @@ export class ChatModel {
     this.metadataProvider = metadataProvider;
     this.mediaCoordinator = new MediaUploadCoordinator(
       mediaRepository,
+      async (): Promise<void> => this.notifyUnauthorized()
+    );
+    this.search = new ChatSearchCoordinator(
+      repository,
       async (): Promise<void> => this.notifyUnauthorized()
     );
   }
@@ -277,11 +279,10 @@ export class ChatModel {
     this.cancelUpload();
     this.channelRequestVersion += 1;
     this.conversationRequestVersion += 1;
-    this.searchRequestVersion += 1;
     this.channelState = ChatChannelState.initial();
     this.conversationState = ChatConversationState.initial();
     this.composerState = new ChatComposerState();
-    this.searchState = new ChatSearchState();
+    this.search.reset();
     this.emojis = [];
   }
 
@@ -582,77 +583,6 @@ export class ChatModel {
     }
   }
 
-  public async search(query: string): Promise<void> {
-    const normalized: string = query.trim();
-    this.searchRequestVersion += 1;
-    const requestVersion: number = this.searchRequestVersion;
-    if (normalized.length === 0) {
-      this.searchState = new ChatSearchState();
-      return;
-    }
-    this.searchState = new ChatSearchState(ChatStateKind.LOADING, normalized);
-    const result: RepositoryResult<Array<ChatSearchResult>> = await this.repository.searchChat(normalized, 0, 20);
-    if (requestVersion !== this.searchRequestVersion) {
-      return;
-    }
-    if (!result.isSuccess() || result.data === null) {
-      this.searchState = new ChatSearchState(ChatStateKind.ERROR, normalized, [], false, false, result.message);
-      if (result.isUnauthorized()) {
-        await this.notifyUnauthorized();
-      }
-      return;
-    }
-    this.searchState = new ChatSearchState(
-      result.data.length === 0 ? ChatStateKind.EMPTY : ChatStateKind.CONTENT,
-      normalized,
-      result.data,
-      result.data.length === 20
-    );
-  }
-
-  public async loadMoreSearch(): Promise<void> {
-    if (!this.searchState.hasMore || this.searchState.loadingMore || this.searchState.query.length === 0) {
-      return;
-    }
-    const requestVersion: number = this.searchRequestVersion;
-    const previous: ChatSearchState = this.searchState;
-    this.searchState = new ChatSearchState(
-      previous.kind,
-      previous.query,
-      previous.results,
-      previous.hasMore,
-      true
-    );
-    const result: RepositoryResult<Array<ChatSearchResult>> = await this.repository.searchChat(
-      previous.query,
-      previous.results.length,
-      20
-    );
-    if (requestVersion !== this.searchRequestVersion) {
-      return;
-    }
-    if (!result.isSuccess() || result.data === null) {
-      this.searchState = new ChatSearchState(
-        previous.kind,
-        previous.query,
-        previous.results,
-        previous.hasMore,
-        false,
-        result.message
-      );
-      if (result.isUnauthorized()) {
-        await this.notifyUnauthorized();
-      }
-      return;
-    }
-    this.searchState = new ChatSearchState(
-      ChatStateKind.CONTENT,
-      previous.query,
-      mergeChatSearchResults(previous.results, result.data),
-      result.data.length === 20
-    );
-  }
-
   public async openDirectChat(username: string): Promise<boolean> {
     const result: RepositoryResult<ChatChannel> = await this.repository.openDirectChat(username);
     if (!result.isSuccess() || result.data === null) {
@@ -784,18 +714,5 @@ function mergeChatMessages(existing: Array<ChatMessage>, incoming: Array<ChatMes
     const time: number = left.createdAt.localeCompare(right.createdAt);
     return time !== 0 ? time : left.id - right.id;
   });
-  return merged;
-}
-
-function mergeChatSearchResults(
-  existing: Array<ChatSearchResult>,
-  incoming: Array<ChatSearchResult>
-): Array<ChatSearchResult> {
-  const merged: Array<ChatSearchResult> = existing.slice();
-  for (const candidate of incoming) {
-    if (!merged.some((result: ChatSearchResult): boolean => result.message.id === candidate.message.id)) {
-      merged.push(candidate);
-    }
-  }
   return merged;
 }

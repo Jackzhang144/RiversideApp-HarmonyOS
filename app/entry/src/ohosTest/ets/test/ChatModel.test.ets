@@ -234,6 +234,13 @@ function message(
   return new ChatMessage(id, 'member', '', text, '', [], reactions, null, createdAt, deleted);
 }
 
+function searchResult(id: number): ChatSearchResult {
+  return new ChatSearchResult(
+    message(id, `搜索结果 ${id}`, `2026-07-12T09:${id.toString().padStart(2, '0')}:00Z`),
+    channel()
+  );
+}
+
 function cachedImage(): CachedMedia {
   const media: CachedMedia | null = CachedMedia.create(
     'chat-image',
@@ -327,6 +334,42 @@ export default function chatModelTest(): void {
       expect(repository.messageQueries[0].targetMessageId).assertEqual(30);
       expect(repository.messageQueries[0].direction).assertEqual('');
       expect(model.conversationState.messages[0].id).assertEqual(30);
+      done();
+    });
+
+    it('owns Chat search pagination and removes duplicate server messages', 0, async (done: Function) => {
+      const repository: StubChatRepository = new StubChatRepository();
+      const firstPage: Array<ChatSearchResult> = [];
+      for (let id: number = 1; id <= 20; id += 1) {
+        firstPage.push(searchResult(id));
+      }
+      repository.searchResults.push(
+        RepositoryResult.success<Array<ChatSearchResult>>(firstPage),
+        RepositoryResult.success<Array<ChatSearchResult>>([searchResult(20), searchResult(21)])
+      );
+      const model: ChatModel = new ChatModel(repository);
+
+      await model.search.query('河畔');
+      expect(model.search.state.kind).assertEqual(ChatStateKind.CONTENT);
+      expect(model.search.state.hasMore).assertTrue();
+      await model.search.loadMore();
+
+      expect(model.search.state.results.length).assertEqual(21);
+      expect(model.search.state.results[20].message.id).assertEqual(21);
+      expect(model.search.state.hasMore).assertFalse();
+      done();
+    });
+
+    it('routes an unauthorized Chat search through the session lifecycle', 0, async (done: Function) => {
+      const repository: StubChatRepository = new StubChatRepository();
+      const lifecycle: StubAuthenticationLifecycle = new StubAuthenticationLifecycle();
+      repository.searchResults.push(RepositoryResult.unauthorized<Array<ChatSearchResult>>());
+      const model: ChatModel = new ChatModel(repository, null, lifecycle);
+
+      await model.search.query('需要登录');
+
+      expect(model.search.state.kind).assertEqual(ChatStateKind.ERROR);
+      expect(lifecycle.calls).assertEqual(1);
       done();
     });
 
@@ -533,7 +576,7 @@ export default function chatModelTest(): void {
       expect(model.channelState.kind).assertEqual(ChatStateKind.INITIAL);
       expect(model.conversationState.channel).assertNull();
       expect(model.composerState.draft).assertEqual('');
-      expect(model.searchState.kind).assertEqual(ChatStateKind.INITIAL);
+      expect(model.search.state.kind).assertEqual(ChatStateKind.INITIAL);
       done();
     });
 

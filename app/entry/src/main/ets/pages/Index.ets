@@ -764,7 +764,7 @@ struct Index {
     this.chatChannelState = model.channelState;
     this.chatConversationState = model.conversationState;
     this.chatComposerState = model.composerState;
-    this.chatSearchState = model.searchState;
+    this.chatSearchState = model.search.state;
     this.chatEmojis = model.emojis;
     this.synchronizeChatPolling();
   }
@@ -1107,7 +1107,7 @@ struct Index {
   private async searchChat(query: string): Promise<void> {
     const model: ChatModel | null = this.chatModel;
     if (model === null) return;
-    const task: Promise<void> = model.search(query);
+    const task: Promise<void> = model.search.query(query);
     this.synchronizeChatState();
     await task;
     this.synchronizeChatState();
@@ -1116,7 +1116,7 @@ struct Index {
   private async loadMoreChatSearch(): Promise<void> {
     const model: ChatModel | null = this.chatModel;
     if (model === null) return;
-    const task: Promise<void> = model.loadMoreSearch();
+    const task: Promise<void> = model.search.loadMore();
     this.synchronizeChatState();
     await task;
     this.synchronizeChatState();
