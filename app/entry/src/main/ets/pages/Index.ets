@@ -64,7 +64,8 @@ import { RepositoryResult } from '../core/RepositoryResult';
 import { RIVERSIDE_ABOUT_URL, RIVERSIDE_ORIGIN } from '../core/RiversideEnvironment';
 import { AccountPage } from '../components/AccountPage';
 import { AppSettingsPage } from '../components/AppSettingsPage';
-import { AboutPage, AppVersionInfo } from '../components/AboutPage';
+import { AboutPage } from '../components/AboutPage';
+import { AppMetadata } from '../core/AppMetadata';
 import { CategoryBrowsePage } from '../components/CategoryBrowsePage';
 import { ChatConversationPage } from '../components/ChatConversationPage';
 import { ChatRootPage } from '../components/ChatRootPage';
@@ -229,7 +230,7 @@ struct Index {
   @State richEmbedTitle: string = '';
   @State richEmbedProvider: RichEmbedProvider = RichEmbedProvider.NONE;
   @State imageViewerState: ImageViewerState = ImageViewerState.preparing('', '');
-  @State appVersion: AppVersionInfo = AppVersionInfo.current();
+  @State appVersion: AppMetadata = AppMetadata.current();
   private accountIdentityRequestVersion: number = 0;
   private appForeground: boolean = false;
   private chatConversationVisible: boolean = false;

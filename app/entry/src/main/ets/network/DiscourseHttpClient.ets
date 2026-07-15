@@ -1,9 +1,9 @@
 import { http } from '@kit.NetworkKit';
 import { AuthenticatedSession } from '../auth/AuthModels';
 import { RIVERSIDE_ORIGIN } from '../core/RiversideEnvironment';
+import { AppMetadata } from '../core/AppMetadata';
 import { ReplyRequest } from '../models/ReplyModels';
 
-const USER_AGENT: string = 'RiversideApp/0.1';
 const CONNECT_TIMEOUT_MS: number = 8000;
 const READ_TIMEOUT_MS: number = 10000;
 
@@ -93,7 +93,7 @@ export class DiscourseHeaders {
   public readonly userApiClientId: string | null;
 
   public constructor(userApiKey: string | null, userApiClientId: string | null) {
-    this.userAgent = USER_AGENT;
+    this.userAgent = AppMetadata.current().userAgent();
     this.accept = 'application/json';
     this.userApiKey = userApiKey;
     this.userApiClientId = userApiClientId;

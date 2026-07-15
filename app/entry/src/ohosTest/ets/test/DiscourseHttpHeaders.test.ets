@@ -1,5 +1,6 @@
 import { describe, expect, it } from '@ohos/hypium';
 import { AuthenticatedSession } from '../../../main/ets/auth/AuthModels';
+import { AppMetadata } from '../../../main/ets/core/AppMetadata';
 import {
   AuthenticatedSessionProvider,
   DiscourseHeaders,
@@ -22,7 +23,7 @@ export default function discourseHttpHeadersTest(): void {
       const provider: StubSessionProvider = new StubSessionProvider();
       const headers: DiscourseHeaders = new DiscourseRequestHeadersFactory(provider).create();
 
-      expect(headers.userAgent).assertEqual('RiversideApp/0.1');
+      expect(headers.userAgent).assertEqual(AppMetadata.current().userAgent());
       expect(headers.accept).assertEqual('application/json');
       expect(headers.userApiKey).assertNull();
       expect(headers.userApiClientId).assertNull();
