@@ -60,8 +60,10 @@ export struct NotificationCentrePage {
         ForEach(NOTIFICATION_BUCKETS, (bucket: NotificationBucket): void => {
           Button(notificationBucketLabel(bucket), { type: ButtonType.Normal })
             .layoutWeight(1).height(36).fontSize(13)
-            .fontColor(this.state.bucket === bucket ? '#FFFFFF' : '#52606D')
-            .backgroundColor(this.state.bucket === bucket ? '#317AF7' : '#EEF1F5')
+            .fontColor(this.state.bucket === bucket ? '#FFFFFF' : $r('sys.color.font_secondary'))
+            .backgroundColor(this.state.bucket === bucket
+              ? '#317AF7'
+              : $r('sys.color.background_secondary'))
             .onClick((): void => this.onSelectBucket(bucket))
             .accessibilityText(
               `${notificationBucketLabel(bucket)}${this.state.bucket === bucket ? '，已选择' : ''}`
@@ -72,16 +74,16 @@ export struct NotificationCentrePage {
     }
     .width('100%')
     .padding({ left: 16, right: 16, top: 12, bottom: 10 })
-    .backgroundColor('#FFFFFF')
+    .backgroundColor($r('sys.color.comp_background_primary'))
   }
 
   @Builder
   private AuthenticationState(): void {
     Column({ space: 14 }) {
-      SymbolGlyph($r('sys.symbol.bell')).fontSize(46).fontColor(['#7B8794'])
+      SymbolGlyph($r('sys.symbol.bell')).fontSize(46).fontColor([$r('sys.color.font_tertiary')])
       Text('登录后查看消息与活动').fontSize(18).fontWeight(FontWeight.Bold)
       Text('私信、回复、回应和提及都需要 Authenticated Session。')
-        .fontSize(13).fontColor('#52606D').textAlign(TextAlign.Center)
+        .fontSize(13).fontColor($r('sys.color.font_secondary')).textAlign(TextAlign.Center)
       Button('登录并授权').onClick(this.onLogin)
     }
     .width('100%').height('100%').padding(32).justifyContent(FlexAlign.Center)
@@ -92,20 +94,20 @@ export struct NotificationCentrePage {
     Column({ space: 6 }) {
       Row({ space: 8 }) {
         Text(notificationActionText(this.state.bucket, item))
-          .fontSize(13).fontColor('#52606D').layoutWeight(1).maxLines(1)
+          .fontSize(13).fontColor($r('sys.color.font_secondary')).layoutWeight(1).maxLines(1)
         if (item.createdAt.length > 0) {
           Text(notificationTimeText(item.createdAt))
-            .fontSize(10).fontColor('#98A2B3').maxLines(1)
+            .fontSize(10).fontColor($r('sys.color.font_tertiary')).maxLines(1)
         }
       }
       if (item.title.length > 0) {
         Text(item.title).fontSize(16).fontWeight(FontWeight.Bold).width('100%').maxLines(2)
       }
       if (item.excerpt.length > 0) {
-        Text(item.excerpt).fontSize(13).fontColor('#52606D').width('100%').maxLines(3)
+        Text(item.excerpt).fontSize(13).fontColor($r('sys.color.font_secondary')).width('100%').maxLines(3)
       }
     }
-    .width('100%').padding(14).backgroundColor('#FFFFFF').borderRadius(12)
+    .width('100%').padding(14).backgroundColor($r('sys.color.comp_background_primary')).borderRadius(12)
     .enabled(item.topicId > 0)
     .onClick((): void => this.onOpenItem(item))
     .accessibilityText(
@@ -120,12 +122,12 @@ export struct NotificationCentrePage {
     Column({ space: 8 }) {
       if (this.state.loadingMore) {
         LoadingProgress().width(28).height(28)
-        Text('正在加载更多').fontSize(12).fontColor('#52606D')
+        Text('正在加载更多').fontSize(12).fontColor($r('sys.color.font_secondary'))
       } else if (this.state.message.length > 0 && this.state.items.length > 0) {
         Text(this.state.message).fontSize(12).fontColor('#C62828').textAlign(TextAlign.Center)
         Button('重试加载更多').height(34).onClick(this.onLoadMore)
       } else if (!this.state.hasMore) {
-        Text('已经显示全部消息').fontSize(12).fontColor('#7B8794')
+        Text('已经显示全部消息').fontSize(12).fontColor($r('sys.color.font_tertiary'))
       }
     }
     .width('100%').height(82).justifyContent(FlexAlign.Center)
@@ -136,7 +138,7 @@ export struct NotificationCentrePage {
     if (this.state.kind === NotificationCentreStateKind.LOADING && this.state.items.length === 0) {
       Column({ space: 12 }) {
         LoadingProgress().width(36).height(36)
-        Text('正在读取服务器消息').fontSize(13).fontColor('#52606D')
+        Text('正在读取服务器消息').fontSize(13).fontColor($r('sys.color.font_secondary'))
       }.width('100%').height('100%').justifyContent(FlexAlign.Center)
     } else if (this.state.kind === NotificationCentreStateKind.ERROR && this.state.items.length === 0) {
       Column({ space: 12 }) {
@@ -148,10 +150,13 @@ export struct NotificationCentrePage {
       Column({ space: 8 }) {
         Text(`暂无${notificationBucketLabel(this.state.bucket)}消息`)
           .fontSize(17).fontWeight(FontWeight.Bold)
-        Text('点击右上角刷新可重新检查前台状态。').fontSize(13).fontColor('#52606D')
+        Text('点击右上角刷新可重新检查前台状态。')
+          .fontSize(13).fontColor($r('sys.color.font_secondary'))
       }.width('100%').height('100%').justifyContent(FlexAlign.Center)
     } else if (this.state.kind === NotificationCentreStateKind.INITIAL) {
-      Column() { Text('打开消息页后将从服务器刷新。').fontSize(13).fontColor('#52606D') }
+      Column() {
+        Text('打开消息页后将从服务器刷新。').fontSize(13).fontColor($r('sys.color.font_secondary'))
+      }
         .width('100%').height('100%').justifyContent(FlexAlign.Center)
     } else {
       List({ space: 10 }) {
@@ -162,7 +167,7 @@ export struct NotificationCentrePage {
       }
       .width('100%').height('100%')
       .padding({ left: 12, right: 12, top: 10, bottom: 124 })
-      .backgroundColor('#F5F6F8').edgeEffect(EdgeEffect.Spring)
+      .backgroundColor($r('sys.color.background_secondary')).edgeEffect(EdgeEffect.Spring)
       .onReachEnd(this.onLoadMore)
     }
   }
@@ -175,7 +180,7 @@ export struct NotificationCentrePage {
         this.Header()
         this.MessageList()
       }
-      .width('100%').height('100%').backgroundColor('#F5F6F8')
+      .width('100%').height('100%').backgroundColor($r('sys.color.background_secondary'))
     }
   }
 }
