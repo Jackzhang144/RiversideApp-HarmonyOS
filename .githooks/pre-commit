@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+
+set -Eeuo pipefail
+
+readonly PROJECT_ROOT="$(git rev-parse --show-toplevel)"
+
+"$PROJECT_ROOT/scripts/check-staged-sensitive-config.sh"
