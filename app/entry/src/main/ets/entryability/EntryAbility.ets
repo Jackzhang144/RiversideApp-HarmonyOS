@@ -13,24 +13,35 @@
  * limitations under the License.
  */
 
-import { AbilityConstant, ConfigurationConstant, UIAbility, Want } from '@kit.AbilityKit';
+import { AbilityConstant, UIAbility, Want } from '@kit.AbilityKit';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { window } from '@kit.ArkUI';
 import { AbilityContextRegistry } from '../core/AbilityContextRegistry';
 import { SystemNotificationService } from '../core/SystemNotificationService';
+import { AppThemeMode, appThemePlatformColorMode } from '../settings/AppThemeSettings';
+import { PreferencesAppThemeSettingsStore } from '../settings/PreferencesAppThemeSettingsStore';
 
 const DOMAIN = 0x0000;
 
 export default class EntryAbility extends UIAbility {
+  private themeRestore: Promise<void> = Promise.resolve();
+  private restoredThemeMode: AppThemeMode = AppThemeMode.SYSTEM;
+
   onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {
     AbilityContextRegistry.initialize(this.context);
     SystemNotificationService.initialize(this.context);
+    this.themeRestore = this.restoreThemeMode();
+    hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onCreate');
+  }
+
+  private async restoreThemeMode(): Promise<void> {
     try {
-      this.context.getApplicationContext().setColorMode(ConfigurationConstant.ColorMode.COLOR_MODE_NOT_SET);
+      const store: PreferencesAppThemeSettingsStore = new PreferencesAppThemeSettingsStore(this.context);
+      this.restoredThemeMode = await store.read();
+      this.context.getApplicationContext().setColorMode(appThemePlatformColorMode(this.restoredThemeMode));
     } catch (err) {
       hilog.error(DOMAIN, 'testTag', 'Failed to set colorMode. Cause: %{public}s', JSON.stringify(err));
     }
-    hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onCreate');
   }
 
   onDestroy(): void {
@@ -42,7 +53,11 @@ export default class EntryAbility extends UIAbility {
   onWindowStageCreate(windowStage: window.WindowStage): void {
     // Main window is created, set main page for this ability
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onWindowStageCreate');
+    this.loadContentAfterThemeRestore(windowStage);
+  }
 
+  private async loadContentAfterThemeRestore(windowStage: window.WindowStage): Promise<void> {
+    await this.themeRestore;
     windowStage.loadContent('pages/Index', async (err): Promise<void> => {
       if (err.code) {
         hilog.error(DOMAIN, 'testTag', 'Failed to load the content. Cause: %{public}s', JSON.stringify(err));
@@ -54,8 +69,8 @@ export default class EntryAbility extends UIAbility {
         const systemBarProperties: window.SystemBarProperties = {
           statusBarColor: '#00000000',
           navigationBarColor: '#00000000',
-          statusBarContentColor: '#1F1F1F',
-          navigationBarContentColor: '#606060'
+          statusBarContentColor: this.restoredThemeMode === AppThemeMode.DARK ? '#F5F5F5' : '#1F1F1F',
+          navigationBarContentColor: this.restoredThemeMode === AppThemeMode.DARK ? '#F5F5F5' : '#606060'
         };
         await mainWindow.setWindowSystemBarProperties(systemBarProperties);
         hilog.info(DOMAIN, 'testTag', 'Succeeded in enabling immersive main-window layout.');

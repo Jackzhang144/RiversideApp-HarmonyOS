@@ -1,4 +1,4 @@
-import { common } from '@kit.AbilityKit';
+import { common, ConfigurationConstant } from '@kit.AbilityKit';
 import { webview } from '@kit.ArkWeb';
 import { BusinessError, pasteboard } from '@kit.BasicServicesKit';
 import {
@@ -139,6 +139,12 @@ import {
 } from '../models/ImageViewerModels';
 import { MediaGalleryService } from '../media/MediaGalleryService';
 import { PreferencesDiscoverySettingsStore } from '../settings/PreferencesDiscoverySettingsStore';
+import {
+  AppThemeMode,
+  appThemePlatformColorMode,
+  AppThemeSettingsStore
+} from '../settings/AppThemeSettings';
+import { PreferencesAppThemeSettingsStore } from '../settings/PreferencesAppThemeSettingsStore';
 
 const CATEGORY_TOPICS_ROUTE: string = 'category-topics';
 const TOPIC_ROUTE: string = 'topic';
@@ -188,6 +194,7 @@ struct Index {
   private richEmbedController: webview.WebviewController = new webview.WebviewController();
   private mediaGalleryService: MediaGalleryService | null = null;
   private forumRepository: DiscourseForumRepository | null = null;
+  private appThemeSettingsStore: AppThemeSettingsStore | null = null;
   private presenceHeartbeat: PresenceHeartbeat | null = null;
   private foregroundVisible: boolean = false;
 
@@ -195,6 +202,7 @@ struct Index {
   @State selectedRoot: RootDestination = RootDestination.HOME;
   @State homeState: BrowseState<Topic> = BrowseState.initial<Topic>();
   @State selectedHomeChannel: HomeChannel = HomeChannel.LATEST_REPLIES;
+  @State appThemeMode: AppThemeMode = AppThemeMode.SYSTEM;
   @State worldCupEntryEnabled: boolean = true;
   @State categoryState: BrowseState<Category> = BrowseState.initial<Category>();
   @State categoryTopicsState: BrowseState<Topic> = BrowseState.initial<Topic>();
@@ -285,6 +293,9 @@ struct Index {
   }
 
   private async initialize(context: common.Context): Promise<void> {
+    const appThemeSettingsStore: AppThemeSettingsStore = new PreferencesAppThemeSettingsStore(context);
+    this.appThemeSettingsStore = appThemeSettingsStore;
+    this.appThemeMode = await appThemeSettingsStore.read();
     const authRepository: AuthRepository = new AuthRepository(
       HuksAuthenticatedSessionStore.create(context),
       new RsaAuthorizationCryptoFactory()
@@ -575,6 +586,42 @@ struct Index {
     }
     this.selectedHomeChannel = model.selectedHomeChannel;
     await this.loadHome();
+  }
+
+  private async applyAppThemePreference(mode: AppThemeMode): Promise<void> {
+    const abilityContext: common.UIAbilityContext | null = AbilityContextRegistry.current();
+    if (abilityContext === null) {
+      this.showAuthenticationMessage('无法切换外观', '无法获取应用运行环境');
+      return;
+    }
+    try {
+      abilityContext.getApplicationContext().setColorMode(appThemePlatformColorMode(mode));
+      await this.applySystemBarTheme(abilityContext, mode);
+      this.appThemeMode = mode;
+      await this.appThemeSettingsStore?.write(mode);
+    } catch (_) {
+      this.showAuthenticationMessage('无法切换外观', '系统拒绝了外观设置');
+    }
+  }
+
+  private async applySystemBarTheme(
+    abilityContext: common.UIAbilityContext,
+    mode: AppThemeMode
+  ): Promise<void> {
+    const systemDark: boolean = abilityContext.config.colorMode ===
+      ConfigurationConstant.ColorMode.COLOR_MODE_DARK;
+    const dark: boolean = mode === AppThemeMode.DARK || (mode === AppThemeMode.SYSTEM && systemDark);
+    try {
+      const mainWindow: window.Window = await window.getLastWindow(abilityContext);
+      await mainWindow.setWindowSystemBarProperties({
+        statusBarColor: '#00000000',
+        navigationBarColor: '#00000000',
+        statusBarContentColor: dark ? '#F5F5F5' : '#1F1F1F',
+        navigationBarContentColor: dark ? '#F5F5F5' : '#606060'
+      });
+    } catch (_) {
+      // Theme selection remains valid even when system-bar styling is temporarily unavailable.
+    }
   }
 
   private async loadMoreHome(): Promise<void> {
@@ -2259,8 +2306,12 @@ struct Index {
       HdsNavDestination() {
         AppSettingsPage({
           selectedHomeChannel: this.selectedHomeChannel,
+          selectedThemeMode: this.appThemeMode,
           onSelectHomeChannel: (channel: HomeChannel): void => {
             this.applyHomeChannelPreference(channel);
+          },
+          onSelectThemeMode: (mode: AppThemeMode): void => {
+            this.applyAppThemePreference(mode);
           }
         })
       }
