@@ -1,4 +1,3 @@
-import { HdsTabs } from '@kit.UIDesignKit';
 import { BrowseState, BrowseStateKind } from '../app/BrowseModels';
 import { HomeChannel, homeChannelLabel, OnlineUser } from '../models/DiscoveryModels';
 import { Category, Topic } from '../models/ForumModels';
@@ -21,6 +20,7 @@ export struct HomeBrowsePage {
   @Prop onlineUserCount: number = 0;
   @Prop topSafeArea: number = 0;
   @State private featureMenuVisible: boolean = false;
+  @State private channelMenuVisible: boolean = false;
   @State private onlineUsersSheetVisible: boolean = false;
   onRetry: () => void = (): void => {};
   onRefresh: () => void = (): void => {};
@@ -157,6 +157,34 @@ export struct HomeBrowsePage {
     .width(180)
   }
 
+  private homeChannels(): Array<HomeChannel> {
+    return [
+      HomeChannel.LATEST_REPLIES,
+      HomeChannel.LATEST_CREATED,
+      HomeChannel.UNREAD,
+      HomeChannel.HOT,
+      HomeChannel.FEATURED
+    ];
+  }
+
+  @Builder
+  private ChannelMenu(): void {
+    Menu() {
+      ForEach(this.homeChannels(), (channel: HomeChannel) => {
+        MenuItem({
+          content: channel === this.selectedChannel
+            ? `✓ ${homeChannelLabel(channel)}`
+            : homeChannelLabel(channel)
+        })
+          .onClick((): void => {
+            this.channelMenuVisible = false;
+            this.onSelectChannel(channel);
+          })
+      }, (channel: HomeChannel): string => channel.toString())
+    }
+    .width(160)
+  }
+
   @Builder
   private Header(): void {
     Row({ space: 8 }) {
@@ -180,6 +208,33 @@ export struct HomeBrowsePage {
         }
       })
       .accessibilityText('打开 Riverside 功能入口')
+      Button() {
+        Row({ space: 4 }) {
+          Text(homeChannelLabel(this.selectedChannel))
+            .fontSize(14)
+            .fontWeight(FontWeight.Medium)
+            .fontColor($r('sys.color.font_primary'))
+            .maxLines(1)
+          SymbolGlyph($r('sys.symbol.chevron_down'))
+            .fontSize(12)
+            .fontColor([$r('sys.color.font_secondary')])
+        }
+        .hitTestBehavior(HitTestMode.None)
+      }
+      .width(100)
+      .height(42)
+      .backgroundColor($r('sys.color.comp_background_primary'))
+      .borderRadius(14)
+      .border({ width: 1, color: $r('sys.color.comp_divider') })
+      .onClick((): void => {
+        this.channelMenuVisible = !this.channelMenuVisible;
+      })
+      .bindMenu(this.channelMenuVisible, this.ChannelMenu, {
+        onWillDisappear: (): void => {
+          this.channelMenuVisible = false;
+        }
+      })
+      .accessibilityText(`当前列表：${homeChannelLabel(this.selectedChannel)}，点击切换`)
       Blank()
       this.floatingAction(
         $r('sys.symbol.magnifyingglass'),
@@ -211,18 +266,6 @@ export struct HomeBrowsePage {
     .height(this.topSafeArea + 58)
     .padding({ left: 16, right: 16, top: this.topSafeArea, bottom: 8 })
     .backgroundColor(Color.Transparent)
-  }
-
-  private sortTabStyle(channel: HomeChannel): SubTabBarStyle {
-    return SubTabBarStyle.of(homeChannelLabel(channel))
-      .labelStyle({
-        maxLines: 1,
-        overflow: TextOverflow.Clip,
-        unselectedColor: $r('sys.color.font_primary'),
-        selectedColor: $r('app.color.brand_primary'),
-        font: { size: 14 }
-      })
-      .padding({ left: 8, right: 8, top: 0, bottom: 0 });
   }
 
   @Builder
@@ -365,7 +408,7 @@ export struct HomeBrowsePage {
       }
       .width('100%')
       .height('100%')
-      .padding({ left: 12, right: 12, top: 10 })
+      .padding({ left: 12, right: 12, top: this.topSafeArea + 68 })
       .backgroundColor($r('sys.color.background_secondary'))
       .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
       .onReachEnd(this.onLoadMore)
@@ -393,45 +436,21 @@ export struct HomeBrowsePage {
   }
 
   build() {
-    Column() {
-      this.Header()
-      HdsTabs({ index: this.selectedChannel }) {
-        TabContent() {
+    Stack({ alignContent: Alignment.Top }) {
+      Stack() {
+        Column() {
           this.channelContent()
         }
-        .tabBar(this.sortTabStyle(HomeChannel.LATEST_REPLIES))
-        TabContent() {
-          this.channelContent()
-        }
-        .tabBar(this.sortTabStyle(HomeChannel.LATEST_CREATED))
-        TabContent() {
-          this.channelContent()
-        }
-        .tabBar(this.sortTabStyle(HomeChannel.UNREAD))
-        TabContent() {
-          this.channelContent()
-        }
-        .tabBar(this.sortTabStyle(HomeChannel.HOT))
-        TabContent() {
-          this.channelContent()
-        }
-        .tabBar(this.sortTabStyle(HomeChannel.FEATURED))
+        .width('100%')
+        .height('100%')
       }
-      .barPosition(BarPosition.Start)
-      .vertical(false)
-      .scrollable(false)
-      .barMode(BarMode.Scrollable, {
-        margin: 8,
-        nonScrollableLayoutStyle: LayoutStyle.ALWAYS_CENTER
-      })
-      .barHeight(44)
-      .onChange(this.onSelectChannel)
       .width('100%')
-      .layoutWeight(1)
+      .height('100%')
+      this.Header()
     }
     .width('100%')
     .height('100%')
-    .backgroundColor($r('sys.color.comp_background_primary'))
+    .backgroundColor($r('sys.color.background_secondary'))
     .bindSheet($$this.onlineUsersSheetVisible, this.OnlineUsersSheet(), {
       detents: [SheetSize.MEDIUM, SheetSize.LARGE],
       detentSelection: SheetSize.MEDIUM,
