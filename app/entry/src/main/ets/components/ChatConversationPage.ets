@@ -638,8 +638,8 @@ export struct ChatConversationPage {
         this.MessageContextMenu(message, this.messageContextCapabilities(message)),
         ResponseType.LongPress,
         {
-          preview: this.MessageContextPreview(message),
-          previewBorderRadius: 14,
+          preview: groupStart ? MenuPreviewMode.IMAGE : this.MessageContextPreview(message),
+          previewBorderRadius: 0,
           previewScaleMode: PreviewScaleMode.MAINTAIN,
           previewAnimationOptions: {
             scale: [0.98, 1.0],
