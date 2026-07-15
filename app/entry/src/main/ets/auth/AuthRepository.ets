@@ -158,7 +158,7 @@ export class AuthRepository {
   }
 
   public shouldInterceptNavigation(url: string, isMainFrame: boolean): boolean {
-    return this.callbackValidator.extractPayload(url, isMainFrame).isSuccess();
+    return isMainFrame && this.callbackValidator.isCallbackUrl(url);
   }
 
   public async beginAuthorization(): Promise<void> {

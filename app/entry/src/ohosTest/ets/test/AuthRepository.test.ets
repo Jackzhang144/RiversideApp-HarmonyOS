@@ -293,6 +293,36 @@ export default function authRepositoryTest(): void {
       done();
     });
 
+    it('intercepts a callback without payload and exposes a recoverable error', 0, async (done: Function) => {
+      const request: AuthorizationRequest | null = createAuthorizationRequest();
+      expect(request === null).assertFalse();
+      if (request === null) {
+        done();
+        return;
+      }
+      const store: StubSessionStore = new StubSessionStore();
+      const crypto: StubCryptoSession = new StubCryptoSession(
+        request,
+        RepositoryResult.failure<AuthenticatedSession>('不应尝试解密')
+      );
+      const factory: StubCryptoFactory = new StubCryptoFactory();
+      factory.createResult = RepositoryResult.success<AuthorizationCryptoSession>(crypto);
+      const repository: AuthRepository = new AuthRepository(store, factory);
+
+      await repository.beginAuthorization();
+      expect(repository.shouldInterceptNavigation('riverside://auth_redirect', true)).assertTrue();
+      expect(repository.shouldInterceptNavigation('riverside://auth_redirect', false)).assertFalse();
+
+      const handled: boolean = await repository.handleNavigation('riverside://auth_redirect', true);
+
+      expect(handled).assertTrue();
+      expect(repository.state.kind).assertEqual(AuthStateKind.ERROR);
+      expect(repository.state.message).assertEqual('登录回调缺少 payload');
+      expect(store.saveCallCount).assertEqual(0);
+      expect(crypto.clearCallCount).assertEqual(1);
+      done();
+    });
+
     it('discards RSA material generated after the user cancels', 0, async (done: Function) => {
       const request: AuthorizationRequest | null = createAuthorizationRequest();
       expect(request === null).assertFalse();
