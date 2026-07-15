@@ -269,6 +269,7 @@ export default function discourseForumRepositoryTest(): void {
         expect(result.data?.posts[0].bookmarked).assertTrue();
         expect(result.data?.posts[0].bookmarkId).assertEqual(901);
         expect(result.data?.posts[0].canEdit).assertTrue();
+        expect(result.data?.posts[0].canDelete).assertTrue();
         expect(result.data?.posts[1].isSystemAction()).assertTrue();
         done();
       });
@@ -360,6 +361,30 @@ export default function discourseForumRepositoryTest(): void {
       expect(created.data).assertEqual(901);
       expect(client.deletePaths[0]).assertEqual('/bookmarks/901.json');
       expect(deleted.data).assertTrue();
+      done();
+    });
+
+    it('deletes a Post through the Flutter-compatible Discourse contract', 0, async (done: Function) => {
+      const client: StubForumHttpClient = new StubForumHttpClient();
+      client.deleteResults.push(HttpTextResult.success(200, '{}'));
+      const repository: DiscourseForumRepository = new DiscourseForumRepository(client);
+
+      const deleted: RepositoryResult<boolean> = await repository.deletePost(102729);
+
+      expect(client.deletePaths[0]).assertEqual('/posts/102729');
+      expect(deleted.data).assertTrue();
+      done();
+    });
+
+    it('maps an unauthorized Post deletion to an expired authenticated session', 0, async (done: Function) => {
+      const client: StubForumHttpClient = new StubForumHttpClient();
+      client.deleteResults.push(HttpTextResult.unauthorized());
+      const repository: DiscourseForumRepository = new DiscourseForumRepository(client);
+
+      const deleted: RepositoryResult<boolean> = await repository.deletePost(102729);
+
+      expect(client.deletePaths[0]).assertEqual('/posts/102729');
+      expect(deleted.isUnauthorized()).assertTrue();
       done();
     });
 

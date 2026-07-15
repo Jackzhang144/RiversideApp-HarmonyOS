@@ -456,4 +456,36 @@ export class TopicDetail {
       )
     );
   }
+
+  public withoutPost(postId: number): TopicDetail {
+    const remainingPostIds: Array<number> = this.postIds.filter((candidateId: number): boolean => {
+      return candidateId !== postId;
+    });
+    const remainingPosts: Array<ForumPost> = this.posts.filter((post: ForumPost): boolean => {
+      return post.id !== postId;
+    });
+    const removed: boolean =
+      remainingPostIds.length < this.postIds.length || remainingPosts.length < this.posts.length;
+    return new TopicDetail(
+      this.id,
+      this.title,
+      this.viewCount,
+      removed ? Math.max(0, this.postCount - 1) : this.postCount,
+      this.likeCount,
+      this.closed,
+      this.archived,
+      this.canReply,
+      remainingPostIds,
+      remainingPosts,
+      this.highestPostNumber,
+      new TopicDetailMetadata(
+        this.categoryId,
+        this.canEdit,
+        this.authorUsername,
+        this.validReactions,
+        this.suggestedTopics,
+        this.lastReadPostNumber
+      )
+    );
+  }
 }

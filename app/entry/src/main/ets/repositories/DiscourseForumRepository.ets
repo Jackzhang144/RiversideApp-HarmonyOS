@@ -614,6 +614,20 @@ export class DiscourseForumRepository implements
     return RepositoryResult.success<boolean>(true);
   }
 
+  public async deletePost(postId: number): Promise<RepositoryResult<boolean>> {
+    if (!Number.isInteger(postId) || postId <= 0) {
+      return RepositoryResult.failure<boolean>('Post 标识无效');
+    }
+    const response: HttpTextResult = await this.client.delete(`/posts/${postId}`);
+    if (response.kind === HttpTextResultKind.UNAUTHORIZED) {
+      return RepositoryResult.unauthorized<boolean>();
+    }
+    if (!response.isSuccess()) {
+      return RepositoryResult.failure<boolean>(response.message);
+    }
+    return RepositoryResult.success<boolean>(true);
+  }
+
   public async markTopicRead(
     topicId: number,
     postNumbers: Array<number>,

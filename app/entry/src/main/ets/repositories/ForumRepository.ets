@@ -42,6 +42,8 @@ export interface ForumRepository {
 
   deletePostBookmark(bookmarkId: number): Promise<RepositoryResult<boolean>>;
 
+  deletePost(postId: number): Promise<RepositoryResult<boolean>>;
+
   markTopicRead(
     topicId: number,
     postNumbers: Array<number>,

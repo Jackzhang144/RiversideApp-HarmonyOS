@@ -46,6 +46,7 @@ export struct TopicDetailPage {
     _reaction: string
   ): void => {};
   onToggleBookmark: (postId: number) => void = (_postId: number): void => {};
+  onDeletePost: (postId: number) => void = (_postId: number): void => {};
   onCopyPostLink: (topicId: number, postNumber: number) => void = (
     _topicId: number,
     _postNumber: number
@@ -594,6 +595,17 @@ export struct TopicDetailPage {
             .enabled(!this.state.postActionState.busy)
             .onClick((): void => this.onOpenEdit(post.id))
             .accessibilityText(post.postNumber === 1 ? '编辑 Topic' : `编辑 Post #${post.postNumber}`)
+        }
+        if (post.canDelete) {
+          Button('删除')
+            .height(34)
+            .fontSize(12)
+            .backgroundColor('#FDECEC')
+            .fontColor('#C62828')
+            .margin({ right: 6, bottom: 6 })
+            .enabled(!this.state.postActionState.busy)
+            .onClick((): void => this.onDeletePost(post.id))
+            .accessibilityText(post.postNumber === 1 ? '删除 Topic 首帖' : `删除 Post #${post.postNumber}`)
         }
       }
       .width('100%')

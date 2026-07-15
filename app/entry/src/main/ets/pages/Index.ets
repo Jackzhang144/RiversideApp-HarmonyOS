@@ -1441,6 +1441,30 @@ struct Index {
     this.synchronizeTopicState(model);
   }
 
+  private confirmDeletePost(postId: number): void {
+    this.getUIContext().showAlertDialog({
+      title: '删除帖子',
+      message: '确定要删除这条帖子吗？',
+      primaryButton: { value: '取消', action: (): void => {} },
+      secondaryButton: {
+        value: '删除',
+        action: (): void => { this.deletePost(postId); }
+      },
+      cancel: (): void => {}
+    });
+  }
+
+  private async deletePost(postId: number): Promise<void> {
+    const model: AppShellModel | null = this.model;
+    if (model === null) {
+      return;
+    }
+    const task: Promise<void> = model.deletePost(postId);
+    this.synchronizeTopicState(model);
+    await task;
+    this.synchronizeTopicState(model);
+  }
+
   private async reportTopicReadProgress(postNumber: number): Promise<void> {
     const model: AppShellModel | null = this.model;
     if (model === null) {
@@ -2316,6 +2340,9 @@ struct Index {
           },
           onToggleBookmark: (postId: number): void => {
             this.togglePostBookmark(postId);
+          },
+          onDeletePost: (postId: number): void => {
+            this.confirmDeletePost(postId);
           },
           onCopyPostLink: (topicId: number, postNumber: number): void => {
             this.copyPostLink(topicId, postNumber);

@@ -131,6 +131,10 @@ class StubForumRepository implements ForumRepository {
     return RepositoryResult.failure<boolean>('missing bookmark result');
   }
 
+  public async deletePost(_postId: number): Promise<RepositoryResult<boolean>> {
+    return RepositoryResult.failure<boolean>('missing Post delete result');
+  }
+
   public async markTopicRead(
     _topicId: number,
     _postNumbers: Array<number>,

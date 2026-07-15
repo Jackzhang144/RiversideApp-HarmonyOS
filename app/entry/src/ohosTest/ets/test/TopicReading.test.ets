@@ -68,6 +68,8 @@ class TopicReadingRepository implements ForumRepository {
   public reactionResults: Array<RepositoryResult<ForumPost>> = [];
   public createBookmarkResults: Array<RepositoryResult<number>> = [];
   public deleteBookmarkResults: Array<RepositoryResult<boolean>> = [];
+  public deletePostResults: Array<RepositoryResult<boolean>> = [];
+  public deletePostTasks: Array<Promise<RepositoryResult<boolean>>> = [];
   public markTopicReadResults: Array<RepositoryResult<boolean>> = [];
   public markTopicReadTasks: Array<Promise<RepositoryResult<boolean>>> = [];
   public clearNotificationResults: Array<RepositoryResult<number>> = [];
@@ -82,6 +84,7 @@ class TopicReadingRepository implements ForumRepository {
   public requestedReactions: Array<string> = [];
   public requestedBookmarkPostIds: Array<number> = [];
   public requestedDeleteBookmarkIds: Array<number> = [];
+  public requestedDeletePostIds: Array<number> = [];
   public requestedReadTimings: Array<string> = [];
   public requestedNotificationProgress: Array<string> = [];
   public currentUserResults: Array<RepositoryResult<CurrentUser>> = [];
@@ -167,6 +170,15 @@ class TopicReadingRepository implements ForumRepository {
   public async deletePostBookmark(bookmarkId: number): Promise<RepositoryResult<boolean>> {
     this.requestedDeleteBookmarkIds.push(bookmarkId);
     return this.deleteBookmarkResults.shift() ?? RepositoryResult.failure<boolean>('missing bookmark result');
+  }
+
+  public async deletePost(postId: number): Promise<RepositoryResult<boolean>> {
+    this.requestedDeletePostIds.push(postId);
+    const task: Promise<RepositoryResult<boolean>> | undefined = this.deletePostTasks.shift();
+    if (task !== undefined) {
+      return await task;
+    }
+    return this.deletePostResults.shift() ?? RepositoryResult.failure<boolean>('missing Post delete result');
   }
 
   public async markTopicRead(
@@ -270,6 +282,20 @@ function firstPost(): ForumPost {
 
 function secondPost(): ForumPost {
   return new ForumPost(102729, 1, 'admin', '<p>第一条 Reply</p>', '第一条 Reply', 2, null, '2026-01-28T00:00:00Z');
+}
+
+function deletableSecondPost(): ForumPost {
+  return new ForumPost(
+    102729,
+    24,
+    'Co-admin',
+    '<p>我自己的 Reply</p>',
+    '我自己的 Reply',
+    2,
+    null,
+    '2026-01-28T00:00:00Z',
+    new ForumPostMetadata('', '', '', null, null, 0, [], null, false, true)
+  );
 }
 
 function thirdPost(): ForumPost {
@@ -1146,6 +1172,137 @@ export default function topicReadingTest(): void {
       expect(repository.requestedDeleteBookmarkIds.join(',')).assertEqual('901,901');
       expect(model.topicState.posts[0].bookmarked).assertFalse();
       expect(model.topicState.posts[0].bookmarkId).assertNull();
+      done();
+    });
+
+    it('removes a server-deleted Post from the current Topic', 0, async (done: Function) => {
+      const repository: TopicReadingRepository = new TopicReadingRepository();
+      repository.topicDetailResults.push(RepositoryResult.success<TopicDetail>(new TopicDetail(
+        2725, 'Delete Topic', 10, 2, 0, false, false, true,
+        [102728, 102729], [firstPost(), deletableSecondPost()]
+      )));
+      repository.deletePostResults.push(RepositoryResult.success<boolean>(true));
+      const model: AppShellModel = new AppShellModel(
+        repository, new MemoryCategoryCache(), CategoryCacheScope.anonymous()
+      );
+      await model.openTopic(topic());
+
+      await model.deletePost(102729);
+
+      expect(repository.requestedDeletePostIds[0]).assertEqual(102729);
+      expect(model.topicState.posts.length).assertEqual(1);
+      expect(model.topicState.posts[0].id).assertEqual(102728);
+      expect(model.topicState.detail?.postCount).assertEqual(1);
+      expect(model.topicState.detail?.postIds.join(',')).assertEqual('102728');
+      expect(model.topicState.detail?.posts.length).assertEqual(1);
+      expect(model.topicState.postActionState.message).assertEqual('');
+      done();
+    });
+
+    it('does not request deletion when the server does not grant canDelete', 0, async (done: Function) => {
+      const repository: TopicReadingRepository = new TopicReadingRepository();
+      repository.topicDetailResults.push(RepositoryResult.success<TopicDetail>(new TopicDetail(
+        2725, 'Delete Topic', 10, 2, 0, false, false, true,
+        [102728, 102729], [firstPost(), secondPost()]
+      )));
+      const model: AppShellModel = new AppShellModel(
+        repository, new MemoryCategoryCache(), CategoryCacheScope.anonymous()
+      );
+      await model.openTopic(topic());
+
+      await model.deletePost(102729);
+
+      expect(repository.requestedDeletePostIds.length).assertEqual(0);
+      expect(model.topicState.posts.length).assertEqual(2);
+      done();
+    });
+
+    it('retains a Post and exposes the server message when deletion fails', 0, async (done: Function) => {
+      const repository: TopicReadingRepository = new TopicReadingRepository();
+      repository.topicDetailResults.push(RepositoryResult.success<TopicDetail>(new TopicDetail(
+        2725, 'Delete Topic', 10, 2, 0, false, false, true,
+        [102728, 102729], [firstPost(), deletableSecondPost()]
+      )));
+      repository.deletePostResults.push(RepositoryResult.failure<boolean>('删除失败，请稍后重试'));
+      const model: AppShellModel = new AppShellModel(
+        repository, new MemoryCategoryCache(), CategoryCacheScope.anonymous()
+      );
+      await model.openTopic(topic());
+
+      await model.deletePost(102729);
+
+      expect(model.topicState.posts.length).assertEqual(2);
+      expect(model.topicState.postActionState.message).assertEqual('删除失败，请稍后重试');
+      done();
+    });
+
+    it('retains a Post and invalidates the session when deletion returns 401', 0, async (done: Function) => {
+      const repository: TopicReadingRepository = new TopicReadingRepository();
+      repository.topicDetailResults.push(RepositoryResult.success<TopicDetail>(new TopicDetail(
+        2725, 'Delete Topic', 10, 2, 0, false, false, true,
+        [102728, 102729], [firstPost(), deletableSecondPost()]
+      )));
+      repository.deletePostResults.push(RepositoryResult.unauthorized<boolean>());
+      const lifecycle: TopicAuthenticationLifecycle = new TopicAuthenticationLifecycle();
+      const model: AppShellModel = new AppShellModel(
+        repository, new MemoryCategoryCache(), CategoryCacheScope.anonymous(), lifecycle
+      );
+      await model.openTopic(topic());
+
+      await model.deletePost(102729);
+
+      expect(model.topicState.posts.length).assertEqual(2);
+      expect(model.requiresAuthentication).assertTrue();
+      expect(lifecycle.unauthorizedCallCount).assertEqual(1);
+      done();
+    });
+
+    it('keeps read progress that completes while Post deletion is pending', 0, async (done: Function) => {
+      const repository: TopicReadingRepository = new TopicReadingRepository();
+      repository.topicDetailResults.push(RepositoryResult.success<TopicDetail>(new TopicDetail(
+        2725, 'Delete Topic', 10, 2, 0, false, false, true,
+        [102728, 102729], [firstPost(), deletableSecondPost()], 2
+      )));
+      const pendingDelete: PendingRepositoryResult<boolean> = new PendingRepositoryResult<boolean>();
+      repository.deletePostTasks.push(pendingDelete.promise);
+      repository.markTopicReadResults.push(RepositoryResult.success<boolean>(true));
+      const model: AppShellModel = new AppShellModel(
+        repository, new MemoryCategoryCache(), CategoryCacheScope.anonymous()
+      );
+      await model.openTopic(topic());
+
+      const deleteTask: Promise<void> = model.deletePost(102729);
+      await model.reportTopicReadProgress(1);
+      pendingDelete.complete(RepositoryResult.success<boolean>(true));
+      await deleteTask;
+
+      expect(model.topicState.detail?.lastReadPostNumber).assertEqual(1);
+      expect(model.topicState.detail?.postIds.join(',')).assertEqual('102728');
+      done();
+    });
+
+    it('keeps a deleted Post removed when read progress completes later', 0, async (done: Function) => {
+      const repository: TopicReadingRepository = new TopicReadingRepository();
+      repository.topicDetailResults.push(RepositoryResult.success<TopicDetail>(new TopicDetail(
+        2725, 'Delete Topic', 10, 2, 0, false, false, true,
+        [102728, 102729], [firstPost(), deletableSecondPost()], 2
+      )));
+      const pendingRead: PendingRepositoryResult<boolean> = new PendingRepositoryResult<boolean>();
+      repository.markTopicReadTasks.push(pendingRead.promise);
+      repository.deletePostResults.push(RepositoryResult.success<boolean>(true));
+      const model: AppShellModel = new AppShellModel(
+        repository, new MemoryCategoryCache(), CategoryCacheScope.anonymous()
+      );
+      await model.openTopic(topic());
+
+      const readTask: Promise<void> = model.reportTopicReadProgress(1);
+      await model.deletePost(102729);
+      pendingRead.complete(RepositoryResult.success<boolean>(true));
+      await readTask;
+
+      expect(model.topicState.detail?.lastReadPostNumber).assertEqual(1);
+      expect(model.topicState.detail?.postCount).assertEqual(1);
+      expect(model.topicState.detail?.postIds.join(',')).assertEqual('102728');
       done();
     });
 

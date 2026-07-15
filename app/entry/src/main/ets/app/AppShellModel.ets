@@ -148,7 +148,8 @@ export enum TopicReadStateKind {
 export enum TopicPostActionKind {
   NONE = 'none',
   REACTION = 'reaction',
-  BOOKMARK = 'bookmark'
+  BOOKMARK = 'bookmark',
+  DELETE = 'delete'
 }
 
 export class TopicPostJumpState {
@@ -1726,6 +1727,45 @@ export class AppShellModel {
     } else {
       await this.createBookmark(detail, post);
     }
+  }
+
+  public async deletePost(postId: number): Promise<void> {
+    const detail: TopicDetail | null = this.topicState.detail;
+    const post: ForumPost | undefined = this.topicState.posts.find(
+      (candidate: ForumPost): boolean => candidate.id === postId
+    );
+    if (detail === null || post === undefined || !post.canDelete || this.topicState.postActionState.busy) {
+      return;
+    }
+
+    const requestVersion: number = this.topicRequestVersion;
+    this.topicState = TopicReadState.withPostAction(
+      this.topicState,
+      TopicPostActionState.loading(TopicPostActionKind.DELETE, post.id)
+    );
+    const result: RepositoryResult<boolean> = await this.repository.deletePost(post.id);
+    if (requestVersion !== this.topicRequestVersion || this.topicState.topicId !== detail.id) {
+      return;
+    }
+    if (!result.isSuccess() || result.data !== true) {
+      this.requiresAuthentication = result.isUnauthorized();
+      this.topicState = TopicReadState.withPostAction(
+        this.topicState,
+        TopicPostActionState.error(TopicPostActionKind.DELETE, post.id, result.message)
+      );
+      await this.notifyUnauthorized(result.isUnauthorized());
+      return;
+    }
+    const remainingPosts: Array<ForumPost> = this.topicState.posts.filter(
+      (candidate: ForumPost): boolean => candidate.id !== post.id
+    );
+    const currentDetail: TopicDetail = this.topicState.detail ?? detail;
+    this.topicState = TopicReadState.withDetailAndPosts(
+      this.topicState,
+      currentDetail.withoutPost(post.id),
+      remainingPosts
+    );
+    this.topicState = TopicReadState.withPostAction(this.topicState, TopicPostActionState.idle());
   }
 
   private async createBookmark(detail: TopicDetail, post: ForumPost): Promise<void> {
