@@ -1,7 +1,7 @@
 {
   "app": {
     "bundleName": "cc.river_side.app",
-    "vendor": "example",
+    "vendor": "RiverSide",
     "versionCode": 1000000,
     "versionName": "1.0.0",
     "icon": "$media:layered_image",
