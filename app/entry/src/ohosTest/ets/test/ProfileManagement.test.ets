@@ -13,7 +13,7 @@ import {
 import { Topic } from '../../../main/ets/models/ForumModels';
 import { ServerDraft } from '../../../main/ets/models/AuthoringModels';
 import { HttpTextResult } from '../../../main/ets/network/DiscourseHttpClient';
-import { DiscourseForumRepository } from '../../../main/ets/repositories/DiscourseForumRepository';
+import { DiscourseProfileRepository } from '../../../main/ets/repositories/DiscourseProfileRepository';
 import { StubForumHttpClient } from './DiscourseForumRepository.test';
 
 export default function profileManagementTest(): void {
@@ -32,7 +32,7 @@ export default function profileManagementTest(): void {
           '"bio_raw":"简介","location":"成都","website":"https://river-side.cc",' +
           '"user_option":{"timezone":"Asia/Shanghai","hide_profile":false,"hide_presence":true}}}'
         ));
-        const repository: DiscourseForumRepository = new DiscourseForumRepository(client);
+        const repository: DiscourseProfileRepository = new DiscourseProfileRepository(client);
 
         const result: RepositoryResult<UserProfile> = await repository.loadFullUserProfile(' member ');
 
@@ -53,7 +53,7 @@ export default function profileManagementTest(): void {
       async (done: Function) => {
         const client: StubForumHttpClient = new StubForumHttpClient();
         client.results.push(HttpTextResult.success(200, '{}'));
-        const repository: DiscourseForumRepository = new DiscourseForumRepository(client);
+        const repository: DiscourseProfileRepository = new DiscourseProfileRepository(client);
 
         const result: RepositoryResult<UserProfileSummary> = await repository.loadUserSummary('quiet-user');
 
@@ -70,7 +70,7 @@ export default function profileManagementTest(): void {
         '{"user":{"id":24,"username":"member","bio_excerpt":' +
         '"河畔 ID：<a class=\\"mention\\" href=\\"/u/member\\">@成员</a> &amp; 校友"}}'
       ));
-      const repository: DiscourseForumRepository = new DiscourseForumRepository(client);
+      const repository: DiscourseProfileRepository = new DiscourseProfileRepository(client);
 
       const result: RepositoryResult<UserProfile> = await repository.loadFullUserProfile('member');
 
@@ -84,7 +84,7 @@ export default function profileManagementTest(): void {
         client.results.push(HttpTextResult.success(200,
           '{"user":{"id":24,"username":"member","flair_name":"scuer"}}'
         ));
-        const repository: DiscourseForumRepository = new DiscourseForumRepository(client);
+        const repository: DiscourseProfileRepository = new DiscourseProfileRepository(client);
 
         const result: RepositoryResult<UserProfile> = await repository.loadFullUserProfile('member');
 
@@ -98,7 +98,7 @@ export default function profileManagementTest(): void {
         '{"email":"primary@example.com","secondary_emails":["second@example.com",""],' +
         '"unconfirmed_emails":["pending@example.com"]}'
       ));
-      const repository: DiscourseForumRepository = new DiscourseForumRepository(client);
+      const repository: DiscourseProfileRepository = new DiscourseProfileRepository(client);
 
       const result: RepositoryResult<UserEmailInfo> = await repository.loadUserEmails('member');
 
@@ -115,7 +115,7 @@ export default function profileManagementTest(): void {
       async (done: Function) => {
         const client: StubForumHttpClient = new StubForumHttpClient();
         client.formPutResults.push(HttpTextResult.success(200, '{}'));
-        const repository: DiscourseForumRepository = new DiscourseForumRepository(client);
+        const repository: DiscourseProfileRepository = new DiscourseProfileRepository(client);
         const request: ProfileUpdateRequest | null = ProfileUpdateRequest.create(
           'member',
           '新名字',
@@ -143,7 +143,7 @@ export default function profileManagementTest(): void {
       async (done: Function) => {
         const client: StubForumHttpClient = new StubForumHttpClient();
         client.formPutResults.push(HttpTextResult.success(200, '{}'));
-        const repository: DiscourseForumRepository = new DiscourseForumRepository(client);
+        const repository: DiscourseProfileRepository = new DiscourseProfileRepository(client);
         const request: ProfileUpdateRequest | null = ProfileUpdateRequest.create(
           'member',
           null,
@@ -170,7 +170,7 @@ export default function profileManagementTest(): void {
       async (done: Function) => {
         const client: StubForumHttpClient = new StubForumHttpClient();
         client.formPutResults.push(HttpTextResult.success(200, '{}'));
-        const repository: DiscourseForumRepository = new DiscourseForumRepository(client);
+        const repository: DiscourseProfileRepository = new DiscourseProfileRepository(client);
         const now: Date = new Date('2026-07-14T08:00:00+08:00');
         const oneDay: string = profileIgnoreExpiry(1, now);
         const oneWeek: string = profileIgnoreExpiry(7, now);
@@ -222,7 +222,7 @@ export default function profileManagementTest(): void {
           '{"draft_key":"topic_302","sequence":4,"topic_id":302,' +
           '"data":"{\\"reply\\":\\"回复草稿\\",\\"reply_to_post_number\\":3}"}]}'
         ));
-        const repository: DiscourseForumRepository = new DiscourseForumRepository(client);
+        const repository: DiscourseProfileRepository = new DiscourseProfileRepository(client);
 
         const topics: RepositoryResult<Array<Topic>> = await repository.loadUserTopics('member', 2);
         const replies: RepositoryResult<Array<UserReplyItem>> = await repository.loadUserReplies('member', 20);

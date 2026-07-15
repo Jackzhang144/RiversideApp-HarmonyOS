@@ -128,6 +128,7 @@ import {
 import { DiscourseForumRepository } from '../repositories/DiscourseForumRepository';
 import { DiscourseChatRepository } from '../repositories/DiscourseChatRepository';
 import { DiscourseNotificationRepository } from '../repositories/DiscourseNotificationRepository';
+import { DiscourseProfileRepository } from '../repositories/DiscourseProfileRepository';
 import { DiscourseMediaRepository } from '../repositories/MediaRepository';
 import { DiscourseMediaTransport } from '../network/ForumMediaTransport';
 import {
@@ -359,20 +360,21 @@ struct Index {
       new DiscourseNotificationRepository(httpClient),
       authenticationLifecycle
     );
+    const profileRepository: DiscourseProfileRepository = new DiscourseProfileRepository(httpClient);
     this.accountProfileModel = new ProfileManagementModel(
-      forumRepository,
+      profileRepository,
       authenticationLifecycle,
       mediaRepository
     );
     this.selectedProfileModel = new ProfileManagementModel(
-      forumRepository,
+      profileRepository,
       authenticationLifecycle,
       mediaRepository,
       (state: MediaUploadState | null): void => {
         this.profileMediaState = state;
       }
     );
-    this.profileContentModel = new ProfileContentModel(forumRepository, authenticationLifecycle);
+    this.profileContentModel = new ProfileContentModel(profileRepository, authenticationLifecycle);
     const model: AppShellModel = new AppShellModel(
       forumRepository,
       new PreferencesCategoryCache(context),

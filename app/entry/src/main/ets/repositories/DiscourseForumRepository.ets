@@ -53,6 +53,7 @@ import {
 import { NotificationBucket, NotificationItem } from '../models/NotificationModels';
 import { DiscourseChatRepository } from './DiscourseChatRepository';
 import { DiscourseNotificationRepository } from './DiscourseNotificationRepository';
+import { DiscourseProfileRepository } from './DiscourseProfileRepository';
 
 interface DraftSavePayload {
   draft_key: string;
@@ -69,12 +70,14 @@ export class DiscourseForumRepository implements
   private readonly parser: ForumResponseParser;
   private readonly chatRepository: DiscourseChatRepository;
   private readonly notificationRepository: DiscourseNotificationRepository;
+  private readonly profileRepository: DiscourseProfileRepository;
 
   public constructor(client: ForumHttpClient, parser: ForumResponseParser = new ForumResponseParser()) {
     this.client = client;
     this.parser = parser;
     this.chatRepository = new DiscourseChatRepository(client);
     this.notificationRepository = new DiscourseNotificationRepository(client, parser);
+    this.profileRepository = new DiscourseProfileRepository(client, parser);
   }
 
   public async loadLatestTopics(): Promise<RepositoryResult<Array<Topic>>> {
@@ -161,59 +164,18 @@ export class DiscourseForumRepository implements
   }
 
   public async loadUserTopics(username: string, page: number): Promise<RepositoryResult<Array<Topic>>> {
-    const normalizedUsername: string = username.trim();
-    if (normalizedUsername.length === 0 || !Number.isInteger(page) || page < 0) {
-      return RepositoryResult.failure<Array<Topic>>('用户主题查询参数无效');
-    }
-    const pageSuffix: string = page > 0 ? `?page=${page}` : '';
-    const response: HttpTextResult = await this.client.get(
-      `/topics/created-by/${encodeURIComponent(normalizedUsername)}.json${pageSuffix}`
-    );
-    if (response.kind === HttpTextResultKind.UNAUTHORIZED) {
-      return RepositoryResult.unauthorized<Array<Topic>>();
-    }
-    if (!response.isSuccess()) {
-      return RepositoryResult.failure<Array<Topic>>(response.message);
-    }
-    return this.parser.parseLatestTopics(response.body);
+    return this.profileRepository.loadUserTopics(username, page);
   }
 
   public async loadUserReplies(username: string, offset: number): Promise<RepositoryResult<Array<UserReplyItem>>> {
-    const normalizedUsername: string = username.trim();
-    if (normalizedUsername.length === 0 || !Number.isInteger(offset) || offset < 0) {
-      return RepositoryResult.failure<Array<UserReplyItem>>('用户回复查询参数无效');
-    }
-    const response: HttpTextResult = await this.client.get(
-      `/user_actions.json?offset=${offset}&username=${encodeURIComponent(normalizedUsername)}&filter=5`
-    );
-    if (response.kind === HttpTextResultKind.UNAUTHORIZED) {
-      return RepositoryResult.unauthorized<Array<UserReplyItem>>();
-    }
-    if (!response.isSuccess()) {
-      return RepositoryResult.failure<Array<UserReplyItem>>(response.message);
-    }
-    return this.parser.parseUserReplies(response.body);
+    return this.profileRepository.loadUserReplies(username, offset);
   }
 
   public async loadUserBookmarks(
     username: string,
     page: number
   ): Promise<RepositoryResult<Array<UserBookmarkItem>>> {
-    const normalizedUsername: string = username.trim();
-    if (normalizedUsername.length === 0 || !Number.isInteger(page) || page < 0) {
-      return RepositoryResult.failure<Array<UserBookmarkItem>>('用户收藏查询参数无效');
-    }
-    const pageSuffix: string = page > 0 ? `?page=${page}` : '';
-    const response: HttpTextResult = await this.client.get(
-      `/u/${encodeURIComponent(normalizedUsername)}/bookmarks.json${pageSuffix}`
-    );
-    if (response.kind === HttpTextResultKind.UNAUTHORIZED) {
-      return RepositoryResult.unauthorized<Array<UserBookmarkItem>>();
-    }
-    if (!response.isSuccess()) {
-      return RepositoryResult.failure<Array<UserBookmarkItem>>(response.message);
-    }
-    return this.parser.parseUserBookmarks(response.body);
+    return this.profileRepository.loadUserBookmarks(username, page);
   }
 
   public async loadCategories(): Promise<RepositoryResult<Array<Category>>> {
@@ -592,82 +554,27 @@ export class DiscourseForumRepository implements
   }
 
   public async loadFullUserProfile(username: string): Promise<RepositoryResult<UserProfile>> {
-    const normalizedUsername: string = username.trim();
-    if (normalizedUsername.length === 0) {
-      return RepositoryResult.failure<UserProfile>('用户名无效');
-    }
-    const response: HttpTextResult = await this.client.get(`/u/${encodeURIComponent(normalizedUsername)}.json`);
-    if (response.kind === HttpTextResultKind.UNAUTHORIZED) {
-      return RepositoryResult.unauthorized<UserProfile>();
-    }
-    if (!response.isSuccess()) {
-      return RepositoryResult.failure<UserProfile>(response.message);
-    }
-    return this.parser.parseFullUserProfile(response.body);
+    return this.profileRepository.loadFullUserProfile(username);
   }
 
   public async loadUserSummary(username: string): Promise<RepositoryResult<UserProfileSummary>> {
-    const normalizedUsername: string = username.trim();
-    if (normalizedUsername.length === 0) {
-      return RepositoryResult.failure<UserProfileSummary>('用户名无效');
-    }
-    const response: HttpTextResult = await this.client.get(
-      `/u/${encodeURIComponent(normalizedUsername)}/summary.json`
-    );
-    if (response.kind === HttpTextResultKind.UNAUTHORIZED) {
-      return RepositoryResult.unauthorized<UserProfileSummary>();
-    }
-    if (!response.isSuccess()) {
-      return RepositoryResult.failure<UserProfileSummary>(response.message);
-    }
-    return this.parser.parseUserProfileSummary(response.body);
+    return this.profileRepository.loadUserSummary(username);
   }
 
   public async loadUserEmails(username: string): Promise<RepositoryResult<UserEmailInfo>> {
-    const normalizedUsername: string = username.trim();
-    if (normalizedUsername.length === 0) {
-      return RepositoryResult.failure<UserEmailInfo>('用户名无效');
-    }
-    const encodedUsername: string = encodeURIComponent(normalizedUsername);
-    const context: string = encodeURIComponent(`/u/${normalizedUsername}/preferences/account`);
-    const response: HttpTextResult = await this.client.get(
-      `/u/${encodedUsername}/emails.json?context=${context}`
-    );
-    if (response.kind === HttpTextResultKind.UNAUTHORIZED) {
-      return RepositoryResult.unauthorized<UserEmailInfo>();
-    }
-    if (!response.isSuccess()) {
-      return RepositoryResult.failure<UserEmailInfo>(response.message);
-    }
-    return this.parser.parseUserEmails(response.body);
+    return this.profileRepository.loadUserEmails(username);
   }
 
   public async updateUserProfile(request: ProfileUpdateRequest): Promise<RepositoryResult<boolean>> {
-    return this.booleanWriteResult(await this.client.putForm(
-      `/u/${encodeURIComponent(request.username)}.json`,
-      request.formBody()
-    ));
+    return this.profileRepository.updateUserProfile(request);
   }
 
   public async pickUploadedAvatar(username: string, uploadId: number): Promise<RepositoryResult<boolean>> {
-    const normalizedUsername: string = username.trim();
-    if (normalizedUsername.length === 0 || !Number.isSafeInteger(uploadId) || uploadId <= 0) {
-      return RepositoryResult.failure<boolean>('头像请求无效');
-    }
-    return this.booleanWriteResult(await this.client.putForm(
-      `/u/${encodeURIComponent(normalizedUsername)}/preferences/avatar/pick.json`,
-      `upload_id=${uploadId}&type=uploaded`
-    ));
+    return this.profileRepository.pickUploadedAvatar(username, uploadId);
   }
 
   public async setUserFollowing(username: string, following: boolean): Promise<RepositoryResult<boolean>> {
-    const normalizedUsername: string = username.trim();
-    if (normalizedUsername.length === 0) {
-      return RepositoryResult.failure<boolean>('用户名无效');
-    }
-    const path: string = `/follow/${encodeURIComponent(normalizedUsername)}.json`;
-    const response: HttpTextResult = following ? await this.client.put(path) : await this.client.delete(path);
-    return this.booleanWriteResult(response);
+    return this.profileRepository.setUserFollowing(username, following);
   }
 
   public async setUserNotificationLevel(
@@ -676,16 +583,7 @@ export class DiscourseForumRepository implements
     actingUserId: number,
     expiringAt: string = ''
   ): Promise<RepositoryResult<boolean>> {
-    const normalizedUsername: string = username.trim();
-    if (normalizedUsername.length === 0 || !Number.isSafeInteger(actingUserId) || actingUserId <= 0) {
-      return RepositoryResult.failure<boolean>('用户通知请求无效');
-    }
-    const body: string = `notification_level=${encodeURIComponent(level)}` +
-      `&expiring_at=${encodeURIComponent(expiringAt.trim())}&acting_user_id=${actingUserId}`;
-    return this.booleanWriteResult(await this.client.putForm(
-      `/u/${encodeURIComponent(normalizedUsername)}/notification_level.json`,
-      body
-    ));
+    return this.profileRepository.setUserNotificationLevel(username, level, actingUserId, expiringAt);
   }
 
   public async recoverReply(request: ReplyRecoveryRequest): Promise<ReplyRecoveryResult> {
@@ -747,14 +645,7 @@ export class DiscourseForumRepository implements
   }
 
   public async loadDrafts(): Promise<RepositoryResult<Array<ServerDraft>>> {
-    const response: HttpTextResult = await this.client.get('/drafts.json');
-    if (response.kind === HttpTextResultKind.UNAUTHORIZED) {
-      return RepositoryResult.unauthorized<Array<ServerDraft>>();
-    }
-    if (!response.isSuccess()) {
-      return RepositoryResult.failure<Array<ServerDraft>>(response.message);
-    }
-    return this.parser.parseServerDrafts(response.body);
+    return this.profileRepository.loadDrafts();
   }
 
   public async saveDraft(request: DraftWriteRequest): Promise<RepositoryResult<number>> {
