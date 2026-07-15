@@ -2,9 +2,9 @@ import { describe, expect, it } from '@ohos/hypium';
 import {
   ChatAuthenticationLifecycle,
   ChatMetadataProvider,
-  ChatModel,
-  ChatStateKind
+  ChatModel
 } from '../../../main/ets/app/ChatModel';
+import { ChatStateKind } from '../../../main/ets/app/ChatStateModels';
 import { RepositoryResult } from '../../../main/ets/core/RepositoryResult';
 import { ComposerEdit } from '../../../main/ets/models/AuthoringModels';
 import {

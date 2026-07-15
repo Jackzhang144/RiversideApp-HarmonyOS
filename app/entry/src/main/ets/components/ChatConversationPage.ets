@@ -1,4 +1,4 @@
-import { ChatComposerState, ChatConversationState, ChatStateKind } from '../app/ChatModel';
+import { ChatComposerState, ChatConversationState, ChatStateKind } from '../app/ChatStateModels';
 import { RepositoryResult, RepositoryResultKind } from '../core/RepositoryResult';
 import { ComposerEdit } from '../models/AuthoringModels';
 import { applyChatComposerMention, findChatComposerMention } from '../models/ChatComposerEditing';

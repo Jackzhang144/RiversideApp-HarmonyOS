@@ -83,9 +83,9 @@ import {
   ChatChannelState,
   ChatComposerState,
   ChatConversationState,
-  ChatModel,
   ChatSearchState
-} from '../app/ChatModel';
+} from '../app/ChatStateModels';
+import { ChatModel } from '../app/ChatModel';
 import {
   ChatConversationPollingController,
   SystemChatPollingTimer

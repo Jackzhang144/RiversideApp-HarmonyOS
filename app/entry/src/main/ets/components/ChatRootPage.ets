@@ -1,4 +1,4 @@
-import { ChatChannelState, ChatSearchState, ChatStateKind } from '../app/ChatModel';
+import { ChatChannelState, ChatSearchState, ChatStateKind } from '../app/ChatStateModels';
 import { ChatChannel, ChatSearchResult } from '../models/ChatModels';
 
 enum ChatRootSection {
