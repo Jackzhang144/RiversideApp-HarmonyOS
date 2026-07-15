@@ -1,4 +1,6 @@
 import {
+  BrowseState,
+  BrowseStateKind,
   ReplyComposerState,
   ReplyComposerStateKind,
   TopicReadState,
@@ -11,7 +13,15 @@ import {
 } from './ForumComposerPresentation';
 import { ForumCardPresentation } from './ForumCardPresentation';
 import { ForumContentCard } from './ForumContentCard';
-import { Category, ForumPost, PostReaction, Topic, TopicDetail } from '../models/ForumModels';
+import {
+  Category,
+  ForumPost,
+  PostReaction,
+  PostReactionUser,
+  PostReactionUsers,
+  Topic,
+  TopicDetail
+} from '../models/ForumModels';
 import { RichEmbedProvider } from '../models/RichContentModels';
 import { MediaUploadState } from '../models/MediaModels';
 import {
@@ -28,6 +38,8 @@ import {
 @Component
 export struct TopicDetailPage {
   @Prop @Watch('synchronizeFloorFromState') state: TopicReadState = TopicReadState.initial();
+  @Prop reactionUsersState: BrowseState<PostReactionUsers> = BrowseState.initial<PostReactionUsers>();
+  @Link reactionUsersSheetVisible: boolean;
   @Link bookmarkedPostIds: Array<number>;
   @Link lastReadPostNumber: number;
   @Link readProgressBusy: boolean;
@@ -46,6 +58,7 @@ export struct TopicDetailPage {
     _postId: number,
     _reaction: string
   ): void => {};
+  onOpenReactionUsers: (postId: number) => void = (_postId: number): void => {};
   onToggleBookmark: (postId: number) => void = (_postId: number): void => {};
   onDeletePost: (postId: number) => void = (_postId: number): void => {};
   onToggleAcceptedAnswer: (postId: number) => void = (_postId: number): void => {};
@@ -502,7 +515,7 @@ export struct TopicDetailPage {
   }
 
   @Builder
-  private ReactionSummary(reaction: PostReaction): void {
+  private ReactionSummary(postId: number, reaction: PostReaction): void {
     Row({ space: 5 }) {
       Image(reactionEmojiUrl(reaction.id))
         .width(18)
@@ -518,7 +531,108 @@ export struct TopicDetailPage {
     .backgroundColor('#EAF2FF')
     .borderRadius(17)
     .margin({ right: 6, bottom: 6 })
+    .onClick((): void => this.onOpenReactionUsers(postId))
     .accessibilityText(`${reactionAccessibilityLabel(reaction.id)}回应，${reaction.count} 次`)
+  }
+
+  @Builder
+  private ReactionUserAvatar(user: PostReactionUser): void {
+    Stack() {
+      Text(user.username.slice(0, 1).toUpperCase())
+        .width(36)
+        .height(36)
+        .textAlign(TextAlign.Center)
+        .fontSize(13)
+        .fontWeight(FontWeight.Bold)
+        .fontColor('#317AF7')
+        .backgroundColor('#EAF2FF')
+        .borderRadius(18)
+      if (user.avatarUrl.length > 0) {
+        Image(user.avatarUrl)
+          .width(36)
+          .height(36)
+          .borderRadius(18)
+          .objectFit(ImageFit.Cover)
+      }
+    }
+    .width(36)
+    .height(36)
+  }
+
+  @Builder
+  private ReactionUsersSheet(): void {
+    Column({ space: 12 }) {
+      if (this.reactionUsersState.kind === BrowseStateKind.LOADING) {
+        LoadingProgress().width(36).height(36)
+        Text('正在加载回应用户').fontSize(14).fontColor('#52606D')
+      } else if (this.reactionUsersState.kind === BrowseStateKind.ERROR) {
+        Text(this.reactionUsersState.message.length > 0
+          ? this.reactionUsersState.message : '回应用户加载失败')
+          .fontSize(14)
+          .fontColor('#C62828')
+      } else if (this.reactionUsersState.items.length === 0) {
+        Text('暂无可展示的回应用户').fontSize(14).fontColor('#52606D')
+      } else {
+        if (this.reactionUsersState.message.length > 0) {
+          Text(this.reactionUsersState.message)
+            .fontSize(12)
+            .fontColor('#B85C00')
+            .width('100%')
+        }
+        List({ space: 14 }) {
+          ForEach(this.reactionUsersState.items, (reaction: PostReactionUsers) => {
+            ListItem() {
+              Column({ space: 10 }) {
+                Row({ space: 8 }) {
+                  Image(reactionEmojiUrl(reaction.id))
+                    .width(22)
+                    .height(22)
+                    .objectFit(ImageFit.Contain)
+                  Text(`${reaction.count} 人`)
+                    .fontSize(13)
+                    .fontColor('#52606D')
+                }
+                .width('100%')
+                Flex({ direction: FlexDirection.Row, wrap: FlexWrap.Wrap, justifyContent: FlexAlign.Start }) {
+                  ForEach(reaction.users, (user: PostReactionUser) => {
+                    Button() {
+                      Column({ space: 4 }) {
+                        this.ReactionUserAvatar(user)
+                        Text(user.username)
+                          .fontSize(11)
+                          .fontColor('#2068C9')
+                          .maxLines(1)
+                          .textOverflow({ overflow: TextOverflow.Ellipsis })
+                      }
+                    }
+                    .width(76)
+                    .height(62)
+                    .backgroundColor(Color.Transparent)
+                    .onClick((): void => {
+                      this.reactionUsersSheetVisible = false;
+                      this.onOpenAuthor(user.username);
+                    })
+                    .accessibilityText(`查看 ${user.username} 的资料`)
+                  }, (user: PostReactionUser): string => user.username)
+                  if (reaction.users.length === 0) {
+                    Text(`${reaction.count} 人参与，服务未返回用户名`)
+                      .fontSize(12)
+                      .fontColor('#7B8794')
+                  }
+                }
+                .width('100%')
+              }
+              .width('100%')
+            }
+          }, (reaction: PostReactionUsers): string => reaction.id)
+        }
+        .width('100%')
+        .height(320)
+      }
+    }
+    .width('100%')
+    .padding({ left: 20, right: 20, top: 8, bottom: 20 })
+    .alignItems(HorizontalAlign.Start)
   }
 
   @Builder
@@ -577,7 +691,7 @@ export struct TopicDetailPage {
             .accessibilityText('此回答已被采纳')
         }
         ForEach(displayedReactions(post.reactions), (reaction: PostReaction) => {
-          this.ReactionSummary(reaction)
+          this.ReactionSummary(post.id, reaction)
         }, (reaction: PostReaction): string => reaction.id)
         this.ReactionTrigger(post)
         Button() {
@@ -929,6 +1043,13 @@ export struct TopicDetailPage {
     .pullToRefresh(true)
     .pullUpToCancelRefresh(false)
     .onRefreshing(this.onRefresh)
+    .bindSheet($$this.reactionUsersSheetVisible, this.ReactionUsersSheet(), {
+      detents: [SheetSize.MEDIUM, SheetSize.LARGE],
+      detentSelection: SheetSize.MEDIUM,
+      showClose: true,
+      dragBar: true,
+      title: { title: '回应用户', subtitle: '点击头像查看用户资料' }
+    })
   }
 
   build() {

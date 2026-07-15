@@ -5,6 +5,8 @@ import {
   ForumPost,
   ForumPostMetadata,
   PostReaction,
+  PostReactionUser,
+  PostReactionUsers,
   Topic,
   TopicDetail,
   TopicDetailMetadata,
@@ -1362,6 +1364,46 @@ export class ForumResponseParser {
     return envelope === null
       ? RepositoryResult.failure<Array<Topic>>('服务器响应缺少推荐 Topic')
       : RepositoryResult.success<Array<Topic>>(decodeSuggestedTopics(envelope));
+  }
+
+  public parsePostReactionUsers(text: string): RepositoryResult<Array<PostReactionUsers>> {
+    const envelope: JsonObjectReader | null = JsonObjectReader.parse(text);
+    const reactionValues: Array<Object | null> | null = envelope?.array('reaction_users') ?? null;
+    if (envelope === null || reactionValues === null) {
+      return RepositoryResult.failure<Array<PostReactionUsers>>('服务器响应缺少 Reaction 用户');
+    }
+    const reactionUsers: Array<PostReactionUsers> = [];
+    for (const reactionValue of reactionValues) {
+      const reaction: JsonObjectReader | null = JsonObjectReader.fromValue(reactionValue);
+      if (reaction === null) {
+        continue;
+      }
+      const id: string = reactionId(reaction).trim();
+      const userValues: Array<Object | null> | null = reaction.array('users');
+      if (id.length === 0 || userValues === null) {
+        continue;
+      }
+      const users: Array<PostReactionUser> = [];
+      for (const userValue of userValues) {
+        const user: JsonObjectReader | null = JsonObjectReader.fromValue(userValue);
+        if (user === null) {
+          continue;
+        }
+        const username: string = (
+          user.string('username') ?? user.string('user_name') ?? user.string('slug') ?? ''
+        ).trim();
+        if (username.length === 0) {
+          continue;
+        }
+        const avatar: string = user.string('avatar_template') ?? user.string('avatar_url') ??
+          user.string('avatar') ?? '';
+        users.push(new PostReactionUser(username, avatar));
+      }
+      if (users.length > 0) {
+        reactionUsers.push(new PostReactionUsers(id, numberOrZero(reaction.number('count')), users));
+      }
+    }
+    return RepositoryResult.success<Array<PostReactionUsers>>(reactionUsers);
   }
 
   public parseBookmarkId(text: string): RepositoryResult<number> {

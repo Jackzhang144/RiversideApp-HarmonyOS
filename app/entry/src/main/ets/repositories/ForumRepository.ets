@@ -1,5 +1,12 @@
 import { RepositoryResult } from '../core/RepositoryResult';
-import { Category, ForumPost, Topic, TopicDetail, TopicPostBatch } from '../models/ForumModels';
+import {
+  Category,
+  ForumPost,
+  PostReactionUsers,
+  Topic,
+  TopicDetail,
+  TopicPostBatch
+} from '../models/ForumModels';
 import { ForumSearchResult, HomeChannel } from '../models/DiscoveryModels';
 import {
   CreateTopicRequest,
@@ -37,6 +44,8 @@ export interface ForumRepository {
   loadTopicSuggestions(topicId: number): Promise<RepositoryResult<Array<Topic>>>;
 
   togglePostReaction(postId: number, reaction: string): Promise<RepositoryResult<ForumPost>>;
+
+  loadPostReactionUsers(postId: number): Promise<RepositoryResult<Array<PostReactionUsers>>>;
 
   createPostBookmark(postId: number): Promise<RepositoryResult<number>>;
 

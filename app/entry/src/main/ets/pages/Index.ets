@@ -86,7 +86,7 @@ import { AccountPlaceholderKind } from '../components/AccountPresentation';
 import { ImageViewerPage } from '../components/ImageViewerPage';
 import { selectedBookmarkPostIds, topicPostUrl } from '../components/TopicReadingPresentation';
 import { UiPrototypePage } from '../components/prototype/UiPrototypePage';
-import { Category, ForumPost, Topic } from '../models/ForumModels';
+import { Category, ForumPost, PostReactionUsers, Topic } from '../models/ForumModels';
 import {
   ChatChannel,
   ChatEmoji,
@@ -199,6 +199,8 @@ struct Index {
   @State categoryTopicsState: BrowseState<Topic> = BrowseState.initial<Topic>();
   @State categoryTitle: string = 'Category';
   @State topicState: TopicReadState = TopicReadState.initial();
+  @State topicReactionUsersState: BrowseState<PostReactionUsers> = BrowseState.initial<PostReactionUsers>();
+  @State reactionUsersSheetVisible: boolean = false;
   @State bookmarkedPostIds: Array<number> = [];
   @State lastReadPostNumber: number = 0;
   @State readProgressBusy: boolean = false;
@@ -1149,6 +1151,7 @@ struct Index {
     if (model === null) {
       return;
     }
+    this.reactionUsersSheetVisible = false;
     const task: Promise<void> = model.openTopic(topic, initialPostNumber);
     this.synchronizeTopicState(model);
     this.synchronizeReplyState(model, false);
@@ -1435,6 +1438,18 @@ struct Index {
     this.synchronizeTopicState(model);
   }
 
+  private async openPostReactionUsers(postId: number): Promise<void> {
+    const model: AppShellModel | null = this.model;
+    if (model === null) {
+      return;
+    }
+    this.reactionUsersSheetVisible = true;
+    const task: Promise<void> = model.loadPostReactionUsers(postId);
+    this.topicReactionUsersState = model.topicReactionUsersState;
+    await task;
+    this.topicReactionUsersState = model.topicReactionUsersState;
+  }
+
   private async togglePostBookmark(postId: number): Promise<void> {
     const model: AppShellModel | null = this.model;
     if (model === null) {
@@ -1502,6 +1517,7 @@ struct Index {
 
   private synchronizeTopicState(model: AppShellModel): void {
     this.topicState = model.topicState;
+    this.topicReactionUsersState = model.topicReactionUsersState;
     this.bookmarkedPostIds = selectedBookmarkPostIds(model.topicState.posts);
     this.lastReadPostNumber = model.topicState.readProgressState.lastReadPostNumber;
     this.readProgressBusy = model.topicState.readProgressState.busy;
@@ -1837,6 +1853,9 @@ struct Index {
     const model: AppShellModel | null = this.model;
     if (model !== null) {
       const closingTopic: boolean = model.activeDestination === SecondaryDestination.TOPIC;
+      if (closingTopic) {
+        this.reactionUsersSheetVisible = false;
+      }
       model.closeSecondary();
       if (closingTopic) {
         this.synchronizeTopicState(model);
@@ -2331,6 +2350,8 @@ struct Index {
       HdsNavDestination() {
         TopicDetailPage({
           state: this.topicState,
+          reactionUsersState: this.topicReactionUsersState,
+          reactionUsersSheetVisible: this.reactionUsersSheetVisible,
           bookmarkedPostIds: $bookmarkedPostIds,
           lastReadPostNumber: $lastReadPostNumber,
           readProgressBusy: $readProgressBusy,
@@ -2353,6 +2374,9 @@ struct Index {
           },
           onToggleReaction: (postId: number, reaction: string): void => {
             this.togglePostReaction(postId, reaction);
+          },
+          onOpenReactionUsers: (postId: number): void => {
+            this.openPostReactionUsers(postId);
           },
           onToggleBookmark: (postId: number): void => {
             this.togglePostBookmark(postId);

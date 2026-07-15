@@ -17,6 +17,8 @@ import {
   ForumPost,
   ForumPostMetadata,
   PostReaction,
+  PostReactionUser,
+  PostReactionUsers,
   Topic,
   TopicDetail,
   TopicDetailMetadata,
@@ -67,6 +69,7 @@ class TopicReadingRepository implements ForumRepository {
   public topicPostTasks: Array<Promise<RepositoryResult<TopicPostBatch>>> = [];
   public topicSuggestionResults: Array<RepositoryResult<Array<Topic>>> = [];
   public reactionResults: Array<RepositoryResult<ForumPost>> = [];
+  public reactionUsersResults: Array<RepositoryResult<Array<PostReactionUsers>>> = [];
   public createBookmarkResults: Array<RepositoryResult<number>> = [];
   public deleteBookmarkResults: Array<RepositoryResult<boolean>> = [];
   public deletePostResults: Array<RepositoryResult<boolean>> = [];
@@ -85,6 +88,7 @@ class TopicReadingRepository implements ForumRepository {
   public requestedTopicPostNumbers: Array<number | null> = [];
   public requestedSuggestionTopicIds: Array<number> = [];
   public requestedReactions: Array<string> = [];
+  public requestedReactionUserPostIds: Array<number> = [];
   public requestedBookmarkPostIds: Array<number> = [];
   public requestedDeleteBookmarkIds: Array<number> = [];
   public requestedDeletePostIds: Array<number> = [];
@@ -168,6 +172,12 @@ class TopicReadingRepository implements ForumRepository {
   public async togglePostReaction(postId: number, reaction: string): Promise<RepositoryResult<ForumPost>> {
     this.requestedReactions.push(`${postId}:${reaction}`);
     return this.reactionResults.shift() ?? RepositoryResult.failure<ForumPost>('missing Reaction result');
+  }
+
+  public async loadPostReactionUsers(postId: number): Promise<RepositoryResult<Array<PostReactionUsers>>> {
+    this.requestedReactionUserPostIds.push(postId);
+    return this.reactionUsersResults.shift() ??
+      RepositoryResult.failure<Array<PostReactionUsers>>('missing Reaction users result');
   }
 
   public async createPostBookmark(postId: number): Promise<RepositoryResult<number>> {
@@ -1199,6 +1209,38 @@ export default function topicReadingTest(): void {
       expect(model.topicState.posts[0].currentUserReaction).assertEqual('heart');
       expect(model.topicState.posts[0].likeCount).assertEqual(1);
       expect(model.topicState.postActionState.message).assertEqual('');
+      done();
+    });
+
+    it('loads Reaction participants for a visible Post and exposes failures', 0, async (done: Function) => {
+      const repository: TopicReadingRepository = new TopicReadingRepository();
+      repository.topicDetailResults.push(RepositoryResult.success<TopicDetail>(new TopicDetail(
+        2725, 'Reaction Topic', 10, 1, 0, false, false, true,
+        [102728], [reactedFirstPost()]
+      )));
+      repository.reactionUsersResults.push(
+        RepositoryResult.success<Array<PostReactionUsers>>([
+          new PostReactionUsers('heart', 1, [new PostReactionUser('river_user', '/avatar/{size}.png')])
+        ]),
+        RepositoryResult.failure<Array<PostReactionUsers>>('回应用户加载失败')
+      );
+      const model: AppShellModel = new AppShellModel(
+        repository, new MemoryCategoryCache(), CategoryCacheScope.anonymous()
+      );
+      await model.openTopic(topic());
+
+      await model.loadPostReactionUsers(102728);
+      expect(repository.requestedReactionUserPostIds.join(',')).assertEqual('102728');
+      expect(model.topicReactionUsersState.kind).assertEqual(BrowseStateKind.CONTENT);
+      expect(model.topicReactionUsersState.items[0].users[0].username).assertEqual('river_user');
+
+      await model.loadPostReactionUsers(102728);
+      expect(model.topicReactionUsersState.kind).assertEqual(BrowseStateKind.CONTENT);
+      expect(model.topicReactionUsersState.message).assertEqual('回应用户加载失败');
+      expect(model.topicReactionUsersState.items[0].id).assertEqual('heart');
+
+      await model.loadPostReactionUsers(999999);
+      expect(repository.requestedReactionUserPostIds.length).assertEqual(2);
       done();
     });
 

@@ -1,6 +1,12 @@
 import { describe, expect, it } from '@ohos/hypium';
 import { RepositoryResult, RepositoryResultKind } from '../../../main/ets/core/RepositoryResult';
-import { ForumPost, Topic, TopicDetail, TopicPostBatch } from '../../../main/ets/models/ForumModels';
+import {
+  ForumPost,
+  PostReactionUsers,
+  Topic,
+  TopicDetail,
+  TopicPostBatch
+} from '../../../main/ets/models/ForumModels';
 import { ForumSearchResult, HomeChannel, OnlineUsers } from '../../../main/ets/models/DiscoveryModels';
 import {
   CreateTopicRequest,
@@ -343,6 +349,27 @@ export default function discourseForumRepositoryTest(): void {
       );
       expect(result.data?.currentUserReaction).assertEqual('heart');
       expect(result.data?.likeCount).assertEqual(2);
+      done();
+    });
+
+    it('loads Reaction participants without changing the Reaction write contract', 0, async (done: Function) => {
+      const client: StubForumHttpClient = new StubForumHttpClient();
+      client.results.push(HttpTextResult.success(200,
+        '{"reaction_users":[{"id":"heart","count":2,"users":[' +
+        '{"username":"river_user","avatar_template":"/letter_avatar_proxy/v4/letter/r/{size}.png"}]}]}'
+      ));
+      client.results.push(HttpTextResult.unauthorized());
+      const repository: DiscourseForumRepository = new DiscourseForumRepository(client);
+
+      const result: RepositoryResult<Array<PostReactionUsers>> = await repository.loadPostReactionUsers(102728);
+      const invalid: RepositoryResult<Array<PostReactionUsers>> = await repository.loadPostReactionUsers(0);
+      const unauthorized: RepositoryResult<Array<PostReactionUsers>> = await repository.loadPostReactionUsers(102729);
+
+      expect(client.paths[0]).assertEqual('/discourse-reactions/posts/102728/reactions-users.json');
+      expect(client.paths[1]).assertEqual('/discourse-reactions/posts/102729/reactions-users.json');
+      expect(result.data?.[0].users[0].username).assertEqual('river_user');
+      expect(invalid.kind).assertEqual(RepositoryResultKind.FAILURE);
+      expect(unauthorized.kind).assertEqual(RepositoryResultKind.UNAUTHORIZED);
       done();
     });
 

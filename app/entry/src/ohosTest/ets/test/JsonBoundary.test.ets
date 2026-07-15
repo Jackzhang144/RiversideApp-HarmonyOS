@@ -1,7 +1,13 @@
 import { describe, expect, it } from '@ohos/hypium';
 import { JsonObjectReader } from '../../../main/ets/core/JsonObjectReader';
 import { RepositoryResult, RepositoryResultKind } from '../../../main/ets/core/RepositoryResult';
-import { Category, ForumPost, Topic, TopicDetail } from '../../../main/ets/models/ForumModels';
+import {
+  Category,
+  ForumPost,
+  PostReactionUsers,
+  Topic,
+  TopicDetail
+} from '../../../main/ets/models/ForumModels';
 import { ForumResponseParser } from '../../../main/ets/repositories/ForumResponseParser';
 
 export default function jsonBoundaryTest(): void {
@@ -157,6 +163,29 @@ export default function jsonBoundaryTest(): void {
 
       expect(result.kind).assertEqual(RepositoryResultKind.SUCCESS);
       expect(result.data?.[0].displayText).assertEqual('站务公告\n第一段\n第二行 & 更多');
+    });
+
+    it('keeps Reaction users with canonical usernames and normalized avatars', 0, () => {
+      const parser: ForumResponseParser = new ForumResponseParser();
+
+      const result: RepositoryResult<Array<PostReactionUsers>> = parser.parsePostReactionUsers(
+        '{"reaction_users":[' +
+        '{"id":"heart","count":2,"users":[' +
+        '{"username":"river_user","name":"河畔昵称",' +
+        '"avatar_template":"/user_avatar/river-side.cc/river_user/{size}/1.png"},' +
+        '{"name":"不能作为用户名"}]},' +
+        '{"id":"+1","count":1,"users":[]}]}'
+      );
+
+      expect(result.isSuccess()).assertTrue();
+      expect(result.data?.length).assertEqual(1);
+      expect(result.data?.[0].id).assertEqual('heart');
+      expect(result.data?.[0].count).assertEqual(2);
+      expect(result.data?.[0].users.length).assertEqual(1);
+      expect(result.data?.[0].users[0].username).assertEqual('river_user');
+      expect(result.data?.[0].users[0].avatarUrl).assertEqual(
+        'https://river-side.cc/user_avatar/river-side.cc/river_user/64/1.png'
+      );
     });
   });
 }

@@ -73,6 +73,39 @@ export class PostReaction {
   }
 }
 
+function absoluteForumAvatarUrl(value: string): string {
+  const normalized: string = value.trim().replace('{size}', '64');
+  if (normalized.length === 0 || normalized.startsWith('https://')) {
+    return normalized;
+  }
+  if (normalized.startsWith('/')) {
+    return `https://river-side.cc${normalized}`;
+  }
+  return '';
+}
+
+export class PostReactionUser {
+  public readonly username: string;
+  public readonly avatarUrl: string;
+
+  public constructor(username: string, avatarUrl: string) {
+    this.username = username.trim();
+    this.avatarUrl = absoluteForumAvatarUrl(avatarUrl);
+  }
+}
+
+export class PostReactionUsers {
+  public readonly id: string;
+  public readonly count: number;
+  public readonly users: Array<PostReactionUser>;
+
+  public constructor(id: string, count: number, users: Array<PostReactionUser>) {
+    this.id = id.trim();
+    this.count = Math.max(0, count);
+    this.users = users;
+  }
+}
+
 export class ForumPostMetadata {
   public readonly userTitle: string;
   public readonly avatarUrl: string;

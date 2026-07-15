@@ -3,6 +3,8 @@ import { RepositoryResult } from '../core/RepositoryResult';
 import {
   Category,
   ForumPost,
+  PostReaction,
+  PostReactionUsers,
   Topic,
   TopicDetail,
   TopicDetailMetadata,
@@ -1096,6 +1098,7 @@ export class AppShellModel {
   public selectedCategory: Category | null = null;
   public categoryTopicsState: BrowseState<Topic> = BrowseState.initial<Topic>();
   public topicState: TopicReadState = TopicReadState.initial();
+  public topicReactionUsersState: BrowseState<PostReactionUsers> = BrowseState.initial<PostReactionUsers>();
   public replyState: ReplyComposerState = ReplyComposerState.closed();
   public topicComposerState: TopicComposerState = TopicComposerState.closed();
   public topicEditingTopicId: number | null = null;
@@ -1130,6 +1133,7 @@ export class AppShellModel {
   private categoryTopicsPage: number = 0;
   private searchNextPage: number = 1;
   private topicRequestVersion: number = 0;
+  private topicReactionUsersRequestVersion: number = 0;
   private replyRequestVersion: number = 0;
   private replyDraftRequestVersion: number = 0;
   private replyDraftSequence: number = 0;
@@ -1342,6 +1346,8 @@ export class AppShellModel {
           ? SecondaryDestination.CATEGORY_TOPICS
           : SecondaryDestination.NONE;
     this.topicRequestVersion += 1;
+    this.topicReactionUsersRequestVersion += 1;
+    this.topicReactionUsersState = BrowseState.initial<PostReactionUsers>();
     const requestVersion: number = this.topicRequestVersion;
     this.requiresAuthentication = false;
     this.replyRequestVersion += 1;
@@ -1727,6 +1733,46 @@ export class AppShellModel {
     }
     this.topicState = TopicReadState.withPosts(this.topicState, replacePost(this.topicState.posts, result.data));
     this.topicState = TopicReadState.withPostAction(this.topicState, TopicPostActionState.idle());
+  }
+
+  public async loadPostReactionUsers(postId: number): Promise<void> {
+    const topicId: number = this.topicState.topicId;
+    const post: ForumPost | undefined = this.topicState.posts.find(
+      (candidate: ForumPost): boolean => candidate.id === postId
+    );
+    if (topicId <= 0 || post === undefined) {
+      this.topicReactionUsersState = BrowseState.error<PostReactionUsers>('Post 不在当前 Topic 中');
+      return;
+    }
+
+    this.topicReactionUsersRequestVersion += 1;
+    const requestVersion: number = this.topicReactionUsersRequestVersion;
+    this.requiresAuthentication = false;
+    this.topicReactionUsersState = BrowseState.loading<PostReactionUsers>();
+    const result: RepositoryResult<Array<PostReactionUsers>> = await this.repository.loadPostReactionUsers(postId);
+    if (requestVersion !== this.topicReactionUsersRequestVersion || this.topicState.topicId !== topicId) {
+      return;
+    }
+    if (!result.isSuccess() || result.data === null) {
+      this.requiresAuthentication = result.isUnauthorized();
+      if (result.isUnauthorized()) {
+        this.topicReactionUsersState = BrowseState.error<PostReactionUsers>(result.message);
+        await this.notifyUnauthorized(true);
+        return;
+      }
+      const fallback: Array<PostReactionUsers> = post.reactions.map(
+        (reaction: PostReaction): PostReactionUsers => {
+          return new PostReactionUsers(reaction.id, reaction.count, []);
+        }
+      );
+      this.topicReactionUsersState = fallback.length === 0
+        ? BrowseState.empty<PostReactionUsers>(false, result.message)
+        : BrowseState.content<PostReactionUsers>(fallback, false, result.message);
+      return;
+    }
+    this.topicReactionUsersState = result.data.length === 0
+      ? BrowseState.empty<PostReactionUsers>()
+      : BrowseState.content<PostReactionUsers>(result.data);
   }
 
   public async togglePostAcceptedAnswer(postId: number): Promise<void> {
@@ -2788,6 +2834,8 @@ export class AppShellModel {
   public closeSecondary(): void {
     if (this.activeDestination === SecondaryDestination.TOPIC) {
       this.topicRequestVersion += 1;
+      this.topicReactionUsersRequestVersion += 1;
+      this.topicReactionUsersState = BrowseState.initial<PostReactionUsers>();
       this.replyRequestVersion += 1;
       const previousTopic: TopicNavigationFrame | undefined = this.topicNavigationStack.pop();
       if (previousTopic !== undefined) {

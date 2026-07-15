@@ -13,7 +13,14 @@ import {
 } from '../../../main/ets/app/AppShellModel';
 import { CategoryCacheScope } from '../../../main/ets/cache/CategoryCache';
 import { RepositoryResult } from '../../../main/ets/core/RepositoryResult';
-import { Category, ForumPost, Topic, TopicDetail, TopicPostBatch } from '../../../main/ets/models/ForumModels';
+import {
+  Category,
+  ForumPost,
+  PostReactionUsers,
+  Topic,
+  TopicDetail,
+  TopicPostBatch
+} from '../../../main/ets/models/ForumModels';
 import {
   ForumSearchResult,
   HomeChannel,
@@ -121,6 +128,10 @@ class StubForumRepository implements ForumRepository {
 
   public async togglePostReaction(_postId: number, _reaction: string): Promise<RepositoryResult<ForumPost>> {
     return RepositoryResult.failure<ForumPost>('missing Reaction result');
+  }
+
+  public async loadPostReactionUsers(_postId: number): Promise<RepositoryResult<Array<PostReactionUsers>>> {
+    return RepositoryResult.failure<Array<PostReactionUsers>>('missing Reaction users result');
   }
 
   public async createPostBookmark(_postId: number): Promise<RepositoryResult<number>> {

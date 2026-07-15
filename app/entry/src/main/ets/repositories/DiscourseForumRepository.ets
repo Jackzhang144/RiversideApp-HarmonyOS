@@ -1,5 +1,12 @@
 import { RepositoryResult } from '../core/RepositoryResult';
-import { Category, ForumPost, Topic, TopicDetail, TopicPostBatch } from '../models/ForumModels';
+import {
+  Category,
+  ForumPost,
+  PostReactionUsers,
+  Topic,
+  TopicDetail,
+  TopicPostBatch
+} from '../models/ForumModels';
 import { ForumSearchResult, HomeChannel, homeChannelPath, OnlineUsers } from '../models/DiscoveryModels';
 import {
   CreateTopicRequest,
@@ -581,6 +588,22 @@ export class DiscourseForumRepository implements
       return RepositoryResult.failure<ForumPost>(response.message);
     }
     return this.parser.parseCreatedReply(response.body);
+  }
+
+  public async loadPostReactionUsers(postId: number): Promise<RepositoryResult<Array<PostReactionUsers>>> {
+    if (!Number.isInteger(postId) || postId <= 0) {
+      return RepositoryResult.failure<Array<PostReactionUsers>>('Post 标识无效');
+    }
+    const response: HttpTextResult = await this.client.get(
+      `/discourse-reactions/posts/${postId}/reactions-users.json`
+    );
+    if (response.kind === HttpTextResultKind.UNAUTHORIZED) {
+      return RepositoryResult.unauthorized<Array<PostReactionUsers>>();
+    }
+    if (!response.isSuccess()) {
+      return RepositoryResult.failure<Array<PostReactionUsers>>(response.message);
+    }
+    return this.parser.parsePostReactionUsers(response.body);
   }
 
   public async createPostBookmark(postId: number): Promise<RepositoryResult<number>> {
