@@ -1182,6 +1182,31 @@ export default function topicReadingTest(): void {
       done();
     });
 
+    it('submits the final visible Posts while an earlier read report is still in flight', 0, async (done: Function) => {
+      const repository: TopicReadingRepository = new TopicReadingRepository();
+      repository.topicDetailResults.push(RepositoryResult.success<TopicDetail>(new TopicDetail(
+        2725, '离页阅读进度', 10, 3, 0, false, false, true,
+        [102728, 102729, 102730], [firstPost(), secondPost(), thirdPost()]
+      )));
+      const earlierReport: PendingRepositoryResult<boolean> = new PendingRepositoryResult<boolean>();
+      repository.markTopicReadTasks.push(earlierReport.promise);
+      repository.markTopicReadResults.push(RepositoryResult.success<boolean>(true));
+      const model: AppShellModel = new AppShellModel(
+        repository, new MemoryCategoryCache(), CategoryCacheScope.anonymous()
+      );
+      await model.openTopic(topic());
+
+      const earlierTask: Promise<void> = model.reportTopicReadProgress(2);
+      await model.submitFinalTopicReadProgress(2725, [1, 2, 3]);
+
+      expect(repository.requestedReadTimings.join('|')).assertEqual(
+        '2725:1,2:1000|2725:1,2,3:1000'
+      );
+      earlierReport.complete(RepositoryResult.success<boolean>(true));
+      await earlierTask;
+      done();
+    });
+
     it('publishes read progress before notification cleanup finishes', 0, async (done: Function) => {
       const repository: TopicReadingRepository = new TopicReadingRepository();
       repository.topicDetailResults.push(RepositoryResult.success<TopicDetail>(new TopicDetail(

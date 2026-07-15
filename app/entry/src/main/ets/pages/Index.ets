@@ -1405,6 +1405,14 @@ struct Index {
     this.synchronizeTopicState(model);
   }
 
+  private async submitFinalTopicReadProgress(topicId: number, postNumbers: Array<number>): Promise<void> {
+    const model: AppShellModel | null = this.model;
+    if (model === null) {
+      return;
+    }
+    await model.submitFinalTopicReadProgress(topicId, postNumbers);
+  }
+
   private synchronizeTopicState(model: AppShellModel): void {
     this.topicState = model.topicState;
     this.bookmarkedPostIds = selectedBookmarkPostIds(model.topicState.posts);
@@ -2288,6 +2296,9 @@ struct Index {
           },
           onRetryPostJump: async (): Promise<boolean> => {
             return await this.retryTopicPostJump();
+          },
+          onSubmitFinalReadProgress: (topicId: number, postNumbers: Array<number>): void => {
+            this.submitFinalTopicReadProgress(topicId, postNumbers);
           },
           onOpenReply: (postNumber: number | null): void => {
             this.openReply(postNumber);

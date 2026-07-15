@@ -62,6 +62,10 @@ export struct TopicDetailPage {
   onReadProgress: (postNumber: number) => void = (_postNumber: number): void => {};
   onJumpToPost: (postNumber: number) => Promise<boolean> = async (_postNumber: number): Promise<boolean> => false;
   onRetryPostJump: () => Promise<boolean> = async (): Promise<boolean> => false;
+  onSubmitFinalReadProgress: (topicId: number, postNumbers: Array<number>) => void = (
+    _topicId: number,
+    _postNumbers: Array<number>
+  ): void => {};
   onReplyDraftChange: (draft: string) => void = (_draft: string): void => {};
   onSubmitReply: () => void = (): void => {};
   onSaveReplyDraft: () => void = (): void => {};
@@ -86,6 +90,7 @@ export struct TopicDetailPage {
       clearTimeout(this.readProgressTimer);
       this.readProgressTimer = -1;
     }
+    this.submitFinalReadProgress();
   }
 
   aboutToAppear(): void {
@@ -118,11 +123,33 @@ export struct TopicDetailPage {
       clearTimeout(this.readProgressTimer);
     }
     this.readProgressTimer = setTimeout((): void => {
-      const targetPostNumber: number = this.pendingReadPostNumber;
-      this.pendingReadPostNumber = 0;
       this.readProgressTimer = -1;
-      this.onReadProgress(targetPostNumber);
+      this.flushPendingReadProgress();
     }, 2000);
+  }
+
+  private flushPendingReadProgress(): void {
+    const targetPostNumber: number = this.pendingReadPostNumber;
+    this.pendingReadPostNumber = 0;
+    if (targetPostNumber > 0) {
+      this.onReadProgress(targetPostNumber);
+    }
+  }
+
+  private submitFinalReadProgress(): void {
+    const targetPostNumber: number = this.pendingReadPostNumber;
+    this.pendingReadPostNumber = 0;
+    if (targetPostNumber <= 0 || this.state.topicId <= 0) {
+      return;
+    }
+    const postNumbers: Array<number> = this.state.posts
+      .map((post: ForumPost): number => post.postNumber)
+      .filter((postNumber: number): boolean => {
+        return postNumber > this.lastReadPostNumber && postNumber <= targetPostNumber;
+      });
+    if (postNumbers.length > 0) {
+      this.onSubmitFinalReadProgress(this.state.topicId, postNumbers);
+    }
   }
 
   private hasStarterPost(): boolean {

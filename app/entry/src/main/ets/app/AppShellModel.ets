@@ -1844,6 +1844,28 @@ export class AppShellModel {
     this.clearTopicNotificationsInBackground(detail.id, reportedPostNumber);
   }
 
+  public async submitFinalTopicReadProgress(topicId: number, postNumbers: Array<number>): Promise<void> {
+    if (!Number.isInteger(topicId) || topicId <= 0) {
+      return;
+    }
+    const normalizedPostNumbers: Array<number> = Array.from(new Set<number>(postNumbers.filter(
+      (postNumber: number): boolean => Number.isInteger(postNumber) && postNumber > 0
+    )).values());
+    normalizedPostNumbers.sort((left: number, right: number): number => left - right);
+    if (normalizedPostNumbers.length === 0) {
+      return;
+    }
+    const result: RepositoryResult<boolean> = await this.repository.markTopicRead(
+      topicId,
+      normalizedPostNumbers,
+      1000
+    );
+    if (result.isUnauthorized()) {
+      this.requiresAuthentication = true;
+      await this.notifyUnauthorized(true);
+    }
+  }
+
   private async clearTopicNotificationsInBackground(topicId: number, upToPostNumber: number): Promise<void> {
     const notificationResult: RepositoryResult<number> = await this.repository.clearTopicNotifications(
       topicId,
