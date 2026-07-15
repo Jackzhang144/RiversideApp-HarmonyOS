@@ -14,6 +14,8 @@ export struct TopicPostActionBar {
   @Prop actionState: TopicPostActionState = TopicPostActionState.idle();
   @Prop bookmarked: boolean = false;
   @Prop editable: boolean = false;
+  @Prop replyAvailable: boolean = false;
+  @State private moreActionsExpanded: boolean = false;
   onToggleReaction: (postId: number, reaction: string) => void = (
     _postId: number,
     _reaction: string
@@ -28,6 +30,7 @@ export struct TopicPostActionBar {
   onReport: (post: ForumPost) => void = (_post: ForumPost): void => {};
   onEdit: (postId: number) => void = (_postId: number): void => {};
   onDelete: (postId: number) => void = (_postId: number): void => {};
+  onReply: () => void = (): void => {};
 
   @Builder
   private ReactionSummary(reaction: PostReaction): void {
@@ -67,17 +70,16 @@ export struct TopicPostActionBar {
   @Builder
   private ReactionTrigger(): void {
     Button() {
-      Image(reactionEmojiUrl('+1'))
+      SymbolGlyph($r('sys.symbol.hand_thumbsup'))
         .width(18)
         .height(18)
-        .objectFit(ImageFit.Contain)
+        .fontColor([this.post.currentUserReaction === '+1'
+          ? $r('app.color.brand_primary')
+          : $r('sys.color.font_secondary')])
     }
     .width(42)
     .height(34)
-    .backgroundColor(this.post.currentUserReaction === '+1'
-      ? $r('app.color.brand_primary')
-      : $r('sys.color.background_secondary'))
-    .margin({ right: 6, bottom: 6 })
+    .backgroundColor(Color.Transparent)
     .enabled(!this.actionState.busy)
     .onClick((): void => this.onToggleReaction(this.post.id, '+1'))
     .bindContextMenu(this.ReactionPicker(), ResponseType.LongPress, {
@@ -91,25 +93,44 @@ export struct TopicPostActionBar {
     )
   }
 
-  build() {
-    Column({ space: 7 }) {
+  @Builder
+  private MoreActionsTrigger(): void {
+    Button() {
+      Text('•••')
+        .fontSize(20)
+        .fontColor(this.moreActionsExpanded
+          ? $r('app.color.brand_primary')
+          : $r('sys.color.font_secondary'))
+    }
+    .width(42)
+    .height(34)
+    .backgroundColor(Color.Transparent)
+    .onClick((): void => {
+      this.moreActionsExpanded = !this.moreActionsExpanded;
+    })
+    .accessibilityText(this.moreActionsExpanded ? '收起更多操作' : '显示更多操作')
+  }
+
+  @Builder
+  private ReplyTrigger(): void {
+    if (this.replyAvailable) {
+      Button() {
+        SymbolGlyph($r('sys.symbol.arrowshape_turn_up_left'))
+          .fontSize(19)
+          .fontColor([$r('sys.color.font_secondary')])
+      }
+      .width(42)
+      .height(34)
+      .backgroundColor(Color.Transparent)
+      .onClick(this.onReply)
+      .accessibilityText('回复此 Post')
+    }
+  }
+
+  @Builder
+  private MoreActions(): void {
+    if (this.moreActionsExpanded) {
       Flex({ direction: FlexDirection.Row, wrap: FlexWrap.Wrap, justifyContent: FlexAlign.Start }) {
-        if (this.post.acceptedAnswer) {
-          Text($r('app.string.topic_accepted_answer'))
-            .height(34)
-            .fontSize(12)
-            .fontWeight(FontWeight.Medium)
-            .fontColor($r('app.color.status_success'))
-            .padding({ left: 10, right: 10 })
-            .backgroundColor($r('sys.color.background_secondary'))
-            .borderRadius(17)
-            .margin({ right: 6, bottom: 6 })
-            .accessibilityText($r('app.string.topic_accepted_answer_accessibility'))
-        }
-        ForEach(displayedReactions(this.post.reactions), (reaction: PostReaction) => {
-          this.ReactionSummary(reaction)
-        }, (reaction: PostReaction): string => reaction.id)
-        this.ReactionTrigger()
         Button() {
           if (this.bookmarked) {
             SymbolGlyph($r('sys.symbol.bookmark_fill'))
@@ -123,9 +144,7 @@ export struct TopicPostActionBar {
         }
         .width(42)
         .height(34)
-        .backgroundColor(this.bookmarked
-          ? $r('app.color.brand_primary')
-          : $r('sys.color.background_secondary'))
+        .backgroundColor(this.bookmarked ? $r('app.color.brand_primary') : $r('sys.color.background_secondary'))
         .margin({ right: 6, bottom: 6 })
         .enabled(!this.actionState.busy)
         .onClick((): void => this.onToggleBookmark(this.post.id))
@@ -135,9 +154,7 @@ export struct TopicPostActionBar {
             .height(34)
             .fontSize(12)
             .backgroundColor($r('sys.color.background_secondary'))
-            .fontColor(this.post.acceptedAnswer
-              ? $r('app.color.status_warning')
-              : $r('app.color.status_success'))
+            .fontColor(this.post.acceptedAnswer ? $r('app.color.status_warning') : $r('app.color.status_success'))
             .margin({ right: 6, bottom: 6 })
             .enabled(!this.actionState.busy)
             .onClick((): void => this.onToggleAcceptedAnswer(this.post.id))
@@ -184,6 +201,37 @@ export struct TopicPostActionBar {
         }
       }
       .width('100%')
+      .padding({ top: 4 })
+    }
+  }
+
+  build() {
+    Column({ space: 7 }) {
+      Row({ space: 6 }) {
+        Flex({ direction: FlexDirection.Row, wrap: FlexWrap.Wrap, justifyContent: FlexAlign.Start }) {
+        if (this.post.acceptedAnswer) {
+          Text($r('app.string.topic_accepted_answer'))
+            .height(34)
+            .fontSize(12)
+            .fontWeight(FontWeight.Medium)
+            .fontColor($r('app.color.status_success'))
+            .padding({ left: 10, right: 10 })
+            .backgroundColor($r('sys.color.background_secondary'))
+            .borderRadius(17)
+            .margin({ right: 6, bottom: 6 })
+            .accessibilityText($r('app.string.topic_accepted_answer_accessibility'))
+        }
+        ForEach(displayedReactions(this.post.reactions), (reaction: PostReaction) => {
+          this.ReactionSummary(reaction)
+        }, (reaction: PostReaction): string => reaction.id)
+        }
+        .layoutWeight(1)
+        this.ReactionTrigger()
+        this.MoreActionsTrigger()
+        this.ReplyTrigger()
+      }
+      .width('100%')
+      this.MoreActions()
       if (this.actionState.postId === this.post.id && this.actionState.busy) {
         Row({ space: 6 }) {
           LoadingProgress()

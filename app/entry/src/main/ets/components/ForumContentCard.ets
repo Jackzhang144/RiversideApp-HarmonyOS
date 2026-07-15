@@ -276,7 +276,7 @@ export struct ForumContentCard {
         }, (statistic: ForumCardStatistic): string => statistic.kind)
         Blank()
       }
-      if (this.presentation.replyAction !== null) {
+      if (this.presentation.replyAction !== null && this.post === null) {
         this.ReplyAction(this.presentation.replyAction)
       }
     }
@@ -306,6 +306,7 @@ export struct ForumContentCard {
       actionState: this.postActionState,
       bookmarked: this.bookmarked,
       editable: this.editable,
+      replyAvailable: this.presentation.replyAction !== null,
       onToggleReaction: this.onToggleReaction,
       onOpenReactionUsers: this.onOpenReactionUsers,
       onToggleBookmark: this.onToggleBookmark,
@@ -313,7 +314,8 @@ export struct ForumContentCard {
       onCopyPostLink: this.onCopyPostLink,
       onReport: this.onReport,
       onEdit: this.onEdit,
-      onDelete: this.onDelete
+      onDelete: this.onDelete,
+      onReply: (): void => this.onReply(this.presentation.replyAction?.targetPostNumber ?? null)
     })
   }
 
@@ -326,8 +328,8 @@ export struct ForumContentCard {
         this.ReplyTarget(this.post, this.post.replyToPostNumber)
       }
       this.Content()
-      if (this.presentation.footerBadge !== null || this.presentation.statistics.length > 0 ||
-        this.presentation.replyAction !== null) {
+      if (this.post === null && (this.presentation.footerBadge !== null || this.presentation.statistics.length > 0 ||
+        this.presentation.replyAction !== null)) {
         this.Footer()
       }
       this.Restriction()
