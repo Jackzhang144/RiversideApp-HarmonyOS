@@ -196,6 +196,7 @@ export struct TopicDetailPage {
         presentation: ForumCardPresentation.topicStarter(detail, post, this.replyState.draft, this.canReplyHere()),
         richCooked: post?.cooked ?? '',
         richRaw: post?.raw ?? '',
+        authorActionAvailable: true,
         onOpenRichLink: (url: string): void => this.onOpenRichLink(url),
         onOpenRichEmbed: (url: string, provider: RichEmbedProvider, title: string): void =>
           this.onOpenRichEmbed(url, provider, title),
@@ -266,6 +267,7 @@ export struct TopicDetailPage {
         presentation: ForumCardPresentation.reply(post, this.canReplyHere()),
         richCooked: post.cooked,
         richRaw: post.raw,
+        authorActionAvailable: true,
         onOpenRichLink: (url: string): void => this.onOpenRichLink(url),
         onOpenRichEmbed: (url: string, provider: RichEmbedProvider, title: string): void =>
           this.onOpenRichEmbed(url, provider, title),

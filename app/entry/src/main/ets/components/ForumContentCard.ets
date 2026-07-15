@@ -16,6 +16,7 @@ export struct ForumContentCard {
   @Require @Prop presentation: ForumCardPresentation;
   @Prop richCooked: string = '';
   @Prop richRaw: string = '';
+  @Prop authorActionAvailable: boolean = false;
   onOpenTopic: () => void = (): void => {};
   onReply: (postNumber: number | null) => void = (_postNumber: number | null): void => {};
   onOpenRichLink: (url: string) => void = (_url: string): void => {};
@@ -67,9 +68,15 @@ export struct ForumContentCard {
       }
     }
     .width('100%')
-    .enabled(author.username.length > 0)
-    .onClick((): void => this.onOpenAuthor(author.username))
-    .accessibilityText(author.username.length > 0 ? `查看用户 ${author.username}` : author.name)
+    .enabled(this.authorActionAvailable && author.username.length > 0)
+    .onClick((): void => {
+      if (this.authorActionAvailable && author.username.length > 0) {
+        this.onOpenAuthor(author.username);
+      }
+    })
+    .accessibilityText(
+      this.authorActionAvailable && author.username.length > 0 ? `查看用户 ${author.username}` : author.name
+    )
   }
 
   @Builder
