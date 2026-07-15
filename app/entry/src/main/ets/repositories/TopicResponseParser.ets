@@ -124,7 +124,108 @@ function decodeStrings(source: JsonObjectReader, name: string): Array<string> {
   return strings;
 }
 
-function topicFromReader(topic: JsonObjectReader): Topic | null {
+class TopicUserProfile {
+  public readonly id: number | null;
+  public readonly username: string;
+  public readonly avatarTemplate: string;
+
+  public constructor(id: number | null, username: string, avatarTemplate: string) {
+    this.id = id;
+    this.username = username;
+    this.avatarTemplate = avatarTemplate;
+  }
+
+  public hasDisplayData(): boolean {
+    return this.username.length > 0 || this.avatarTemplate.length > 0;
+  }
+}
+
+function topicUserProfileFromReader(user: JsonObjectReader): TopicUserProfile {
+  return new TopicUserProfile(
+    user.number('id') ?? user.number('user_id'),
+    textOrEmpty(user.string('username')),
+    textOrEmpty(user.string('avatar_template'))
+  );
+}
+
+function decodeTopicUserProfiles(source: JsonObjectReader): Array<TopicUserProfile> {
+  const values: Array<Object | null> | null = source.array('users');
+  const users: Array<TopicUserProfile> = [];
+  if (values === null) {
+    return users;
+  }
+  for (const value of values) {
+    const user: JsonObjectReader | null = JsonObjectReader.fromValue(value);
+    if (user !== null) {
+      users.push(topicUserProfileFromReader(user));
+    }
+  }
+  return users;
+}
+
+function decodeTopicPosters(topic: JsonObjectReader): Array<JsonObjectReader> {
+  const values: Array<Object | null> | null = topic.array('posters');
+  const posters: Array<JsonObjectReader> = [];
+  if (values === null) {
+    return posters;
+  }
+  for (const value of values) {
+    const poster: JsonObjectReader | null = JsonObjectReader.fromValue(value);
+    if (poster !== null) {
+      posters.push(poster);
+    }
+  }
+  return posters;
+}
+
+function userProfileForPoster(
+  poster: JsonObjectReader,
+  users: Array<TopicUserProfile>
+): TopicUserProfile | null {
+  const userId: number | null = poster.number('user_id');
+  if (userId !== null) {
+    for (const user of users) {
+      if (user.id === userId && user.hasDisplayData()) {
+        return user;
+      }
+    }
+  }
+  const nestedUser: JsonObjectReader | null = poster.object('user');
+  if (nestedUser !== null) {
+    const nestedProfile: TopicUserProfile = topicUserProfileFromReader(nestedUser);
+    if (nestedProfile.hasDisplayData()) {
+      return nestedProfile;
+    }
+  }
+  const posterProfile: TopicUserProfile = topicUserProfileFromReader(poster);
+  return posterProfile.hasDisplayData() ? posterProfile : null;
+}
+
+function topicAuthor(topic: JsonObjectReader, envelopeUsers: Array<TopicUserProfile>): TopicUserProfile {
+  const users: Array<TopicUserProfile> = [];
+  for (const user of envelopeUsers) {
+    users.push(user);
+  }
+  for (const user of decodeTopicUserProfiles(topic)) {
+    users.push(user);
+  }
+  const posters: Array<JsonObjectReader> = decodeTopicPosters(topic);
+  if (posters.length > 0) {
+    const author: TopicUserProfile | null = userProfileForPoster(posters[0], users);
+    if (author !== null) {
+      return author;
+    }
+    for (const poster of posters) {
+      const fallback: TopicUserProfile | null = userProfileForPoster(poster, users);
+      if (fallback !== null) {
+        return fallback;
+      }
+    }
+  }
+  return topicUserProfileFromReader(topic);
+}
+
+function topicFromReader(topic: JsonObjectReader, envelopeUsers: Array<TopicUserProfile>): Topic | null {
   const id: number | null = topic.number('id');
   const title: string = textOrEmpty(topic.string('title')).length > 0
     ? textOrEmpty(topic.string('title'))
@@ -132,6 +233,7 @@ function topicFromReader(topic: JsonObjectReader): Topic | null {
   if (id === null || id <= 0 || title.length === 0) {
     return null;
   }
+  const author: TopicUserProfile = topicAuthor(topic, envelopeUsers);
   return new Topic(
     id,
     title,
@@ -140,10 +242,10 @@ function topicFromReader(topic: JsonObjectReader): Topic | null {
     numberOrZero(topic.number('views')),
     numberOrZero(topic.number('like_count')),
     textOrEmpty(topic.string('excerpt')),
-    textOrEmpty(topic.string('last_posted_at')),
+    textOrEmpty(topic.string('last_posted_at') ?? topic.string('bumped_at')),
     booleanOrFalse(topic.boolean('pinned')),
-    textOrEmpty(topic.string('last_poster_username')),
-    textOrEmpty(topic.string('avatar_template') ?? topic.string('last_poster_avatar_template'))
+    author.username,
+    author.avatarTemplate
   );
 }
 
@@ -153,9 +255,10 @@ function decodeSuggestedTopics(envelope: JsonObjectReader): Array<Topic> {
   if (values === null) {
     return topics;
   }
+  const users: Array<TopicUserProfile> = decodeTopicUserProfiles(envelope);
   for (const value of values) {
     const reader: JsonObjectReader | null = JsonObjectReader.fromValue(value);
-    const topic: Topic | null = reader === null ? null : topicFromReader(reader);
+    const topic: Topic | null = reader === null ? null : topicFromReader(reader, users);
     if (topic !== null) {
       topics.push(topic);
     }

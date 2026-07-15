@@ -277,7 +277,9 @@ export default function discourseForumRepositoryTest(): void {
           '"closed":false,"archived":false,"can_edit":true,"last_read_post_number":1,' +
           '"highest_post_number":2,"valid_reactions":["heart","+1"],' +
           '"details":{"can_create_post":false,"created_by":{"username":"admin"}},' +
-          '"suggested_topics":[{"id":2800,"title":"推荐 Topic","category_id":111,"posts_count":4}],' +
+          '"users":[{"id":88,"username":"主题作者","avatar_template":"/user_avatar/river-side.cc/author/{size}/1_2.png"}],' +
+          '"suggested_topics":[{"id":2800,"title":"推荐 Topic","category_id":111,"posts_count":4,' +
+          '"last_poster_username":"最后回复者","posters":[{"user_id":88,"extras":"original"}]}],' +
           '"post_stream":{"stream":[102728,102729],"posts":[' +
           '{"id":102728,"user_id":24,"username":"Co-admin","user_title":"管理员",' +
           '"avatar_template":"/user_avatar/river-side.cc/co-admin/{size}/1_2.png",' +
@@ -300,6 +302,10 @@ export default function discourseForumRepositoryTest(): void {
         expect(result.data?.validReactions.join(',')).assertEqual('heart,+1');
         expect(result.data?.lastReadPostNumber).assertEqual(1);
         expect(result.data?.suggestedTopics[0].id).assertEqual(2800);
+        expect(result.data?.suggestedTopics[0].username).assertEqual('主题作者');
+        expect(result.data?.suggestedTopics[0].avatarUrl).assertEqual(
+          'https://river-side.cc/user_avatar/river-side.cc/author/64/1_2.png'
+        );
         expect(result.data?.posts[0].likeCount).assertEqual(2);
         expect(result.data?.posts[0].currentUserReaction).assertEqual('heart');
         expect(result.data?.posts[0].bookmarked).assertTrue();
@@ -354,7 +360,9 @@ export default function discourseForumRepositoryTest(): void {
     it('loads suggested Topics from the untracked full Topic fallback', 0, async (done: Function) => {
       const client: StubForumHttpClient = new StubForumHttpClient();
       client.results.push(HttpTextResult.success(200,
-        '{"suggested_topics":[{"id":2800,"title":"推荐 Topic","category_id":111,"posts_count":4}]}'
+        '{"suggested_topics":[{"id":2800,"title":"推荐 Topic","category_id":111,"posts_count":4,' +
+        '"posters":[{"user_id":99,"user":{"id":99,"username":"内嵌作者",' +
+        '"avatar_template":"/user_avatar/river-side.cc/nested/{size}/1_2.png"}}]}]}'
       ));
       const repository: DiscourseForumRepository = new DiscourseForumRepository(client);
 
@@ -363,6 +371,7 @@ export default function discourseForumRepositoryTest(): void {
       expect(client.paths[0]).assertEqual('/t/2725.json');
       expect(result.kind).assertEqual(RepositoryResultKind.SUCCESS);
       expect(result.data?.[0].id).assertEqual(2800);
+      expect(result.data?.[0].username).assertEqual('内嵌作者');
       done();
     });
 
