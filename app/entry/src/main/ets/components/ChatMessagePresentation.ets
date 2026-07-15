@@ -1,4 +1,4 @@
-import { ChatEmoji, ChatMessage } from '../models/ChatModels';
+import { ChatChannel, ChatEmoji, ChatMessage } from '../models/ChatModels';
 
 const CHAT_MESSAGE_GROUP_WINDOW_MILLISECONDS: number = 5 * 60 * 1000;
 
@@ -27,6 +27,76 @@ export class ChatMessageFragment {
   public static emoji(token: string, imageUrl: string): ChatMessageFragment {
     return new ChatMessageFragment(ChatMessageFragmentKind.EMOJI, token, imageUrl);
   }
+}
+
+export class ChatMessageContextCapabilities {
+  public readonly canReply: boolean;
+  public readonly canCopyLink: boolean;
+  public readonly canMention: boolean;
+  public readonly canReact: boolean;
+  public readonly canDelete: boolean;
+  public readonly canRestore: boolean;
+
+  public constructor(
+    canReply: boolean,
+    canCopyLink: boolean,
+    canMention: boolean,
+    canReact: boolean,
+    canDelete: boolean,
+    canRestore: boolean
+  ) {
+    this.canReply = canReply;
+    this.canCopyLink = canCopyLink;
+    this.canMention = canMention;
+    this.canReact = canReact;
+    this.canDelete = canDelete;
+    this.canRestore = canRestore;
+  }
+}
+
+export function resolveChatMessageContextCapabilities(
+  message: ChatMessage,
+  channel: ChatChannel | null,
+  currentUsername: string,
+  hasEmojis: boolean
+): ChatMessageContextCapabilities {
+  const canWrite: boolean = channel !== null && !channel.userSilenced;
+  const canModerate: boolean = channel !== null && (message.username === currentUsername
+    ? channel.canDeleteSelf
+    : channel.canDeleteOthers);
+  return new ChatMessageContextCapabilities(
+    !message.deleted && canWrite,
+    channel !== null,
+    !message.deleted && canWrite && message.username.length > 0,
+    !message.deleted && canWrite && hasEmojis,
+    !message.deleted && canModerate,
+    message.deleted && canModerate
+  );
+}
+
+export function selectQuickChatEmojis(
+  emojis: Array<ChatEmoji>,
+  preferredNames: Array<string>,
+  limit: number
+): Array<ChatEmoji> {
+  const normalizedLimit: number = Math.max(0, Math.floor(limit));
+  const selected: Array<ChatEmoji> = [];
+  preferredNames.forEach((name: string): void => {
+    if (selected.length >= normalizedLimit) {
+      return;
+    }
+    const emoji: ChatEmoji | null = emojis.find((candidate: ChatEmoji): boolean => candidate.name === name) ?? null;
+    if (emoji !== null && !selected.some((candidate: ChatEmoji): boolean => candidate.name === emoji.name)) {
+      selected.push(emoji);
+    }
+  });
+  emojis.forEach((emoji: ChatEmoji): void => {
+    if (selected.length < normalizedLimit &&
+      !selected.some((candidate: ChatEmoji): boolean => candidate.name === emoji.name)) {
+      selected.push(emoji);
+    }
+  });
+  return selected;
 }
 
 function emojiForName(emojis: Array<ChatEmoji>, name: string): ChatEmoji | null {

@@ -1,3 +1,4 @@
+import { SymbolGlyphModifier } from '@kit.ArkUI';
 import { ChatComposerState, ChatConversationState, ChatStateKind } from '../app/ChatStateModels';
 import { RepositoryResult, RepositoryResultKind } from '../core/RepositoryResult';
 import { ComposerEdit } from '../models/AuthoringModels';
@@ -18,18 +19,27 @@ import {
 } from '../models/ChatModels';
 import { MediaUploadResult, MediaUploadState, MediaUploadStateKind } from '../models/MediaModels';
 import {
+  ChatMessageContextCapabilities,
   ChatMessageFragment,
   ChatMessageFragmentKind,
   formatChatMessageTimestamp,
   isChatMessageGroupStart,
   presentChatMessageBody,
-  presentChatText
+  presentChatText,
+  resolveChatMessageContextCapabilities,
+  selectQuickChatEmojis
 } from './ChatMessagePresentation';
 
-const CHAT_MESSAGE_LONG_PRESS_DURATION_MILLISECONDS: number = 450;
-const CHAT_REACTION_SHEET_DELAY_MILLISECONDS: number = 120;
-const CHAT_REACTION_ACTION_LIMIT: number = 20;
-const CHAT_ACTION_MESSAGE_PREVIEW_LENGTH: number = 100;
+const CHAT_QUICK_REACTION_LIMIT: number = 5;
+const CHAT_REACTION_SUBMENU_LIMIT: number = 20;
+const CHAT_QUICK_REACTION_PREFERRED_NAMES: Array<string> = [
+  'heart',
+  '+1',
+  '-1',
+  'laughing',
+  'open_mouth',
+  'thinking'
+];
 
 @Component
 export struct ChatConversationPage {
@@ -197,18 +207,33 @@ export struct ChatConversationPage {
     return emoji?.imageUrl() ?? '';
   }
 
-  private canDelete(message: ChatMessage): boolean {
-    const channel: ChatChannel | null = this.state.channel;
-    if (channel === null) {
-      return false;
-    }
-    return message.username === this.currentUsername
-      ? channel.canDeleteSelf
-      : channel.canDeleteOthers;
-  }
-
   private canWrite(): boolean {
     return this.state.channel !== null && !this.state.channel.userSilenced;
+  }
+
+  private messageContextCapabilities(message: ChatMessage): ChatMessageContextCapabilities {
+    return resolveChatMessageContextCapabilities(
+      message,
+      this.state.channel,
+      this.currentUsername,
+      this.emojis.length > 0
+    );
+  }
+
+  private quickReactionEmojis(): Array<ChatEmoji> {
+    return selectQuickChatEmojis(
+      this.emojis,
+      CHAT_QUICK_REACTION_PREFERRED_NAMES,
+      CHAT_QUICK_REACTION_LIMIT
+    );
+  }
+
+  private reactionSubmenuEmojis(): Array<ChatEmoji> {
+    return selectQuickChatEmojis(
+      this.emojis,
+      CHAT_QUICK_REACTION_PREFERRED_NAMES,
+      CHAT_REACTION_SUBMENU_LIMIT
+    );
   }
 
   private visibleEmojis(): Array<ChatEmoji> {
@@ -226,80 +251,26 @@ export struct ChatConversationPage {
     return username.slice(0, 1).toUpperCase();
   }
 
-  private showReactionActions(message: ChatMessage): void {
-    const sheets: Array<SheetInfo> = this.emojis.slice(0, CHAT_REACTION_ACTION_LIMIT)
-      .map((emoji: ChatEmoji): SheetInfo => {
-      return {
-        title: `:${emoji.name}:`,
-        icon: emoji.imageUrl(),
-        action: (): void => this.onReact(message.id, emoji.name, ChatReactionAction.ADD)
-      };
-      });
-    if (sheets.length === 0) {
-      return;
+  private copyMessageLink(message: ChatMessage): void {
+    const channel: ChatChannel | null = this.state.channel;
+    if (channel !== null) {
+      this.onCopyMessageLink(channel.id, channel.slug, message.id);
     }
-    this.getUIContext().showActionSheet({
-      title: $r('app.string.chat_reaction_add'),
-      message: `回应 ${this.displayUsername(message)} 的消息`,
-      sheets: sheets,
-      cancel: (): void => {}
+  }
+
+  private messageHasReaction(message: ChatMessage, emoji: ChatEmoji): boolean {
+    return message.reactions.some((reaction: ChatReaction): boolean => {
+      const reactionName: string = reaction.emoji.replace(/reaction\.|emoji\.|:/g, '');
+      return reactionName === emoji.name && reaction.reacted;
     });
   }
 
-  private showMessageActions(message: ChatMessage): void {
-    const channel: ChatChannel | null = this.state.channel;
-    const sheets: Array<SheetInfo> = [];
-    if (!message.deleted && this.canWrite()) {
-      sheets.push({
-        title: $r('app.string.action_reply'),
-        action: (): void => this.onReply(message.id)
-      });
-    }
-    sheets.push({
-      title: $r('app.string.action_copy'),
-      action: (): void => this.onCopyMessage(message.message)
-    });
-    if (channel !== null) {
-      sheets.push({
-        title: $r('app.string.action_copy_link'),
-        action: (): void => this.onCopyMessageLink(channel.id, channel.slug, message.id)
-      });
-    }
-    if (!message.deleted && this.canWrite() && message.username.length > 0) {
-      sheets.push({
-        title: `@${message.username}`,
-        action: (): void => this.onMention(message.username)
-      });
-    }
-    if (!message.deleted && this.canWrite() && this.emojis.length > 0) {
-      sheets.push({
-        title: $r('app.string.chat_reaction_add'),
-        action: (): void => {
-          setTimeout(
-            (): void => this.showReactionActions(message),
-            CHAT_REACTION_SHEET_DELAY_MILLISECONDS
-          );
-        }
-      });
-    }
-    if (this.canDelete(message)) {
-      sheets.push({
-        title: message.deleted ? $r('app.string.action_restore') : $r('app.string.action_delete'),
-        action: (): void => {
-          if (message.deleted) {
-            this.onRestore(message.id);
-          } else {
-            this.onDelete(message.id);
-          }
-        }
-      });
-    }
-    this.getUIContext().showActionSheet({
-      title: this.displayUsername(message),
-      message: message.displayText().slice(0, CHAT_ACTION_MESSAGE_PREVIEW_LENGTH),
-      sheets: sheets,
-      cancel: (): void => {}
-    });
+  private toggleQuickReaction(message: ChatMessage, emoji: ChatEmoji): void {
+    this.onReact(
+      message.id,
+      emoji.name,
+      this.messageHasReaction(message, emoji) ? ChatReactionAction.REMOVE : ChatReactionAction.ADD
+    );
   }
 
   private showChannelActions(): void {
@@ -316,6 +287,128 @@ export struct ChatConversationPage {
       }],
       cancel: (): void => {}
     });
+  }
+
+  @Builder
+  private QuickReactionButton(message: ChatMessage, emoji: ChatEmoji): void {
+    Button() {
+      Image(emoji.imageUrl())
+        .width(24)
+        .height(24)
+        .objectFit(ImageFit.Contain)
+    }
+    .width(40)
+    .height(40)
+    .borderRadius(20)
+    .backgroundColor(this.messageHasReaction(message, emoji)
+      ? $r('app.color.brand_selected_surface')
+      : Color.Transparent)
+    .gesture(TapGesture().onAction((): void => this.toggleQuickReaction(message, emoji)))
+    .accessibilityText(`使用 ${emoji.name} 回应`)
+  }
+
+  @Builder
+  private QuickReactionBar(message: ChatMessage): void {
+    Row({ space: 4 }) {
+      ForEach(this.quickReactionEmojis(), (emoji: ChatEmoji): void => {
+        this.QuickReactionButton(message, emoji)
+      }, (emoji: ChatEmoji): string => emoji.name)
+    }
+    .width(236)
+    .height(54)
+    .padding({ left: 7, right: 7 })
+    .justifyContent(FlexAlign.Center)
+    .backgroundColor($r('sys.color.comp_background_primary'))
+    .border({ width: 1, color: $r('sys.color.comp_divider') })
+    .borderRadius(27)
+  }
+
+  @Builder
+  private ReactionSubmenu(message: ChatMessage): void {
+    Menu() {
+      ForEach(this.reactionSubmenuEmojis(), (emoji: ChatEmoji): void => {
+        MenuItem({
+          startIcon: emoji.imageUrl(),
+          content: `:${emoji.name}:`
+        })
+          .onClick((): void => this.toggleQuickReaction(message, emoji))
+      }, (emoji: ChatEmoji): string => emoji.name)
+    }
+  }
+
+  @Builder
+  private MessageContextMenu(
+    message: ChatMessage,
+    capabilities: ChatMessageContextCapabilities
+  ): void {
+    Menu() {
+      if (capabilities.canReact) {
+        MenuItem(this.QuickReactionBar(message))
+          .padding(0)
+          .margin({ bottom: 9 })
+          .backgroundColor(Color.Transparent)
+      }
+      MenuItemGroup() {
+        if (capabilities.canReply) {
+          MenuItem({
+            symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.arrowshape_turn_up_left')),
+            content: $r('app.string.action_reply')
+          })
+            .onClick((): void => this.onReply(message.id))
+        }
+        if (capabilities.canReact) {
+          MenuItem({
+            startIcon: this.quickReactionEmojis()[0].imageUrl(),
+            content: $r('app.string.chat_reaction_add'),
+            builder: this.ReactionSubmenu(message)
+          })
+        }
+        MenuItem({
+          symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.square_and_square')),
+          content: $r('app.string.action_copy')
+        })
+          .onClick((): void => this.onCopyMessage(message.message))
+        if (capabilities.canCopyLink) {
+          MenuItem({
+            symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.link')),
+            content: $r('app.string.action_copy_link')
+          })
+            .onClick((): void => this.copyMessageLink(message))
+        }
+        if (capabilities.canMention) {
+          MenuItem({
+            symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.at')),
+            content: `@${message.username}`
+          })
+            .onClick((): void => this.onMention(message.username))
+        }
+        if (capabilities.canDelete || capabilities.canRestore) {
+          MenuItem({
+            symbolStartIcon: new SymbolGlyphModifier(capabilities.canRestore
+              ? $r('sys.symbol.arrow_clockwise')
+              : $r('sys.symbol.trash')),
+            content: capabilities.canRestore
+              ? $r('app.string.action_restore')
+              : $r('app.string.action_delete')
+          })
+            .contentFontColor($r('app.color.status_error'))
+            .onClick((): void => {
+              if (capabilities.canRestore) {
+                this.onRestore(message.id);
+              } else {
+                this.onDelete(message.id);
+              }
+            })
+        }
+      }
+      .width(288)
+      .backgroundColor($r('sys.color.comp_background_primary'))
+      .border({ width: 1, color: $r('sys.color.comp_divider') })
+      .borderRadius(18)
+      .clip(true)
+    }
+    .width(300)
+    .backgroundColor(Color.Transparent)
   }
 
   @Builder
@@ -501,9 +594,26 @@ export struct ChatConversationPage {
       width: message.username === this.currentUsername ? 0 : 1,
       color: $r('sys.color.comp_divider')
     })
-    .gesture(
-      LongPressGesture({ duration: CHAT_MESSAGE_LONG_PRESS_DURATION_MILLISECONDS })
-        .onAction((): void => this.showMessageActions(message))
+    .bindContextMenu(
+      this.MessageContextMenu(message, this.messageContextCapabilities(message)),
+      ResponseType.LongPress,
+      {
+        preview: MenuPreviewMode.IMAGE,
+        previewBorderRadius: 14,
+        previewScaleMode: PreviewScaleMode.MAINTAIN,
+        previewAnimationOptions: {
+          scale: [0.98, 1.0],
+          hoverScale: [1.0, 1.02],
+          hoverScaleInterruption: true
+        },
+        placement: message.username === this.currentUsername ? Placement.TopRight : Placement.TopLeft,
+        layoutRegionMargin: { left: 12, right: 12, top: 16, bottom: 16 },
+        backgroundColor: Color.Transparent,
+        backgroundBlurStyle: BlurStyle.NONE,
+        borderRadius: 0,
+        mask: true,
+        hapticFeedbackMode: HapticFeedbackMode.ENABLED
+      }
     )
     .accessibilityText(`${this.displayUsername(message)}：${message.displayText()}，长按显示消息操作`)
   }
