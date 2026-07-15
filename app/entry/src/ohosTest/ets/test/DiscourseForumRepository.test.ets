@@ -1,7 +1,7 @@
 import { describe, expect, it } from '@ohos/hypium';
 import { RepositoryResult, RepositoryResultKind } from '../../../main/ets/core/RepositoryResult';
 import { ForumPost, Topic, TopicDetail, TopicPostBatch } from '../../../main/ets/models/ForumModels';
-import { ForumSearchResult, HomeChannel } from '../../../main/ets/models/DiscoveryModels';
+import { ForumSearchResult, HomeChannel, OnlineUsers } from '../../../main/ets/models/DiscoveryModels';
 import {
   CreateTopicRequest,
   DraftWriteRequest,
@@ -104,6 +104,30 @@ export default function discourseForumRepositoryTest(): void {
       expect(client.paths[2]).assertEqual('/new.json?page=1');
       expect(client.paths[3]).assertEqual('/hot.json?page=3');
       expect(client.paths[4]).assertEqual('/tag/2-tag/2.json?page=4');
+      done();
+    });
+
+    it('loads and parses the Flutter-compatible online user contract', 0, async (done: Function) => {
+      const client: StubForumHttpClient = new StubForumHttpClient();
+      client.results.push(HttpTextResult.success(200,
+        '{"whos_online_state":{"count":3,"last_message_id":91,"users":[' +
+        '{"id":7,"username":"river","name":"河畔","avatar_template":"/user_avatar/river-side.cc/river/{size}/1.png"},' +
+        '{"id":8,"username":"bank","name":"","avatar_template":""}]}}'
+      ));
+      const repository: DiscourseForumRepository = new DiscourseForumRepository(client);
+
+      const result: RepositoryResult<OnlineUsers> = await repository.loadOnlineUsers();
+
+      expect(client.paths[0]).assertEqual('/site.json');
+      expect(result.isSuccess()).assertTrue();
+      expect(result.data?.count).assertEqual(3);
+      expect(result.data?.lastMessageId).assertEqual(91);
+      expect(result.data?.users.length).assertEqual(2);
+      expect(result.data?.users[0].displayName).assertEqual('河畔');
+      expect(result.data?.users[0].avatarUrl).assertEqual(
+        'https://river-side.cc/user_avatar/river-side.cc/river/96/1.png'
+      );
+      expect(result.data?.users[1].displayName).assertEqual('bank');
       done();
     });
 

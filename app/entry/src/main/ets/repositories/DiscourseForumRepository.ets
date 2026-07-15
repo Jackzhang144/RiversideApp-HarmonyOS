@@ -1,6 +1,6 @@
 import { RepositoryResult } from '../core/RepositoryResult';
 import { Category, ForumPost, Topic, TopicDetail, TopicPostBatch } from '../models/ForumModels';
-import { ForumSearchResult, HomeChannel, homeChannelPath } from '../models/DiscoveryModels';
+import { ForumSearchResult, HomeChannel, homeChannelPath, OnlineUsers } from '../models/DiscoveryModels';
 import {
   CreateTopicRequest,
   DraftWriteRequest,
@@ -493,6 +493,17 @@ export class DiscourseForumRepository implements
       return RepositoryResult.failure<Array<string>>(response.message);
     }
     return this.parser.parseSearchSuggestions(response.body);
+  }
+
+  public async loadOnlineUsers(): Promise<RepositoryResult<OnlineUsers>> {
+    const response: HttpTextResult = await this.client.get('/site.json');
+    if (response.kind === HttpTextResultKind.UNAUTHORIZED) {
+      return RepositoryResult.unauthorized<OnlineUsers>();
+    }
+    if (!response.isSuccess()) {
+      return RepositoryResult.failure<OnlineUsers>(response.message);
+    }
+    return this.parser.parseOnlineUsers(response.body);
   }
 
   public async loadTopicDetail(

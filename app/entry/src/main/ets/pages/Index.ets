@@ -62,6 +62,7 @@ import {
 } from '../components/ForumComposerPresentation';
 import { LoginPage } from '../components/LoginPage';
 import { SearchPage } from '../components/SearchPage';
+import { OnlineUsersPage } from '../components/OnlineUsersPage';
 import { SecureRichEmbedPage } from '../components/SecureRichEmbedPage';
 import { TopicDetailPage } from '../components/TopicDetailPage';
 import { UserProfileSummaryPage } from '../components/UserProfileSummaryPage';
@@ -79,7 +80,7 @@ import {
   ChatSearchResult
 } from '../models/ChatModels';
 import { NotificationBucket, NotificationItem } from '../models/NotificationModels';
-import { HomeChannel, SearchPost, SearchUser } from '../models/DiscoveryModels';
+import { HomeChannel, OnlineUser, OnlineUsers, SearchPost, SearchUser } from '../models/DiscoveryModels';
 import { CurrentUser } from '../models/ReplyModels';
 import { ServerDraft } from '../models/AuthoringModels';
 import {
@@ -120,6 +121,7 @@ const CATEGORY_TOPICS_ROUTE: string = 'category-topics';
 const TOPIC_ROUTE: string = 'topic';
 const LOGIN_ROUTE: string = 'login';
 const SEARCH_ROUTE: string = 'search';
+const ONLINE_USERS_ROUTE: string = 'online-users';
 const TOPIC_COMPOSER_ROUTE: string = 'topic-composer';
 const USER_PROFILE_ROUTE: string = 'user-profile';
 const PROFILE_EDITOR_ROUTE: string = 'profile-editor';
@@ -159,6 +161,7 @@ struct Index {
   private snackBar: HdsSnackBar | null = null;
   private richEmbedController: webview.WebviewController = new webview.WebviewController();
   private mediaGalleryService: MediaGalleryService | null = null;
+  private forumRepository: DiscourseForumRepository | null = null;
 
   @Env(SystemProperties.WINDOW_AVOID_AREA) avoidAreasVp: window.UIEnvWindowAvoidAreaInfoVP;
   @State selectedRoot: RootDestination = RootDestination.HOME;
@@ -183,6 +186,8 @@ struct Index {
   @State accountIdentityError: string = '';
   @State accountProfileState: ProfileViewState = ProfileViewState.initial();
   @State searchState: SearchState = SearchState.initial();
+  @State onlineUsersState: BrowseState<OnlineUser> = BrowseState.initial<OnlineUser>();
+  @State onlineUserCount: number = 0;
   @State searchSuggestionState: SearchSuggestionState = SearchSuggestionState.initial();
   @State chatChannelState: ChatChannelState = ChatChannelState.initial();
   @State chatConversationState: ChatConversationState = ChatConversationState.initial();
@@ -251,6 +256,7 @@ struct Index {
     const forumRepository: DiscourseForumRepository = new DiscourseForumRepository(
       new DiscourseHttpClient(RIVERSIDE_BASE_URL, sessionProvider)
     );
+    this.forumRepository = forumRepository;
     const mediaRepository: DiscourseMediaRepository = new DiscourseMediaRepository(
       new DiscourseMediaTransport(RIVERSIDE_BASE_URL, sessionProvider)
     );
@@ -285,6 +291,7 @@ struct Index {
     this.model = model;
     this.refreshAccountIdentity();
     this.loadHome();
+    this.loadOnlineUsers();
     this.loadCategories();
   }
 
@@ -418,6 +425,30 @@ struct Index {
     this.homeState = model.homeState;
     await task;
     this.homeState = model.homeState;
+  }
+
+  private async loadOnlineUsers(): Promise<void> {
+    const repository: DiscourseForumRepository | null = this.forumRepository;
+    if (repository === null) {
+      return;
+    }
+    this.onlineUsersState = BrowseState.loading<OnlineUser>();
+    const result: RepositoryResult<OnlineUsers> = await repository.loadOnlineUsers();
+    if (!result.isSuccess() || result.data === null) {
+      this.onlineUsersState = BrowseState.error<OnlineUser>(result.message);
+      this.onlineUserCount = 0;
+      return;
+    }
+    this.onlineUserCount = result.data.count;
+    this.onlineUsersState = result.data.users.length === 0
+      ? BrowseState.empty<OnlineUser>()
+      : BrowseState.content<OnlineUser>(result.data.users);
+  }
+
+  private openOnlineUsers(): void {
+    if (this.onlineUsersState.kind === BrowseStateKind.CONTENT) {
+      this.pathStack.pushPath({ name: ONLINE_USERS_ROUTE });
+    }
   }
 
   private async refreshHome(): Promise<void> {
@@ -1917,7 +1948,25 @@ struct Index {
 
   @Builder
   private SecondaryPage(name: string, _param: Object): void {
-    if (name === CATEGORY_TOPICS_ROUTE) {
+    if (name === ONLINE_USERS_ROUTE) {
+      HdsNavDestination() {
+        OnlineUsersPage({
+          count: this.onlineUserCount,
+          users: this.onlineUsersState.items,
+          onOpenUser: (user: OnlineUser): void => {
+            this.openUserProfile(user.username);
+          }
+        })
+      }
+      .titleBar({
+        enableComponentSafeArea: true,
+        content: {
+          title: { mainTitle: `在线用户（${this.onlineUserCount}）` },
+          backIcon: { label: '返回首页' }
+        }
+      })
+      .onBackPressed((): boolean => this.handleSecondaryBack())
+    } else if (name === CATEGORY_TOPICS_ROUTE) {
       HdsNavDestination() {
         CategoryTopicsPage({
           state: this.categoryTopicsState,
@@ -2435,11 +2484,20 @@ struct Index {
             selectedChannel: this.selectedHomeChannel,
             worldCupEntryEnabled: this.worldCupEntryEnabled,
             newTopicAvailable: this.canCreateAuthoringTopic(),
+            onlineUsersState: this.onlineUsersState,
+            onlineUserCount: this.onlineUserCount,
+            onOpenOnlineUsers: (): void => {
+              this.openOnlineUsers();
+            },
+            onRetryOnlineUsers: (): void => {
+              this.loadOnlineUsers();
+            },
             onRetry: (): void => {
               this.loadHome();
             },
             onRefresh: (): void => {
               this.refreshHome();
+              this.loadOnlineUsers();
             },
             onLoadMore: (): void => {
               this.loadMoreHome();

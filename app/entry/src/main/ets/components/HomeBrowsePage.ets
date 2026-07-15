@@ -1,6 +1,6 @@
 import { HdsTabs } from '@kit.UIDesignKit';
 import { BrowseState, BrowseStateKind } from '../app/AppShellModel';
-import { HomeChannel, homeChannelLabel } from '../models/DiscoveryModels';
+import { HomeChannel, homeChannelLabel, OnlineUser } from '../models/DiscoveryModels';
 import { Category, Topic } from '../models/ForumModels';
 import { ForumCardPresentation } from './ForumCardPresentation';
 import { ForumContentCard } from './ForumContentCard';
@@ -13,6 +13,8 @@ export struct HomeBrowsePage {
   @Prop selectedChannel: HomeChannel = HomeChannel.LATEST_REPLIES;
   @Prop worldCupEntryEnabled: boolean = true;
   @Prop newTopicAvailable: boolean = true;
+  @Prop onlineUsersState: BrowseState<OnlineUser> = BrowseState.initial<OnlineUser>();
+  @Prop onlineUserCount: number = 0;
   onRetry: () => void = (): void => {};
   onRefresh: () => void = (): void => {};
   onLoadMore: () => void = (): void => {};
@@ -21,6 +23,89 @@ export struct HomeBrowsePage {
   onOpenNewTopic: () => void = (): void => {};
   onSelectChannel: (index: number) => void = (_index: number): void => {};
   onWorldCupEntryChange: (enabled: boolean) => void = (_enabled: boolean): void => {};
+  onOpenOnlineUsers: () => void = (): void => {};
+  onRetryOnlineUsers: () => void = (): void => {};
+
+  @Builder
+  private onlineAvatar(user: OnlineUser): void {
+    Stack() {
+      Text(user.username.slice(0, 1).toUpperCase())
+        .width(28)
+        .height(28)
+        .fontSize(10)
+        .fontWeight(FontWeight.Bold)
+        .fontColor('#317AF7')
+        .textAlign(TextAlign.Center)
+        .backgroundColor('#EAF2FF')
+        .borderRadius(14)
+      if (user.avatarUrl.length > 0) {
+        Image(user.avatarUrl)
+          .width(28)
+          .height(28)
+          .borderRadius(14)
+          .objectFit(ImageFit.Cover)
+      }
+    }
+    .width(28)
+    .height(28)
+  }
+
+  @Builder
+  private onlineUsersStrip(): void {
+    if (this.onlineUsersState.kind === BrowseStateKind.LOADING) {
+      Row({ space: 8 }) {
+        LoadingProgress().width(18).height(18)
+        Text('正在读取在线用户').fontSize(12).fontColor($r('sys.color.font_secondary'))
+      }
+      .width('100%')
+      .height(42)
+      .padding({ left: 16, right: 16 })
+      .backgroundColor('#FFFFFF')
+    } else if (this.onlineUsersState.kind === BrowseStateKind.CONTENT) {
+      Row({ space: 7 }) {
+        Text(`在线（${this.onlineUserCount}）`)
+          .fontSize(13)
+          .fontWeight(FontWeight.Bold)
+          .fontColor('#344054')
+        ForEach(this.onlineUsersState.items.slice(0, 7), (user: OnlineUser) => {
+          this.onlineAvatar(user)
+        }, (user: OnlineUser): string => `${user.id}-${user.username}`)
+        if (this.onlineUserCount > 7) {
+          Text(`+${this.onlineUserCount - 7}`)
+            .width(28)
+            .height(28)
+            .fontSize(9)
+            .fontWeight(FontWeight.Bold)
+            .fontColor($r('sys.color.font_secondary'))
+            .textAlign(TextAlign.Center)
+            .backgroundColor('#E4E7EC')
+            .borderRadius(14)
+        }
+        Blank()
+        SymbolGlyph($r('sys.symbol.chevron_right'))
+          .fontSize(15)
+          .fontColor([$r('sys.color.font_tertiary')])
+      }
+      .width('100%')
+      .height(44)
+      .padding({ left: 16, right: 12 })
+      .backgroundColor('#FFFFFF')
+      .onClick(this.onOpenOnlineUsers)
+      .accessibilityText(`查看 ${this.onlineUserCount} 位在线用户`)
+    } else if (this.onlineUsersState.kind === BrowseStateKind.ERROR) {
+      Row({ space: 8 }) {
+        Text('在线用户加载失败')
+          .fontSize(12)
+          .fontColor($r('sys.color.font_secondary'))
+          .layoutWeight(1)
+        Button('重试').height(30).fontSize(12).onClick(this.onRetryOnlineUsers)
+      }
+      .width('100%')
+      .height(42)
+      .padding({ left: 16, right: 12 })
+      .backgroundColor('#FFFFFF')
+    }
+  }
 
   @Builder
   private headerAction(
@@ -249,6 +334,7 @@ export struct HomeBrowsePage {
   build() {
     Column() {
       this.header()
+      this.onlineUsersStrip()
       HdsTabs({ index: this.selectedChannel }) {
         TabContent() {
           this.channelContent()
