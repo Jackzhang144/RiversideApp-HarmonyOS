@@ -1,13 +1,11 @@
 import { describe, expect, it } from '@ohos/hypium';
-import {
-  AppShellModel,
-  TopicReadStateKind
-} from '../../../main/ets/app/AppShellModel';
+import { AppShellModel } from '../../../main/ets/app/AppShellModel';
 import {
   ReplyComposerState,
   ReplyComposerStateKind,
   TopicComposerStateKind
 } from '../../../main/ets/app/ComposerModels';
+import { TopicReadStateKind } from '../../../main/ets/app/TopicReadingModels';
 import { BrowseStateKind } from '../../../main/ets/app/BrowseModels';
 import { AuthenticationLifecycle } from '../../../main/ets/app/AuthenticationLifecycle';
 import {

@@ -11,10 +11,7 @@ import {
   SnackBarOperationType
 } from '@kit.UIDesignKit';
 import { SymbolGlyphModifier, window } from '@kit.ArkUI';
-import {
-  AppShellModel,
-  TopicReadState
-} from '../app/AppShellModel';
+import { AppShellModel } from '../app/AppShellModel';
 import {
   ComposerMediaTarget,
   ReplyComposerState,
@@ -22,6 +19,7 @@ import {
   TopicComposerState,
   TopicComposerStateKind
 } from '../app/ComposerModels';
+import { TopicReadState } from '../app/TopicReadingModels';
 import {
   BrowseState,
   BrowseStateKind,
