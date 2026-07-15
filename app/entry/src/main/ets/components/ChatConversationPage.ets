@@ -10,6 +10,12 @@ import {
   ChatReactionUser
 } from '../models/ChatModels';
 import { MediaUploadResult, MediaUploadState, MediaUploadStateKind } from '../models/MediaModels';
+import {
+  ChatMessageFragment,
+  ChatMessageFragmentKind,
+  presentChatMessageBody,
+  presentChatText
+} from './ChatMessagePresentation';
 
 @Component
 export struct ChatConversationPage {
@@ -113,6 +119,50 @@ export struct ChatConversationPage {
   }
 
   @Builder
+  private MessageBody(message: ChatMessage): void {
+    Text() {
+      ForEach(presentChatMessageBody(message, this.emojis), (fragment: ChatMessageFragment) => {
+        if (fragment.kind === ChatMessageFragmentKind.EMOJI) {
+          ImageSpan(fragment.imageUrl)
+            .width(18)
+            .height(18)
+            .objectFit(ImageFit.Contain)
+            .verticalAlign(ImageSpanAlignment.CENTER)
+        } else {
+          Span(fragment.text)
+        }
+      }, (fragment: ChatMessageFragment, index: number): string => `${index}-${fragment.text}`)
+    }
+    .fontSize(14)
+    .lineHeight(21)
+    .fontColor(message.deleted ? '#7B8794' : '#24262B')
+    .fontStyle(message.deleted ? FontStyle.Italic : FontStyle.Normal)
+    .width('100%')
+  }
+
+  @Builder
+  private ReplyPreviewText(value: string): void {
+    Text() {
+      ForEach(presentChatText(value, this.emojis), (fragment: ChatMessageFragment) => {
+        if (fragment.kind === ChatMessageFragmentKind.EMOJI) {
+          ImageSpan(fragment.imageUrl)
+            .width(14)
+            .height(14)
+            .objectFit(ImageFit.Contain)
+            .verticalAlign(ImageSpanAlignment.CENTER)
+        } else {
+          Span(fragment.text)
+        }
+      }, (fragment: ChatMessageFragment, index: number): string => `${index}-${fragment.text}`)
+    }
+    .fontSize(11)
+    .fontColor('#52606D')
+    .maxLines(2)
+    .textOverflow({ overflow: TextOverflow.Ellipsis })
+    .width('100%')
+  }
+
+  @Builder
   private LoadingState(): void {
     Column({ space: 12 }) {
       LoadingProgress().width(36).height(36)
@@ -168,15 +218,13 @@ export struct ChatConversationPage {
       if (message.replyTo !== null) {
         Column({ space: 3 }) {
           Text(`回复 ${message.replyTo.username}`).fontSize(11).fontWeight(FontWeight.Bold).fontColor('#317AF7')
-          Text(message.replyTo.excerpt).fontSize(11).fontColor('#52606D').maxLines(2).width('100%')
+          this.ReplyPreviewText(message.replyTo.excerpt)
         }
         .width('100%').padding(8).backgroundColor('#F0F5FC')
         .border({ width: { left: 3 }, color: '#317AF7' })
       }
 
-      Text(message.displayText())
-        .fontSize(14).lineHeight(21).fontColor(message.deleted ? '#7B8794' : '#24262B')
-        .fontStyle(message.deleted ? FontStyle.Italic : FontStyle.Normal).width('100%')
+      this.MessageBody(message)
 
       if (!message.deleted && message.uploadUrls.length > 0) {
         ForEach(message.uploadUrls, (url: string): void => {
@@ -304,8 +352,11 @@ export struct ChatConversationPage {
   private ReplyComposerBar(reply: ChatMessage | null): void {
     if (reply !== null) {
       Row({ space: 8 }) {
-        Text(`回复 ${reply.username}：${reply.displayText()}`)
-          .fontSize(11).fontColor('#52606D').maxLines(1).layoutWeight(1)
+        Column({ space: 2 }) {
+          Text(`回复 ${reply.username}`).fontSize(11).fontWeight(FontWeight.Bold).fontColor('#317AF7')
+          this.ReplyPreviewText(reply.displayText())
+        }
+        .layoutWeight(1)
         Button('取消', { type: ButtonType.Normal }).height(28).fontSize(10).onClick(this.onCancelReply)
       }
       .width('100%').padding(8).backgroundColor('#F0F5FC').borderRadius(8)

@@ -29,6 +29,7 @@ import composerMentionTest from './ComposerMention.test';
 import chatRepositoryTest from './ChatRepository.test';
 import chatModelTest from './ChatModel.test';
 import chatComposerEditingTest from './ChatComposerEditing.test';
+import chatMessagePresentationTest from './ChatMessagePresentation.test';
 import chatConversationPollingControllerTest from './ChatConversationPollingController.test';
 import notificationModelsTest from './NotificationModels.test';
 import notificationRepositoryTest from './NotificationRepository.test';
@@ -39,6 +40,7 @@ export default function tests(): void {
   composerEmojiModelsTest();
   composerMentionTest();
   chatComposerEditingTest();
+  chatMessagePresentationTest();
   presenceHeartbeatTest();
   notificationCentreModelTest();
   notificationRepositoryTest();
