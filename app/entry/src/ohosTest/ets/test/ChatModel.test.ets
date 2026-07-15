@@ -33,6 +33,7 @@ import { MediaRepository, MediaUploadOperation } from '../../../main/ets/reposit
 class StubChatRepository implements ChatRepository {
   public channelResults: Array<RepositoryResult<Array<ChatChannel>>> = [];
   public messageResults: Array<RepositoryResult<ChatMessagePage>> = [];
+  public messageTasks: Array<Promise<RepositoryResult<ChatMessagePage>>> = [];
   public directResults: Array<RepositoryResult<ChatChannel>> = [];
   public sendResults: Array<RepositoryResult<ChatSendConfirmation>> = [];
   public sendTasks: Array<Promise<RepositoryResult<ChatSendConfirmation>>> = [];
@@ -53,6 +54,8 @@ class StubChatRepository implements ChatRepository {
     query: ChatMessageQuery
   ): Promise<RepositoryResult<ChatMessagePage>> {
     this.messageQueries.push(query);
+    const task: Promise<RepositoryResult<ChatMessagePage>> | undefined = this.messageTasks.shift();
+    if (task !== undefined) return task;
     return this.messageResults.shift() ?? RepositoryResult.failure<ChatMessagePage>('missing message result');
   }
 
@@ -123,6 +126,24 @@ class DeferredChatMessageResult {
   }
 
   public resolve(result: RepositoryResult<ChatSendConfirmation>): void {
+    this.resolvePromise(result);
+  }
+}
+
+class DeferredChatPageResult {
+  public readonly promise: Promise<RepositoryResult<ChatMessagePage>>;
+  private resolvePromise: (result: RepositoryResult<ChatMessagePage>) => void =
+    (_result: RepositoryResult<ChatMessagePage>): void => {};
+
+  public constructor() {
+    this.promise = new Promise<RepositoryResult<ChatMessagePage>>(
+      (resolve: (result: RepositoryResult<ChatMessagePage>) => void): void => {
+        this.resolvePromise = resolve;
+      }
+    );
+  }
+
+  public resolve(result: RepositoryResult<ChatMessagePage>): void {
     this.resolvePromise(result);
   }
 }
@@ -299,6 +320,35 @@ export default function chatModelTest(): void {
           .assertEqual('9,10');
         expect(model.composerState.draft).assertEqual('保留中的草稿');
         expect(model.channelState.kind).assertEqual(ChatStateKind.CONTENT);
+        done();
+      });
+
+    it('merges a delayed foreground response with messages confirmed while it was loading', 0,
+      async (done: Function) => {
+        const repository: StubChatRepository = new StubChatRepository();
+        const delayed: DeferredChatPageResult = new DeferredChatPageResult();
+        repository.messageResults.push(RepositoryResult.success<ChatMessagePage>(new ChatMessagePage([
+          message(9, '已有消息', '2026-07-12T09:00:00Z')
+        ], false, false)));
+        repository.channelResults.push(RepositoryResult.success<Array<ChatChannel>>([channel()]));
+        repository.sendResults.push(RepositoryResult.success<ChatSendConfirmation>(new ChatSendConfirmation(
+          10,
+          message(10, '刷新期间发送', '2026-07-12T10:00:00Z')
+        )));
+        const model: ChatModel = new ChatModel(repository);
+        await model.openChannel(channel());
+        model.updateDraft('刷新期间发送');
+        repository.messageTasks.push(delayed.promise);
+
+        const refreshTask: Promise<void> = model.refreshForForeground();
+        expect(await model.send()).assertTrue();
+        delayed.resolve(RepositoryResult.success<ChatMessagePage>(new ChatMessagePage([
+          message(11, '服务器新消息', '2026-07-12T11:00:00Z')
+        ], false, false)));
+        await refreshTask;
+
+        expect(model.conversationState.messages.map((item: ChatMessage): number => item.id).join(','))
+          .assertEqual('9,10,11');
         done();
       });
 

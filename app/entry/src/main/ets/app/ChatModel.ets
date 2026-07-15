@@ -348,10 +348,11 @@ export class ChatModel {
       if (result.isUnauthorized()) await this.notifyUnauthorized();
       return;
     }
-    this.conversationState = existing.length === 0
+    const currentMessages: Array<ChatMessage> = this.conversationState.messages;
+    this.conversationState = currentMessages.length === 0
       ? ChatConversationState.fromPage(channel, result.data)
       : this.conversationState.withMessages(
-        mergeChatMessages(existing, result.data.messages),
+        mergeChatMessages(currentMessages, result.data.messages),
         this.conversationState.canLoadMorePast,
         result.data.canLoadMoreFuture
       );
