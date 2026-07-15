@@ -956,7 +956,7 @@ export class AppShellModel {
   private ignoredReplyDraftKey: string = '';
   private ignoredReplyDraftSequence: number = 0;
   private topicComposerRequestVersion: number = 0;
-  private ignoredTopicDraftSequence: number = 0;
+  private ignoredTopicDraftSequence: number | null = null;
   private topicDraftKey: string = 'new_topic';
   private topicEditingOriginalTitle: string = '';
 
@@ -2070,7 +2070,7 @@ export class AppShellModel {
     }
     const draft: ServerDraft | undefined = result.data.find(
       (candidate: ServerDraft): boolean => candidate.draftKey.startsWith('new_topic') &&
-        candidate.sequence !== this.ignoredTopicDraftSequence
+        (this.ignoredTopicDraftSequence === null || candidate.sequence !== this.ignoredTopicDraftSequence)
     );
     if (draft !== undefined) {
       this.topicDraftKey = draft.draftKey;
@@ -2117,7 +2117,7 @@ export class AppShellModel {
       editing.categoryId,
       result.data
     );
-    this.ignoredTopicDraftSequence = 0;
+    this.ignoredTopicDraftSequence = null;
     return true;
   }
 
@@ -2155,7 +2155,7 @@ export class AppShellModel {
       this.topicComposerState = TopicComposerState.error(editing, result.message);
       return false;
     }
-    this.ignoredTopicDraftSequence = 0;
+    this.ignoredTopicDraftSequence = null;
     this.dismissTopicComposer();
     return true;
   }
@@ -2216,7 +2216,7 @@ export class AppShellModel {
         return;
       }
     }
-    this.ignoredTopicDraftSequence = 0;
+    this.ignoredTopicDraftSequence = null;
     this.topicComposerState = TopicComposerState.success(result.topicId);
   }
 

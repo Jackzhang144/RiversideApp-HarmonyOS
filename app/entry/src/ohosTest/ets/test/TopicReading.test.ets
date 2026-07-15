@@ -1165,6 +1165,25 @@ export default function topicReadingTest(): void {
         done();
       });
 
+    it('restores the first server Topic draft when its sequence is zero', 0, async (done: Function) => {
+      const repository: TopicReadingRepository = new TopicReadingRepository();
+      repository.draftResults.push(RepositoryResult.success<Array<ServerDraft>>([
+        new ServerDraft('new_topic', 0, 'createTopic', '第一份草稿', '尚未同步过的正文', 54, null, null)
+      ]));
+      const model: AppShellModel = new AppShellModel(
+        repository, new MemoryCategoryCache(), CategoryCacheScope.anonymous()
+      );
+
+      model.openNewTopic();
+      await model.restoreTopicDraft();
+
+      expect(model.topicComposerState.title).assertEqual('第一份草稿');
+      expect(model.topicComposerState.raw).assertEqual('尚未同步过的正文');
+      expect(model.topicComposerState.categoryId).assertEqual(54);
+      expect(model.topicComposerState.draftSequence).assertEqual(0);
+      done();
+    });
+
     it('reports new Topic draft cleanup failure without restoring the published draft again', 0,
       async (done: Function) => {
         const repository: TopicReadingRepository = new TopicReadingRepository();
