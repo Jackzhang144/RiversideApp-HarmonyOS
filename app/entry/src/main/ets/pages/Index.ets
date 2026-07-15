@@ -12,6 +12,7 @@ import {
 } from '@kit.UIDesignKit';
 import { SymbolGlyphModifier, window } from '@kit.ArkUI';
 import { AppShellModel } from '../app/AppShellModel';
+import { AppDependencyGraph } from '../app/AppDependencyGraph';
 import {
   ComposerMediaTarget,
   ReplyComposerState,
@@ -31,7 +32,7 @@ import {
   RootDestination,
   SecondaryDestination
 } from '../app/ShellNavigationModels';
-import { DiscoursePresenceUpdater, PresenceHeartbeat } from '../app/PresenceHeartbeat';
+import { PresenceHeartbeat } from '../app/PresenceHeartbeat';
 import {
   ChatChannelState,
   ChatComposerState,
@@ -56,11 +57,8 @@ import {
 } from '../app/ProfileContentModel';
 import { AuthenticatedSession } from '../auth/AuthModels';
 import { AuthRepository, AuthState, AuthStateKind } from '../auth/AuthRepository';
-import { HuksAuthenticatedSessionStore } from '../auth/HuksAuthenticatedSessionStore';
 import { RepositoryAuthenticationLifecycle } from '../auth/RepositoryAuthenticationLifecycle';
-import { RsaAuthorizationCryptoFactory } from '../auth/RsaAuthorizationCrypto';
 import { CategoryCacheScope } from '../cache/CategoryCache';
-import { PreferencesCategoryCache } from '../cache/PreferencesCategoryCache';
 import { AbilityContextRegistry } from '../core/AbilityContextRegistry';
 import { RepositoryResult } from '../core/RepositoryResult';
 import { RIVERSIDE_ABOUT_URL, RIVERSIDE_ORIGIN } from '../core/RiversideEnvironment';
@@ -125,16 +123,7 @@ import {
   RichNavigationKind,
   RichNavigationTarget
 } from '../models/RichContentModels';
-import {
-  AuthenticatedSessionProvider,
-  DiscourseHttpClient
-} from '../network/DiscourseHttpClient';
 import { DiscourseForumRepository } from '../repositories/DiscourseForumRepository';
-import { DiscourseChatRepository } from '../repositories/DiscourseChatRepository';
-import { DiscourseNotificationRepository } from '../repositories/DiscourseNotificationRepository';
-import { DiscourseProfileRepository } from '../repositories/DiscourseProfileRepository';
-import { DiscourseMediaRepository } from '../repositories/MediaRepository';
-import { DiscourseMediaTransport } from '../network/ForumMediaTransport';
 import {
   MediaSelectionResult,
   MediaSelectionResultKind,
@@ -146,14 +135,12 @@ import {
   normalizeRemoteImageUrl
 } from '../models/ImageViewerModels';
 import { MediaGalleryService } from '../media/MediaGalleryService';
-import { PreferencesDiscoverySettingsStore } from '../settings/PreferencesDiscoverySettingsStore';
 import {
   AppSystemBarPalette,
   AppThemeMode,
   appThemePlatformColorMode,
   AppThemeSettingsStore
 } from '../settings/AppThemeSettings';
-import { PreferencesAppThemeSettingsStore } from '../settings/PreferencesAppThemeSettingsStore';
 
 const CATEGORY_TOPICS_ROUTE: string = 'category-topics';
 const TOPIC_ROUTE: string = 'topic';
@@ -171,18 +158,6 @@ const IMAGE_VIEWER_ROUTE: string = 'image-viewer';
 const UI_PROTOTYPE_ROUTE: string = 'ui-prototype';
 const CHAT_CONVERSATION_ROUTE: string = 'chat-conversation';
 const ROOT_TAB_SELECTED_COLOR: ResourceColor = $r('app.color.brand_primary');
-
-class RepositorySessionProvider implements AuthenticatedSessionProvider {
-  private readonly repository: AuthRepository;
-
-  public constructor(repository: AuthRepository) {
-    this.repository = repository;
-  }
-
-  public currentSession(): AuthenticatedSession | null {
-    return this.repository.currentSession();
-  }
-}
 
 @Entry
 @Component
@@ -301,47 +276,30 @@ struct Index {
   }
 
   private async initialize(context: common.Context): Promise<void> {
-    const appThemeSettingsStore: AppThemeSettingsStore = new PreferencesAppThemeSettingsStore(context);
-    this.appThemeSettingsStore = appThemeSettingsStore;
-    this.appThemeMode = await appThemeSettingsStore.read();
-    const authRepository: AuthRepository = new AuthRepository(
-      HuksAuthenticatedSessionStore.create(context),
-      new RsaAuthorizationCryptoFactory()
+    const dependencies: AppDependencyGraph = new AppDependencyGraph(
+      context,
+      (): void => {
+        this.synchronizeAuthentication(true);
+      }
     );
+    this.appThemeSettingsStore = dependencies.appThemeSettingsStore;
+    this.appThemeMode = await dependencies.appThemeSettingsStore.read();
+    const authRepository: AuthRepository = dependencies.authRepository;
     this.authRepository = authRepository;
     const restoring: Promise<void> = authRepository.restore();
     this.authState = authRepository.state;
     await restoring;
     this.authState = authRepository.state;
 
-    const sessionProvider: RepositorySessionProvider = new RepositorySessionProvider(authRepository);
-    const abilityContext: common.UIAbilityContext | null = AbilityContextRegistry.current();
-    if (abilityContext !== null) {
-      this.mediaGalleryService = new MediaGalleryService(abilityContext, sessionProvider);
-    }
-    const authenticationLifecycle: RepositoryAuthenticationLifecycle = new RepositoryAuthenticationLifecycle(
-      authRepository,
-      (): void => {
-        this.synchronizeAuthentication(true);
-      }
-    );
+    this.mediaGalleryService = dependencies.mediaGalleryService;
+    const authenticationLifecycle: RepositoryAuthenticationLifecycle = dependencies.authenticationLifecycle;
     this.authenticationLifecycle = authenticationLifecycle;
-    const httpClient: DiscourseHttpClient = new DiscourseHttpClient(RIVERSIDE_ORIGIN, sessionProvider);
-    const forumRepository: DiscourseForumRepository = new DiscourseForumRepository(httpClient);
+    const forumRepository: DiscourseForumRepository = dependencies.forumRepository;
     this.forumRepository = forumRepository;
-    this.presenceHeartbeat = new PresenceHeartbeat(
-      new DiscoursePresenceUpdater(
-        httpClient,
-        (): string | null => sessionProvider.currentSession()?.clientId ?? null
-      ),
-      authenticationLifecycle
-    );
-    const mediaRepository: DiscourseMediaRepository = new DiscourseMediaRepository(
-      new DiscourseMediaTransport(RIVERSIDE_ORIGIN, sessionProvider)
-    );
+    this.presenceHeartbeat = dependencies.presenceHeartbeat;
     this.chatModel = new ChatModel(
-      new DiscourseChatRepository(httpClient),
-      mediaRepository,
+      dependencies.chatRepository,
+      dependencies.mediaRepository,
       authenticationLifecycle
     );
     this.chatPollingController = new ChatConversationPollingController(
@@ -361,31 +319,30 @@ struct Index {
     );
     this.synchronizeChatPolling();
     this.notificationModel = new NotificationCentreModel(
-      new DiscourseNotificationRepository(httpClient),
+      dependencies.notificationRepository,
       authenticationLifecycle
     );
-    const profileRepository: DiscourseProfileRepository = new DiscourseProfileRepository(httpClient);
     this.accountProfileModel = new ProfileManagementModel(
-      profileRepository,
+      dependencies.profileRepository,
       authenticationLifecycle,
-      mediaRepository
+      dependencies.mediaRepository
     );
     this.selectedProfileModel = new ProfileManagementModel(
-      profileRepository,
+      dependencies.profileRepository,
       authenticationLifecycle,
-      mediaRepository,
+      dependencies.mediaRepository,
       (state: MediaUploadState | null): void => {
         this.profileMediaState = state;
       }
     );
-    this.profileContentModel = new ProfileContentModel(profileRepository, authenticationLifecycle);
+    this.profileContentModel = new ProfileContentModel(dependencies.profileRepository, authenticationLifecycle);
     const model: AppShellModel = new AppShellModel(
       forumRepository,
-      new PreferencesCategoryCache(context),
+      dependencies.categoryCache,
       this.categoryCacheScope(authRepository),
       authenticationLifecycle,
-      new PreferencesDiscoverySettingsStore(context),
-      mediaRepository
+      dependencies.discoverySettingsStore,
+      dependencies.mediaRepository
     );
     await model.restoreDiscoverySettings();
     this.selectedHomeChannel = model.selectedHomeChannel;
