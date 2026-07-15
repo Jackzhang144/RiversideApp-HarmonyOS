@@ -99,10 +99,10 @@ export default function topicReadingTest(): void {
         );
 
         model.selectRoot(RootDestination.CATEGORY);
-        await model.openCategory(category());
+        await model.navigateToCategory(category());
         expect(model.selectedRoot).assertEqual(RootDestination.CATEGORY);
         expect(model.activeDestination).assertEqual(SecondaryDestination.CATEGORY_TOPICS);
-        expect(model.categoryTopicsState.items[0].id).assertEqual(2725);
+        expect(model.categories.topicsState.items[0].id).assertEqual(2725);
 
         await model.openTopic(topic());
         expect(model.activeDestination).assertEqual(SecondaryDestination.TOPIC);
@@ -136,16 +136,16 @@ export default function topicReadingTest(): void {
         new MemoryCategoryCache(),
         CategoryCacheScope.anonymous()
       );
-      const firstCategoryLoad: Promise<void> = model.openCategory(category());
+      const firstCategoryLoad: Promise<void> = model.navigateToCategory(category());
       const otherCategory: Category = new Category(61, '游客公告', '25AAE2', '', 2, null, []);
-      const secondCategoryLoad: Promise<void> = model.openCategory(otherCategory);
+      const secondCategoryLoad: Promise<void> = model.navigateToCategory(otherCategory);
       secondCategory.complete(RepositoryResult.success<Array<Topic>>([topicWithId(3000, '新 Category Topic')]));
       await secondCategoryLoad;
       firstCategory.complete(RepositoryResult.success<Array<Topic>>([topic()]));
       await firstCategoryLoad;
 
-      expect(model.selectedCategory?.id).assertEqual(61);
-      expect(model.categoryTopicsState.items[0].id).assertEqual(3000);
+      expect(model.categories.selected?.id).assertEqual(61);
+      expect(model.categories.topicsState.items[0].id).assertEqual(3000);
 
       const firstTopic: PendingRepositoryResult<TopicDetail> = new PendingRepositoryResult<TopicDetail>();
       const secondTopic: PendingRepositoryResult<TopicDetail> = new PendingRepositoryResult<TopicDetail>();
@@ -177,16 +177,16 @@ export default function topicReadingTest(): void {
         CategoryCacheScope.anonymous()
       );
 
-      const loading: Promise<void> = model.openCategory(category());
+      const loading: Promise<void> = model.navigateToCategory(category());
       expect(model.activeDestination).assertEqual(SecondaryDestination.CATEGORY_TOPICS);
-      expect(model.categoryTopicsState.kind).assertEqual(BrowseStateKind.LOADING);
+      expect(model.categories.topicsState.kind).assertEqual(BrowseStateKind.LOADING);
       await loading;
-      expect(model.categoryTopicsState.kind).assertEqual(BrowseStateKind.ERROR);
+      expect(model.categories.topicsState.kind).assertEqual(BrowseStateKind.ERROR);
 
-      await model.retryCategoryTopics();
+      await model.categories.retryTopics();
       expect(repository.requestedCategoryIds.join(',')).assertEqual('60,60');
-      expect(model.categoryTopicsState.kind).assertEqual(BrowseStateKind.CONTENT);
-      expect(model.categoryTopicsState.items[0].id).assertEqual(2725);
+      expect(model.categories.topicsState.kind).assertEqual(BrowseStateKind.CONTENT);
+      expect(model.categories.topicsState.items[0].id).assertEqual(2725);
 
       repository.topicDetailResults.push(RepositoryResult.success<TopicDetail>(new TopicDetail(
         2725,

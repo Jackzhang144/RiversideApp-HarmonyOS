@@ -358,13 +358,13 @@ export default function appShellModelTest(): void {
         CategoryCacheScope.anonymous()
       );
 
-      await model.openCategory(category(60, '站务管理'));
-      await model.loadMoreCategoryTopics();
+      await model.navigateToCategory(category(60, '站务管理'));
+      await model.categories.loadMoreTopics();
 
       expect(repository.requestedCategoryPages[0]).assertEqual(0);
       expect(repository.requestedCategoryPages[1]).assertEqual(1);
-      expect(model.categoryTopicsState.items.length).assertEqual(2);
-      expect(model.categoryTopicsState.hasMore).assertTrue();
+      expect(model.categories.topicsState.items.length).assertEqual(2);
+      expect(model.categories.topicsState.hasMore).assertTrue();
       done();
     });
 
@@ -427,14 +427,14 @@ export default function appShellModelTest(): void {
         CategoryCacheScope.anonymous()
       );
 
-      const loading: Promise<void> = model.loadCategories();
+      const loading: Promise<void> = model.categories.load();
       await Promise.resolve();
-      expect(model.categoryState.kind).assertEqual(BrowseStateKind.LOADING);
+      expect(model.categories.state.kind).assertEqual(BrowseStateKind.LOADING);
       await loading;
-      expect(model.categoryState.kind).assertEqual(BrowseStateKind.ERROR);
+      expect(model.categories.state.kind).assertEqual(BrowseStateKind.ERROR);
 
-      await model.retryCategories();
-      expect(model.categoryState.kind).assertEqual(BrowseStateKind.EMPTY);
+      await model.categories.retry();
+      expect(model.categories.state.kind).assertEqual(BrowseStateKind.EMPTY);
       expect(repository.categoryCallCount).assertEqual(2);
       done();
     });
@@ -447,16 +447,16 @@ export default function appShellModelTest(): void {
       const scope: CategoryCacheScope = CategoryCacheScope.anonymous();
       const model: AppShellModel = new AppShellModel(repository, cache, scope);
 
-      const refreshing: Promise<void> = model.loadCategories();
+      const refreshing: Promise<void> = model.categories.load();
       await Promise.resolve();
-      expect(model.categoryState.kind).assertEqual(BrowseStateKind.CONTENT);
-      expect(model.categoryState.isRefreshing).assertTrue();
+      expect(model.categories.state.kind).assertEqual(BrowseStateKind.CONTENT);
+      expect(model.categories.state.isRefreshing).assertTrue();
       await refreshing;
 
-      expect(model.categoryState.kind).assertEqual(BrowseStateKind.CONTENT);
-      expect(model.categoryState.items[0].id).assertEqual(60);
-      expect(model.categoryState.isRefreshing).assertFalse();
-      expect(model.categoryState.message).assertEqual('刷新失败');
+      expect(model.categories.state.kind).assertEqual(BrowseStateKind.CONTENT);
+      expect(model.categories.state.items[0].id).assertEqual(60);
+      expect(model.categories.state.isRefreshing).assertFalse();
+      expect(model.categories.state.message).assertEqual('刷新失败');
       done();
     });
 
@@ -469,16 +469,16 @@ export default function appShellModelTest(): void {
         new MemoryCategoryCache(),
         CategoryCacheScope.anonymous()
       );
-      await model.loadCategories();
+      await model.categories.load();
 
-      const refreshing: Promise<void> = model.refreshCategories();
-      expect(model.categoryState.kind).assertEqual(BrowseStateKind.CONTENT);
-      expect(model.categoryState.isRefreshing).assertTrue();
+      const refreshing: Promise<void> = model.categories.refresh();
+      expect(model.categories.state.kind).assertEqual(BrowseStateKind.CONTENT);
+      expect(model.categories.state.isRefreshing).assertTrue();
       await refreshing;
 
-      expect(model.categoryState.kind).assertEqual(BrowseStateKind.CONTENT);
-      expect(model.categoryState.items[0].id).assertEqual(60);
-      expect(model.categoryState.message).assertEqual('刷新失败');
+      expect(model.categories.state.kind).assertEqual(BrowseStateKind.CONTENT);
+      expect(model.categories.state.items[0].id).assertEqual(60);
+      expect(model.categories.state.message).assertEqual('刷新失败');
       done();
     });
 
@@ -494,9 +494,9 @@ export default function appShellModelTest(): void {
       }
       const model: AppShellModel = new AppShellModel(repository, cache, scope);
 
-      await model.loadCategories();
+      await model.categories.load();
 
-      expect(model.categoryState.kind).assertEqual(BrowseStateKind.CONTENT);
+      expect(model.categories.state.kind).assertEqual(BrowseStateKind.CONTENT);
       expect(cache.writeScope?.key).assertEqual('authenticated:client-123');
       expect(cache.stored?.length).assertEqual(1);
       done();
@@ -514,8 +514,8 @@ export default function appShellModelTest(): void {
         new MemoryCategoryCache(),
         CategoryCacheScope.anonymous()
       );
-      await model.loadCategories();
-      expect(model.categoryState.kind).assertEqual(BrowseStateKind.CONTENT);
+      await model.categories.load();
+      expect(model.categories.state.kind).assertEqual(BrowseStateKind.CONTENT);
       const authenticated: CategoryCacheScope | null = CategoryCacheScope.authenticated('client-123');
       expect(authenticated === null).assertFalse();
       if (authenticated === null) {
@@ -523,9 +523,9 @@ export default function appShellModelTest(): void {
         return;
       }
 
-      model.updateCategoryCacheScope(authenticated);
+      model.categories.updateCacheScope(authenticated);
 
-      expect(model.categoryState.kind).assertEqual(BrowseStateKind.INITIAL);
+      expect(model.categories.state.kind).assertEqual(BrowseStateKind.INITIAL);
       done();
     });
   });

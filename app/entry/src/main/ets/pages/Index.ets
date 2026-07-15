@@ -408,7 +408,7 @@ struct Index {
     if (model === null) {
       return;
     }
-    model.updateCategoryCacheScope(this.categoryCacheScope(repository));
+    model.categories.updateCacheScope(this.categoryCacheScope(repository));
     if (repository.state.kind === AuthStateKind.AUTHENTICATED) {
       model.resumeReplyAfterAuthentication();
       this.synchronizeReplyState(model, model.replyState.kind === ReplyComposerStateKind.EDITING);
@@ -437,7 +437,7 @@ struct Index {
       this.profileContentOwn = true;
     }
     this.synchronizeChatPolling();
-    this.categoryState = model.categoryState;
+    this.categoryState = model.categories.state;
     if (reloadCategories) {
       this.loadCategories();
     }
@@ -713,8 +713,8 @@ struct Index {
     if (model === null) {
       return;
     }
-    await model.restoreCategories();
-    this.categoryState = model.categoryState;
+    await model.categories.restore();
+    this.categoryState = model.categories.state;
     await this.refreshCategories();
   }
 
@@ -723,10 +723,10 @@ struct Index {
     if (model === null) {
       return;
     }
-    const task: Promise<void> = model.refreshCategories();
-    this.categoryState = model.categoryState;
+    const task: Promise<void> = model.categories.refresh();
+    this.categoryState = model.categories.state;
     await task;
-    this.categoryState = model.categoryState;
+    this.categoryState = model.categories.state;
     this.showCategoryRefreshMessage();
   }
 
@@ -1194,12 +1194,12 @@ struct Index {
     if (model === null) {
       return;
     }
-    const task: Promise<void> = model.openCategory(category);
+    const task: Promise<void> = model.navigateToCategory(category);
     this.categoryTitle = category.name;
-    this.categoryTopicsState = model.categoryTopicsState;
+    this.categoryTopicsState = model.categories.topicsState;
     this.pathStack.pushPath({ name: CATEGORY_TOPICS_ROUTE });
     await task;
-    this.categoryTopicsState = model.categoryTopicsState;
+    this.categoryTopicsState = model.categories.topicsState;
   }
 
   private async retryCategoryTopics(): Promise<void> {
@@ -1207,10 +1207,10 @@ struct Index {
     if (model === null) {
       return;
     }
-    const task: Promise<void> = model.retryCategoryTopics();
-    this.categoryTopicsState = model.categoryTopicsState;
+    const task: Promise<void> = model.categories.retryTopics();
+    this.categoryTopicsState = model.categories.topicsState;
     await task;
-    this.categoryTopicsState = model.categoryTopicsState;
+    this.categoryTopicsState = model.categories.topicsState;
   }
 
   private async loadMoreCategoryTopics(): Promise<void> {
@@ -1218,10 +1218,10 @@ struct Index {
     if (model === null) {
       return;
     }
-    const task: Promise<void> = model.loadMoreCategoryTopics();
-    this.categoryTopicsState = model.categoryTopicsState;
+    const task: Promise<void> = model.categories.loadMoreTopics();
+    this.categoryTopicsState = model.categories.topicsState;
     await task;
-    this.categoryTopicsState = model.categoryTopicsState;
+    this.categoryTopicsState = model.categories.topicsState;
   }
 
   private async openTopic(topic: Topic, initialPostNumber: number | null = null): Promise<void> {

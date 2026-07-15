@@ -41,9 +41,7 @@ import {
 import { MediaRepository } from '../repositories/MediaRepository';
 import { AuthenticationLifecycle } from './AuthenticationLifecycle';
 import {
-  BrowseState,
-  BrowseStateKind,
-  uniqueTopics
+  BrowseState
 } from './BrowseModels';
 import {
   HomeSortTabIndex,
@@ -71,6 +69,7 @@ import {
 } from './TopicReadingModels';
 import { ComposerMediaCoordinator, MediaUploadStateListener } from './ComposerMediaCoordinator';
 import { DiscoveryCoordinator } from './DiscoveryCoordinator';
+import { CategoryBrowseCoordinator } from './CategoryBrowseCoordinator';
 
 class TopicNavigationFrame {
   public readonly topic: Topic;
@@ -102,9 +101,7 @@ export class AppShellModel {
   public activeDestination: SecondaryDestination = SecondaryDestination.NONE;
   public requiresAuthentication: boolean = false;
   public readonly discovery: DiscoveryCoordinator;
-  public categoryState: BrowseState<Category> = BrowseState.initial<Category>();
-  public selectedCategory: Category | null = null;
-  public categoryTopicsState: BrowseState<Topic> = BrowseState.initial<Topic>();
+  public readonly categories: CategoryBrowseCoordinator;
   public topicState: TopicReadState = TopicReadState.initial();
   public topicReactionUsersState: BrowseState<PostReactionUsers> = BrowseState.initial<PostReactionUsers>();
   public replyState: ReplyComposerState = ReplyComposerState.closed();
@@ -113,19 +110,14 @@ export class AppShellModel {
   public topicEditingPostId: number | null = null;
 
   private readonly repository: ForumRepository;
-  private readonly categoryCache: CategoryCache;
-  private categoryCacheScope: CategoryCacheScope;
   private readonly authenticationLifecycle: AuthenticationLifecycle | null;
   private readonly mediaCoordinator: ComposerMediaCoordinator;
-  private cachedCategories: Array<Category> | null = null;
   private previousPostIds: Array<number> = [];
   private nextPostIds: Array<number> = [];
   private topicNavigationStack: Array<TopicNavigationFrame> = [];
   private topicReturnDestination: SecondaryDestination = SecondaryDestination.NONE;
   private selectedTopic: Topic | null = null;
   private selectedTopicPostNumber: number | null = null;
-  private categoryRequestVersion: number = 0;
-  private categoryTopicsPage: number = 0;
   private topicRequestVersion: number = 0;
   private topicReactionUsersRequestVersion: number = 0;
   private replyRequestVersion: number = 0;
@@ -148,12 +140,21 @@ export class AppShellModel {
     mediaRepository: MediaRepository | null = null
   ) {
     this.repository = repository;
-    this.categoryCache = categoryCache;
-    this.categoryCacheScope = categoryCacheScope;
     this.authenticationLifecycle = authenticationLifecycle;
     this.discovery = new DiscoveryCoordinator(
       repository,
       discoverySettingsStore,
+      (isUnauthorized: boolean): void => {
+        this.requiresAuthentication = isUnauthorized;
+      },
+      async (): Promise<void> => {
+        await this.notifyUnauthorized(true);
+      }
+    );
+    this.categories = new CategoryBrowseCoordinator(
+      repository,
+      categoryCache,
+      categoryCacheScope,
       (isUnauthorized: boolean): void => {
         this.requiresAuthentication = isUnauthorized;
       },
@@ -185,76 +186,9 @@ export class AppShellModel {
     return true;
   }
 
-  public updateCategoryCacheScope(scope: CategoryCacheScope): void {
-    if (this.categoryCacheScope.key === scope.key) {
-      return;
-    }
-    this.categoryCacheScope = scope;
-    this.cachedCategories = null;
-    this.categoryState = BrowseState.initial<Category>();
-  }
-
-  public async openCategory(category: Category): Promise<void> {
-    this.categoryRequestVersion += 1;
-    const requestVersion: number = this.categoryRequestVersion;
-    this.requiresAuthentication = false;
+  public async navigateToCategory(category: Category): Promise<void> {
     this.activeDestination = SecondaryDestination.CATEGORY_TOPICS;
-    this.selectedCategory = category;
-    this.categoryTopicsState = BrowseState.loading<Topic>();
-    this.categoryTopicsPage = 0;
-    const result: RepositoryResult<Array<Topic>> = await this.repository.loadCategoryTopics(category.id, 0);
-    if (requestVersion !== this.categoryRequestVersion || this.selectedCategory?.id !== category.id) {
-      return;
-    }
-    if (!result.isSuccess() || result.data === null) {
-      this.requiresAuthentication = result.isUnauthorized();
-      this.categoryTopicsState = BrowseState.error<Topic>(result.message);
-      await this.notifyUnauthorized(result.isUnauthorized());
-      return;
-    }
-    this.categoryTopicsState = result.data.length === 0
-      ? BrowseState.empty<Topic>()
-      : BrowseState.content<Topic>(result.data, false, '', true);
-  }
-
-  public async loadMoreCategoryTopics(): Promise<void> {
-    const category: Category | null = this.selectedCategory;
-    const state: BrowseState<Topic> = this.categoryTopicsState;
-    if (category === null || state.kind !== BrowseStateKind.CONTENT || !state.hasMore || state.isLoadingMore) {
-      return;
-    }
-    const requestVersion: number = this.categoryRequestVersion;
-    const nextPage: number = this.categoryTopicsPage + 1;
-    this.categoryTopicsState = BrowseState.content<Topic>(state.items, false, '', true, true);
-    const result: RepositoryResult<Array<Topic>> = await this.repository.loadCategoryTopics(category.id, nextPage);
-    if (requestVersion !== this.categoryRequestVersion || this.selectedCategory?.id !== category.id) {
-      return;
-    }
-    if (!result.isSuccess() || result.data === null) {
-      this.requiresAuthentication = result.isUnauthorized();
-      this.categoryTopicsState = BrowseState.content<Topic>(
-        state.items,
-        false,
-        '',
-        true,
-        false,
-        result.message
-      );
-      await this.notifyUnauthorized(result.isUnauthorized());
-      return;
-    }
-    const merged: Array<Topic> = uniqueTopics(state.items, result.data);
-    const addedCount: number = merged.length - state.items.length;
-    this.categoryTopicsPage = nextPage;
-    this.categoryTopicsState = BrowseState.content<Topic>(merged, false, '', addedCount > 0);
-  }
-
-  public async retryCategoryTopics(): Promise<void> {
-    const category: Category | null = this.selectedCategory;
-    if (category === null) {
-      return;
-    }
-    await this.openCategory(category);
+    await this.categories.open(category);
   }
 
   public shouldOpenTopicInPlace(topicId: number): boolean {
@@ -1726,7 +1660,7 @@ export class AppShellModel {
       this.activeDestination = this.topicReturnDestination;
       this.topicReturnDestination = SecondaryDestination.NONE;
     } else {
-      this.categoryRequestVersion += 1;
+      this.categories.close();
       this.activeDestination = SecondaryDestination.NONE;
     }
     this.previousPostIds = [];
@@ -1864,66 +1798,6 @@ export class AppShellModel {
       await this.notifyUnauthorized(true);
     }
     return result;
-  }
-
-  public async loadCategories(): Promise<void> {
-    await this.restoreCategories();
-    await this.refreshCategories();
-  }
-
-  public async restoreCategories(): Promise<void> {
-    this.cachedCategories = null;
-    try {
-      this.cachedCategories = await this.categoryCache.read(this.categoryCacheScope);
-    } catch (_) {
-      this.cachedCategories = null;
-    }
-
-    if (this.cachedCategories === null) {
-      this.categoryState = BrowseState.loading<Category>();
-    } else if (this.cachedCategories.length === 0) {
-      this.categoryState = BrowseState.empty<Category>(true);
-    } else {
-      this.categoryState = BrowseState.content<Category>(this.cachedCategories, true);
-    }
-  }
-
-  public async refreshCategories(): Promise<void> {
-    this.requiresAuthentication = false;
-    if (this.categoryState.kind === BrowseStateKind.CONTENT) {
-      this.categoryState = BrowseState.content<Category>(this.categoryState.items, true);
-    } else if (this.categoryState.kind === BrowseStateKind.EMPTY) {
-      this.categoryState = BrowseState.empty<Category>(true);
-    } else {
-      this.categoryState = BrowseState.loading<Category>();
-    }
-    const result: RepositoryResult<Array<Category>> = await this.repository.loadCategories();
-    if (!result.isSuccess() || result.data === null) {
-      this.requiresAuthentication = result.isUnauthorized();
-      if (this.cachedCategories === null) {
-        this.categoryState = BrowseState.error<Category>(result.message);
-      } else if (this.cachedCategories.length === 0) {
-        this.categoryState = BrowseState.empty<Category>(false, result.message);
-      } else {
-        this.categoryState = BrowseState.content<Category>(this.cachedCategories, false, result.message);
-      }
-      await this.notifyUnauthorized(result.isUnauthorized());
-      return;
-    }
-
-    this.cachedCategories = result.data;
-    this.categoryState = result.data.length === 0
-      ? BrowseState.empty<Category>()
-      : BrowseState.content<Category>(result.data);
-    try {
-      await this.categoryCache.write(this.categoryCacheScope, result.data);
-    } catch (_) {
-      // Cache persistence never converts fresh browse content into a page failure.
-    }
-  }
-
-  public async retryCategories(): Promise<void> {
-    await this.loadCategories();
   }
 
   private async notifyUnauthorized(isUnauthorized: boolean): Promise<void> {
