@@ -1,8 +1,6 @@
 import { describe, expect, it } from '@ohos/hypium';
-import {
-  AppShellModel,
-  ComposerMediaTarget
-} from '../../../main/ets/app/AppShellModel';
+import { AppShellModel } from '../../../main/ets/app/AppShellModel';
+import { ComposerMediaTarget } from '../../../main/ets/app/ComposerModels';
 import {
   BrowseStateKind,
   SearchStateKind,

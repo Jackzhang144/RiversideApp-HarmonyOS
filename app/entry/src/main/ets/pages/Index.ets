@@ -13,13 +13,15 @@ import {
 import { SymbolGlyphModifier, window } from '@kit.ArkUI';
 import {
   AppShellModel,
+  TopicReadState
+} from '../app/AppShellModel';
+import {
   ComposerMediaTarget,
   ReplyComposerState,
   ReplyComposerStateKind,
   TopicComposerState,
-  TopicComposerStateKind,
-  TopicReadState
-} from '../app/AppShellModel';
+  TopicComposerStateKind
+} from '../app/ComposerModels';
 import {
   BrowseState,
   BrowseStateKind,

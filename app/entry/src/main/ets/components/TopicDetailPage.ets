@@ -1,9 +1,8 @@
 import {
-  ReplyComposerState,
-  ReplyComposerStateKind,
   TopicReadState,
   TopicReadStateKind
 } from '../app/AppShellModel';
+import { ReplyComposerState, ReplyComposerStateKind } from '../app/ComposerModels';
 import { BrowseState, BrowseStateKind } from '../app/BrowseModels';
 import { ForumComposer } from './ForumComposer';
 import {
