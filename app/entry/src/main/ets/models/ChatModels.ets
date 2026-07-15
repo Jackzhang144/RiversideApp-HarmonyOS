@@ -1,4 +1,5 @@
 import { JsonObjectReader } from '../core/JsonObjectReader';
+import { forumPlainText, ForumPlainTextContext } from '../core/ForumPlainText';
 
 const RIVERSIDE_ORIGIN: string = 'https://river-side.cc';
 
@@ -27,23 +28,7 @@ function firstNumber(reader: JsonObjectReader, names: Array<string>): number {
 }
 
 export function chatPlainText(value: string): string {
-  return value
-    .replace(/<script[\s\S]*?<\/script>/gi, '')
-    .replace(/<style[\s\S]*?<\/style>/gi, '')
-    .replace(/<img[^>]*alt=["']([^"']*)["'][^>]*>/gi, ' $1 ')
-    .replace(/<img[^>]*title=["']([^"']*)["'][^>]*>/gi, ' $1 ')
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<\/(p|div|li)>/gi, '\n')
-    .replace(/<[^>]+>/g, '')
-    .replace(/&nbsp;/gi, ' ')
-    .replace(/&quot;/gi, '"')
-    .replace(/&#39;|&apos;/gi, "'")
-    .replace(/&lt;/gi, '<')
-    .replace(/&gt;/gi, '>')
-    .replace(/&amp;/gi, '&')
-    .replace(/[ \t]+\n/g, '\n')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim();
+  return forumPlainText(value, ForumPlainTextContext.CHAT);
 }
 
 export function absoluteChatUrl(value: string): string {

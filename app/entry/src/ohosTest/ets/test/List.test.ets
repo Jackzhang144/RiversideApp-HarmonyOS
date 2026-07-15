@@ -36,8 +36,10 @@ import notificationModelsTest from './NotificationModels.test';
 import notificationRepositoryTest from './NotificationRepository.test';
 import notificationCentreModelTest from './NotificationCentreModel.test';
 import presenceHeartbeatTest from './PresenceHeartbeat.test';
+import forumPlainTextTest from './ForumPlainText.test';
 
 export default function tests(): void {
+  forumPlainTextTest();
   composerEmojiModelsTest();
   composerMentionTest();
   chatComposerEditingTest();

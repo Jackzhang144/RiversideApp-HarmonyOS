@@ -1,3 +1,5 @@
+import { forumPlainText, ForumPlainTextContext } from '../core/ForumPlainText';
+
 const RIVERSIDE_BASE_URL: string = 'https://river-side.cc';
 const VERIFIED_GROUP_NAMES: Array<string> = [
   'verified_uestcer',
@@ -7,22 +9,6 @@ const VERIFIED_GROUP_NAMES: Array<string> = [
   'sicnuer'
 ];
 const VERIFIED_GROUP_IDS: Array<number> = [41, 45, 46, 48, 49];
-
-function visibleProfileText(value: string): string {
-  return value
-    .replace(/<script[\s\S]*?<\/script>/gi, '')
-    .replace(/<style[\s\S]*?<\/style>/gi, '')
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<[^>]+>/g, '')
-    .replace(/&nbsp;/gi, ' ')
-    .replace(/&amp;/gi, '&')
-    .replace(/&lt;/gi, '<')
-    .replace(/&gt;/gi, '>')
-    .replace(/&quot;/gi, '"')
-    .replace(/&#39;/gi, "'")
-    .replace(/\n{3,}/g, '\n\n')
-    .trim();
-}
 
 export function absoluteProfileUrl(value: string): string {
   const normalized: string = value.trim();
@@ -195,7 +181,10 @@ export class UserProfile {
     this.profileBackgroundUrl = absoluteProfileUrl(attributes.profileBackgroundUrl ?? '');
     this.cardBackgroundUrl = absoluteProfileUrl(attributes.cardBackgroundUrl ?? '');
     this.bioRaw = attributes.bioRaw ?? '';
-    this.bioExcerpt = visibleProfileText(attributes.bioExcerpt ?? attributes.bioRaw ?? '');
+    this.bioExcerpt = forumPlainText(
+      attributes.bioExcerpt ?? attributes.bioRaw ?? '',
+      ForumPlainTextContext.PROFILE
+    );
     this.location = (attributes.location ?? '').trim();
     this.website = (attributes.website ?? '').trim();
     this.timezone = (attributes.timezone ?? '').trim();
@@ -301,12 +290,12 @@ export class UserReplyItem {
   ) {
     this.actionId = Math.max(0, Math.trunc(actionId));
     this.topicId = Math.max(0, Math.trunc(topicId));
-    this.topicTitle = visibleProfileText(topicTitle);
+    this.topicTitle = forumPlainText(topicTitle, ForumPlainTextContext.PROFILE);
     this.categoryId = Math.max(0, Math.trunc(categoryId));
     this.postNumber = Math.max(1, Math.trunc(postNumber));
     this.createdAt = createdAt.trim();
     this.username = username.trim();
-    this.excerpt = visibleProfileText(excerpt);
+    this.excerpt = forumPlainText(excerpt, ForumPlainTextContext.PROFILE);
   }
 }
 
@@ -334,8 +323,8 @@ export class UserBookmarkItem {
   ) {
     this.bookmarkId = Math.max(0, Math.trunc(bookmarkId));
     this.topicId = Math.max(0, Math.trunc(topicId));
-    this.title = visibleProfileText(title);
-    this.excerpt = visibleProfileText(excerpt);
+    this.title = forumPlainText(title, ForumPlainTextContext.PROFILE);
+    this.excerpt = forumPlainText(excerpt, ForumPlainTextContext.PROFILE);
     this.postNumber = Math.max(1, Math.trunc(postNumber));
     this.categoryId = Math.max(0, Math.trunc(categoryId));
     this.highestPostNumber = Math.max(this.postNumber, Math.trunc(highestPostNumber));

@@ -1,5 +1,6 @@
 import { JSON as ArkJSON } from '@kit.ArkTS';
 import { JsonObjectReader } from '../core/JsonObjectReader';
+import { forumPlainText, ForumPlainTextContext } from '../core/ForumPlainText';
 import { Topic } from './ForumModels';
 
 const RIVERSIDE_BASE_URL: string = 'https://river-side.cc';
@@ -48,24 +49,6 @@ function positiveInteger(value: number | undefined): number {
   return value !== undefined && Number.isSafeInteger(value) && value > 0 ? value : 0;
 }
 
-function visibleText(value: string): string {
-  return value
-    .replace(/<script[\s\S]*?<\/script>/gi, '')
-    .replace(/<style[\s\S]*?<\/style>/gi, '')
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/&nbsp;/gi, ' ')
-    .replace(/&amp;/gi, '&')
-    .replace(/&lt;/gi, '<')
-    .replace(/&gt;/gi, '>')
-    .replace(/&quot;/gi, '"')
-    .replace(/&#39;/gi, "'")
-    .replace(/[ \t]+/g, ' ')
-    .replace(/ *\n */g, '\n')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim();
-}
-
 function absoluteNotificationUrl(value: string): string {
   const normalized: string = value.trim().replace('{size}', '96');
   if (normalized.length === 0) return '';
@@ -100,19 +83,19 @@ export class NotificationItem {
   ) {
     this.id = positiveInteger(id);
     this.kind = kind;
-    this.title = visibleText(title);
-    this.excerpt = visibleText(attributes.excerpt ?? '');
+    this.title = forumPlainText(title, ForumPlainTextContext.NOTIFICATION);
+    this.excerpt = forumPlainText(attributes.excerpt ?? '', ForumPlainTextContext.NOTIFICATION);
     this.topicId = positiveInteger(attributes.topicId);
     this.postId = positiveInteger(attributes.postId);
     this.postNumber = positiveInteger(attributes.postNumber);
     this.categoryId = positiveInteger(attributes.categoryId);
     this.highestPostNumber = positiveInteger(attributes.highestPostNumber);
     this.createdAt = (attributes.createdAt ?? '').trim();
-    this.actorUsername = visibleText(attributes.actorUsername ?? '');
-    this.actorName = visibleText(attributes.actorName ?? '');
+    this.actorUsername = forumPlainText(attributes.actorUsername ?? '', ForumPlainTextContext.NOTIFICATION);
+    this.actorName = forumPlainText(attributes.actorName ?? '', ForumPlainTextContext.NOTIFICATION);
     this.avatarUrl = absoluteNotificationUrl(attributes.avatarUrl ?? '');
     this.flairUrl = absoluteNotificationUrl(attributes.flairUrl ?? '');
-    this.reaction = visibleText(attributes.reaction ?? '').replace(/:/g, '');
+    this.reaction = forumPlainText(attributes.reaction ?? '', ForumPlainTextContext.NOTIFICATION).replace(/:/g, '');
   }
 
   public static privateMessage(topic: Topic): NotificationItem {

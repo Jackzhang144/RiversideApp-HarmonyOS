@@ -1,4 +1,5 @@
 import { Category, Topic } from './ForumModels';
+import { forumPlainText, ForumPlainTextContext } from '../core/ForumPlainText';
 
 const RIVERSIDE_ORIGIN: string = 'https://river-side.cc';
 
@@ -103,22 +104,6 @@ export function homeChannelPath(channel: HomeChannel, page: number): string {
   return `${path}${path.includes('?') ? '&' : '?'}page=${page}`;
 }
 
-function plainSearchText(value: string): string {
-  return value
-    .replace(/<script[\s\S]*?<\/script>/gi, '')
-    .replace(/<style[\s\S]*?<\/style>/gi, '')
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<[^>]+>/g, '')
-    .replace(/&nbsp;/gi, ' ')
-    .replace(/&amp;/gi, '&')
-    .replace(/&lt;/gi, '<')
-    .replace(/&gt;/gi, '>')
-    .replace(/&quot;/gi, '"')
-    .replace(/&#39;/gi, "'")
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
 export class SearchPost {
   public readonly id: number;
   public readonly topic: Topic;
@@ -139,7 +124,7 @@ export class SearchPost {
     this.topic = topic;
     this.postNumber = postNumber;
     this.username = username.trim();
-    this.displayText = plainSearchText(blurb);
+    this.displayText = forumPlainText(blurb, ForumPlainTextContext.DISCOVERY);
     this.createdAt = createdAt;
   }
 }
