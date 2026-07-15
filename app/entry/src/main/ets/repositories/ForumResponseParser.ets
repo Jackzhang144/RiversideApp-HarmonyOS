@@ -661,7 +661,7 @@ export class ForumResponseParser {
   public parseLatestTopics(text: string): RepositoryResult<Array<Topic>> {
     const envelope: LatestTopicsDto | null = parseLatestEnvelope(text);
     if (envelope === null || envelope.topics === null) {
-      return RepositoryResult.failure<Array<Topic>>('服务器响应缺少 Topic 列表');
+      return RepositoryResult.invalidResponse<Array<Topic>>('服务器响应缺少 Topic 列表');
     }
     const topics: Array<Topic> = [];
     const seenTopicIds: Set<number> = new Set<number>();
@@ -682,14 +682,14 @@ export class ForumResponseParser {
     const siteEnvelope: JsonObjectReader | null = JsonObjectReader.parse(siteText);
     const directoryEnvelope: JsonObjectReader | null = JsonObjectReader.parse(directoryText);
     if (siteEnvelope === null || directoryEnvelope === null) {
-      return RepositoryResult.failure<Array<Category>>('服务器响应缺少 Category 目录');
+      return RepositoryResult.invalidResponse<Array<Category>>('服务器响应缺少 Category 目录');
     }
 
     const categoriesById: Map<number, Category> = new Map<number, Category>();
     const siteDtos: Array<CategoryDto> | null = collectCategoryDtos(siteEnvelope);
     const directoryDtos: Array<CategoryDto> | null = collectCategoryDtos(directoryEnvelope);
     if (siteDtos === null || directoryDtos === null) {
-      return RepositoryResult.failure<Array<Category>>('服务器响应缺少 Category 目录');
+      return RepositoryResult.invalidResponse<Array<Category>>('服务器响应缺少 Category 目录');
     }
     const dtos: Array<CategoryDto> = siteDtos.concat(directoryDtos);
     for (const dto of dtos) {
@@ -704,19 +704,19 @@ export class ForumResponseParser {
   public parseTopicDetail(text: string): RepositoryResult<TopicDetail> {
     const envelope: JsonObjectReader | null = JsonObjectReader.parse(text);
     if (envelope === null) {
-      return RepositoryResult.failure<TopicDetail>('服务器响应缺少 Topic 详情');
+      return RepositoryResult.invalidResponse<TopicDetail>('服务器响应缺少 Topic 详情');
     }
     const id: number | null = envelope.number('id');
     const directTitle: string = textOrEmpty(envelope.string('title'));
     const title: string = directTitle.length > 0 ? directTitle : textOrEmpty(envelope.string('fancy_title'));
     const postStream: JsonObjectReader | null = envelope.object('post_stream');
     if (id === null || id <= 0 || title.length === 0 || postStream === null) {
-      return RepositoryResult.failure<TopicDetail>('服务器响应缺少 Topic 详情');
+      return RepositoryResult.invalidResponse<TopicDetail>('服务器响应缺少 Topic 详情');
     }
     const postIds: Array<number> | null = decodeNumberArray(postStream, 'stream');
     const posts: Array<ForumPost> | null = decodePosts(postStream);
     if (postIds === null || posts === null) {
-      return RepositoryResult.failure<TopicDetail>('服务器响应缺少 Post 列表');
+      return RepositoryResult.invalidResponse<TopicDetail>('服务器响应缺少 Post 列表');
     }
     const closed: boolean = envelope.boolean('closed') === true;
     const archived: boolean = envelope.boolean('archived') === true;
@@ -750,11 +750,11 @@ export class ForumResponseParser {
     const envelope: JsonObjectReader | null = JsonObjectReader.parse(text);
     const postStream: JsonObjectReader | null = envelope?.object('post_stream') ?? null;
     if (postStream === null) {
-      return RepositoryResult.failure<Array<ForumPost>>('服务器响应缺少 Post 列表');
+      return RepositoryResult.invalidResponse<Array<ForumPost>>('服务器响应缺少 Post 列表');
     }
     const posts: Array<ForumPost> | null = decodePosts(postStream);
     return posts === null
-      ? RepositoryResult.failure<Array<ForumPost>>('服务器响应缺少 Post 列表')
+      ? RepositoryResult.invalidResponse<Array<ForumPost>>('服务器响应缺少 Post 列表')
       : RepositoryResult.success<Array<ForumPost>>(posts);
   }
 
@@ -762,18 +762,18 @@ export class ForumResponseParser {
     const envelope: JsonObjectReader | null = JsonObjectReader.parse(text);
     const postStream: JsonObjectReader | null = envelope?.object('post_stream') ?? null;
     if (envelope === null || postStream === null) {
-      return RepositoryResult.failure<TopicPostBatch>('服务器响应缺少 Post 列表');
+      return RepositoryResult.invalidResponse<TopicPostBatch>('服务器响应缺少 Post 列表');
     }
     const posts: Array<ForumPost> | null = decodePosts(postStream);
     return posts === null
-      ? RepositoryResult.failure<TopicPostBatch>('服务器响应缺少 Post 列表')
+      ? RepositoryResult.invalidResponse<TopicPostBatch>('服务器响应缺少 Post 列表')
       : RepositoryResult.success<TopicPostBatch>(new TopicPostBatch(posts, decodeSuggestedTopics(envelope)));
   }
 
   public parseTopicSuggestions(text: string): RepositoryResult<Array<Topic>> {
     const envelope: JsonObjectReader | null = JsonObjectReader.parse(text);
     return envelope === null
-      ? RepositoryResult.failure<Array<Topic>>('服务器响应缺少推荐 Topic')
+      ? RepositoryResult.invalidResponse<Array<Topic>>('服务器响应缺少推荐 Topic')
       : RepositoryResult.success<Array<Topic>>(decodeSuggestedTopics(envelope));
   }
 
@@ -781,7 +781,7 @@ export class ForumResponseParser {
     const envelope: JsonObjectReader | null = JsonObjectReader.parse(text);
     const reactionValues: Array<Object | null> | null = envelope?.array('reaction_users') ?? null;
     if (envelope === null || reactionValues === null) {
-      return RepositoryResult.failure<Array<PostReactionUsers>>('服务器响应缺少 Reaction 用户');
+      return RepositoryResult.invalidResponse<Array<PostReactionUsers>>('服务器响应缺少 Reaction 用户');
     }
     const reactionUsers: Array<PostReactionUsers> = [];
     for (const reactionValue of reactionValues) {
@@ -821,7 +821,7 @@ export class ForumResponseParser {
     const envelope: JsonObjectReader | null = JsonObjectReader.parse(text);
     const id: number | null = envelope?.number('id') ?? null;
     return id === null || !Number.isInteger(id) || id <= 0
-      ? RepositoryResult.failure<number>('服务器响应缺少书签标识')
+      ? RepositoryResult.invalidResponse<number>('服务器响应缺少书签标识')
       : RepositoryResult.success<number>(id);
   }
 
@@ -833,7 +833,7 @@ export class ForumResponseParser {
     const envelope: JsonObjectReader | null = JsonObjectReader.parse(text);
     const values: Array<Object | null> | null = envelope?.array('notifications') ?? null;
     if (envelope === null || values === null) {
-      return RepositoryResult.failure<Array<number>>('服务器响应缺少通知列表');
+      return RepositoryResult.invalidResponse<Array<number>>('服务器响应缺少通知列表');
     }
     const uniqueIds: Set<number> = new Set<number>();
     for (const value of values) {
@@ -861,12 +861,12 @@ export class ForumResponseParser {
   public parseCreatedReply(text: string): RepositoryResult<ForumPost> {
     const envelope: JsonObjectReader | null = JsonObjectReader.parse(text);
     if (envelope === null) {
-      return RepositoryResult.failure<ForumPost>('服务器响应缺少已创建的 Reply');
+      return RepositoryResult.invalidResponse<ForumPost>('服务器响应缺少已创建的 Reply');
     }
     const nestedPost: JsonObjectReader | null = envelope.object('post');
     const post: ForumPost | null = decodeCreatedPostReader(nestedPost ?? envelope);
     return post === null
-      ? RepositoryResult.failure<ForumPost>('服务器响应缺少已创建的 Reply')
+      ? RepositoryResult.invalidResponse<ForumPost>('服务器响应缺少已创建的 Reply')
       : RepositoryResult.success<ForumPost>(post);
   }
 
@@ -876,7 +876,7 @@ export class ForumResponseParser {
       ? null
       : integerFromReader(envelope, ['topic_id', 'id']);
     return topicId === null || topicId <= 0
-      ? RepositoryResult.failure<number>('服务器发帖响应格式无效')
+      ? RepositoryResult.invalidResponse<number>('服务器发帖响应格式无效')
       : RepositoryResult.success<number>(topicId);
   }
 
@@ -886,7 +886,7 @@ export class ForumResponseParser {
       ? null
       : integerFromReader(envelope, ['draft_sequence', 'sequence']);
     return sequence === null || sequence < 0
-      ? RepositoryResult.failure<number>('服务器草稿响应格式无效')
+      ? RepositoryResult.invalidResponse<number>('服务器草稿响应格式无效')
       : RepositoryResult.success<number>(sequence);
   }
 
@@ -894,7 +894,7 @@ export class ForumResponseParser {
     const envelope: JsonObjectReader | null = JsonObjectReader.parse(text);
     const values: Array<Object | null> | null = envelope?.array('drafts') ?? null;
     if (envelope === null || values === null) {
-      return RepositoryResult.failure<Array<ServerDraft>>('服务器草稿响应格式无效');
+      return RepositoryResult.invalidResponse<Array<ServerDraft>>('服务器草稿响应格式无效');
     }
     const drafts: Array<ServerDraft> = [];
     for (const value of values) {

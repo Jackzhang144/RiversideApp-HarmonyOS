@@ -132,7 +132,7 @@ async function multipartBody(request: MediaTransportRequest, boundary: string): 
 
 class HttpMediaTransportOperation implements MediaTransportOperation {
   public completion: Promise<HttpTextResult> = Promise.resolve(
-    HttpTextResult.failure(0, '图片上传尚未开始')
+    HttpTextResult.invalidInput('图片上传尚未开始')
   );
   private activeRequest: http.HttpRequest | null = null;
   private cancelled: boolean = false;
@@ -196,23 +196,23 @@ export class DiscourseMediaTransport implements ForumMediaTransport {
     onProgress: MediaProgressListener
   ): Promise<HttpTextResult> {
     if (!request.path.startsWith('/')) {
-      return HttpTextResult.failure(0, '上传路径无效');
+      return HttpTextResult.invalidInput('上传路径无效');
     }
     if (!isUploadImageSizeSupported(request.media.sizeBytes)) {
-      return HttpTextResult.failure(0, '图片大小无效或超过 20 MB');
+      return HttpTextResult.invalidInput('图片大小无效或超过 20 MB');
     }
     const boundary: string = `----RiversideMedia${request.media.operationId.replace(/[^a-zA-Z0-9]/g, '')}`;
     const body: ArrayBuffer | null = await multipartBody(request, boundary);
     if (body === null) {
-      return HttpTextResult.failure(0, '无法读取图片缓存副本');
+      return HttpTextResult.storage('无法读取图片缓存副本');
     }
     if (operation.isCancelled()) {
-      return HttpTextResult.failure(0, '已取消图片上传');
+      return HttpTextResult.cancelled('已取消图片上传');
     }
 
     const httpRequest: http.HttpRequest = http.createHttp();
     if (!operation.attach(httpRequest)) {
-      return HttpTextResult.failure(0, '已取消图片上传');
+      return HttpTextResult.cancelled('已取消图片上传');
     }
     const headers: DiscourseHeaders = this.headersFactory.create();
     httpRequest.on('dataSendProgress', (info: http.DataSendProgressInfo): void => {
@@ -232,7 +232,7 @@ export class DiscourseMediaTransport implements ForumMediaTransport {
         }
       );
       if (operation.isCancelled()) {
-        return HttpTextResult.failure(0, '已取消图片上传');
+        return HttpTextResult.cancelled('已取消图片上传');
       }
       if (response.responseCode === 401) {
         return HttpTextResult.unauthorized();
@@ -241,12 +241,12 @@ export class DiscourseMediaTransport implements ForumMediaTransport {
         return HttpTextResult.failure(response.responseCode, `服务器返回 ${response.responseCode}`);
       }
       if (typeof response.result !== 'string') {
-        return HttpTextResult.failure(response.responseCode, '上传响应格式无效');
+        return HttpTextResult.invalidResponse(response.responseCode, '上传响应格式无效');
       }
       return HttpTextResult.success(response.responseCode, response.result);
     } catch (_) {
       return operation.isCancelled()
-        ? HttpTextResult.failure(0, '已取消图片上传')
+        ? HttpTextResult.cancelled('已取消图片上传')
         : HttpTextResult.failure(0, '图片上传网络连接失败');
     } finally {
       httpRequest.off('dataSendProgress');

@@ -89,22 +89,22 @@ export class MediaGalleryService {
         return RepositoryResult.unauthorized<CachedMedia>();
       }
       if (response.responseCode < 200 || response.responseCode >= 300) {
-        return RepositoryResult.failure<CachedMedia>(`原图下载失败：服务器返回 ${response.responseCode}`);
+        return RepositoryResult.server<CachedMedia>(`原图下载失败：服务器返回 ${response.responseCode}`);
       }
       if (!(response.result instanceof ArrayBuffer)) {
-        return RepositoryResult.failure<CachedMedia>('原图下载响应格式无效');
+        return RepositoryResult.invalidResponse<CachedMedia>('原图下载响应格式无效');
       }
       const bytes: Uint8Array = new Uint8Array(response.result);
       if (bytes.byteLength <= 0 || bytes.byteLength > MAX_IMAGE_BYTES) {
-        return RepositoryResult.failure<CachedMedia>('原图大小无效或超过 30 MB');
+        return RepositoryResult.invalidResponse<CachedMedia>('原图大小无效或超过 30 MB');
       }
       const detected: DetectedImageType | null = detectImageType(bytes);
       if (detected === null) {
-        return RepositoryResult.failure<CachedMedia>('原图不是受支持的 JPEG、PNG、GIF 或 WebP');
+        return RepositoryResult.invalidResponse<CachedMedia>('原图不是受支持的 JPEG、PNG、GIF 或 WebP');
       }
       return await this.persistCacheCopy(bytes, detected);
     } catch (_) {
-      return RepositoryResult.failure<CachedMedia>('原图下载网络连接失败');
+      return RepositoryResult.network<CachedMedia>('原图下载网络连接失败');
     } finally {
       request.destroy();
     }
@@ -121,7 +121,7 @@ export class MediaGalleryService {
       await helper.applyChanges(request);
       return RepositoryResult.success<boolean>(true);
     } catch (_) {
-      return RepositoryResult.failure<boolean>('无法将图片写入系统相册');
+      return RepositoryResult.storage<boolean>('无法将图片写入系统相册');
     } finally {
       try {
         await helper.release();
@@ -150,7 +150,7 @@ export class MediaGalleryService {
       );
       const written: number = await fileIo.write(file.fd, bytes.buffer, { length: bytes.byteLength });
       if (written !== bytes.byteLength) {
-        return RepositoryResult.failure<CachedMedia>('原图缓存写入不完整');
+        return RepositoryResult.storage<CachedMedia>('原图缓存写入不完整');
       }
       const media: CachedMedia | null = CachedMedia.create(
         operationId,
@@ -161,10 +161,10 @@ export class MediaGalleryService {
         bytes.byteLength
       );
       return media === null
-        ? RepositoryResult.failure<CachedMedia>('原图缓存信息无效')
+        ? RepositoryResult.storage<CachedMedia>('原图缓存信息无效')
         : RepositoryResult.success<CachedMedia>(media);
     } catch (_) {
-      return RepositoryResult.failure<CachedMedia>('无法创建原图缓存副本');
+      return RepositoryResult.storage<CachedMedia>('无法创建原图缓存副本');
     } finally {
       if (file !== null) {
         try {

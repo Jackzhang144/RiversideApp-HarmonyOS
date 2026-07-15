@@ -124,7 +124,7 @@ class TopicReadingRepository implements ForumRepository {
   }
 
   public async searchForum(_query: string, _page: number): Promise<RepositoryResult<ForumSearchResult>> {
-    return RepositoryResult.failure<ForumSearchResult>('missing search result');
+    return RepositoryResult.unknown<ForumSearchResult>('missing search result');
   }
 
   public async searchSuggestions(_term: string): Promise<RepositoryResult<Array<string>>> {
@@ -142,7 +142,7 @@ class TopicReadingRepository implements ForumRepository {
       return await task;
     }
     const result: RepositoryResult<Array<Topic>> | undefined = this.categoryTopicResults.shift();
-    return result ?? RepositoryResult.failure<Array<Topic>>('missing Category Topic result');
+    return result ?? RepositoryResult.unknown<Array<Topic>>('missing Category Topic result');
   }
 
   public async loadTopicDetail(
@@ -155,7 +155,7 @@ class TopicReadingRepository implements ForumRepository {
       return await task;
     }
     const result: RepositoryResult<TopicDetail> | undefined = this.topicDetailResults.shift();
-    return result ?? RepositoryResult.failure<TopicDetail>('missing Topic detail result');
+    return result ?? RepositoryResult.unknown<TopicDetail>('missing Topic detail result');
   }
 
   public async loadTopicPosts(_topicId: number, postIds: Array<number>): Promise<RepositoryResult<TopicPostBatch>> {
@@ -165,7 +165,7 @@ class TopicReadingRepository implements ForumRepository {
       return await task;
     }
     const result: RepositoryResult<TopicPostBatch> | undefined = this.topicPostResults.shift();
-    return result ?? RepositoryResult.failure<TopicPostBatch>('missing Post result');
+    return result ?? RepositoryResult.unknown<TopicPostBatch>('missing Post result');
   }
 
   public async loadTopicSuggestions(topicId: number): Promise<RepositoryResult<Array<Topic>>> {
@@ -176,23 +176,23 @@ class TopicReadingRepository implements ForumRepository {
 
   public async togglePostReaction(postId: number, reaction: string): Promise<RepositoryResult<ForumPost>> {
     this.requestedReactions.push(`${postId}:${reaction}`);
-    return this.reactionResults.shift() ?? RepositoryResult.failure<ForumPost>('missing Reaction result');
+    return this.reactionResults.shift() ?? RepositoryResult.unknown<ForumPost>('missing Reaction result');
   }
 
   public async loadPostReactionUsers(postId: number): Promise<RepositoryResult<Array<PostReactionUsers>>> {
     this.requestedReactionUserPostIds.push(postId);
     return this.reactionUsersResults.shift() ??
-      RepositoryResult.failure<Array<PostReactionUsers>>('missing Reaction users result');
+      RepositoryResult.unknown<Array<PostReactionUsers>>('missing Reaction users result');
   }
 
   public async createPostBookmark(postId: number): Promise<RepositoryResult<number>> {
     this.requestedBookmarkPostIds.push(postId);
-    return this.createBookmarkResults.shift() ?? RepositoryResult.failure<number>('missing bookmark result');
+    return this.createBookmarkResults.shift() ?? RepositoryResult.unknown<number>('missing bookmark result');
   }
 
   public async deletePostBookmark(bookmarkId: number): Promise<RepositoryResult<boolean>> {
     this.requestedDeleteBookmarkIds.push(bookmarkId);
-    return this.deleteBookmarkResults.shift() ?? RepositoryResult.failure<boolean>('missing bookmark result');
+    return this.deleteBookmarkResults.shift() ?? RepositoryResult.unknown<boolean>('missing bookmark result');
   }
 
   public async deletePost(postId: number): Promise<RepositoryResult<boolean>> {
@@ -201,12 +201,12 @@ class TopicReadingRepository implements ForumRepository {
     if (task !== undefined) {
       return await task;
     }
-    return this.deletePostResults.shift() ?? RepositoryResult.failure<boolean>('missing Post delete result');
+    return this.deletePostResults.shift() ?? RepositoryResult.unknown<boolean>('missing Post delete result');
   }
 
   public async flagPost(request: PostFlagRequest): Promise<RepositoryResult<boolean>> {
     this.requestedFlags.push(`${request.postId}:${request.typeId}:${request.message ?? ''}`);
-    return this.flagPostResults.shift() ?? RepositoryResult.failure<boolean>('missing Post flag result');
+    return this.flagPostResults.shift() ?? RepositoryResult.unknown<boolean>('missing Post flag result');
   }
 
   public async setPostAcceptedAnswer(postId: number, accepted: boolean): Promise<RepositoryResult<boolean>> {
@@ -215,7 +215,7 @@ class TopicReadingRepository implements ForumRepository {
     if (task !== undefined) {
       return await task;
     }
-    return this.acceptedAnswerResults.shift() ?? RepositoryResult.failure<boolean>('missing solution result');
+    return this.acceptedAnswerResults.shift() ?? RepositoryResult.unknown<boolean>('missing solution result');
   }
 
   public async markTopicRead(
@@ -228,7 +228,7 @@ class TopicReadingRepository implements ForumRepository {
     if (task !== undefined) {
       return await task;
     }
-    return this.markTopicReadResults.shift() ?? RepositoryResult.failure<boolean>('missing Topic timing result');
+    return this.markTopicReadResults.shift() ?? RepositoryResult.unknown<boolean>('missing Topic timing result');
   }
 
   public async clearTopicNotifications(
@@ -251,11 +251,11 @@ class TopicReadingRepository implements ForumRepository {
 
   public async loadCurrentUser(): Promise<RepositoryResult<CurrentUser>> {
     const result: RepositoryResult<CurrentUser> | undefined = this.currentUserResults.shift();
-    return result ?? RepositoryResult.failure<CurrentUser>('missing current user result');
+    return result ?? RepositoryResult.unknown<CurrentUser>('missing current user result');
   }
 
   public async loadUserProfile(_username: string): Promise<RepositoryResult<CurrentUser>> {
-    return RepositoryResult.failure<CurrentUser>('missing user profile result');
+    return RepositoryResult.unknown<CurrentUser>('missing user profile result');
   }
 
   public async recoverReply(request: ReplyRecoveryRequest): Promise<ReplyRecoveryResult> {
@@ -271,11 +271,11 @@ class TopicReadingRepository implements ForumRepository {
 
   public async editPost(request: EditPostRequest): Promise<RepositoryResult<boolean>> {
     this.editedPosts.push(request);
-    return this.editPostResults.shift() ?? RepositoryResult.failure<boolean>('missing Post edit result');
+    return this.editPostResults.shift() ?? RepositoryResult.unknown<boolean>('missing Post edit result');
   }
 
   public async editTopic(_request: EditTopicRequest): Promise<RepositoryResult<boolean>> {
-    return RepositoryResult.failure<boolean>('missing Topic edit result');
+    return RepositoryResult.unknown<boolean>('missing Topic edit result');
   }
 
   public async loadDrafts(): Promise<RepositoryResult<Array<ServerDraft>>> {
@@ -284,7 +284,7 @@ class TopicReadingRepository implements ForumRepository {
 
   public async saveDraft(request: DraftWriteRequest): Promise<RepositoryResult<number>> {
     this.savedDrafts.push(request);
-    return this.savedDraftResults.shift() ?? RepositoryResult.failure<number>('missing draft result');
+    return this.savedDraftResults.shift() ?? RepositoryResult.unknown<number>('missing draft result');
   }
 
   public async deleteDraft(draftKey: string, sequence: number): Promise<RepositoryResult<boolean>> {
@@ -381,7 +381,7 @@ function solutionReply(
 function authenticatedUserResult(): RepositoryResult<CurrentUser> {
   const user: CurrentUser | null = CurrentUser.create(24, 'Co-admin');
   return user === null
-    ? RepositoryResult.failure<CurrentUser>('invalid test user')
+    ? RepositoryResult.unknown<CurrentUser>('invalid test user')
     : RepositoryResult.success<CurrentUser>(user);
 }
 
@@ -492,7 +492,7 @@ export default function topicReadingTest(): void {
 
     it('opens a Category Topic list as a retryable secondary page', 0, async (done: Function) => {
       const repository: TopicReadingRepository = new TopicReadingRepository();
-      repository.categoryTopicResults.push(RepositoryResult.failure<Array<Topic>>('网络连接失败'));
+      repository.categoryTopicResults.push(RepositoryResult.unknown<Array<Topic>>('网络连接失败'));
       repository.categoryTopicResults.push(RepositoryResult.success<Array<Topic>>([topic()]));
       const model: AppShellModel = new AppShellModel(
         repository,
@@ -655,7 +655,7 @@ export default function topicReadingTest(): void {
 
     it('retries a failed Topic first screen without losing its identity', 0, async (done: Function) => {
       const repository: TopicReadingRepository = new TopicReadingRepository();
-      repository.topicDetailResults.push(RepositoryResult.failure<TopicDetail>('网络连接失败'));
+      repository.topicDetailResults.push(RepositoryResult.unknown<TopicDetail>('网络连接失败'));
       repository.topicDetailResults.push(RepositoryResult.success<TopicDetail>(new TopicDetail(
         2725,
         '站务管理区重要主题导航',
@@ -779,7 +779,7 @@ export default function topicReadingTest(): void {
         [102728],
         [firstPost()]
       )));
-      repository.topicDetailResults.push(RepositoryResult.failure<TopicDetail>('刷新失败'));
+      repository.topicDetailResults.push(RepositoryResult.unknown<TopicDetail>('刷新失败'));
       const model: AppShellModel = new AppShellModel(
         repository,
         new MemoryCategoryCache(),
@@ -799,7 +799,7 @@ export default function topicReadingTest(): void {
 
     it('opens and retries a searched Post from its requested floor', 0, async (done: Function) => {
       const repository: TopicReadingRepository = new TopicReadingRepository();
-      repository.topicDetailResults.push(RepositoryResult.failure<TopicDetail>('网络连接失败'));
+      repository.topicDetailResults.push(RepositoryResult.unknown<TopicDetail>('网络连接失败'));
       repository.topicDetailResults.push(RepositoryResult.success<TopicDetail>(new TopicDetail(
         2725,
         '站务管理区重要主题导航',
@@ -896,7 +896,7 @@ export default function topicReadingTest(): void {
         [102728, 102729, 102730],
         [firstPost()]
       )));
-      repository.topicPostResults.push(RepositoryResult.failure<TopicPostBatch>('网络连接失败'));
+      repository.topicPostResults.push(RepositoryResult.unknown<TopicPostBatch>('网络连接失败'));
       repository.topicPostResults.push(RepositoryResult.success<TopicPostBatch>(new TopicPostBatch([
         firstPost(),
         secondPost(),
@@ -1015,7 +1015,7 @@ export default function topicReadingTest(): void {
             2725, '定点阅读', 100, 80, 0, false, false, true,
             [102728, 102729, 102730], [firstPost(), secondPost()], 80
           )),
-          RepositoryResult.failure<TopicDetail>('楼层加载失败'),
+          RepositoryResult.unknown<TopicDetail>('楼层加载失败'),
           RepositoryResult.success<TopicDetail>(new TopicDetail(
             2725, '定点阅读', 100, 80, 0, false, false, true,
             [103735, 103736, 103737, 103738, 103739], [
@@ -1079,7 +1079,7 @@ export default function topicReadingTest(): void {
 
       expect(repository.requestedPostIds.length).assertEqual(0);
       expect(model.topicState.isLoadingMore).assertFalse();
-      jumpResult.complete(RepositoryResult.failure<TopicDetail>('楼层加载失败'));
+      jumpResult.complete(RepositoryResult.unknown<TopicDetail>('楼层加载失败'));
       await jumpTask;
       done();
     });
@@ -1202,7 +1202,7 @@ export default function topicReadingTest(): void {
         2725, 'Reaction Topic', 10, 1, 0, false, false, true, [102728], [firstPost()]
       )));
       repository.reactionResults.push(
-        RepositoryResult.failure<ForumPost>('Reaction 更新失败'),
+        RepositoryResult.unknown<ForumPost>('Reaction 更新失败'),
         RepositoryResult.success<ForumPost>(reactedFirstPost())
       );
       const model: AppShellModel = new AppShellModel(
@@ -1232,7 +1232,7 @@ export default function topicReadingTest(): void {
         RepositoryResult.success<Array<PostReactionUsers>>([
           new PostReactionUsers('heart', 1, [new PostReactionUser('river_user', '/avatar/{size}.png')])
         ]),
-        RepositoryResult.failure<Array<PostReactionUsers>>('回应用户加载失败')
+        RepositoryResult.unknown<Array<PostReactionUsers>>('回应用户加载失败')
       );
       const model: AppShellModel = new AppShellModel(
         repository, new MemoryCategoryCache(), CategoryCacheScope.anonymous()
@@ -1261,7 +1261,7 @@ export default function topicReadingTest(): void {
       )));
       repository.createBookmarkResults.push(RepositoryResult.success<number>(901));
       repository.deleteBookmarkResults.push(
-        RepositoryResult.failure<boolean>('书签删除失败'),
+        RepositoryResult.unknown<boolean>('书签删除失败'),
         RepositoryResult.success<boolean>(true)
       );
       const model: AppShellModel = new AppShellModel(
@@ -1352,7 +1352,7 @@ export default function topicReadingTest(): void {
         2725, 'Delete Topic', 10, 2, 0, false, false, true,
         [102728, 102729], [firstPost(), deletableSecondPost()]
       )));
-      repository.deletePostResults.push(RepositoryResult.failure<boolean>('删除失败，请稍后重试'));
+      repository.deletePostResults.push(RepositoryResult.unknown<boolean>('删除失败，请稍后重试'));
       const model: AppShellModel = new AppShellModel(
         repository, new MemoryCategoryCache(), CategoryCacheScope.anonymous()
       );
@@ -1443,7 +1443,7 @@ export default function topicReadingTest(): void {
           [102728, 102729], [firstPost(), solutionReply(false, true, false)]
         )));
         repository.acceptedAnswerResults.push(
-          RepositoryResult.failure<boolean>('采纳失败'),
+          RepositoryResult.unknown<boolean>('采纳失败'),
           RepositoryResult.success<boolean>(true),
           RepositoryResult.success<boolean>(true)
         );
@@ -1616,7 +1616,7 @@ export default function topicReadingTest(): void {
         [102728, 102729, 102730, 102731, 102732], [firstPost(), secondPost(), thirdPost()]
       )));
       repository.markTopicReadResults.push(
-        RepositoryResult.failure<boolean>('阅读进度同步失败'),
+        RepositoryResult.unknown<boolean>('阅读进度同步失败'),
         RepositoryResult.success<boolean>(true)
       );
       repository.clearNotificationResults.push(RepositoryResult.success<number>(2));
@@ -1927,7 +1927,7 @@ export default function topicReadingTest(): void {
         );
         repository.currentUserResults.push(authenticatedUserResult());
         repository.replySubmitResults.push(ReplySubmitResult.created(fourthPost()));
-        repository.deletedDraftResults.push(RepositoryResult.failure<boolean>('网络中断'));
+        repository.deletedDraftResults.push(RepositoryResult.unknown<boolean>('网络中断'));
         const model: AppShellModel = new AppShellModel(
           repository, new MemoryCategoryCache(), CategoryCacheScope.anonymous()
         );
@@ -2011,7 +2011,7 @@ export default function topicReadingTest(): void {
           RepositoryResult.success<Array<ServerDraft>>([staleDraft])
         );
         repository.topicSubmitResults.push(TopicSubmitResult.created(19139));
-        repository.deletedDraftResults.push(RepositoryResult.failure<boolean>('网络中断'));
+        repository.deletedDraftResults.push(RepositoryResult.unknown<boolean>('网络中断'));
         const model: AppShellModel = new AppShellModel(
           repository, new MemoryCategoryCache(), CategoryCacheScope.anonymous()
         );
@@ -2043,7 +2043,7 @@ export default function topicReadingTest(): void {
           new TopicDetailMetadata(111)
         )));
         repository.editPostResults.push(
-          RepositoryResult.failure<boolean>('服务器拒绝编辑'),
+          RepositoryResult.unknown<boolean>('服务器拒绝编辑'),
           RepositoryResult.success<boolean>(true)
         );
         const model: AppShellModel = new AppShellModel(

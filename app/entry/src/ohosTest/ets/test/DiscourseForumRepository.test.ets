@@ -1,6 +1,10 @@
 import { describe, expect, it } from '@ohos/hypium';
 import { ComposerMentionUser } from '../../../main/ets/models/ComposerMentionModels';
-import { RepositoryResult, RepositoryResultKind } from '../../../main/ets/core/RepositoryResult';
+import {
+  RepositoryFailureCode,
+  RepositoryResult,
+  RepositoryResultKind
+} from '../../../main/ets/core/RepositoryResult';
 import {
   ForumPost,
   PostFlagRequest,
@@ -218,6 +222,7 @@ export default function discourseForumRepositoryTest(): void {
       expect(client.paths.length).assertEqual(1);
       expect(suggestions.data?.length).assertEqual(2);
       expect(blank.kind).assertEqual(RepositoryResultKind.FAILURE);
+      expect(blank.failureCode).assertEqual(RepositoryFailureCode.INVALID_INPUT);
       done();
     });
 

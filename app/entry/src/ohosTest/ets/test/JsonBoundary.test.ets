@@ -1,6 +1,10 @@
 import { describe, expect, it } from '@ohos/hypium';
 import { JsonObjectReader } from '../../../main/ets/core/JsonObjectReader';
-import { RepositoryResult, RepositoryResultKind } from '../../../main/ets/core/RepositoryResult';
+import {
+  RepositoryFailureCode,
+  RepositoryResult,
+  RepositoryResultKind
+} from '../../../main/ets/core/RepositoryResult';
 import {
   Category,
   ForumPost,
@@ -34,6 +38,7 @@ export default function jsonBoundaryTest(): void {
       );
 
       expect(result.kind).assertEqual(RepositoryResultKind.FAILURE);
+      expect(result.failureCode).assertEqual(RepositoryFailureCode.INVALID_RESPONSE);
       expect(result.data).assertNull();
     });
 
@@ -75,6 +80,7 @@ export default function jsonBoundaryTest(): void {
       );
 
       expect(result.kind).assertEqual(RepositoryResultKind.FAILURE);
+      expect(result.failureCode).assertEqual(RepositoryFailureCode.INVALID_RESPONSE);
       expect(result.data).assertNull();
     });
 

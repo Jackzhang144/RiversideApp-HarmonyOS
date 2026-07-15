@@ -50,7 +50,7 @@ class StubChatRepository implements ChatRepository {
   public leaveChannelIds: Array<number> = [];
 
   public async loadChatChannels(): Promise<RepositoryResult<Array<ChatChannel>>> {
-    return this.channelResults.shift() ?? RepositoryResult.failure<Array<ChatChannel>>('missing channel result');
+    return this.channelResults.shift() ?? RepositoryResult.unknown<Array<ChatChannel>>('missing channel result');
   }
 
   public async loadChatMessages(
@@ -65,11 +65,11 @@ class StubChatRepository implements ChatRepository {
     }
     const task: Promise<RepositoryResult<ChatMessagePage>> | undefined = this.messageTasks.shift();
     if (task !== undefined) return task;
-    return this.messageResults.shift() ?? RepositoryResult.failure<ChatMessagePage>('missing message result');
+    return this.messageResults.shift() ?? RepositoryResult.unknown<ChatMessagePage>('missing message result');
   }
 
   public async openDirectChat(_username: string): Promise<RepositoryResult<ChatChannel>> {
-    return this.directResults.shift() ?? RepositoryResult.failure<ChatChannel>('missing direct result');
+    return this.directResults.shift() ?? RepositoryResult.unknown<ChatChannel>('missing direct result');
   }
 
   public async markChatRead(_channelId: number, messageId: number): Promise<RepositoryResult<boolean>> {
@@ -83,7 +83,7 @@ class StubChatRepository implements ChatRepository {
     if (task !== undefined) {
       return task;
     }
-    return this.sendResults.shift() ?? RepositoryResult.failure<ChatSendConfirmation>('missing send result');
+    return this.sendResults.shift() ?? RepositoryResult.unknown<ChatSendConfirmation>('missing send result');
   }
 
   public async reactToChatMessage(
@@ -93,15 +93,15 @@ class StubChatRepository implements ChatRepository {
     action: ChatReactionAction
   ): Promise<RepositoryResult<boolean>> {
     this.reactionActions.push(action);
-    return this.booleanResults.shift() ?? RepositoryResult.failure<boolean>('missing reaction result');
+    return this.booleanResults.shift() ?? RepositoryResult.unknown<boolean>('missing reaction result');
   }
 
   public async deleteChatMessage(_channelId: number, _messageId: number): Promise<RepositoryResult<boolean>> {
-    return this.booleanResults.shift() ?? RepositoryResult.failure<boolean>('missing delete result');
+    return this.booleanResults.shift() ?? RepositoryResult.unknown<boolean>('missing delete result');
   }
 
   public async restoreChatMessage(_channelId: number, _messageId: number): Promise<RepositoryResult<boolean>> {
-    return this.booleanResults.shift() ?? RepositoryResult.failure<boolean>('missing restore result');
+    return this.booleanResults.shift() ?? RepositoryResult.unknown<boolean>('missing restore result');
   }
 
   public async loadChatEmojis(): Promise<RepositoryResult<Array<ChatEmoji>>> {
@@ -118,7 +118,7 @@ class StubChatRepository implements ChatRepository {
 
   public async leaveChatChannel(channelId: number): Promise<RepositoryResult<boolean>> {
     this.leaveChannelIds.push(channelId);
-    return this.booleanResults.shift() ?? RepositoryResult.failure<boolean>('missing leave result');
+    return this.booleanResults.shift() ?? RepositoryResult.unknown<boolean>('missing leave result');
   }
 }
 
@@ -175,7 +175,7 @@ class StubMediaRepository implements MediaRepository {
     this.requests.push(request);
     onProgress(request.media.sizeBytes, request.media.sizeBytes);
     const result: RepositoryResult<MediaUploadResult> = this.results.shift() ??
-      RepositoryResult.failure<MediaUploadResult>('missing upload result');
+      RepositoryResult.unknown<MediaUploadResult>('missing upload result');
     return new MediaUploadOperation(new StubMediaTransportOperation(), Promise.resolve(result));
   }
 }
@@ -551,7 +551,7 @@ export default function chatModelTest(): void {
           )
         );
         repository.sendResults.push(
-          RepositoryResult.failure<ChatSendConfirmation>('发送失败'),
+          RepositoryResult.unknown<ChatSendConfirmation>('发送失败'),
           RepositoryResult.success<ChatSendConfirmation>(new ChatSendConfirmation(10))
         );
         const model: ChatModel = new ChatModel(
@@ -621,7 +621,7 @@ export default function chatModelTest(): void {
           RepositoryResult.success<ChatMessagePage>(new ChatMessagePage([
             message(9, '已有消息', '2026-07-12T09:00:00Z')
           ], false, false)),
-          RepositoryResult.failure<ChatMessagePage>('同步暂不可用')
+          RepositoryResult.unknown<ChatMessagePage>('同步暂不可用')
         );
         repository.sendResults.push(
           RepositoryResult.success<ChatSendConfirmation>(new ChatSendConfirmation(10))
@@ -656,7 +656,7 @@ export default function chatModelTest(): void {
       const repository: StubChatRepository = new StubChatRepository();
       const mediaRepository: StubMediaRepository = new StubMediaRepository();
       mediaRepository.results.push(
-        RepositoryResult.failure<MediaUploadResult>('上传失败'),
+        RepositoryResult.unknown<MediaUploadResult>('上传失败'),
         RepositoryResult.success<MediaUploadResult>(uploadedImage())
       );
       const model: ChatModel = new ChatModel(repository, mediaRepository);
@@ -691,7 +691,7 @@ export default function chatModelTest(): void {
         ], false, false))
       );
       repository.booleanResults.push(
-        RepositoryResult.failure<boolean>('Reaction 失败'),
+        RepositoryResult.unknown<boolean>('Reaction 失败'),
         RepositoryResult.success<boolean>(true)
       );
       const model: ChatModel = new ChatModel(repository);
@@ -721,7 +721,7 @@ export default function chatModelTest(): void {
         ], false, false))
       );
       repository.booleanResults.push(
-        RepositoryResult.failure<boolean>('删除失败'),
+        RepositoryResult.unknown<boolean>('删除失败'),
         RepositoryResult.success<boolean>(true),
         RepositoryResult.success<boolean>(true)
       );
@@ -743,7 +743,7 @@ export default function chatModelTest(): void {
       repository.messageResults.push(RepositoryResult.success<ChatMessagePage>(
         new ChatMessagePage([message(9, '频道消息', '2026-07-12T09:00:00Z')], false, false)
       ));
-      repository.booleanResults.push(RepositoryResult.failure<boolean>('离开失败'));
+      repository.booleanResults.push(RepositoryResult.unknown<boolean>('离开失败'));
       const model: ChatModel = new ChatModel(repository);
       await model.openChannel(channel());
 

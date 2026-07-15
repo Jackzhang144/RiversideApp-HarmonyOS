@@ -61,14 +61,14 @@ export class DiscourseForumRepository implements ForumRepository {
 
   public async loadHomeTopics(channel: HomeChannel, page: number): Promise<RepositoryResult<Array<Topic>>> {
     if (!Number.isInteger(page) || page < 0) {
-      return RepositoryResult.failure<Array<Topic>>('首页页码无效');
+      return RepositoryResult.invalidInput<Array<Topic>>('首页页码无效');
     }
     const response: HttpTextResult = await this.client.get(homeChannelPath(channel, page));
     if (response.kind === HttpTextResultKind.UNAUTHORIZED) {
       return RepositoryResult.unauthorized<Array<Topic>>();
     }
     if (!response.isSuccess()) {
-      return RepositoryResult.failure<Array<Topic>>(response.message);
+      return response.asRepositoryFailure<Array<Topic>>();
     }
     return this.parser.parseLatestTopics(response.body);
   }
@@ -87,20 +87,20 @@ export class DiscourseForumRepository implements ForumRepository {
       return RepositoryResult.unauthorized<Array<Category>>();
     }
     if (!siteResponse.isSuccess()) {
-      return RepositoryResult.failure<Array<Category>>(siteResponse.message);
+      return siteResponse.asRepositoryFailure<Array<Category>>();
     }
     if (!directoryResponse.isSuccess()) {
-      return RepositoryResult.failure<Array<Category>>(directoryResponse.message);
+      return directoryResponse.asRepositoryFailure<Array<Category>>();
     }
     return this.parser.parseCategories(siteResponse.body, directoryResponse.body);
   }
 
   public async loadCategoryTopics(categoryId: number, page: number = 0): Promise<RepositoryResult<Array<Topic>>> {
     if (!Number.isInteger(categoryId) || categoryId <= 0) {
-      return RepositoryResult.failure<Array<Topic>>('Category 标识无效');
+      return RepositoryResult.invalidInput<Array<Topic>>('Category 标识无效');
     }
     if (!Number.isInteger(page) || page < 0) {
-      return RepositoryResult.failure<Array<Topic>>('Category 页码无效');
+      return RepositoryResult.invalidInput<Array<Topic>>('Category 页码无效');
     }
     const suffix: string = page > 0 ? `?page=${page}` : '';
     const response: HttpTextResult = await this.client.get(`/c/${categoryId}.json${suffix}`);
@@ -108,7 +108,7 @@ export class DiscourseForumRepository implements ForumRepository {
       return RepositoryResult.unauthorized<Array<Topic>>();
     }
     if (!response.isSuccess()) {
-      return RepositoryResult.failure<Array<Topic>>(response.message);
+      return response.asRepositoryFailure<Array<Topic>>();
     }
     return this.parser.parseLatestTopics(response.body);
   }
@@ -116,10 +116,10 @@ export class DiscourseForumRepository implements ForumRepository {
   public async searchForum(query: string, page: number): Promise<RepositoryResult<ForumSearchResult>> {
     const normalizedQuery: string = query.trim();
     if (normalizedQuery.length === 0) {
-      return RepositoryResult.failure<ForumSearchResult>('请输入搜索关键词');
+      return RepositoryResult.invalidInput<ForumSearchResult>('请输入搜索关键词');
     }
     if (!Number.isInteger(page) || page < 1) {
-      return RepositoryResult.failure<ForumSearchResult>('搜索页码无效');
+      return RepositoryResult.invalidInput<ForumSearchResult>('搜索页码无效');
     }
     const response: HttpTextResult = await this.client.get(
       `/search.json?q=${encodeURIComponent(normalizedQuery)}&page=${page}`
@@ -128,7 +128,7 @@ export class DiscourseForumRepository implements ForumRepository {
       return RepositoryResult.unauthorized<ForumSearchResult>();
     }
     if (!response.isSuccess()) {
-      return RepositoryResult.failure<ForumSearchResult>(response.message);
+      return response.asRepositoryFailure<ForumSearchResult>();
     }
     return this.discoveryParser.parseSearch(response.body);
   }
@@ -145,7 +145,7 @@ export class DiscourseForumRepository implements ForumRepository {
       return RepositoryResult.unauthorized<Array<string>>();
     }
     if (!response.isSuccess()) {
-      return RepositoryResult.failure<Array<string>>(response.message);
+      return response.asRepositoryFailure<Array<string>>();
     }
     return this.discoveryParser.parseSearchSuggestions(response.body);
   }
@@ -162,7 +162,7 @@ export class DiscourseForumRepository implements ForumRepository {
       return RepositoryResult.unauthorized<Array<ComposerMentionUser>>();
     }
     if (!response.isSuccess()) {
-      return RepositoryResult.failure<Array<ComposerMentionUser>>(response.message);
+      return response.asRepositoryFailure<Array<ComposerMentionUser>>();
     }
     return this.discoveryParser.parseComposerMentionUsers(response.body);
   }
@@ -173,7 +173,7 @@ export class DiscourseForumRepository implements ForumRepository {
       return RepositoryResult.unauthorized<OnlineUsers>();
     }
     if (!response.isSuccess()) {
-      return RepositoryResult.failure<OnlineUsers>(response.message);
+      return response.asRepositoryFailure<OnlineUsers>();
     }
     return this.discoveryParser.parseOnlineUsers(response.body);
   }
@@ -183,10 +183,10 @@ export class DiscourseForumRepository implements ForumRepository {
     postNumber: number | null = null
   ): Promise<RepositoryResult<TopicDetail>> {
     if (!Number.isInteger(topicId) || topicId <= 0) {
-      return RepositoryResult.failure<TopicDetail>('Topic 标识无效');
+      return RepositoryResult.invalidInput<TopicDetail>('Topic 标识无效');
     }
     if (postNumber !== null && (!Number.isInteger(postNumber) || postNumber <= 0)) {
-      return RepositoryResult.failure<TopicDetail>('Post 楼层无效');
+      return RepositoryResult.invalidInput<TopicDetail>('Post 楼层无效');
     }
     const path: string = postNumber === null ? `/t/${topicId}.json` : `/t/${topicId}/${postNumber}.json`;
     const response: HttpTextResult = await this.client.get(`${path}?track_visit=true`);
@@ -194,21 +194,21 @@ export class DiscourseForumRepository implements ForumRepository {
       return RepositoryResult.unauthorized<TopicDetail>();
     }
     if (!response.isSuccess()) {
-      return RepositoryResult.failure<TopicDetail>(response.message);
+      return response.asRepositoryFailure<TopicDetail>();
     }
     return this.parser.parseTopicDetail(response.body);
   }
 
   public async loadTopicPosts(topicId: number, postIds: Array<number>): Promise<RepositoryResult<TopicPostBatch>> {
     if (!Number.isInteger(topicId) || topicId <= 0) {
-      return RepositoryResult.failure<TopicPostBatch>('Topic 标识无效');
+      return RepositoryResult.invalidInput<TopicPostBatch>('Topic 标识无效');
     }
     if (postIds.length === 0) {
       return RepositoryResult.success<TopicPostBatch>(new TopicPostBatch([]));
     }
     for (const postId of postIds) {
       if (!Number.isInteger(postId) || postId <= 0) {
-        return RepositoryResult.failure<TopicPostBatch>('Post 标识无效');
+        return RepositoryResult.invalidInput<TopicPostBatch>('Post 标识无效');
       }
     }
     const postQuery: string = postIds.map((postId: number) => `post_ids[]=${postId}`).join('&');
@@ -219,21 +219,21 @@ export class DiscourseForumRepository implements ForumRepository {
       return RepositoryResult.unauthorized<TopicPostBatch>();
     }
     if (!response.isSuccess()) {
-      return RepositoryResult.failure<TopicPostBatch>(response.message);
+      return response.asRepositoryFailure<TopicPostBatch>();
     }
     return this.parser.parseTopicPostBatch(response.body);
   }
 
   public async loadTopicSuggestions(topicId: number): Promise<RepositoryResult<Array<Topic>>> {
     if (!Number.isInteger(topicId) || topicId <= 0) {
-      return RepositoryResult.failure<Array<Topic>>('Topic 标识无效');
+      return RepositoryResult.invalidInput<Array<Topic>>('Topic 标识无效');
     }
     const response: HttpTextResult = await this.client.get(`/t/${topicId}.json`);
     if (response.kind === HttpTextResultKind.UNAUTHORIZED) {
       return RepositoryResult.unauthorized<Array<Topic>>();
     }
     if (!response.isSuccess()) {
-      return RepositoryResult.failure<Array<Topic>>(response.message);
+      return response.asRepositoryFailure<Array<Topic>>();
     }
     return this.parser.parseTopicSuggestions(response.body);
   }
@@ -241,7 +241,7 @@ export class DiscourseForumRepository implements ForumRepository {
   public async togglePostReaction(postId: number, reaction: string): Promise<RepositoryResult<ForumPost>> {
     const normalizedReaction: string = reaction.trim();
     if (!Number.isInteger(postId) || postId <= 0 || normalizedReaction.length === 0) {
-      return RepositoryResult.failure<ForumPost>('Reaction 请求无效');
+      return RepositoryResult.invalidInput<ForumPost>('Reaction 请求无效');
     }
     const response: HttpTextResult = await this.client.put(
       `/discourse-reactions/posts/${postId}/custom-reactions/${encodeURIComponent(normalizedReaction)}/toggle.json`
@@ -250,14 +250,14 @@ export class DiscourseForumRepository implements ForumRepository {
       return RepositoryResult.unauthorized<ForumPost>();
     }
     if (!response.isSuccess()) {
-      return RepositoryResult.failure<ForumPost>(response.message);
+      return response.asRepositoryFailure<ForumPost>();
     }
     return this.parser.parseCreatedReply(response.body);
   }
 
   public async loadPostReactionUsers(postId: number): Promise<RepositoryResult<Array<PostReactionUsers>>> {
     if (!Number.isInteger(postId) || postId <= 0) {
-      return RepositoryResult.failure<Array<PostReactionUsers>>('Post 标识无效');
+      return RepositoryResult.invalidInput<Array<PostReactionUsers>>('Post 标识无效');
     }
     const response: HttpTextResult = await this.client.get(
       `/discourse-reactions/posts/${postId}/reactions-users.json`
@@ -266,14 +266,14 @@ export class DiscourseForumRepository implements ForumRepository {
       return RepositoryResult.unauthorized<Array<PostReactionUsers>>();
     }
     if (!response.isSuccess()) {
-      return RepositoryResult.failure<Array<PostReactionUsers>>(response.message);
+      return response.asRepositoryFailure<Array<PostReactionUsers>>();
     }
     return this.parser.parsePostReactionUsers(response.body);
   }
 
   public async createPostBookmark(postId: number): Promise<RepositoryResult<number>> {
     if (!Number.isInteger(postId) || postId <= 0) {
-      return RepositoryResult.failure<number>('Post 标识无效');
+      return RepositoryResult.invalidInput<number>('Post 标识无效');
     }
     const response: HttpTextResult = await this.client.postForm(
       '/bookmarks.json',
@@ -283,35 +283,35 @@ export class DiscourseForumRepository implements ForumRepository {
       return RepositoryResult.unauthorized<number>();
     }
     if (!response.isSuccess()) {
-      return RepositoryResult.failure<number>(response.message);
+      return response.asRepositoryFailure<number>();
     }
     return this.parser.parseBookmarkId(response.body);
   }
 
   public async deletePostBookmark(bookmarkId: number): Promise<RepositoryResult<boolean>> {
     if (!Number.isInteger(bookmarkId) || bookmarkId <= 0) {
-      return RepositoryResult.failure<boolean>('书签标识无效');
+      return RepositoryResult.invalidInput<boolean>('书签标识无效');
     }
     const response: HttpTextResult = await this.client.delete(`/bookmarks/${bookmarkId}.json`);
     if (response.kind === HttpTextResultKind.UNAUTHORIZED) {
       return RepositoryResult.unauthorized<boolean>();
     }
     if (!response.isSuccess()) {
-      return RepositoryResult.failure<boolean>(response.message);
+      return response.asRepositoryFailure<boolean>();
     }
     return RepositoryResult.success<boolean>(true);
   }
 
   public async deletePost(postId: number): Promise<RepositoryResult<boolean>> {
     if (!Number.isInteger(postId) || postId <= 0) {
-      return RepositoryResult.failure<boolean>('Post 标识无效');
+      return RepositoryResult.invalidInput<boolean>('Post 标识无效');
     }
     const response: HttpTextResult = await this.client.delete(`/posts/${postId}`);
     if (response.kind === HttpTextResultKind.UNAUTHORIZED) {
       return RepositoryResult.unauthorized<boolean>();
     }
     if (!response.isSuccess()) {
-      return RepositoryResult.failure<boolean>(response.message);
+      return response.asRepositoryFailure<boolean>();
     }
     return RepositoryResult.success<boolean>(true);
   }
@@ -322,7 +322,7 @@ export class DiscourseForumRepository implements ForumRepository {
 
   public async setPostAcceptedAnswer(postId: number, accepted: boolean): Promise<RepositoryResult<boolean>> {
     if (!Number.isInteger(postId) || postId <= 0) {
-      return RepositoryResult.failure<boolean>('Post 标识无效');
+      return RepositoryResult.invalidInput<boolean>('Post 标识无效');
     }
     const path: string = accepted ? '/solution/accept' : '/solution/unaccept';
     return this.booleanWriteResult(await this.client.postForm(path, `id=${postId}`));
@@ -334,7 +334,7 @@ export class DiscourseForumRepository implements ForumRepository {
     milliseconds: number
   ): Promise<RepositoryResult<boolean>> {
     if (!Number.isInteger(topicId) || topicId <= 0 || !Number.isInteger(milliseconds) || milliseconds <= 0) {
-      return RepositoryResult.failure<boolean>('Topic 阅读进度无效');
+      return RepositoryResult.invalidInput<boolean>('Topic 阅读进度无效');
     }
     const uniquePostNumbers: Set<number> = new Set<number>();
     for (const postNumber of postNumbers) {
@@ -360,7 +360,7 @@ export class DiscourseForumRepository implements ForumRepository {
     }
     return response.isSuccess()
       ? RepositoryResult.success<boolean>(true)
-      : RepositoryResult.failure<boolean>(response.message);
+      : response.asRepositoryFailure<boolean>();
   }
 
   public async clearTopicNotifications(
@@ -371,14 +371,14 @@ export class DiscourseForumRepository implements ForumRepository {
       !Number.isInteger(topicId) || topicId <= 0 ||
       !Number.isInteger(upToPostNumber) || upToPostNumber <= 0
     ) {
-      return RepositoryResult.failure<number>('通知阅读进度无效');
+      return RepositoryResult.invalidInput<number>('通知阅读进度无效');
     }
     const listResponse: HttpTextResult = await this.client.get('/notifications.json?filter=unread');
     if (listResponse.kind === HttpTextResultKind.UNAUTHORIZED) {
       return RepositoryResult.unauthorized<number>();
     }
     if (!listResponse.isSuccess()) {
-      return RepositoryResult.failure<number>(listResponse.message);
+      return listResponse.asRepositoryFailure<number>();
     }
     const parsed: RepositoryResult<Array<number>> = this.parser.parseNotificationIdsForTopic(
       listResponse.body,
@@ -386,7 +386,7 @@ export class DiscourseForumRepository implements ForumRepository {
       upToPostNumber
     );
     if (!parsed.isSuccess() || parsed.data === null) {
-      return RepositoryResult.failure<number>(parsed.message);
+      return parsed.asFailure<number>();
     }
     for (const notificationId of parsed.data) {
       const markResponse: HttpTextResult = await this.client.put(
@@ -396,7 +396,7 @@ export class DiscourseForumRepository implements ForumRepository {
         return RepositoryResult.unauthorized<number>();
       }
       if (!markResponse.isSuccess()) {
-        return RepositoryResult.failure<number>(markResponse.message);
+        return markResponse.asRepositoryFailure<number>();
       }
     }
     return RepositoryResult.success<number>(parsed.data.length);
@@ -428,7 +428,7 @@ export class DiscourseForumRepository implements ForumRepository {
       return RepositoryResult.unauthorized<CurrentUser>();
     }
     if (!response.isSuccess()) {
-      return RepositoryResult.failure<CurrentUser>(response.message);
+      return response.asRepositoryFailure<CurrentUser>();
     }
     return this.profileParser.parseCurrentUser(response.body);
   }
@@ -436,14 +436,14 @@ export class DiscourseForumRepository implements ForumRepository {
   public async loadUserProfile(username: string): Promise<RepositoryResult<CurrentUser>> {
     const normalizedUsername: string = username.trim();
     if (normalizedUsername.length === 0) {
-      return RepositoryResult.failure<CurrentUser>('用户名无效');
+      return RepositoryResult.invalidInput<CurrentUser>('用户名无效');
     }
     const response: HttpTextResult = await this.client.get(`/u/${encodeURIComponent(normalizedUsername)}.json`);
     if (response.kind === HttpTextResultKind.UNAUTHORIZED) {
       return RepositoryResult.unauthorized<CurrentUser>();
     }
     if (!response.isSuccess()) {
-      return RepositoryResult.failure<CurrentUser>(response.message);
+      return response.asRepositoryFailure<CurrentUser>();
     }
     return this.profileParser.parseUserProfile(response.body);
   }
@@ -512,7 +512,7 @@ export class DiscourseForumRepository implements ForumRepository {
       return RepositoryResult.unauthorized<Array<ServerDraft>>();
     }
     if (!response.isSuccess()) {
-      return RepositoryResult.failure<Array<ServerDraft>>(response.message);
+      return response.asRepositoryFailure<Array<ServerDraft>>();
     }
     return this.parser.parseServerDrafts(response.body);
   }
@@ -528,7 +528,7 @@ export class DiscourseForumRepository implements ForumRepository {
       return RepositoryResult.unauthorized<number>();
     }
     if (!response.isSuccess()) {
-      return RepositoryResult.failure<number>(response.message);
+      return response.asRepositoryFailure<number>();
     }
     return this.parser.parseDraftSequence(response.body);
   }
@@ -536,7 +536,7 @@ export class DiscourseForumRepository implements ForumRepository {
   public async deleteDraft(draftKey: string, sequence: number): Promise<RepositoryResult<boolean>> {
     const normalizedKey: string = draftKey.trim();
     if (normalizedKey.length === 0 || !Number.isInteger(sequence) || sequence < 0) {
-      return RepositoryResult.failure<boolean>('草稿标识无效');
+      return RepositoryResult.invalidInput<boolean>('草稿标识无效');
     }
     const body: string = `draft_key=${encodeURIComponent(normalizedKey)}&sequence=${sequence}`;
     return this.booleanWriteResult(
@@ -550,7 +550,7 @@ export class DiscourseForumRepository implements ForumRepository {
     }
     return response.isSuccess()
       ? RepositoryResult.success<boolean>(true)
-      : RepositoryResult.failure<boolean>(response.message);
+      : response.asRepositoryFailure<boolean>();
   }
 
 }

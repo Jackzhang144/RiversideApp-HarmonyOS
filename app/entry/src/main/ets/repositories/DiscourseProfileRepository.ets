@@ -33,14 +33,14 @@ export class DiscourseProfileRepository implements ProfileRepository {
   public async loadFullUserProfile(username: string): Promise<RepositoryResult<UserProfile>> {
     const normalizedUsername: string = username.trim();
     if (normalizedUsername.length === 0) {
-      return RepositoryResult.failure<UserProfile>('用户名无效');
+      return RepositoryResult.invalidInput<UserProfile>('用户名无效');
     }
     const response: HttpTextResult = await this.client.get(`/u/${encodeURIComponent(normalizedUsername)}.json`);
     if (response.kind === HttpTextResultKind.UNAUTHORIZED) {
       return RepositoryResult.unauthorized<UserProfile>();
     }
     if (!response.isSuccess()) {
-      return RepositoryResult.failure<UserProfile>(response.message);
+      return response.asRepositoryFailure<UserProfile>();
     }
     return this.parser.parseFullUserProfile(response.body);
   }
@@ -48,7 +48,7 @@ export class DiscourseProfileRepository implements ProfileRepository {
   public async loadUserSummary(username: string): Promise<RepositoryResult<UserProfileSummary>> {
     const normalizedUsername: string = username.trim();
     if (normalizedUsername.length === 0) {
-      return RepositoryResult.failure<UserProfileSummary>('用户名无效');
+      return RepositoryResult.invalidInput<UserProfileSummary>('用户名无效');
     }
     const response: HttpTextResult = await this.client.get(
       `/u/${encodeURIComponent(normalizedUsername)}/summary.json`
@@ -57,7 +57,7 @@ export class DiscourseProfileRepository implements ProfileRepository {
       return RepositoryResult.unauthorized<UserProfileSummary>();
     }
     if (!response.isSuccess()) {
-      return RepositoryResult.failure<UserProfileSummary>(response.message);
+      return response.asRepositoryFailure<UserProfileSummary>();
     }
     return this.parser.parseUserProfileSummary(response.body);
   }
@@ -65,7 +65,7 @@ export class DiscourseProfileRepository implements ProfileRepository {
   public async loadUserEmails(username: string): Promise<RepositoryResult<UserEmailInfo>> {
     const normalizedUsername: string = username.trim();
     if (normalizedUsername.length === 0) {
-      return RepositoryResult.failure<UserEmailInfo>('用户名无效');
+      return RepositoryResult.invalidInput<UserEmailInfo>('用户名无效');
     }
     const encodedUsername: string = encodeURIComponent(normalizedUsername);
     const context: string = encodeURIComponent(`/u/${normalizedUsername}/preferences/account`);
@@ -76,7 +76,7 @@ export class DiscourseProfileRepository implements ProfileRepository {
       return RepositoryResult.unauthorized<UserEmailInfo>();
     }
     if (!response.isSuccess()) {
-      return RepositoryResult.failure<UserEmailInfo>(response.message);
+      return response.asRepositoryFailure<UserEmailInfo>();
     }
     return this.parser.parseUserEmails(response.body);
   }
@@ -84,7 +84,7 @@ export class DiscourseProfileRepository implements ProfileRepository {
   public async loadUserTopics(username: string, page: number): Promise<RepositoryResult<Array<Topic>>> {
     const normalizedUsername: string = username.trim();
     if (normalizedUsername.length === 0 || !Number.isInteger(page) || page < 0) {
-      return RepositoryResult.failure<Array<Topic>>('用户主题查询参数无效');
+      return RepositoryResult.invalidInput<Array<Topic>>('用户主题查询参数无效');
     }
     const pageSuffix: string = page > 0 ? `?page=${page}` : '';
     const response: HttpTextResult = await this.client.get(
@@ -94,7 +94,7 @@ export class DiscourseProfileRepository implements ProfileRepository {
       return RepositoryResult.unauthorized<Array<Topic>>();
     }
     if (!response.isSuccess()) {
-      return RepositoryResult.failure<Array<Topic>>(response.message);
+      return response.asRepositoryFailure<Array<Topic>>();
     }
     return this.forumParser.parseLatestTopics(response.body);
   }
@@ -102,7 +102,7 @@ export class DiscourseProfileRepository implements ProfileRepository {
   public async loadUserReplies(username: string, offset: number): Promise<RepositoryResult<Array<UserReplyItem>>> {
     const normalizedUsername: string = username.trim();
     if (normalizedUsername.length === 0 || !Number.isInteger(offset) || offset < 0) {
-      return RepositoryResult.failure<Array<UserReplyItem>>('用户回复查询参数无效');
+      return RepositoryResult.invalidInput<Array<UserReplyItem>>('用户回复查询参数无效');
     }
     const response: HttpTextResult = await this.client.get(
       `/user_actions.json?offset=${offset}&username=${encodeURIComponent(normalizedUsername)}&filter=5`
@@ -111,7 +111,7 @@ export class DiscourseProfileRepository implements ProfileRepository {
       return RepositoryResult.unauthorized<Array<UserReplyItem>>();
     }
     if (!response.isSuccess()) {
-      return RepositoryResult.failure<Array<UserReplyItem>>(response.message);
+      return response.asRepositoryFailure<Array<UserReplyItem>>();
     }
     return this.parser.parseUserReplies(response.body);
   }
@@ -122,7 +122,7 @@ export class DiscourseProfileRepository implements ProfileRepository {
   ): Promise<RepositoryResult<Array<UserBookmarkItem>>> {
     const normalizedUsername: string = username.trim();
     if (normalizedUsername.length === 0 || !Number.isInteger(page) || page < 0) {
-      return RepositoryResult.failure<Array<UserBookmarkItem>>('用户收藏查询参数无效');
+      return RepositoryResult.invalidInput<Array<UserBookmarkItem>>('用户收藏查询参数无效');
     }
     const pageSuffix: string = page > 0 ? `?page=${page}` : '';
     const response: HttpTextResult = await this.client.get(
@@ -132,7 +132,7 @@ export class DiscourseProfileRepository implements ProfileRepository {
       return RepositoryResult.unauthorized<Array<UserBookmarkItem>>();
     }
     if (!response.isSuccess()) {
-      return RepositoryResult.failure<Array<UserBookmarkItem>>(response.message);
+      return response.asRepositoryFailure<Array<UserBookmarkItem>>();
     }
     return this.parser.parseUserBookmarks(response.body);
   }
@@ -143,7 +143,7 @@ export class DiscourseProfileRepository implements ProfileRepository {
       return RepositoryResult.unauthorized<Array<ServerDraft>>();
     }
     if (!response.isSuccess()) {
-      return RepositoryResult.failure<Array<ServerDraft>>(response.message);
+      return response.asRepositoryFailure<Array<ServerDraft>>();
     }
     return this.forumParser.parseServerDrafts(response.body);
   }
@@ -158,7 +158,7 @@ export class DiscourseProfileRepository implements ProfileRepository {
   public async pickUploadedAvatar(username: string, uploadId: number): Promise<RepositoryResult<boolean>> {
     const normalizedUsername: string = username.trim();
     if (normalizedUsername.length === 0 || !Number.isSafeInteger(uploadId) || uploadId <= 0) {
-      return RepositoryResult.failure<boolean>('头像请求无效');
+      return RepositoryResult.invalidInput<boolean>('头像请求无效');
     }
     return this.booleanWriteResult(await this.client.putForm(
       `/u/${encodeURIComponent(normalizedUsername)}/preferences/avatar/pick.json`,
@@ -169,7 +169,7 @@ export class DiscourseProfileRepository implements ProfileRepository {
   public async setUserFollowing(username: string, following: boolean): Promise<RepositoryResult<boolean>> {
     const normalizedUsername: string = username.trim();
     if (normalizedUsername.length === 0) {
-      return RepositoryResult.failure<boolean>('用户名无效');
+      return RepositoryResult.invalidInput<boolean>('用户名无效');
     }
     const path: string = `/follow/${encodeURIComponent(normalizedUsername)}.json`;
     const response: HttpTextResult = following ? await this.client.put(path) : await this.client.delete(path);
@@ -184,7 +184,7 @@ export class DiscourseProfileRepository implements ProfileRepository {
   ): Promise<RepositoryResult<boolean>> {
     const normalizedUsername: string = username.trim();
     if (normalizedUsername.length === 0 || !Number.isSafeInteger(actingUserId) || actingUserId <= 0) {
-      return RepositoryResult.failure<boolean>('用户通知请求无效');
+      return RepositoryResult.invalidInput<boolean>('用户通知请求无效');
     }
     const body: string = `notification_level=${encodeURIComponent(level)}` +
       `&expiring_at=${encodeURIComponent(expiringAt.trim())}&acting_user_id=${actingUserId}`;
@@ -200,6 +200,6 @@ export class DiscourseProfileRepository implements ProfileRepository {
     }
     return response.isSuccess()
       ? RepositoryResult.success<boolean>(true)
-      : RepositoryResult.failure<boolean>(response.message);
+      : response.asRepositoryFailure<boolean>();
   }
 }

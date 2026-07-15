@@ -23,7 +23,7 @@ class StubNotificationRepository implements NotificationRepository {
     offset: number
   ): Promise<RepositoryResult<Array<NotificationItem>>> {
     this.requests.push(`${username}:${bucket}:${page}:${offset}`);
-    return this.results.shift() ?? RepositoryResult.failure<Array<NotificationItem>>('missing notification result');
+    return this.results.shift() ?? RepositoryResult.unknown<Array<NotificationItem>>('missing notification result');
   }
 }
 
@@ -71,7 +71,7 @@ export default function notificationCentreModelTest(): void {
       const repository: StubNotificationRepository = new StubNotificationRepository();
       repository.results.push(
         RepositoryResult.success<Array<NotificationItem>>([activity(1, '已有消息')]),
-        RepositoryResult.failure<Array<NotificationItem>>('网络中断'),
+        RepositoryResult.unknown<Array<NotificationItem>>('网络中断'),
         RepositoryResult.success<Array<NotificationItem>>([activity(2, '恢复后消息')])
       );
       const model: NotificationCentreModel = new NotificationCentreModel(repository);
@@ -113,7 +113,7 @@ export default function notificationCentreModelTest(): void {
       const lifecycle: StubNotificationAuthenticationLifecycle = new StubNotificationAuthenticationLifecycle();
       repository.results.push(
         RepositoryResult.success<Array<NotificationItem>>([]),
-        RepositoryResult.failure<Array<NotificationItem>>('服务不可用'),
+        RepositoryResult.unknown<Array<NotificationItem>>('服务不可用'),
         RepositoryResult.unauthorized<Array<NotificationItem>>()
       );
       const model: NotificationCentreModel = new NotificationCentreModel(repository, lifecycle);

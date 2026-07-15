@@ -220,18 +220,18 @@ export class HuksAuthenticatedSessionStore implements AuthenticatedSessionStore 
       const encoder: util.TextEncoder = util.TextEncoder.create('utf-8');
       const encrypted: EncryptedSessionData | null = await this.encrypt(encoder.encodeInto(JSON.stringify(record)));
       if (encrypted === null) {
-        return RepositoryResult.failure<boolean>('无法加密认证会话');
+        return RepositoryResult.security<boolean>('无法加密认证会话');
       }
       const envelope: string | null = encodeEnvelope(encrypted);
       if (envelope === null) {
-        return RepositoryResult.failure<boolean>('无法编码认证会话');
+        return RepositoryResult.security<boolean>('无法编码认证会话');
       }
       const store: preferences.Preferences = await preferences.getPreferences(this.context, this.preferencesName);
       await store.put(SESSION_RECORD_KEY, envelope);
       await store.flush();
       return RepositoryResult.success<boolean>(true);
     } catch (_) {
-      return RepositoryResult.failure<boolean>('无法保存认证会话');
+      return RepositoryResult.storage<boolean>('无法保存认证会话');
     }
   }
 
@@ -246,7 +246,7 @@ export class HuksAuthenticatedSessionStore implements AuthenticatedSessionStore 
       }
       return RepositoryResult.success<boolean>(true);
     } catch (_) {
-      return RepositoryResult.failure<boolean>('无法清除认证会话');
+      return RepositoryResult.storage<boolean>('无法清除认证会话');
     }
   }
 

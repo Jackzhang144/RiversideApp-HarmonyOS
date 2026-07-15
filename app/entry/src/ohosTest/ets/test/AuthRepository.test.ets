@@ -85,7 +85,7 @@ class DeferredSaveSessionStore implements AuthenticatedSessionStore {
 
 class StubCryptoFactory implements AuthorizationCryptoFactory {
   public createResult: RepositoryResult<AuthorizationCryptoSession> =
-    RepositoryResult.failure<AuthorizationCryptoSession>('not configured');
+    RepositoryResult.unknown<AuthorizationCryptoSession>('not configured');
 
   public async create(): Promise<RepositoryResult<AuthorizationCryptoSession>> {
     return this.createResult;
@@ -200,7 +200,7 @@ export default function authRepositoryTest(): void {
     it('surfaces session restoration and logout cleanup failures', 0, async (done: Function) => {
       const store: StubSessionStore = new StubSessionStore();
       store.loadResult = SessionLoadResult.failure('无法解密本地认证会话');
-      store.clearResult = RepositoryResult.failure<boolean>('无法清除认证会话');
+      store.clearResult = RepositoryResult.unknown<boolean>('无法清除认证会话');
       const repository: AuthRepository = new AuthRepository(store, new StubCryptoFactory());
 
       await repository.restore();
@@ -273,7 +273,7 @@ export default function authRepositoryTest(): void {
       const store: StubSessionStore = new StubSessionStore();
       const crypto: StubCryptoSession = new StubCryptoSession(
         request,
-        RepositoryResult.failure<AuthenticatedSession>('授权 nonce 校验失败')
+        RepositoryResult.unknown<AuthenticatedSession>('授权 nonce 校验失败')
       );
       const factory: StubCryptoFactory = new StubCryptoFactory();
       factory.createResult = RepositoryResult.success<AuthorizationCryptoSession>(crypto);
@@ -303,7 +303,7 @@ export default function authRepositoryTest(): void {
       const store: StubSessionStore = new StubSessionStore();
       const crypto: StubCryptoSession = new StubCryptoSession(
         request,
-        RepositoryResult.failure<AuthenticatedSession>('不应尝试解密')
+        RepositoryResult.unknown<AuthenticatedSession>('不应尝试解密')
       );
       const factory: StubCryptoFactory = new StubCryptoFactory();
       factory.createResult = RepositoryResult.success<AuthorizationCryptoSession>(crypto);
@@ -332,7 +332,7 @@ export default function authRepositoryTest(): void {
       }
       const crypto: StubCryptoSession = new StubCryptoSession(
         request,
-        RepositoryResult.failure<AuthenticatedSession>('not used')
+        RepositoryResult.unknown<AuthenticatedSession>('not used')
       );
       const factory: DeferredCryptoFactory = new DeferredCryptoFactory();
       const repository: AuthRepository = new AuthRepository(new StubSessionStore(), factory);

@@ -68,11 +68,11 @@ class RsaAuthorizationCryptoSession implements AuthorizationCryptoSession {
 
   public async decryptAndValidate(encryptedPayload: string): Promise<RepositoryResult<AuthenticatedSession>> {
     if (this.cleared) {
-      return RepositoryResult.failure<AuthenticatedSession>('授权请求已失效');
+      return RepositoryResult.security<AuthenticatedSession>('授权请求已失效');
     }
     const encryptedData: Uint8Array | null = decodeDiscoursePayload(encryptedPayload);
     if (encryptedData === null) {
-      return RepositoryResult.failure<AuthenticatedSession>('授权 payload 不是有效 Base64');
+      return RepositoryResult.security<AuthenticatedSession>('授权 payload 不是有效 Base64');
     }
     try {
       const cipher: cryptoFramework.Cipher = cryptoFramework.createCipher('RSA2048|PKCS1');
@@ -86,7 +86,7 @@ class RsaAuthorizationCryptoSession implements AuthorizationCryptoSession {
         this.request.nonce
       );
     } catch (_) {
-      return RepositoryResult.failure<AuthenticatedSession>('授权 payload 解密失败');
+      return RepositoryResult.security<AuthenticatedSession>('授权 payload 解密失败');
     }
   }
 
@@ -118,17 +118,17 @@ export class RsaAuthorizationCryptoFactory implements AuthorizationCryptoFactory
           : AuthorizationRequest.create(publicKeyPem, clientId, nonce);
         if (request === null) {
           keyPair.priKey.clearMem();
-          return RepositoryResult.failure<AuthorizationCryptoSession>('无法创建授权请求');
+          return RepositoryResult.security<AuthorizationCryptoSession>('无法创建授权请求');
         }
         return RepositoryResult.success<AuthorizationCryptoSession>(
           new RsaAuthorizationCryptoSession(request, keyPair.priKey)
         );
       } catch (_) {
         keyPair.priKey.clearMem();
-        return RepositoryResult.failure<AuthorizationCryptoSession>('无法生成 RSA 授权材料');
+        return RepositoryResult.security<AuthorizationCryptoSession>('无法生成 RSA 授权材料');
       }
     } catch (_) {
-      return RepositoryResult.failure<AuthorizationCryptoSession>('无法生成 RSA 授权材料');
+      return RepositoryResult.security<AuthorizationCryptoSession>('无法生成 RSA 授权材料');
     }
   }
 }

@@ -759,7 +759,7 @@ struct Index {
   private loadComposerMentionUsers(term: string): Promise<RepositoryResult<Array<ComposerMentionUser>>> {
     const repository: DiscourseForumRepository | null = this.forumRepository;
     if (repository === null) {
-      return Promise.resolve(RepositoryResult.failure<Array<ComposerMentionUser>>('论坛服务未初始化'));
+      return Promise.resolve(RepositoryResult.unavailable<Array<ComposerMentionUser>>('论坛服务未初始化'));
     }
     return repository.searchMentionUsers(term);
   }

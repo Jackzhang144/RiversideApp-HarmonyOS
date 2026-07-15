@@ -85,7 +85,7 @@ class StubForumRepository implements ForumRepository {
   public async loadLatestTopics(): Promise<RepositoryResult<Array<Topic>>> {
     this.latestCallCount += 1;
     const result: RepositoryResult<Array<Topic>> | undefined = this.latestResults.shift();
-    return result ?? RepositoryResult.failure<Array<Topic>>('missing latest result');
+    return result ?? RepositoryResult.unknown<Array<Topic>>('missing latest result');
   }
 
   public async loadHomeTopics(channel: HomeChannel, page: number): Promise<RepositoryResult<Array<Topic>>> {
@@ -97,7 +97,7 @@ class StubForumRepository implements ForumRepository {
   public async searchForum(_query: string, page: number): Promise<RepositoryResult<ForumSearchResult>> {
     this.requestedSearchPages.push(page);
     const result: RepositoryResult<ForumSearchResult> | undefined = this.searchResults.shift();
-    return result ?? RepositoryResult.failure<ForumSearchResult>('missing search result');
+    return result ?? RepositoryResult.unknown<ForumSearchResult>('missing search result');
   }
 
   public async searchSuggestions(term: string): Promise<RepositoryResult<Array<string>>> {
@@ -108,7 +108,7 @@ class StubForumRepository implements ForumRepository {
   public async loadCategories(): Promise<RepositoryResult<Array<Category>>> {
     this.categoryCallCount += 1;
     const result: RepositoryResult<Array<Category>> | undefined = this.categoryResults.shift();
-    return result ?? RepositoryResult.failure<Array<Category>>('missing category result');
+    return result ?? RepositoryResult.unknown<Array<Category>>('missing category result');
   }
 
   public async loadCategoryTopics(_categoryId: number, page: number = 0): Promise<RepositoryResult<Array<Topic>>> {
@@ -118,7 +118,7 @@ class StubForumRepository implements ForumRepository {
   }
 
   public async loadTopicDetail(_topicId: number): Promise<RepositoryResult<TopicDetail>> {
-    return RepositoryResult.failure<TopicDetail>('missing Topic detail result');
+    return RepositoryResult.unknown<TopicDetail>('missing Topic detail result');
   }
 
   public async loadTopicPosts(_topicId: number, _postIds: Array<number>): Promise<RepositoryResult<TopicPostBatch>> {
@@ -130,31 +130,31 @@ class StubForumRepository implements ForumRepository {
   }
 
   public async togglePostReaction(_postId: number, _reaction: string): Promise<RepositoryResult<ForumPost>> {
-    return RepositoryResult.failure<ForumPost>('missing Reaction result');
+    return RepositoryResult.unknown<ForumPost>('missing Reaction result');
   }
 
   public async loadPostReactionUsers(_postId: number): Promise<RepositoryResult<Array<PostReactionUsers>>> {
-    return RepositoryResult.failure<Array<PostReactionUsers>>('missing Reaction users result');
+    return RepositoryResult.unknown<Array<PostReactionUsers>>('missing Reaction users result');
   }
 
   public async createPostBookmark(_postId: number): Promise<RepositoryResult<number>> {
-    return RepositoryResult.failure<number>('missing bookmark result');
+    return RepositoryResult.unknown<number>('missing bookmark result');
   }
 
   public async deletePostBookmark(_bookmarkId: number): Promise<RepositoryResult<boolean>> {
-    return RepositoryResult.failure<boolean>('missing bookmark result');
+    return RepositoryResult.unknown<boolean>('missing bookmark result');
   }
 
   public async deletePost(_postId: number): Promise<RepositoryResult<boolean>> {
-    return RepositoryResult.failure<boolean>('missing Post delete result');
+    return RepositoryResult.unknown<boolean>('missing Post delete result');
   }
 
   public async flagPost(_request: PostFlagRequest): Promise<RepositoryResult<boolean>> {
-    return RepositoryResult.failure<boolean>('missing Post flag result');
+    return RepositoryResult.unknown<boolean>('missing Post flag result');
   }
 
   public async setPostAcceptedAnswer(_postId: number, _accepted: boolean): Promise<RepositoryResult<boolean>> {
-    return RepositoryResult.failure<boolean>('missing solution result');
+    return RepositoryResult.unknown<boolean>('missing solution result');
   }
 
   public async markTopicRead(
@@ -162,7 +162,7 @@ class StubForumRepository implements ForumRepository {
     _postNumbers: Array<number>,
     _milliseconds: number
   ): Promise<RepositoryResult<boolean>> {
-    return RepositoryResult.failure<boolean>('missing Topic timing result');
+    return RepositoryResult.unknown<boolean>('missing Topic timing result');
   }
 
   public async clearTopicNotifications(
@@ -178,12 +178,12 @@ class StubForumRepository implements ForumRepository {
 
   public async loadCurrentUser(): Promise<RepositoryResult<CurrentUser>> {
     const result: RepositoryResult<CurrentUser> | undefined = this.currentUserResults.shift();
-    return result ?? RepositoryResult.failure<CurrentUser>('missing current user result');
+    return result ?? RepositoryResult.unknown<CurrentUser>('missing current user result');
   }
 
   public async loadUserProfile(_username: string): Promise<RepositoryResult<CurrentUser>> {
     const result: RepositoryResult<CurrentUser> | undefined = this.userProfileResults.shift();
-    return result ?? RepositoryResult.failure<CurrentUser>('missing user profile result');
+    return result ?? RepositoryResult.unknown<CurrentUser>('missing user profile result');
   }
 
   public async recoverReply(_request: ReplyRecoveryRequest): Promise<ReplyRecoveryResult> {
@@ -195,11 +195,11 @@ class StubForumRepository implements ForumRepository {
   }
 
   public async editPost(_request: EditPostRequest): Promise<RepositoryResult<boolean>> {
-    return RepositoryResult.failure<boolean>('missing Post edit result');
+    return RepositoryResult.unknown<boolean>('missing Post edit result');
   }
 
   public async editTopic(_request: EditTopicRequest): Promise<RepositoryResult<boolean>> {
-    return RepositoryResult.failure<boolean>('missing Topic edit result');
+    return RepositoryResult.unknown<boolean>('missing Topic edit result');
   }
 
   public async loadDrafts(): Promise<RepositoryResult<Array<ServerDraft>>> {
@@ -207,11 +207,11 @@ class StubForumRepository implements ForumRepository {
   }
 
   public async saveDraft(_request: DraftWriteRequest): Promise<RepositoryResult<number>> {
-    return RepositoryResult.failure<number>('missing draft result');
+    return RepositoryResult.unknown<number>('missing draft result');
   }
 
   public async deleteDraft(_draftKey: string, _sequence: number): Promise<RepositoryResult<boolean>> {
-    return RepositoryResult.failure<boolean>('missing draft delete result');
+    return RepositoryResult.unknown<boolean>('missing draft delete result');
   }
 }
 
@@ -514,7 +514,7 @@ export default function appShellModelTest(): void {
     it('distinguishes blank, failed and empty forum search states', 0, async (done: Function) => {
       const repository: StubForumRepository = new StubForumRepository();
       repository.searchResults.push(
-        RepositoryResult.failure<ForumSearchResult>('搜索失败'),
+        RepositoryResult.unknown<ForumSearchResult>('搜索失败'),
         RepositoryResult.success(new ForumSearchResult([], [], [], [], [], [], false))
       );
       const model: AppShellModel = new AppShellModel(
@@ -540,7 +540,7 @@ export default function appShellModelTest(): void {
       const repository: StubForumRepository = new StubForumRepository();
       repository.suggestionResults.push(
         RepositoryResult.success<Array<string>>(['河畔开发日志', '河畔使用指南']),
-        RepositoryResult.failure<Array<string>>('建议加载失败')
+        RepositoryResult.unknown<Array<string>>('建议加载失败')
       );
       const model: AppShellModel = new AppShellModel(
         repository,
@@ -634,7 +634,7 @@ export default function appShellModelTest(): void {
 
     it('distinguishes Home empty and retryable failure states', 0, async (done: Function) => {
       const repository: StubForumRepository = new StubForumRepository();
-      repository.latestResults.push(RepositoryResult.failure<Array<Topic>>('网络连接失败'));
+      repository.latestResults.push(RepositoryResult.unknown<Array<Topic>>('网络连接失败'));
       repository.latestResults.push(RepositoryResult.success([]));
       const authentication: StubAuthenticationLifecycle = new StubAuthenticationLifecycle();
       const model: AppShellModel = new AppShellModel(
@@ -659,7 +659,7 @@ export default function appShellModelTest(): void {
       const repository: StubForumRepository = new StubForumRepository();
       repository.latestResults.push(
         RepositoryResult.success([topic(2725, '已有 Topic')]),
-        RepositoryResult.failure<Array<Topic>>('刷新失败'),
+        RepositoryResult.unknown<Array<Topic>>('刷新失败'),
         RepositoryResult.success([topic(3000, '新 Topic')])
       );
       const model: AppShellModel = new AppShellModel(
@@ -708,7 +708,7 @@ export default function appShellModelTest(): void {
 
     it('distinguishes Category loading, failure, retry and empty states', 0, async (done: Function) => {
       const repository: StubForumRepository = new StubForumRepository();
-      repository.categoryResults.push(RepositoryResult.failure<Array<Category>>('网络连接失败'));
+      repository.categoryResults.push(RepositoryResult.unknown<Array<Category>>('网络连接失败'));
       repository.categoryResults.push(RepositoryResult.success([]));
       const model: AppShellModel = new AppShellModel(
         repository,
@@ -730,7 +730,7 @@ export default function appShellModelTest(): void {
 
     it('keeps cached Category content when background refresh fails', 0, async (done: Function) => {
       const repository: StubForumRepository = new StubForumRepository();
-      repository.categoryResults.push(RepositoryResult.failure<Array<Category>>('刷新失败'));
+      repository.categoryResults.push(RepositoryResult.unknown<Array<Category>>('刷新失败'));
       const cache: MemoryCategoryCache = new MemoryCategoryCache();
       cache.stored = [category(60, '站务管理')];
       const scope: CategoryCacheScope = CategoryCacheScope.anonymous();
@@ -752,7 +752,7 @@ export default function appShellModelTest(): void {
     it('keeps fresh Category content when a manual refresh fails', 0, async (done: Function) => {
       const repository: StubForumRepository = new StubForumRepository();
       repository.categoryResults.push(RepositoryResult.success([category(60, '站务管理')]));
-      repository.categoryResults.push(RepositoryResult.failure<Array<Category>>('刷新失败'));
+      repository.categoryResults.push(RepositoryResult.unknown<Array<Category>>('刷新失败'));
       const model: AppShellModel = new AppShellModel(
         repository,
         new MemoryCategoryCache(),

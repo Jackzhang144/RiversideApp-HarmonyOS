@@ -85,20 +85,20 @@ export class AuthorizationCallbackValidator {
 
   public extractPayload(callbackUrl: string, isMainFrame: boolean): RepositoryResult<string> {
     if (!isMainFrame) {
-      return RepositoryResult.failure<string>('登录回调不是主页面导航');
+      return RepositoryResult.invalidInput<string>('登录回调不是主页面导航');
     }
     try {
       const callback: uri.URI = new uri.URI(callbackUrl);
       if (!this.isCallbackUrl(callbackUrl)) {
-        return RepositoryResult.failure<string>('登录回调地址无效');
+        return RepositoryResult.invalidInput<string>('登录回调地址无效');
       }
       const payload: string | null = callback.getQueryValue('payload');
       if (payload === null || payload.trim().length === 0) {
-        return RepositoryResult.failure<string>('登录回调缺少 payload');
+        return RepositoryResult.invalidInput<string>('登录回调缺少 payload');
       }
       return RepositoryResult.success<string>(payload);
     } catch (_) {
-      return RepositoryResult.failure<string>('登录回调地址无效');
+      return RepositoryResult.invalidInput<string>('登录回调地址无效');
     }
   }
 
@@ -109,19 +109,19 @@ export class AuthorizationCallbackValidator {
   ): RepositoryResult<AuthenticatedSession> {
     const payload: JsonObjectReader | null = JsonObjectReader.parse(decryptedPayload);
     if (payload === null) {
-      return RepositoryResult.failure<AuthenticatedSession>('授权结果格式无效');
+      return RepositoryResult.security<AuthenticatedSession>('授权结果格式无效');
     }
     const nonce: string | null = payload.string('nonce');
     const key: string | null = payload.string('key');
     if (nonce === null || nonce !== expectedNonce) {
-      return RepositoryResult.failure<AuthenticatedSession>('授权 nonce 校验失败');
+      return RepositoryResult.security<AuthenticatedSession>('授权 nonce 校验失败');
     }
     if (key === null) {
-      return RepositoryResult.failure<AuthenticatedSession>('授权结果缺少 User API Key');
+      return RepositoryResult.security<AuthenticatedSession>('授权结果缺少 User API Key');
     }
     const session: AuthenticatedSession | null = AuthenticatedSession.create(key, clientId);
     return session === null
-      ? RepositoryResult.failure<AuthenticatedSession>('授权会话无效')
+      ? RepositoryResult.security<AuthenticatedSession>('授权会话无效')
       : RepositoryResult.success<AuthenticatedSession>(session);
   }
 }

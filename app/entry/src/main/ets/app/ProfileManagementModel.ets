@@ -371,7 +371,7 @@ export class ProfileManagementModel {
   ): Promise<RepositoryResult<MediaUploadResult>> {
     const mediaRepository: MediaRepository | null = this.mediaRepository;
     if (mediaRepository === null) {
-      return RepositoryResult.failure<MediaUploadResult>('媒体上传不可用');
+      return RepositoryResult.unavailable<MediaUploadResult>('媒体上传不可用');
     }
     this.setMediaState(MediaUploadState.selected(request.media));
     const operation: MediaUploadOperation = mediaRepository.upload(

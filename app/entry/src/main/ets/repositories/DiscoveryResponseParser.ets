@@ -20,7 +20,7 @@ export class DiscoveryResponseParser {
   public parseSearch(text: string): RepositoryResult<ForumSearchResult> {
     const envelope: JsonObjectReader | null = JsonObjectReader.parse(text);
     if (envelope === null) {
-      return RepositoryResult.failure<ForumSearchResult>('服务器搜索响应格式无效');
+      return RepositoryResult.invalidResponse<ForumSearchResult>('服务器搜索响应格式无效');
     }
     const postValues: Array<Object | null> | null = envelope.array('posts');
     const topicValues: Array<Object | null> | null = envelope.array('topics');
@@ -34,7 +34,7 @@ export class DiscoveryResponseParser {
       (envelope.has('categories') && categoryValues === null && !envelope.isNull('categories')) ||
       (envelope.has('tags') && tagValues === null && !envelope.isNull('tags')) ||
       (envelope.has('groups') && groupValues === null && !envelope.isNull('groups'))) {
-      return RepositoryResult.failure<ForumSearchResult>('服务器搜索响应格式无效');
+      return RepositoryResult.invalidResponse<ForumSearchResult>('服务器搜索响应格式无效');
     }
 
     const postReaders: Array<JsonObjectReader> = [];
@@ -178,7 +178,7 @@ export class DiscoveryResponseParser {
     const topicValues: Array<Object | null> | null = envelope?.array('topics') ?? null;
     if (envelope === null ||
       (envelope.has('topics') && topicValues === null && !envelope.isNull('topics'))) {
-      return RepositoryResult.failure<Array<string>>('服务器搜索建议格式无效');
+      return RepositoryResult.invalidResponse<Array<string>>('服务器搜索建议格式无效');
     }
     const suggestions: Array<string> = [];
     for (const value of topicValues ?? []) {
@@ -195,7 +195,7 @@ export class DiscoveryResponseParser {
     const envelope: JsonObjectReader | null = JsonObjectReader.parse(text);
     const userValues: Array<Object | null> | null = envelope?.array('users') ?? null;
     if (envelope === null || userValues === null) {
-      return RepositoryResult.failure<Array<ComposerMentionUser>>('用户提及联想格式无效');
+      return RepositoryResult.invalidResponse<Array<ComposerMentionUser>>('用户提及联想格式无效');
     }
     const users: Array<ComposerMentionUser> = [];
     for (const value of userValues) {
@@ -216,11 +216,11 @@ export class DiscoveryResponseParser {
     const envelope: JsonObjectReader | null = JsonObjectReader.parse(text);
     const state: JsonObjectReader | null = envelope?.object('whos_online_state') ?? null;
     if (state === null) {
-      return RepositoryResult.failure<OnlineUsers>('服务器在线用户格式无效');
+      return RepositoryResult.invalidResponse<OnlineUsers>('服务器在线用户格式无效');
     }
     const userValues: Array<Object | null> | null = state.array('users');
     if (state.has('users') && userValues === null && !state.isNull('users')) {
-      return RepositoryResult.failure<OnlineUsers>('服务器在线用户格式无效');
+      return RepositoryResult.invalidResponse<OnlineUsers>('服务器在线用户格式无效');
     }
     const users: Array<OnlineUser> = [];
     for (const value of userValues ?? []) {

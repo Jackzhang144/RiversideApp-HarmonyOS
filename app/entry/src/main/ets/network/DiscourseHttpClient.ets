@@ -2,6 +2,7 @@ import { http } from '@kit.NetworkKit';
 import { AuthenticatedSession } from '../auth/AuthModels';
 import { RIVERSIDE_ORIGIN } from '../core/RiversideEnvironment';
 import { AppMetadata } from '../core/AppMetadata';
+import { RepositoryFailureCode, RepositoryResult } from '../core/RepositoryResult';
 import { ReplyRequest } from '../models/ReplyModels';
 
 const CONNECT_TIMEOUT_MS: number = 8000;
@@ -17,29 +18,80 @@ export class HttpTextResult {
   public readonly kind: HttpTextResultKind;
   public readonly statusCode: number;
   public readonly body: string;
+  public readonly failureCode: RepositoryFailureCode | null;
   public readonly message: string;
 
-  private constructor(kind: HttpTextResultKind, statusCode: number, body: string, message: string) {
+  private constructor(
+    kind: HttpTextResultKind,
+    statusCode: number,
+    body: string,
+    failureCode: RepositoryFailureCode | null,
+    message: string
+  ) {
     this.kind = kind;
     this.statusCode = statusCode;
     this.body = body;
+    this.failureCode = failureCode;
     this.message = message;
   }
 
   public static success(statusCode: number, body: string): HttpTextResult {
-    return new HttpTextResult(HttpTextResultKind.SUCCESS, statusCode, body, '');
+    return new HttpTextResult(HttpTextResultKind.SUCCESS, statusCode, body, null, '');
   }
 
   public static unauthorized(): HttpTextResult {
-    return new HttpTextResult(HttpTextResultKind.UNAUTHORIZED, 401, '', '登录已失效');
+    return new HttpTextResult(
+      HttpTextResultKind.UNAUTHORIZED,
+      401,
+      '',
+      RepositoryFailureCode.UNAUTHORIZED,
+      '登录已失效'
+    );
   }
 
   public static failure(statusCode: number, message: string): HttpTextResult {
-    return new HttpTextResult(HttpTextResultKind.FAILURE, statusCode, '', message);
+    const code: RepositoryFailureCode = statusCode > 0
+      ? RepositoryFailureCode.SERVER
+      : RepositoryFailureCode.NETWORK;
+    return HttpTextResult.failed(statusCode, code, message);
+  }
+
+  public static invalidInput(message: string): HttpTextResult {
+    return HttpTextResult.failed(0, RepositoryFailureCode.INVALID_INPUT, message);
+  }
+
+  public static invalidResponse(statusCode: number, message: string): HttpTextResult {
+    return HttpTextResult.failed(statusCode, RepositoryFailureCode.INVALID_RESPONSE, message);
+  }
+
+  public static storage(message: string): HttpTextResult {
+    return HttpTextResult.failed(0, RepositoryFailureCode.STORAGE, message);
+  }
+
+  public static cancelled(message: string): HttpTextResult {
+    return HttpTextResult.failed(0, RepositoryFailureCode.CANCELLED, message);
   }
 
   public isSuccess(): boolean {
     return this.kind === HttpTextResultKind.SUCCESS;
+  }
+
+  public asRepositoryFailure<T>(): RepositoryResult<T> {
+    if (this.kind === HttpTextResultKind.UNAUTHORIZED) {
+      return RepositoryResult.unauthorized<T>();
+    }
+    return RepositoryResult.withFailure<T>(
+      this.failureCode ?? RepositoryFailureCode.UNKNOWN,
+      this.message
+    );
+  }
+
+  private static failed(
+    statusCode: number,
+    failureCode: RepositoryFailureCode,
+    message: string
+  ): HttpTextResult {
+    return new HttpTextResult(HttpTextResultKind.FAILURE, statusCode, '', failureCode, message);
   }
 }
 
@@ -228,7 +280,7 @@ export class DiscourseHttpClient implements ForumHttpClient {
     contentType: string | null
   ): Promise<HttpTextResult> {
     if (!path.startsWith('/')) {
-      return HttpTextResult.failure(0, '请求路径无效');
+      return HttpTextResult.invalidInput('请求路径无效');
     }
 
     const request: http.HttpRequest = http.createHttp();
@@ -255,7 +307,7 @@ export class DiscourseHttpClient implements ForumHttpClient {
         return HttpTextResult.failure(statusCode, `服务器返回 ${statusCode}`);
       }
       if (typeof response.result !== 'string') {
-        return HttpTextResult.failure(statusCode, '服务器响应格式无效');
+        return HttpTextResult.invalidResponse(statusCode, '服务器响应格式无效');
       }
       return HttpTextResult.success(statusCode, response.result);
     } catch (_) {

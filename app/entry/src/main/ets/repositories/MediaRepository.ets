@@ -56,11 +56,11 @@ export class DiscourseMediaRepository implements MediaRepository {
       return RepositoryResult.unauthorized<MediaUploadResult>();
     }
     if (!response.isSuccess()) {
-      return RepositoryResult.failure<MediaUploadResult>(response.message);
+      return response.asRepositoryFailure<MediaUploadResult>();
     }
     const reader: JsonObjectReader | null = JsonObjectReader.parse(response.body);
     if (reader === null) {
-      return RepositoryResult.failure<MediaUploadResult>('上传响应格式无效');
+      return RepositoryResult.invalidResponse<MediaUploadResult>('上传响应格式无效');
     }
     const id: number = Math.trunc(reader.number('id') ?? 0);
     const result: MediaUploadResult | null = MediaUploadResult.create(
@@ -71,7 +71,7 @@ export class DiscourseMediaRepository implements MediaRepository {
       reader.string('markdown') ?? ''
     );
     return result === null
-      ? RepositoryResult.failure<MediaUploadResult>('上传响应缺少有效媒体信息')
+      ? RepositoryResult.invalidResponse<MediaUploadResult>('上传响应缺少有效媒体信息')
       : RepositoryResult.success<MediaUploadResult>(result);
   }
 }

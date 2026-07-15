@@ -33,7 +33,7 @@ export class DiscourseNotificationRepository implements NotificationRepository {
       !Number.isSafeInteger(page) || page < 0 ||
       !Number.isSafeInteger(offset) || offset < 0
     ) {
-      return RepositoryResult.failure<Array<NotificationItem>>('消息查询参数无效');
+      return RepositoryResult.invalidInput<Array<NotificationItem>>('消息查询参数无效');
     }
     const encodedUsername: string = encodeURIComponent(normalizedUsername);
     if (bucket === NotificationBucket.PRIVATE_MESSAGES) {
@@ -44,7 +44,7 @@ export class DiscourseNotificationRepository implements NotificationRepository {
     }
     const filter: string | null = notificationUserActionFilter(bucket);
     if (filter === null) {
-      return RepositoryResult.failure<Array<NotificationItem>>('消息分桶无效');
+      return RepositoryResult.invalidInput<Array<NotificationItem>>('消息分桶无效');
     }
     const response: HttpTextResult = await this.client.get(
       `/user_actions.json?offset=${offset}&username=${encodedUsername}&filter=${filter}`
@@ -63,11 +63,11 @@ export class DiscourseNotificationRepository implements NotificationRepository {
       return RepositoryResult.unauthorized<Array<NotificationItem>>();
     }
     if (!response.isSuccess()) {
-      return RepositoryResult.failure<Array<NotificationItem>>(response.message);
+      return response.asRepositoryFailure<Array<NotificationItem>>();
     }
     const topics: RepositoryResult<Array<Topic>> = this.parser.parseLatestTopics(response.body);
     if (!topics.isSuccess() || topics.data === null) {
-      return RepositoryResult.failure<Array<NotificationItem>>(topics.message);
+      return topics.asFailure<Array<NotificationItem>>();
     }
     return RepositoryResult.success<Array<NotificationItem>>(
       topics.data.map((topic: Topic): NotificationItem => NotificationItem.privateMessage(topic))
@@ -90,13 +90,13 @@ export class DiscourseNotificationRepository implements NotificationRepository {
         return RepositoryResult.unauthorized<Array<NotificationItem>>();
       }
       if (!response.isSuccess()) {
-        return RepositoryResult.failure<Array<NotificationItem>>(response.message);
+        return response.asRepositoryFailure<Array<NotificationItem>>();
       }
     }
     const customReactions: Array<NotificationItem> | null = parseReactionReceivedItems(responses[0].body);
     const likes: Array<NotificationItem> | null = parseUserActivityItems(responses[1].body, '+1');
     if (customReactions === null || likes === null) {
-      return RepositoryResult.failure<Array<NotificationItem>>('回应消息响应无效');
+      return RepositoryResult.invalidResponse<Array<NotificationItem>>('回应消息响应无效');
     }
     return RepositoryResult.success<Array<NotificationItem>>(
       sortNotificationItemsNewestFirst(customReactions.concat(likes))
@@ -108,11 +108,11 @@ export class DiscourseNotificationRepository implements NotificationRepository {
       return RepositoryResult.unauthorized<Array<NotificationItem>>();
     }
     if (!response.isSuccess()) {
-      return RepositoryResult.failure<Array<NotificationItem>>(response.message);
+      return response.asRepositoryFailure<Array<NotificationItem>>();
     }
     const items: Array<NotificationItem> | null = parseUserActivityItems(response.body);
     return items === null
-      ? RepositoryResult.failure<Array<NotificationItem>>('活动消息响应无效')
+      ? RepositoryResult.invalidResponse<Array<NotificationItem>>('活动消息响应无效')
       : RepositoryResult.success<Array<NotificationItem>>(items);
   }
 }

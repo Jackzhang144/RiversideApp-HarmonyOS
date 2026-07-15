@@ -111,11 +111,11 @@ export class ProfileResponseParser {
     const envelope: JsonObjectReader | null = JsonObjectReader.parse(text);
     const user: JsonObjectReader | null = envelope?.object('current_user') ?? null;
     if (user === null) {
-      return RepositoryResult.failure<CurrentUser>('服务器响应缺少当前用户');
+      return RepositoryResult.invalidResponse<CurrentUser>('服务器响应缺少当前用户');
     }
     const currentUser: CurrentUser | null = this.parseUser(user);
     return currentUser === null
-      ? RepositoryResult.failure<CurrentUser>('服务器响应缺少当前用户')
+      ? RepositoryResult.invalidResponse<CurrentUser>('服务器响应缺少当前用户')
       : RepositoryResult.success<CurrentUser>(currentUser);
   }
 
@@ -124,7 +124,7 @@ export class ProfileResponseParser {
     const user: JsonObjectReader | null = envelope?.object('user') ?? null;
     const currentUser: CurrentUser | null = user === null ? null : this.parseUser(user);
     return currentUser === null
-      ? RepositoryResult.failure<CurrentUser>('服务器响应缺少用户 Profile')
+      ? RepositoryResult.invalidResponse<CurrentUser>('服务器响应缺少用户 Profile')
       : RepositoryResult.success<CurrentUser>(currentUser);
   }
 
@@ -133,14 +133,14 @@ export class ProfileResponseParser {
     const user: JsonObjectReader | null = envelope?.object('user') ?? null;
     const profile: UserProfile | null = user === null ? null : this.parseProfile(user);
     return profile === null
-      ? RepositoryResult.failure<UserProfile>('服务器响应缺少完整 Profile')
+      ? RepositoryResult.invalidResponse<UserProfile>('服务器响应缺少完整 Profile')
       : RepositoryResult.success<UserProfile>(profile);
   }
 
   public parseUserProfileSummary(text: string): RepositoryResult<UserProfileSummary> {
     const envelope: JsonObjectReader | null = JsonObjectReader.parse(text);
     if (envelope === null) {
-      return RepositoryResult.failure<UserProfileSummary>('服务器 Profile 概览格式无效');
+      return RepositoryResult.invalidResponse<UserProfileSummary>('服务器 Profile 概览格式无效');
     }
     const summary: JsonObjectReader | null = envelope.object('user_summary');
     if (summary === null) {
@@ -169,7 +169,7 @@ export class ProfileResponseParser {
   public parseUserEmails(text: string): RepositoryResult<UserEmailInfo> {
     const envelope: JsonObjectReader | null = JsonObjectReader.parse(text);
     if (envelope === null) {
-      return RepositoryResult.failure<UserEmailInfo>('服务器邮箱响应格式无效');
+      return RepositoryResult.invalidResponse<UserEmailInfo>('服务器邮箱响应格式无效');
     }
     const secondaryEmails: Array<string> = [];
     for (const value of envelope.array('secondary_emails') ?? []) {
@@ -190,7 +190,7 @@ export class ProfileResponseParser {
     const envelope: JsonObjectReader | null = JsonObjectReader.parse(text);
     const values: Array<Object | null> | null = envelope?.array('user_actions') ?? null;
     if (envelope === null || values === null) {
-      return RepositoryResult.failure<Array<UserReplyItem>>('服务器响应缺少用户回复列表');
+      return RepositoryResult.invalidResponse<Array<UserReplyItem>>('服务器响应缺少用户回复列表');
     }
     const replies: Array<UserReplyItem> = [];
     for (const value of values) {
@@ -221,7 +221,7 @@ export class ProfileResponseParser {
     const list: JsonObjectReader | null = envelope?.object('user_bookmark_list') ?? null;
     const values: Array<Object | null> | null = list?.array('bookmarks') ?? null;
     if (envelope === null || list === null || values === null) {
-      return RepositoryResult.failure<Array<UserBookmarkItem>>('服务器响应缺少用户收藏列表');
+      return RepositoryResult.invalidResponse<Array<UserBookmarkItem>>('服务器响应缺少用户收藏列表');
     }
     const bookmarks: Array<UserBookmarkItem> = [];
     for (const value of values) {
