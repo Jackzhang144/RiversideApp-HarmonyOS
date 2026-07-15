@@ -238,7 +238,7 @@ export struct ChatConversationPage {
     }
     .fontSize(14)
     .lineHeight(21)
-    .fontColor(message.deleted ? '#7B8794' : '#24262B')
+    .fontColor(message.deleted ? $r('sys.color.font_tertiary') : $r('sys.color.font_primary'))
     .fontStyle(message.deleted ? FontStyle.Italic : FontStyle.Normal)
     .width('100%')
   }
@@ -259,7 +259,7 @@ export struct ChatConversationPage {
       }, (fragment: ChatMessageFragment, index: number): string => `${index}-${fragment.text}`)
     }
     .fontSize(11)
-    .fontColor('#52606D')
+    .fontColor($r('sys.color.font_secondary'))
     .maxLines(2)
     .textOverflow({ overflow: TextOverflow.Ellipsis })
     .width('100%')
@@ -269,7 +269,7 @@ export struct ChatConversationPage {
   private LoadingState(): void {
     Column({ space: 12 }) {
       LoadingProgress().width(36).height(36)
-      Text('正在读取 Chat 消息').fontSize(13).fontColor('#52606D')
+      Text('正在读取 Chat 消息').fontSize(13).fontColor($r('sys.color.font_secondary'))
     }.width('100%').height('100%').justifyContent(FlexAlign.Center)
   }
 
@@ -291,10 +291,10 @@ export struct ChatConversationPage {
       } else {
         Text(`:${reaction.emoji.replace(/:/g, '')}:`).fontSize(11)
       }
-      Text(reaction.count.toString()).fontSize(11).fontColor('#52606D')
+      Text(reaction.count.toString()).fontSize(11).fontColor($r('sys.color.font_secondary'))
     }
     .height(28).padding({ left: 8, right: 8 }).borderRadius(14)
-    .backgroundColor(reaction.reacted ? '#DCEAFF' : '#EEF1F5')
+    .backgroundColor($r('sys.color.background_secondary'))
     .onClick((): void => this.onReact(
       message.id,
       reaction.emoji,
@@ -314,7 +314,7 @@ export struct ChatConversationPage {
           .fontSize(12).fontWeight(FontWeight.Bold).fontColor('#317AF7')
           .onClick((): void => this.onOpenProfile(message.username))
         Text(message.createdAt.replace('T', ' ').replace('Z', ''))
-          .fontSize(10).fontColor('#98A2B3').layoutWeight(1)
+          .fontSize(10).fontColor($r('sys.color.font_tertiary')).layoutWeight(1)
       }
       .width('100%')
 
@@ -323,7 +323,7 @@ export struct ChatConversationPage {
           Text(`回复 ${message.replyTo.username}`).fontSize(11).fontWeight(FontWeight.Bold).fontColor('#317AF7')
           this.ReplyPreviewText(message.replyTo.excerpt)
         }
-        .width('100%').padding(8).backgroundColor('#F0F5FC')
+        .width('100%').padding(8).backgroundColor($r('sys.color.background_secondary'))
         .border({ width: { left: 3 }, color: '#317AF7' })
       }
 
@@ -332,7 +332,7 @@ export struct ChatConversationPage {
       if (!message.deleted && message.uploadUrls.length > 0) {
         ForEach(message.uploadUrls, (url: string): void => {
           Image(absoluteChatUrl(url)).width('100%').height(180).borderRadius(10)
-            .objectFit(ImageFit.Contain).backgroundColor('#E8EBF0')
+            .objectFit(ImageFit.Contain).backgroundColor($r('sys.color.background_secondary'))
             .onClick((): void => this.onOpenImage(absoluteChatUrl(url))).accessibilityText('打开 Chat 图片')
         }, (url: string): string => url)
       }
@@ -345,7 +345,7 @@ export struct ChatConversationPage {
         }
         .width('100%')
         Text(this.reactionUsernames(message))
-          .fontSize(10).fontColor('#7B8794').maxLines(2).width('100%')
+          .fontSize(10).fontColor($r('sys.color.font_tertiary')).maxLines(2).width('100%')
       }
 
       Row({ space: 6 }) {
@@ -369,7 +369,7 @@ export struct ChatConversationPage {
               Button() {
                 Image(emoji.imageUrl()).width(18).height(18).objectFit(ImageFit.Contain)
               }
-              .width(30).height(30).backgroundColor('#EEF1F5')
+              .width(30).height(30).backgroundColor($r('sys.color.background_secondary'))
               .onClick((): void => this.onReact(message.id, emoji.name, ChatReactionAction.ADD))
               .accessibilityText(`添加 Reaction ${emoji.name}`)
             }, (emoji: ChatEmoji): string => emoji.name)
@@ -386,8 +386,10 @@ export struct ChatConversationPage {
       .width('100%')
     }
     .width('88%').padding(12)
-    .backgroundColor(message.username === this.currentUsername ? '#EAF2FF' : '#FFFFFF')
-    .borderRadius(12).border({ width: 1, color: '#E4E8EE' })
+    .backgroundColor(message.username === this.currentUsername
+      ? $r('sys.color.background_secondary')
+      : $r('sys.color.comp_background_primary'))
+    .borderRadius(12).border({ width: 1, color: $r('sys.color.comp_divider') })
   }
 
   @Builder
@@ -421,7 +423,7 @@ export struct ChatConversationPage {
       }
     }
     .layoutWeight(1).width('100%').padding({ left: 12, right: 12, top: 10, bottom: 10 })
-    .backgroundColor('#F5F6F8').edgeEffect(EdgeEffect.Spring)
+    .backgroundColor($r('sys.color.background_secondary')).edgeEffect(EdgeEffect.Spring)
     .onReachEnd(this.onLoadNewer)
   }
 
@@ -430,7 +432,7 @@ export struct ChatConversationPage {
     if (this.emojis.length > 0) {
       Column({ space: 5 }) {
         TextInput({ text: this.emojiQuery, placeholder: '搜索 Emoji 名称或分组' })
-          .width('100%').height(34).fontSize(11).backgroundColor('#F1F3F5')
+          .width('100%').height(34).fontSize(11).backgroundColor($r('sys.color.background_secondary'))
           .enabled(this.canWrite())
           .onChange((value: string): void => { this.emojiQuery = value; })
         List({ space: 6 }) {
@@ -439,7 +441,7 @@ export struct ChatConversationPage {
               Button() {
                 Image(emoji.imageUrl()).width(22).height(22).objectFit(ImageFit.Contain)
               }
-              .width(34).height(34).backgroundColor('#EEF1F5').enabled(this.canWrite())
+              .width(34).height(34).backgroundColor($r('sys.color.background_secondary')).enabled(this.canWrite())
               .onClick((): void => this.insertEmoji(emoji.name))
               .accessibilityText(`插入 Emoji ${emoji.name}`)
             }
@@ -458,7 +460,7 @@ export struct ChatConversationPage {
         if (this.mentionLoading) {
           Row({ space: 8 }) {
             LoadingProgress().width(18).height(18)
-            Text('正在搜索用户').fontSize(12).fontColor('#52606D')
+            Text('正在搜索用户').fontSize(12).fontColor($r('sys.color.font_secondary'))
           }
           .width('100%')
           .padding(8)
@@ -475,7 +477,7 @@ export struct ChatConversationPage {
               Column({ space: 2 }) {
                 Text(`@${user.username}`).fontSize(13).fontWeight(FontWeight.Medium)
                 if (user.name.length > 0) {
-                  Text(user.name).fontSize(11).fontColor('#52606D').maxLines(1)
+                  Text(user.name).fontSize(11).fontColor($r('sys.color.font_secondary')).maxLines(1)
                 }
               }
               .alignItems(HorizontalAlign.Start)
@@ -487,12 +489,12 @@ export struct ChatConversationPage {
             .accessibilityText(`提及用户 ${user.username}`)
           }, (user: ComposerMentionUser): string => user.username)
         } else {
-          Text(this.mentionMessage).fontSize(12).fontColor('#52606D').width('100%').padding(8)
+          Text(this.mentionMessage).fontSize(12).fontColor($r('sys.color.font_secondary')).width('100%').padding(8)
         }
       }
       .width('100%')
-      .backgroundColor('#FFFFFF')
-      .border({ width: 1, color: '#E4E8EE' })
+      .backgroundColor($r('sys.color.comp_background_primary'))
+      .border({ width: 1, color: $r('sys.color.comp_divider') })
       .borderRadius(10)
     }
   }
@@ -508,7 +510,7 @@ export struct ChatConversationPage {
         .layoutWeight(1)
         Button('取消', { type: ButtonType.Normal }).height(28).fontSize(10).onClick(this.onCancelReply)
       }
-      .width('100%').padding(8).backgroundColor('#F0F5FC').borderRadius(8)
+      .width('100%').padding(8).backgroundColor($r('sys.color.background_secondary')).borderRadius(8)
     }
   }
 
@@ -529,7 +531,9 @@ export struct ChatConversationPage {
           Text(this.uploadState.message.length > 0
             ? this.uploadState.message
             : `图片上传 ${this.uploadState.progressPercent}%`)
-            .fontSize(11).fontColor(this.uploadState.kind === MediaUploadStateKind.FAILED ? '#C62828' : '#52606D')
+            .fontSize(11).fontColor(this.uploadState.kind === MediaUploadStateKind.FAILED
+              ? '#C62828'
+              : $r('sys.color.font_secondary'))
             .layoutWeight(1)
           if (this.uploadState.canCancel()) {
             Button('取消').height(28).fontSize(10).onClick(this.onCancelUpload)
@@ -542,7 +546,7 @@ export struct ChatConversationPage {
       this.MentionSuggestions()
       Row({ space: 8 }) {
         Button() { SymbolGlyph($r('sys.symbol.ohos_photo')).fontSize(20) }
-          .width(40).height(40).backgroundColor('#EEF1F5')
+          .width(40).height(40).backgroundColor($r('sys.color.background_secondary'))
           .enabled(!this.composer.sending && this.canWrite())
           .onClick(this.onSelectImages).accessibilityText('选择并上传 Chat 图片')
         TextArea({
@@ -551,7 +555,7 @@ export struct ChatConversationPage {
           controller: this.composerController
         })
           .layoutWeight(1).constraintSize({ minHeight: 42, maxHeight: 100 })
-          .backgroundColor('#F1F3F5').enabled(this.canWrite()).onChange((value: string): void => {
+          .backgroundColor($r('sys.color.background_secondary')).enabled(this.canWrite()).onChange((value: string): void => {
             this.handleDraftChange(value);
           })
           .onTextSelectionChange((selectionStart: number, selectionEnd: number): void => {
@@ -567,26 +571,29 @@ export struct ChatConversationPage {
       .width('100%')
       if (this.composer.message.length > 0) {
         Text(this.composer.message).fontSize(11)
-          .fontColor(this.composer.sending ? '#52606D' : '#C62828').width('100%')
+          .fontColor(this.composer.sending ? $r('sys.color.font_secondary') : '#C62828').width('100%')
       }
     }
     .width('100%').padding({ left: 12, right: 12, top: 8, bottom: 12 })
-    .backgroundColor('#FFFFFF').border({ width: { top: 1 }, color: '#E4E8EE' })
+    .backgroundColor($r('sys.color.comp_background_primary'))
+    .border({ width: { top: 1 }, color: $r('sys.color.comp_divider') })
   }
 
   build() {
     Column() {
       if (this.state.channel !== null && !this.state.channel.isDirectMessage) {
         Row() {
-          Text(this.state.channel.subtitle).fontSize(11).fontColor('#52606D').layoutWeight(1)
+          Text(this.state.channel.subtitle).fontSize(11).fontColor($r('sys.color.font_secondary')).layoutWeight(1)
           Button('离开频道', { type: ButtonType.Normal }).height(30).fontSize(10).fontColor('#C62828')
             .onClick(this.onLeaveChannel)
-        }.width('100%').padding({ left: 12, right: 12, top: 5, bottom: 5 }).backgroundColor('#FFFFFF')
+        }.width('100%').padding({ left: 12, right: 12, top: 5, bottom: 5 })
+          .backgroundColor($r('sys.color.comp_background_primary'))
       }
       if (this.state.channel?.userSilenced === true) {
         Text('当前账号不能在此频道发言；历史消息仍可阅读。')
           .fontSize(11).fontColor('#C62828').width('100%')
-          .padding({ left: 12, right: 12, top: 6, bottom: 6 }).backgroundColor('#FFF4F4')
+          .padding({ left: 12, right: 12, top: 6, bottom: 6 })
+          .backgroundColor($r('sys.color.background_secondary'))
       }
       if (this.state.kind === ChatStateKind.LOADING) {
         this.LoadingState()
@@ -597,6 +604,6 @@ export struct ChatConversationPage {
         this.Composer()
       }
     }
-    .width('100%').height('100%').backgroundColor('#F5F6F8')
+    .width('100%').height('100%').backgroundColor($r('sys.color.background_secondary'))
   }
 }

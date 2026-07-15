@@ -72,7 +72,7 @@ export struct AccountPage {
             Text(presentation.title)
               .fontSize(19)
               .fontWeight(FontWeight.Bold)
-              .fontColor('#24262B')
+              .fontColor($r('sys.color.font_primary'))
             if (presentation.busy) {
               LoadingProgress()
                 .width(18)
@@ -94,7 +94,7 @@ export struct AccountPage {
             Button('重新加载身份', { type: ButtonType.Normal })
               .height(32)
               .fontSize(12)
-              .backgroundColor('#EEF1F5')
+              .backgroundColor($r('sys.color.background_secondary'))
               .fontColor('#317AF7')
               .onClick(this.onRetryIdentity)
               .accessibilityText('重新加载 RiverSide 身份')
@@ -117,8 +117,8 @@ export struct AccountPage {
           .width('100%')
           .height(44)
           .fontColor('#C62828')
-          .backgroundColor('#FFFFFF')
-          .border({ width: 1, color: '#E3E5E8' })
+          .backgroundColor($r('sys.color.comp_background_primary'))
+          .border({ width: 1, color: $r('sys.color.comp_divider') })
           .borderRadius(12)
           .onClick(this.onLogout)
           .accessibilityText('退出 RiverSide 账户')
@@ -126,9 +126,9 @@ export struct AccountPage {
     }
     .width('100%')
     .padding(16)
-    .backgroundColor('#FFFFFF')
+    .backgroundColor($r('sys.color.comp_background_primary'))
     .borderRadius(14)
-    .border({ width: 1, color: '#E8EBF0' })
+    .border({ width: 1, color: $r('sys.color.comp_divider') })
   }
 
   @Builder
@@ -139,7 +139,7 @@ export struct AccountPage {
         .fontColor([$r('sys.color.font_tertiary')])
       Text(placeholder.label)
         .fontSize(15)
-        .fontColor(placeholder.available ? '#24262B' : $r('sys.color.font_secondary'))
+        .fontColor(placeholder.available ? $r('sys.color.font_primary') : $r('sys.color.font_secondary'))
         .layoutWeight(1)
       if (placeholder.available) {
         SymbolGlyph($r('sys.symbol.chevron_right'))
@@ -150,7 +150,7 @@ export struct AccountPage {
           .fontSize(11)
           .fontColor($r('sys.color.font_tertiary'))
           .padding({ left: 8, right: 8, top: 4, bottom: 4 })
-          .backgroundColor('#F0F1F3')
+          .backgroundColor($r('sys.color.background_secondary'))
           .borderRadius(10)
       }
     }
@@ -175,14 +175,14 @@ export struct AccountPage {
         if (index < section.placeholders.length - 1) {
           Divider()
             .margin({ left: 52 })
-            .color('#ECEEF2')
+            .color($r('sys.color.comp_divider'))
         }
       }, (placeholder: AccountPlaceholder): string => placeholder.kind)
     }
     .width('100%')
-    .backgroundColor('#FFFFFF')
+    .backgroundColor($r('sys.color.comp_background_primary'))
     .borderRadius(14)
-    .border({ width: 1, color: '#E8EBF0' })
+    .border({ width: 1, color: $r('sys.color.comp_divider') })
   }
 
   @Builder
@@ -208,7 +208,7 @@ export struct AccountPage {
           Text('我的')
             .fontSize(24)
             .fontWeight(FontWeight.Bold)
-            .fontColor('#24262B')
+            .fontColor($r('sys.color.font_primary'))
             .width('100%')
           this.AccountHeader(presentation)
           ForEach(presentation.placeholderSections, (section: AccountPlaceholderSection) => {
@@ -233,7 +233,7 @@ export struct AccountPage {
     }
     .width('100%')
     .height('100%')
-    .backgroundColor('#F4F5F7')
+    .backgroundColor($r('sys.color.background_secondary'))
   }
 
   build() {

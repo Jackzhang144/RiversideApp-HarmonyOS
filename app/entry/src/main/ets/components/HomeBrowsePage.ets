@@ -60,15 +60,15 @@ export struct HomeBrowsePage {
             Text(site.title)
               .fontSize(11)
               .fontWeight(FontWeight.Bold)
-              .fontColor('#344054')
+              .fontColor($r('sys.color.font_primary'))
               .maxLines(1)
           }
           .width(72)
           .height(62)
           .justifyContent(FlexAlign.Center)
-          .backgroundColor('#F8FAFC')
+          .backgroundColor($r('sys.color.background_secondary'))
           .borderRadius(10)
-          .border({ width: 1, color: '#E8EBF0' })
+          .border({ width: 1, color: $r('sys.color.comp_divider') })
           .onClick((): void => this.onOpenFeatureSite(site))
           .accessibilityText(`打开 ${site.title}`)
         }, (site: FeatureSitePresentation): string => site.provider)
@@ -80,7 +80,7 @@ export struct HomeBrowsePage {
     .scrollable(ScrollDirection.Horizontal)
     .scrollBar(BarState.Off)
     .edgeEffect(EdgeEffect.Spring)
-    .backgroundColor('#FFFFFF')
+    .backgroundColor($r('sys.color.comp_background_primary'))
   }
 
   @Builder
@@ -117,13 +117,13 @@ export struct HomeBrowsePage {
       .width('100%')
       .height(42)
       .padding({ left: 16, right: 16 })
-      .backgroundColor('#FFFFFF')
+      .backgroundColor($r('sys.color.comp_background_primary'))
     } else if (this.onlineUsersState.kind === BrowseStateKind.CONTENT) {
       Row({ space: 7 }) {
         Text(`在线（${this.onlineUserCount}）`)
           .fontSize(13)
           .fontWeight(FontWeight.Bold)
-          .fontColor('#344054')
+          .fontColor($r('sys.color.font_primary'))
         ForEach(this.onlineUsersState.items.slice(0, 7), (user: OnlineUser) => {
           this.onlineAvatar(user)
         }, (user: OnlineUser): string => `${user.id}-${user.username}`)
@@ -135,7 +135,7 @@ export struct HomeBrowsePage {
             .fontWeight(FontWeight.Bold)
             .fontColor($r('sys.color.font_secondary'))
             .textAlign(TextAlign.Center)
-            .backgroundColor('#E4E7EC')
+            .backgroundColor($r('sys.color.background_secondary'))
             .borderRadius(14)
         }
         Blank()
@@ -146,7 +146,7 @@ export struct HomeBrowsePage {
       .width('100%')
       .height(44)
       .padding({ left: 16, right: 12 })
-      .backgroundColor('#FFFFFF')
+      .backgroundColor($r('sys.color.comp_background_primary'))
       .onClick(this.onOpenOnlineUsers)
       .accessibilityText(`查看 ${this.onlineUserCount} 位在线用户`)
     } else if (this.onlineUsersState.kind === BrowseStateKind.ERROR) {
@@ -160,7 +160,7 @@ export struct HomeBrowsePage {
       .width('100%')
       .height(42)
       .padding({ left: 16, right: 12 })
-      .backgroundColor('#FFFFFF')
+      .backgroundColor($r('sys.color.comp_background_primary'))
     }
   }
 
@@ -205,8 +205,8 @@ export struct HomeBrowsePage {
     .width('100%')
     .height(56)
     .padding({ left: 16, right: 10 })
-    .backgroundColor('#FFFFFF')
-    .border({ width: { bottom: 1 }, color: '#ECEEF2' })
+    .backgroundColor($r('sys.color.comp_background_primary'))
+    .border({ width: { bottom: 1 }, color: $r('sys.color.comp_divider') })
   }
 
   private sortTabStyle(channel: HomeChannel): SubTabBarStyle {
@@ -362,13 +362,13 @@ export struct HomeBrowsePage {
       .width('100%')
       .height('100%')
       .padding({ left: 12, right: 12, top: 10 })
-      .backgroundColor('#F5F6F8')
+      .backgroundColor($r('sys.color.background_secondary'))
       .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
       .onReachEnd(this.onLoadMore)
     }
     .width('100%')
     .height('100%')
-    .backgroundColor('#F5F6F8')
+    .backgroundColor($r('sys.color.background_secondary'))
     .refreshOffset(64)
     .pullToRefresh(true)
     .pullUpToCancelRefresh(false)
@@ -429,6 +429,6 @@ export struct HomeBrowsePage {
     }
     .width('100%')
     .height('100%')
-    .backgroundColor('#FFFFFF')
+    .backgroundColor($r('sys.color.comp_background_primary'))
   }
 }

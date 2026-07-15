@@ -34,7 +34,7 @@ export struct AboutPage {
       Text('RiverSide')
         .fontSize(26)
         .fontWeight(FontWeight.Bold)
-        .fontColor('#24262B')
+        .fontColor($r('sys.color.font_primary'))
       Text(`版本 ${this.version.versionName}（${this.version.versionCode}）`)
         .fontSize(13)
         .fontColor($r('sys.color.font_secondary'))
@@ -52,6 +52,6 @@ export struct AboutPage {
     .height('100%')
     .padding(28)
     .justifyContent(FlexAlign.Center)
-    .backgroundColor('#F5F6F8')
+    .backgroundColor($r('sys.color.background_secondary'))
   }
 }

@@ -60,8 +60,8 @@ export struct CategoryBrowsePage {
     .width('100%')
     .height(56)
     .padding({ left: 16, right: 10 })
-    .backgroundColor('#FFFFFF')
-    .border({ width: { bottom: 1 }, color: '#ECEEF2' })
+    .backgroundColor($r('sys.color.comp_background_primary'))
+    .border({ width: { bottom: 1 }, color: $r('sys.color.comp_divider') })
   }
 
   @Builder
@@ -171,7 +171,9 @@ export struct CategoryBrowsePage {
         top: 10,
         bottom: 10
       })
-      .backgroundColor(this.categoryDepth(category) === 0 ? '#F8F9FB' : '#FFFFFF')
+      .backgroundColor(this.categoryDepth(category) === 0
+        ? $r('sys.color.background_secondary')
+        : $r('sys.color.comp_background_primary'))
       .onClick((): void => {
         this.onOpenCategory(category);
       })
@@ -180,7 +182,7 @@ export struct CategoryBrowsePage {
       )
       Divider()
         .margin({ left: this.categoryLeftPadding(category) + 34 })
-        .color('#ECEEF2')
+        .color($r('sys.color.comp_divider'))
     }
     .width('100%')
   }
@@ -202,12 +204,12 @@ export struct CategoryBrowsePage {
       }
       .width('100%')
       .height('100%')
-      .backgroundColor('#FFFFFF')
+      .backgroundColor($r('sys.color.comp_background_primary'))
       .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
     }
     .width('100%')
     .layoutWeight(1)
-    .backgroundColor('#FFFFFF')
+    .backgroundColor($r('sys.color.comp_background_primary'))
     .refreshOffset(64)
     .pullToRefresh(true)
     .pullUpToCancelRefresh(false)
@@ -231,6 +233,6 @@ export struct CategoryBrowsePage {
     }
     .width('100%')
     .height('100%')
-    .backgroundColor('#FFFFFF')
+    .backgroundColor($r('sys.color.comp_background_primary'))
   }
 }

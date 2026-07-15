@@ -35,7 +35,7 @@ export struct ForumContentCard {
       .fontWeight(FontWeight.Medium)
       .fontColor(badge.kind === ForumCardBadgeKind.PINNED ? '#C62828' : '#2068C9')
       .padding({ left: 8, right: 8, top: 4, bottom: 4 })
-      .backgroundColor(badge.kind === ForumCardBadgeKind.PINNED ? '#FDECEC' : '#EAF2FF')
+      .backgroundColor($r('sys.color.background_secondary'))
       .borderRadius(10)
       .maxLines(1)
       .textOverflow({ overflow: TextOverflow.Ellipsis })
@@ -196,7 +196,7 @@ export struct ForumContentCard {
         .fontWeight(FontWeight.Medium)
         .fontColor('#C62828')
         .padding({ left: 10, right: 10, top: 7, bottom: 7 })
-        .backgroundColor('#FDECEC')
+        .backgroundColor($r('sys.color.background_secondary'))
         .borderRadius(8)
         .width('100%')
     }
@@ -217,9 +217,9 @@ export struct ForumContentCard {
     .alignItems(HorizontalAlign.Start)
     .width('100%')
     .padding(14)
-    .backgroundColor('#FFFFFF')
+    .backgroundColor($r('sys.color.comp_background_primary'))
     .borderRadius(12)
-    .border({ width: 1, color: '#E8EBF0' })
+    .border({ width: 1, color: $r('sys.color.comp_divider') })
     .onClick((): void => {
       if (this.presentation.mode === ForumCardMode.TOPIC_PREVIEW) {
         this.onOpenTopic();

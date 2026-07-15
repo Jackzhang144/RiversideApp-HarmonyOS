@@ -82,7 +82,7 @@ export struct UserProfileSummaryPage {
     }
     .width('100%')
     .padding(16)
-    .backgroundColor('#FFFFFF')
+    .backgroundColor($r('sys.color.comp_background_primary'))
     .borderRadius(14)
   }
 
@@ -127,7 +127,7 @@ export struct UserProfileSummaryPage {
           Text(profile.displayName).fontSize(22).fontWeight(FontWeight.Bold)
           Text(`@${profile.username}`).fontSize(13).fontColor($r('sys.color.font_secondary'))
           if (profile.title.length > 0) {
-            Text(profile.title).fontSize(13).fontColor('#52606D')
+            Text(profile.title).fontSize(13).fontColor($r('sys.color.font_secondary'))
           }
           Row({ space: 8 }) {
             Text(profile.roleLabel)
@@ -137,7 +137,7 @@ export struct UserProfileSummaryPage {
             if (profile.isVerified) {
               Text('认证校友').fontSize(12).fontWeight(FontWeight.Bold).fontColor('#2E7D32')
             }
-            Text(`TL ${profile.trustLevel}`).fontSize(12).fontColor('#52606D')
+            Text(`TL ${profile.trustLevel}`).fontSize(12).fontColor($r('sys.color.font_secondary'))
           }
           if (this.ownProfile) {
             Button('编辑个人资料', { type: ButtonType.Normal })
@@ -185,7 +185,7 @@ export struct UserProfileSummaryPage {
         }
         .width('100%')
         .padding(20)
-        .backgroundColor('#FFFFFF')
+        .backgroundColor($r('sys.color.comp_background_primary'))
         .borderRadius(14)
 
         if (profile.bioExcerpt.length > 0 || profile.location.length > 0 || profile.website.length > 0) {
@@ -194,7 +194,8 @@ export struct UserProfileSummaryPage {
               Text(profile.bioExcerpt).fontSize(14).lineHeight(21).width('100%')
             }
             if (profile.location.length > 0) {
-              Text(`所在地：${profile.location}`).fontSize(13).fontColor('#52606D').width('100%')
+              Text(`所在地：${profile.location}`).fontSize(13)
+                .fontColor($r('sys.color.font_secondary')).width('100%')
             }
             if (profile.website.length > 0) {
               Text(profile.website).fontSize(13).fontColor('#317AF7').width('100%')
@@ -202,7 +203,7 @@ export struct UserProfileSummaryPage {
           }
           .width('100%')
           .padding(16)
-          .backgroundColor('#FFFFFF')
+          .backgroundColor($r('sys.color.comp_background_primary'))
           .borderRadius(14)
         }
         this.SummaryCard(profileSummaryPresentationFor(this.state.summary))
@@ -226,7 +227,7 @@ export struct UserProfileSummaryPage {
           }
           .width('100%')
           .padding(16)
-          .backgroundColor('#FFFFFF')
+          .backgroundColor($r('sys.color.comp_background_primary'))
           .borderRadius(14)
         }
         if (this.state.message.length > 0) {
@@ -238,7 +239,7 @@ export struct UserProfileSummaryPage {
     }
     .width('100%')
     .height('100%')
-    .backgroundColor('#F5F6F8')
+    .backgroundColor($r('sys.color.background_secondary'))
   }
 
   build() {

@@ -80,7 +80,7 @@ export struct SearchPage {
               .fontColor([$r('sys.color.font_tertiary')])
             Text(suggestion)
               .fontSize(14)
-              .fontColor('#24262B')
+              .fontColor($r('sys.color.font_primary'))
               .layoutWeight(1)
               .maxLines(1)
               .textOverflow({ overflow: TextOverflow.Ellipsis })
@@ -93,8 +93,8 @@ export struct SearchPage {
         }, (suggestion: string): string => suggestion)
       }
       .width('100%')
-      .backgroundColor('#FFFFFF')
-      .border({ width: 1, color: '#E8EBF0' })
+      .backgroundColor($r('sys.color.comp_background_primary'))
+      .border({ width: 1, color: $r('sys.color.comp_divider') })
       .borderRadius(10)
       .margin({ left: 12, right: 12, bottom: 10 })
     } else if (this.suggestionState.kind === SearchSuggestionStateKind.EMPTY) {
@@ -126,7 +126,7 @@ export struct SearchPage {
         TextInput({ text: this.queryInput, placeholder: '搜索 Topic、Post、用户、Category、标签或群组' })
           .height(44)
           .layoutWeight(1)
-          .backgroundColor('#F5F6F8')
+          .backgroundColor($r('sys.color.background_secondary'))
           .enterKeyType(EnterKeyType.Search)
           .onChange((value: string): void => {
             this.queryInput = value;
@@ -145,7 +145,7 @@ export struct SearchPage {
       this.Suggestions()
     }
     .width('100%')
-    .backgroundColor('#FFFFFF')
+    .backgroundColor($r('sys.color.comp_background_primary'))
   }
 
   @Builder
@@ -214,9 +214,9 @@ export struct SearchPage {
     .alignItems(HorizontalAlign.Start)
     .width('100%')
     .padding(14)
-    .backgroundColor('#FFFFFF')
+    .backgroundColor($r('sys.color.comp_background_primary'))
     .borderRadius(12)
-    .border({ width: 1, color: '#E8EBF0' })
+    .border({ width: 1, color: $r('sys.color.comp_divider') })
     .onClick((): void => this.onOpenPost(post))
     .accessibilityText(`${post.topic.title}，第 ${post.postNumber} 条 Post`)
   }
@@ -246,9 +246,9 @@ export struct SearchPage {
     }
     .width('100%')
     .padding(14)
-    .backgroundColor('#FFFFFF')
+    .backgroundColor($r('sys.color.comp_background_primary'))
     .borderRadius(12)
-    .border({ width: 1, color: '#E8EBF0' })
+    .border({ width: 1, color: $r('sys.color.comp_divider') })
     .onClick((): void => this.onOpenUser(user))
     .accessibilityText(`用户 ${user.displayName}，${user.username}`)
   }
@@ -269,9 +269,9 @@ export struct SearchPage {
     }
     .width('100%')
     .padding(14)
-    .backgroundColor('#FFFFFF')
+    .backgroundColor($r('sys.color.comp_background_primary'))
     .borderRadius(12)
-    .border({ width: 1, color: '#E8EBF0' })
+    .border({ width: 1, color: $r('sys.color.comp_divider') })
     .onClick((): void => this.onOpenCategory(category))
     .accessibilityText(`Category ${category.name}`)
   }
@@ -293,9 +293,9 @@ export struct SearchPage {
     }
     .width('100%')
     .padding(14)
-    .backgroundColor('#FFFFFF')
+    .backgroundColor($r('sys.color.comp_background_primary'))
     .borderRadius(12)
-    .border({ width: 1, color: '#E8EBF0' })
+    .border({ width: 1, color: $r('sys.color.comp_divider') })
     .accessibilityText(`标签 ${tag.name}`)
   }
 
@@ -318,9 +318,9 @@ export struct SearchPage {
     }
     .width('100%')
     .padding(14)
-    .backgroundColor('#FFFFFF')
+    .backgroundColor($r('sys.color.comp_background_primary'))
     .borderRadius(12)
-    .border({ width: 1, color: '#E8EBF0' })
+    .border({ width: 1, color: $r('sys.color.comp_divider') })
     .accessibilityText(`群组 ${group.fullName.length > 0 ? group.fullName : group.name}`)
   }
 
@@ -401,7 +401,7 @@ export struct SearchPage {
     .width('100%')
     .layoutWeight(1)
     .padding({ left: 12, right: 12, bottom: 18 })
-    .backgroundColor('#F5F6F8')
+    .backgroundColor($r('sys.color.background_secondary'))
     .edgeEffect(EdgeEffect.Spring)
     .onReachEnd(this.onLoadMore)
   }
@@ -433,6 +433,6 @@ export struct SearchPage {
     }
     .width('100%')
     .height('100%')
-    .backgroundColor('#F5F6F8')
+    .backgroundColor($r('sys.color.background_secondary'))
   }
 }

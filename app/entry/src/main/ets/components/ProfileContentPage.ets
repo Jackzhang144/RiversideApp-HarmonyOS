@@ -42,12 +42,12 @@ export struct ProfileContentPage {
         .fontWeight(FontWeight.Medium)
         .width('100%')
       if (detail.length > 0) {
-        Text(detail).fontSize(13).fontColor('#52606D').maxLines(3).width('100%')
+        Text(detail).fontSize(13).fontColor($r('sys.color.font_secondary')).maxLines(3).width('100%')
       }
     }
     .width('100%')
     .padding(15)
-    .backgroundColor('#FFFFFF')
+    .backgroundColor($r('sys.color.comp_background_primary'))
     .borderRadius(12)
     .onClick(onClick)
   }
@@ -57,12 +57,12 @@ export struct ProfileContentPage {
     Column({ space: 8 }) {
       if (this.loadingMore) {
         LoadingProgress().width(28).height(28)
-        Text('正在加载更多').fontSize(12).fontColor('#52606D')
+        Text('正在加载更多').fontSize(12).fontColor($r('sys.color.font_secondary'))
       } else if (this.message.length > 0) {
         Text(this.message).fontSize(12).fontColor('#C62828').textAlign(TextAlign.Center)
         Button('重试加载更多').height(34).onClick(this.onLoadMore)
       } else if (!this.hasMore && this.kind !== ProfileContentKind.DRAFTS) {
-        Text('已经显示全部内容').fontSize(12).fontColor('#7B8794')
+        Text('已经显示全部内容').fontSize(12).fontColor($r('sys.color.font_tertiary'))
       }
     }
     .width('100%')
@@ -74,7 +74,7 @@ export struct ProfileContentPage {
     if (this.loading) {
       Column({ space: 12 }) {
         LoadingProgress().width(36).height(36)
-        Text('正在加载').fontSize(14).fontColor('#52606D')
+        Text('正在加载').fontSize(14).fontColor($r('sys.color.font_secondary'))
       }
       .width('100%').height('100%').justifyContent(FlexAlign.Center)
     } else if (this.message.length > 0 && this.empty()) {
@@ -84,7 +84,7 @@ export struct ProfileContentPage {
       }
       .width('100%').height('100%').padding(28).justifyContent(FlexAlign.Center)
     } else if (this.empty()) {
-      Column() { Text('暂无内容').fontSize(15).fontColor('#52606D') }
+      Column() { Text('暂无内容').fontSize(15).fontColor($r('sys.color.font_secondary')) }
         .width('100%').height('100%').justifyContent(FlexAlign.Center)
     } else {
       List({ space: 10 }) {
@@ -108,7 +108,7 @@ export struct ProfileContentPage {
         }
         ListItem() { this.PaginationFooter() }
       }
-      .width('100%').height('100%').padding(12).backgroundColor('#F5F6F8')
+      .width('100%').height('100%').padding(12).backgroundColor($r('sys.color.background_secondary'))
       .onReachEnd(this.onLoadMore)
     }
   }

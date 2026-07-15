@@ -40,7 +40,7 @@ export struct OnlineUsersPage {
               Text(user.displayName)
                 .fontSize(16)
                 .fontWeight(FontWeight.Medium)
-                .fontColor('#24262B')
+                .fontColor($r('sys.color.font_primary'))
               if (user.name.length > 0) {
                 Text(`@${user.username}`)
                   .fontSize(12)
@@ -56,7 +56,7 @@ export struct OnlineUsersPage {
           .width('100%')
           .height(64)
           .padding({ left: 16, right: 16 })
-          .backgroundColor('#FFFFFF')
+          .backgroundColor($r('sys.color.comp_background_primary'))
           .onClick((): void => this.onOpenUser(user))
           .accessibilityText(`在线用户 ${user.displayName}`)
         }
@@ -74,7 +74,7 @@ export struct OnlineUsersPage {
     }
     .width('100%')
     .height('100%')
-    .backgroundColor('#F5F6F8')
-    .divider({ strokeWidth: 1, color: '#ECEEF2', startMargin: 70 })
+    .backgroundColor($r('sys.color.background_secondary'))
+    .divider({ strokeWidth: 1, color: $r('sys.color.comp_divider'), startMargin: 70 })
   }
 }

@@ -318,7 +318,7 @@ export struct TopicDetailPage {
     .width('100%')
     .height('100%')
     .justifyContent(FlexAlign.Center)
-    .backgroundColor('#F5F6F8')
+    .backgroundColor($r('sys.color.background_secondary'))
   }
 
   @Builder
@@ -339,7 +339,7 @@ export struct TopicDetailPage {
     .width('100%')
     .height('100%')
     .justifyContent(FlexAlign.Center)
-    .backgroundColor('#F5F6F8')
+    .backgroundColor($r('sys.color.background_secondary'))
   }
 
   @Builder
@@ -371,7 +371,7 @@ export struct TopicDetailPage {
         .fontSize(12)
         .fontColor('#2068C9')
         .padding({ left: 9, right: 9, top: 5, bottom: 5 })
-        .backgroundColor('#EAF2FF')
+        .backgroundColor($r('sys.color.background_secondary'))
         .borderRadius(12)
       if (detail.authorUsername.length > 0) {
         Text(`作者 ${detail.authorUsername}`)
@@ -466,9 +466,9 @@ export struct TopicDetailPage {
     }
     .width('100%')
     .padding(12)
-    .backgroundColor('#FFFFFF')
+    .backgroundColor($r('sys.color.comp_background_primary'))
     .borderRadius(12)
-    .border({ width: 1, color: '#E8EBF0' })
+    .border({ width: 1, color: $r('sys.color.comp_divider') })
   }
 
   @Builder
@@ -522,16 +522,17 @@ export struct TopicDetailPage {
     Row({ space: 8 }) {
       SymbolGlyph($r('sys.symbol.info_circle'))
         .fontSize(16)
-        .fontColor(['#52606D'])
+        .fontColor([$r('sys.color.font_secondary')])
       Text(`${post.username.length > 0 ? post.username : '系统'} ${systemActionLabel(post.actionCode)}`)
         .fontSize(12)
         .fontWeight(FontWeight.Medium)
-        .fontColor('#52606D')
+        .fontColor($r('sys.color.font_secondary'))
         .maxLines(2)
         .textOverflow({ overflow: TextOverflow.Ellipsis })
     }
     .padding({ left: 12, right: 12, top: 8, bottom: 8 })
-    .backgroundColor('#EEF1F4')
+    .backgroundColor($r('sys.color.background_secondary'))
+    .border({ width: 1, color: $r('sys.color.comp_divider') })
     .borderRadius(18)
     .justifyContent(FlexAlign.Center)
     .width('100%')
@@ -552,7 +553,7 @@ export struct TopicDetailPage {
     }
     .height(34)
     .padding({ left: 10, right: 10 })
-    .backgroundColor('#EAF2FF')
+    .backgroundColor($r('sys.color.background_secondary'))
     .borderRadius(17)
     .margin({ right: 6, bottom: 6 })
     .onClick((): void => this.onOpenReactionUsers(postId))
@@ -588,14 +589,14 @@ export struct TopicDetailPage {
     Column({ space: 12 }) {
       if (this.reactionUsersState.kind === BrowseStateKind.LOADING) {
         LoadingProgress().width(36).height(36)
-        Text('正在加载回应用户').fontSize(14).fontColor('#52606D')
+        Text('正在加载回应用户').fontSize(14).fontColor($r('sys.color.font_secondary'))
       } else if (this.reactionUsersState.kind === BrowseStateKind.ERROR) {
         Text(this.reactionUsersState.message.length > 0
           ? this.reactionUsersState.message : '回应用户加载失败')
           .fontSize(14)
           .fontColor('#C62828')
       } else if (this.reactionUsersState.items.length === 0) {
-        Text('暂无可展示的回应用户').fontSize(14).fontColor('#52606D')
+        Text('暂无可展示的回应用户').fontSize(14).fontColor($r('sys.color.font_secondary'))
       } else {
         if (this.reactionUsersState.message.length > 0) {
           Text(this.reactionUsersState.message)
@@ -614,7 +615,7 @@ export struct TopicDetailPage {
                     .objectFit(ImageFit.Contain)
                   Text(`${reaction.count} 人`)
                     .fontSize(13)
-                    .fontColor('#52606D')
+                    .fontColor($r('sys.color.font_secondary'))
                 }
                 .width('100%')
                 Flex({ direction: FlexDirection.Row, wrap: FlexWrap.Wrap, justifyContent: FlexAlign.Start }) {
@@ -641,7 +642,7 @@ export struct TopicDetailPage {
                   if (reaction.users.length === 0) {
                     Text(`${reaction.count} 人参与，服务未返回用户名`)
                       .fontSize(12)
-                      .fontColor('#7B8794')
+                      .fontColor($r('sys.color.font_tertiary'))
                   }
                 }
                 .width('100%')
@@ -683,7 +684,9 @@ export struct TopicDetailPage {
     }
     .width(42)
     .height(34)
-    .backgroundColor(post.currentUserReaction === '+1' ? '#317AF7' : '#EAF2FF')
+    .backgroundColor(post.currentUserReaction === '+1'
+      ? '#317AF7'
+      : $r('sys.color.background_secondary'))
     .margin({ right: 6, bottom: 6 })
     .enabled(!this.state.postActionState.busy)
     .onClick((): void => this.onToggleReaction(post.id, '+1'))
@@ -709,7 +712,7 @@ export struct TopicDetailPage {
             .fontWeight(FontWeight.Medium)
             .fontColor('#1B5E20')
             .padding({ left: 10, right: 10 })
-            .backgroundColor('#E8F5E9')
+            .backgroundColor($r('sys.color.background_secondary'))
             .borderRadius(17)
             .margin({ right: 6, bottom: 6 })
             .accessibilityText('此回答已被采纳')
@@ -731,7 +734,9 @@ export struct TopicDetailPage {
         }
         .width(42)
         .height(34)
-        .backgroundColor(this.isPostBookmarked(post.id) ? '#317AF7' : '#EAF2FF')
+        .backgroundColor(this.isPostBookmarked(post.id)
+          ? '#317AF7'
+          : $r('sys.color.background_secondary'))
         .margin({ right: 6, bottom: 6 })
         .enabled(!this.state.postActionState.busy)
         .onClick((): void => this.onToggleBookmark(post.id))
@@ -740,7 +745,7 @@ export struct TopicDetailPage {
           Button(post.acceptedAnswer ? '取消采纳' : '采纳回答')
             .height(34)
             .fontSize(12)
-            .backgroundColor(post.acceptedAnswer ? '#FFF3E0' : '#E8F5E9')
+            .backgroundColor($r('sys.color.background_secondary'))
             .fontColor(post.acceptedAnswer ? '#B85C00' : '#1B5E20')
             .margin({ right: 6, bottom: 6 })
             .enabled(!this.state.postActionState.busy)
@@ -750,7 +755,7 @@ export struct TopicDetailPage {
         Button('复制链接')
           .height(34)
           .fontSize(12)
-          .backgroundColor('#EAF2FF')
+          .backgroundColor($r('sys.color.background_secondary'))
           .fontColor('#2068C9')
           .margin({ right: 6, bottom: 6 })
           .onClick((): void => this.onCopyPostLink(this.state.topicId, post.postNumber))
@@ -758,8 +763,8 @@ export struct TopicDetailPage {
         Button('举报')
           .height(34)
           .fontSize(12)
-          .backgroundColor('#F3F4F6')
-          .fontColor('#52606D')
+          .backgroundColor($r('sys.color.background_secondary'))
+          .fontColor($r('sys.color.font_secondary'))
           .margin({ right: 6, bottom: 6 })
           .enabled(!this.state.postActionState.busy)
           .onClick((): void => this.openPostFlag(post))
@@ -768,7 +773,7 @@ export struct TopicDetailPage {
           Button('编辑')
             .height(34)
             .fontSize(12)
-            .backgroundColor('#EAF2FF')
+            .backgroundColor($r('sys.color.background_secondary'))
             .fontColor('#2068C9')
             .margin({ right: 6, bottom: 6 })
             .enabled(!this.state.postActionState.busy)
@@ -779,7 +784,7 @@ export struct TopicDetailPage {
           Button('删除')
             .height(34)
             .fontSize(12)
-            .backgroundColor('#FDECEC')
+            .backgroundColor($r('sys.color.background_secondary'))
             .fontColor('#C62828')
             .margin({ right: 6, bottom: 6 })
             .enabled(!this.state.postActionState.busy)
@@ -946,9 +951,9 @@ export struct TopicDetailPage {
     }
     .width('100%')
     .padding(28)
-    .backgroundColor('#FFFFFF')
+    .backgroundColor($r('sys.color.comp_background_primary'))
     .borderRadius(12)
-    .border({ width: 1, color: '#E8EBF0' })
+    .border({ width: 1, color: $r('sys.color.comp_divider') })
   }
 
   @Builder
@@ -1149,7 +1154,7 @@ export struct TopicDetailPage {
     .width('100%')
     .height('100%')
     .padding({ left: 12, right: 12, top: 10 })
-    .backgroundColor('#F5F6F8')
+    .backgroundColor($r('sys.color.background_secondary'))
     .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
     .onReachEnd(this.onLoadMore)
     .bindSheet($$this.replySheetVisible, this.ReplyComposerSheet(), {
@@ -1180,7 +1185,7 @@ export struct TopicDetailPage {
       }
       .width('100%')
       .height('100%')
-      .backgroundColor('#F5F6F8')
+      .backgroundColor($r('sys.color.background_secondary'))
       .refreshOffset(64)
       .pullToRefresh(true)
       .pullUpToCancelRefresh(false)

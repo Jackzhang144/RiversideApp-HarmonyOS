@@ -67,7 +67,9 @@ export struct ProfileEditorPage {
             ? `上传中 ${this.mediaState.progressPercent}%`
             : this.mediaState.message)
             .fontSize(12)
-            .fontColor(this.mediaState.kind === MediaUploadStateKind.FAILED ? '#C62828' : '#52606D')
+            .fontColor(this.mediaState.kind === MediaUploadStateKind.FAILED
+              ? '#C62828'
+              : $r('sys.color.font_secondary'))
             .width('100%')
         }
         this.Field('姓名', this.nameValue, (value: string): void => { this.nameValue = value; })
@@ -78,7 +80,7 @@ export struct ProfileEditorPage {
           Column({ space: 7 }) {
             Text('邮箱（只读）').fontSize(14).fontWeight(FontWeight.Bold).width('100%')
             ForEach(this.emails.allEmails(), (email: string): void => {
-              Text(email).fontSize(13).fontColor('#52606D').width('100%')
+              Text(email).fontSize(13).fontColor($r('sys.color.font_secondary')).width('100%')
             }, (email: string): string => email)
             Text('新增、移除、重发与确认邮箱暂不开放。')
               .fontSize(11)
@@ -87,7 +89,7 @@ export struct ProfileEditorPage {
           }
           .width('100%')
           .padding(14)
-          .backgroundColor('#F4F5F7')
+          .backgroundColor($r('sys.color.background_secondary'))
           .borderRadius(12)
         }
         if (this.message.length > 0) {
@@ -109,6 +111,6 @@ export struct ProfileEditorPage {
     }
     .width('100%')
     .height('100%')
-    .backgroundColor('#FFFFFF')
+    .backgroundColor($r('sys.color.comp_background_primary'))
   }
 }

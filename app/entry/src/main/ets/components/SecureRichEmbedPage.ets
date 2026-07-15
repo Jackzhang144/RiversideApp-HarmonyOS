@@ -57,11 +57,11 @@ export struct SecureRichEmbedPage {
           .fontColor(['#2068C9'])
         Text(`${this.title} · 隔离 ArkWeb`)
           .fontSize(12)
-          .fontColor('#52606D')
+          .fontColor($r('sys.color.font_secondary'))
           .layoutWeight(1)
         Text('无原生 bridge')
           .fontSize(10)
-          .fontColor('#52606D')
+          .fontColor($r('sys.color.font_secondary'))
       }
       .width('100%')
       .padding({ left: 12, right: 12, top: 8 })
@@ -102,6 +102,6 @@ export struct SecureRichEmbedPage {
     }
     .width('100%')
     .height('100%')
-    .backgroundColor('#F5F6F8')
+    .backgroundColor($r('sys.color.background_secondary'))
   }
 }

@@ -24,7 +24,7 @@ export struct CategoryTopicsPage {
     .width('100%')
     .height('100%')
     .justifyContent(FlexAlign.Center)
-    .backgroundColor('#F5F6F8')
+    .backgroundColor($r('sys.color.background_secondary'))
   }
 
   @Builder
@@ -45,7 +45,7 @@ export struct CategoryTopicsPage {
     .width('100%')
     .height('100%')
     .justifyContent(FlexAlign.Center)
-    .backgroundColor('#F5F6F8')
+    .backgroundColor($r('sys.color.background_secondary'))
   }
 
   @Builder
@@ -66,7 +66,7 @@ export struct CategoryTopicsPage {
     .width('100%')
     .height('100%')
     .justifyContent(FlexAlign.Center)
-    .backgroundColor('#F5F6F8')
+    .backgroundColor($r('sys.color.background_secondary'))
   }
 
   @Builder
@@ -129,13 +129,13 @@ export struct CategoryTopicsPage {
       .width('100%')
       .height('100%')
       .padding({ left: 12, right: 12 })
-      .backgroundColor('#F5F6F8')
+      .backgroundColor($r('sys.color.background_secondary'))
       .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
       .onReachEnd(this.onLoadMore)
     }
     .width('100%')
     .height('100%')
-    .backgroundColor('#F5F6F8')
+    .backgroundColor($r('sys.color.background_secondary'))
     .refreshOffset(64)
     .pullToRefresh(true)
     .pullUpToCancelRefresh(false)

@@ -179,12 +179,12 @@ export struct ForumComposer {
         .fontSize(11)
         .fontColor('#2068C9')
         .padding({ left: 8, right: 8, top: 5, bottom: 5 })
-        .backgroundColor('#EAF2FF')
+        .backgroundColor($r('sys.color.background_secondary'))
         .borderRadius(12)
     }
     .width('100%')
     .padding(12)
-    .backgroundColor('#F5F7FA')
+    .backgroundColor($r('sys.color.background_secondary'))
     .borderRadius(12)
   }
 
@@ -278,8 +278,8 @@ export struct ForumComposer {
         }
       }
       .width('100%')
-      .backgroundColor('#FFFFFF')
-      .border({ width: 1, color: '#E4E7ED' })
+      .backgroundColor($r('sys.color.comp_background_primary'))
+      .border({ width: 1, color: $r('sys.color.comp_divider') })
       .borderRadius(10)
     }
   }
@@ -290,7 +290,7 @@ export struct ForumComposer {
       .height(34)
       .fontSize(12)
       .enabled(this.presentation.canEdit())
-      .backgroundColor('#EAF2FF')
+      .backgroundColor($r('sys.color.background_secondary'))
       .fontColor('#2068C9')
       .margin({ right: 7, bottom: 7 })
       .onClick((): void => this.applyTool(tool))
@@ -308,7 +308,7 @@ export struct ForumComposer {
         Button('关闭', { type: ButtonType.Normal })
           .height(30)
           .fontSize(11)
-          .backgroundColor('#F5F6F8')
+          .backgroundColor($r('sys.color.background_secondary'))
           .fontColor($r('sys.color.font_secondary'))
           .onClick((): void => {
             this.emojiPickerVisible = false;
@@ -320,7 +320,7 @@ export struct ForumComposer {
         .height(38)
         .fontSize(12)
         .enabled(this.presentation.canEdit())
-        .backgroundColor('#FFFFFF')
+        .backgroundColor($r('sys.color.comp_background_primary'))
         .onChange((value: string): void => {
           this.emojiQuery = value;
         })
@@ -367,7 +367,7 @@ export struct ForumComposer {
               }
               .width('100%')
               .height(54)
-              .backgroundColor('#FFFFFF')
+              .backgroundColor($r('sys.color.comp_background_primary'))
               .enabled(this.presentation.canEdit())
               .onClick((): void => this.insertEmoji(emoji.name))
               .accessibilityText(`插入 Emoji ${emoji.name}`)
@@ -384,7 +384,7 @@ export struct ForumComposer {
     }
     .width('100%')
     .padding(12)
-    .backgroundColor('#F5F7FA')
+    .backgroundColor($r('sys.color.background_secondary'))
     .borderRadius(12)
   }
 
@@ -415,7 +415,7 @@ export struct ForumComposer {
         .height(34)
         .fontSize(16)
         .enabled(this.presentation.canEdit())
-        .backgroundColor('#EAF2FF')
+        .backgroundColor($r('sys.color.background_secondary'))
         .margin({ right: 7, bottom: 7 })
         .onClick((): void => this.toggleEmojiPicker())
         .accessibilityText('打开 Emoji 选择器')
@@ -427,7 +427,7 @@ export struct ForumComposer {
       .width(42)
       .height(34)
       .enabled(this.presentation.imageActionAvailable)
-      .backgroundColor('#F5F6F8')
+      .backgroundColor($r('sys.color.background_secondary'))
       .margin({ right: 7, bottom: 7 })
       .onClick(this.onSelectMedia)
       .accessibilityText(this.presentation.imageActionAccessibilityText)
@@ -436,7 +436,7 @@ export struct ForumComposer {
         .height(34)
         .fontSize(16)
         .enabled(this.presentation.mentionActionAvailable)
-        .backgroundColor('#F5F6F8')
+        .backgroundColor($r('sys.color.background_secondary'))
         .fontColor($r('sys.color.font_tertiary'))
         .margin({ right: 7, bottom: 7 })
         .onClick((): void => this.insertText('@'))
@@ -458,7 +458,7 @@ export struct ForumComposer {
             Button('取消上传')
               .height(34)
               .fontSize(12)
-              .backgroundColor('#F5F6F8')
+              .backgroundColor($r('sys.color.background_secondary'))
               .fontColor('#C62828')
               .onClick(this.onCancelMedia)
           }
@@ -466,7 +466,7 @@ export struct ForumComposer {
             Button('重试上传')
               .height(34)
               .fontSize(12)
-              .backgroundColor('#EAF2FF')
+              .backgroundColor($r('sys.color.background_secondary'))
               .fontColor('#2068C9')
               .onClick(this.onRetryMedia)
           }
@@ -474,7 +474,7 @@ export struct ForumComposer {
             Button('移除状态')
               .height(34)
               .fontSize(12)
-              .backgroundColor('#F5F6F8')
+              .backgroundColor($r('sys.color.background_secondary'))
               .fontColor($r('sys.color.font_secondary'))
               .onClick(this.onRemoveMedia)
           }
@@ -483,7 +483,7 @@ export struct ForumComposer {
       }
       .width('100%')
       .padding(10)
-      .backgroundColor('#F5F7FA')
+      .backgroundColor($r('sys.color.background_secondary'))
       .borderRadius(10)
     }
   }
@@ -530,7 +530,7 @@ export struct ForumComposer {
           .layoutWeight(1)
           .height(42)
           .enabled(this.presentation.canEdit())
-          .backgroundColor('#EAF2FF')
+          .backgroundColor($r('sys.color.background_secondary'))
           .fontColor('#2068C9')
           .onClick(this.onSaveDraft)
           .accessibilityText('保存服务端草稿')
@@ -538,7 +538,7 @@ export struct ForumComposer {
           .layoutWeight(1)
           .height(42)
           .enabled(!this.presentation.isBusy())
-          .backgroundColor('#F5F6F8')
+          .backgroundColor($r('sys.color.background_secondary'))
           .fontColor('#C62828')
           .onClick(this.onDiscard)
           .accessibilityText('舍弃草稿并关闭编辑器')
@@ -558,7 +558,7 @@ export struct ForumComposer {
           })
             .height(44)
             .enabled(this.presentation.canEdit())
-            .backgroundColor('#F5F6F8')
+            .backgroundColor($r('sys.color.background_secondary'))
             .onChange((value: string): void => this.onTitleChange(value))
             .accessibilityText('Topic 标题')
         }
@@ -590,7 +590,7 @@ export struct ForumComposer {
         })
           .height(190)
           .enabled(this.presentation.canEdit())
-          .backgroundColor('#F5F6F8')
+          .backgroundColor($r('sys.color.background_secondary'))
           .borderRadius(10)
           .onChange((value: string): void => this.handleBodyChange(value))
           .onTextSelectionChange((selectionStart: number, selectionEnd: number): void => {
