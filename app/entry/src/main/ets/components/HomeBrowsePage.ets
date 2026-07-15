@@ -1,5 +1,5 @@
 import { HdsTabs } from '@kit.UIDesignKit';
-import { BrowseState, BrowseStateKind } from '../app/AppShellModel';
+import { BrowseState, BrowseStateKind } from '../app/BrowseModels';
 import { HomeChannel, homeChannelLabel, OnlineUser } from '../models/DiscoveryModels';
 import { Category, Topic } from '../models/ForumModels';
 import { ForumCardPresentation } from './ForumCardPresentation';

@@ -1,4 +1,4 @@
-import { BrowseState, BrowseStateKind } from '../app/AppShellModel';
+import { BrowseState, BrowseStateKind } from '../app/BrowseModels';
 import { Category, Topic } from '../models/ForumModels';
 import { ForumCardPresentation } from './ForumCardPresentation';
 import { ForumContentCard } from './ForumContentCard';

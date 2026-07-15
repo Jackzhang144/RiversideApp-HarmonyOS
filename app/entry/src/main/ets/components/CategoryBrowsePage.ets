@@ -1,4 +1,4 @@
-import { BrowseState, BrowseStateKind } from '../app/AppShellModel';
+import { BrowseState, BrowseStateKind } from '../app/BrowseModels';
 import { Category } from '../models/ForumModels';
 
 @Component

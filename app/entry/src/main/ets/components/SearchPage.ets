@@ -3,7 +3,7 @@ import {
   SearchStateKind,
   SearchSuggestionState,
   SearchSuggestionStateKind
-} from '../app/AppShellModel';
+} from '../app/BrowseModels';
 import { SearchGroup, SearchPost, SearchTag, SearchUser } from '../models/DiscoveryModels';
 import { Category, Topic } from '../models/ForumModels';
 import { ForumCardPresentation } from './ForumCardPresentation';

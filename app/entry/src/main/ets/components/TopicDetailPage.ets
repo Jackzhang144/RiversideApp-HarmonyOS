@@ -1,11 +1,10 @@
 import {
-  BrowseState,
-  BrowseStateKind,
   ReplyComposerState,
   ReplyComposerStateKind,
   TopicReadState,
   TopicReadStateKind
 } from '../app/AppShellModel';
+import { BrowseState, BrowseStateKind } from '../app/BrowseModels';
 import { ForumComposer } from './ForumComposer';
 import {
   ForumComposerPresentation,

@@ -13,17 +13,19 @@ import {
 import { SymbolGlyphModifier, window } from '@kit.ArkUI';
 import {
   AppShellModel,
-  BrowseState,
-  BrowseStateKind,
   ComposerMediaTarget,
   ReplyComposerState,
   ReplyComposerStateKind,
-  SearchState,
-  SearchSuggestionState,
   TopicComposerState,
   TopicComposerStateKind,
   TopicReadState
 } from '../app/AppShellModel';
+import {
+  BrowseState,
+  BrowseStateKind,
+  SearchState,
+  SearchSuggestionState
+} from '../app/BrowseModels';
 import {
   rootDestinationForTabIndex,
   RootDestination,

@@ -1,11 +1,13 @@
 import { describe, expect, it } from '@ohos/hypium';
 import {
   AppShellModel,
-  BrowseStateKind,
-  SearchStateKind,
-  SearchSuggestionStateKind,
   ComposerMediaTarget
 } from '../../../main/ets/app/AppShellModel';
+import {
+  BrowseStateKind,
+  SearchStateKind,
+  SearchSuggestionStateKind
+} from '../../../main/ets/app/BrowseModels';
 import { AuthenticationLifecycle } from '../../../main/ets/app/AuthenticationLifecycle';
 import {
   HomeSortTabIndex,
