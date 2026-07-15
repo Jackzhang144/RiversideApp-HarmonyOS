@@ -269,16 +269,16 @@ export struct ChatConversationPage {
   private LoadingState(): void {
     Column({ space: 12 }) {
       LoadingProgress().width(36).height(36)
-      Text('正在读取 Chat 消息').fontSize(13).fontColor($r('sys.color.font_secondary'))
+      Text($r('app.string.chat_message_loading')).fontSize(13).fontColor($r('sys.color.font_secondary'))
     }.width('100%').height('100%').justifyContent(FlexAlign.Center)
   }
 
   @Builder
   private ErrorState(): void {
     Column({ space: 12 }) {
-      Text('消息加载失败').fontSize(20).fontWeight(FontWeight.Bold)
+      Text($r('app.string.chat_message_load_failed')).fontSize(20).fontWeight(FontWeight.Bold)
       Text(this.state.message).fontSize(13).fontColor($r('app.color.status_error')).textAlign(TextAlign.Center)
-      Button('重试').onClick(this.onRetry)
+      Button($r('app.string.common_retry')).onClick(this.onRetry)
     }.width('100%').height('100%').padding(32).justifyContent(FlexAlign.Center)
   }
 
@@ -333,7 +333,8 @@ export struct ChatConversationPage {
         ForEach(message.uploadUrls, (url: string): void => {
           Image(absoluteChatUrl(url)).width('100%').height(180).borderRadius(10)
             .objectFit(ImageFit.Contain).backgroundColor($r('sys.color.background_secondary'))
-            .onClick((): void => this.onOpenImage(absoluteChatUrl(url))).accessibilityText('打开 Chat 图片')
+            .onClick((): void => this.onOpenImage(absoluteChatUrl(url)))
+            .accessibilityText($r('app.string.chat_image_open_accessibility'))
         }, (url: string): string => url)
       }
 
@@ -349,10 +350,10 @@ export struct ChatConversationPage {
       }
 
       Row({ space: 6 }) {
-        Button('复制', { type: ButtonType.Normal }).height(30).fontSize(11)
+        Button($r('app.string.action_copy'), { type: ButtonType.Normal }).height(30).fontSize(11)
           .onClick((): void => this.onCopyMessage(message.message))
         if (this.state.channel !== null) {
-          Button('复制链接', { type: ButtonType.Normal }).height(30).fontSize(11)
+          Button($r('app.string.action_copy_link'), { type: ButtonType.Normal }).height(30).fontSize(11)
             .onClick((): void => this.onCopyMessageLink(
               this.state.channel?.id ?? 0,
               this.state.channel?.slug ?? '',
@@ -360,7 +361,7 @@ export struct ChatConversationPage {
             ))
         }
         if (!message.deleted && this.canWrite()) {
-          Button('回复', { type: ButtonType.Normal }).height(30).fontSize(11)
+          Button($r('app.string.action_reply'), { type: ButtonType.Normal }).height(30).fontSize(11)
             .onClick((): void => this.onReply(message.id))
           Button('@', { type: ButtonType.Normal }).height(30).fontSize(11)
             .onClick((): void => this.onMention(message.username))
@@ -376,10 +377,11 @@ export struct ChatConversationPage {
           }
         }
         if (this.canDelete(message) && !message.deleted) {
-          Button('删除', { type: ButtonType.Normal }).height(30).fontSize(11).fontColor($r('app.color.status_error'))
+          Button($r('app.string.action_delete'), { type: ButtonType.Normal }).height(30).fontSize(11)
+            .fontColor($r('app.color.status_error'))
             .onClick((): void => this.onDelete(message.id))
         } else if (this.canDelete(message) && message.deleted) {
-          Button('恢复', { type: ButtonType.Normal }).height(30).fontSize(11)
+          Button($r('app.string.action_restore'), { type: ButtonType.Normal }).height(30).fontSize(11)
             .onClick((): void => this.onRestore(message.id))
         }
       }
@@ -431,7 +433,7 @@ export struct ChatConversationPage {
   private EmojiBar(): void {
     if (this.emojis.length > 0) {
       Column({ space: 5 }) {
-        TextInput({ text: this.emojiQuery, placeholder: '搜索 Emoji 名称或分组' })
+        TextInput({ text: this.emojiQuery, placeholder: $r('app.string.chat_emoji_search_placeholder') })
           .width('100%').height(34).fontSize(11).backgroundColor($r('sys.color.background_secondary'))
           .enabled(this.canWrite())
           .onChange((value: string): void => { this.emojiQuery = value; })
@@ -460,7 +462,7 @@ export struct ChatConversationPage {
         if (this.mentionLoading) {
           Row({ space: 8 }) {
             LoadingProgress().width(18).height(18)
-            Text('正在搜索用户').fontSize(12).fontColor($r('sys.color.font_secondary'))
+            Text($r('app.string.chat_mention_loading')).fontSize(12).fontColor($r('sys.color.font_secondary'))
           }
           .width('100%')
           .padding(8)
@@ -508,7 +510,8 @@ export struct ChatConversationPage {
           this.ReplyPreviewText(reply.displayText())
         }
         .layoutWeight(1)
-        Button('取消', { type: ButtonType.Normal }).height(28).fontSize(10).onClick(this.onCancelReply)
+        Button($r('app.string.action_cancel'), { type: ButtonType.Normal }).height(28).fontSize(10)
+          .onClick(this.onCancelReply)
       }
       .width('100%').padding(8).backgroundColor($r('sys.color.background_secondary')).borderRadius(8)
     }
@@ -536,9 +539,9 @@ export struct ChatConversationPage {
               : $r('sys.color.font_secondary'))
             .layoutWeight(1)
           if (this.uploadState.canCancel()) {
-            Button('取消').height(28).fontSize(10).onClick(this.onCancelUpload)
+            Button($r('app.string.action_cancel')).height(28).fontSize(10).onClick(this.onCancelUpload)
           } else if (this.uploadState.canRetry()) {
-            Button('重试').height(28).fontSize(10).onClick(this.onRetryUpload)
+            Button($r('app.string.common_retry')).height(28).fontSize(10).onClick(this.onRetryUpload)
           }
         }.width('100%')
       }
@@ -548,10 +551,10 @@ export struct ChatConversationPage {
         Button() { SymbolGlyph($r('sys.symbol.ohos_photo')).fontSize(20) }
           .width(40).height(40).backgroundColor($r('sys.color.background_secondary'))
           .enabled(!this.composer.sending && this.canWrite())
-          .onClick(this.onSelectImages).accessibilityText('选择并上传 Chat 图片')
+          .onClick(this.onSelectImages).accessibilityText($r('app.string.chat_image_select_accessibility'))
         TextArea({
           text: this.composer.draft,
-          placeholder: '输入消息，支持 @ 与 Emoji',
+          placeholder: $r('app.string.chat_composer_placeholder'),
           controller: this.composerController
         })
           .layoutWeight(1).constraintSize({ minHeight: 42, maxHeight: 100 })
@@ -566,7 +569,7 @@ export struct ChatConversationPage {
         Button() { SymbolGlyph($r('sys.symbol.paperplane')).fontSize(20) }
           .width(44).height(44).enabled(this.canWrite() && !this.composer.sending &&
             (this.composer.draft.trim().length > 0 || this.composer.uploads.length > 0))
-          .onClick(this.onSend).accessibilityText('发送 Chat 消息')
+          .onClick(this.onSend).accessibilityText($r('app.string.chat_send_accessibility'))
       }
       .width('100%')
       if (this.composer.message.length > 0) {
@@ -584,13 +587,14 @@ export struct ChatConversationPage {
       if (this.state.channel !== null && !this.state.channel.isDirectMessage) {
         Row() {
           Text(this.state.channel.subtitle).fontSize(11).fontColor($r('sys.color.font_secondary')).layoutWeight(1)
-          Button('离开频道', { type: ButtonType.Normal }).height(30).fontSize(10).fontColor($r('app.color.status_error'))
+          Button($r('app.string.chat_leave_channel'), { type: ButtonType.Normal }).height(30).fontSize(10)
+            .fontColor($r('app.color.status_error'))
             .onClick(this.onLeaveChannel)
         }.width('100%').padding({ left: 12, right: 12, top: 5, bottom: 5 })
           .backgroundColor($r('sys.color.comp_background_primary'))
       }
       if (this.state.channel?.userSilenced === true) {
-        Text('当前账号不能在此频道发言；历史消息仍可阅读。')
+        Text($r('app.string.chat_silenced_message'))
           .fontSize(11).fontColor($r('app.color.status_error')).width('100%')
           .padding({ left: 12, right: 12, top: 6, bottom: 6 })
           .backgroundColor($r('sys.color.background_secondary'))

@@ -371,6 +371,126 @@
     {
       "name": "profile_groups",
       "value": "群组"
+    },
+    {
+      "name": "chat_title",
+      "value": "聊天"
+    },
+    {
+      "name": "chat_refresh_accessibility",
+      "value": "刷新聊天频道与未读状态"
+    },
+    {
+      "name": "chat_login",
+      "value": "登录并授权"
+    },
+    {
+      "name": "chat_capability_failed",
+      "value": "无法确认 Chat 权限"
+    },
+    {
+      "name": "chat_capability_retry",
+      "value": "重试账号能力检查"
+    },
+    {
+      "name": "chat_channel_loading",
+      "value": "正在读取服务器 Chat 频道"
+    },
+    {
+      "name": "chat_channel_load_failed",
+      "value": "聊天频道加载失败"
+    },
+    {
+      "name": "chat_channel_empty_description",
+      "value": "列表完全遵从服务端返回。"
+    },
+    {
+      "name": "chat_search_placeholder",
+      "value": "搜索 Chat 消息"
+    },
+    {
+      "name": "chat_direct_placeholder",
+      "value": "输入用户名发起私聊"
+    },
+    {
+      "name": "chat_direct_start_accessibility",
+      "value": "发起新私聊"
+    },
+    {
+      "name": "chat_search_hint",
+      "value": "输入关键词搜索可访问的 Chat 消息"
+    },
+    {
+      "name": "chat_searching",
+      "value": "正在搜索"
+    },
+    {
+      "name": "chat_search_empty",
+      "value": "没有找到 Chat 消息"
+    },
+    {
+      "name": "chat_capability_loading",
+      "value": "正在确认 Chat 权限"
+    },
+    {
+      "name": "chat_message_loading",
+      "value": "正在读取 Chat 消息"
+    },
+    {
+      "name": "chat_message_load_failed",
+      "value": "消息加载失败"
+    },
+    {
+      "name": "action_copy",
+      "value": "复制"
+    },
+    {
+      "name": "action_reply",
+      "value": "回复"
+    },
+    {
+      "name": "action_delete",
+      "value": "删除"
+    },
+    {
+      "name": "action_restore",
+      "value": "恢复"
+    },
+    {
+      "name": "action_cancel",
+      "value": "取消"
+    },
+    {
+      "name": "chat_image_open_accessibility",
+      "value": "打开 Chat 图片"
+    },
+    {
+      "name": "chat_emoji_search_placeholder",
+      "value": "搜索 Emoji 名称或分组"
+    },
+    {
+      "name": "chat_mention_loading",
+      "value": "正在搜索用户"
+    },
+    {
+      "name": "chat_image_select_accessibility",
+      "value": "选择并上传 Chat 图片"
+    },
+    {
+      "name": "chat_composer_placeholder",
+      "value": "输入消息，支持 @ 与 Emoji"
+    },
+    {
+      "name": "chat_send_accessibility",
+      "value": "发送 Chat 消息"
+    },
+    {
+      "name": "chat_leave_channel",
+      "value": "离开频道"
+    },
+    {
+      "name": "chat_silenced_message",
+      "value": "当前账号不能在此频道发言；历史消息仍可阅读。"
     }
   ]
 }

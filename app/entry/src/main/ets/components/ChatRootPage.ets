@@ -45,7 +45,7 @@ export struct ChatRootPage {
   @Builder
   private Header(): void {
     Row({ space: 8 }) {
-      Text('聊天')
+      Text($r('app.string.chat_title'))
         .fontSize(20)
         .fontWeight(FontWeight.Bold)
         .layoutWeight(1)
@@ -60,7 +60,7 @@ export struct ChatRootPage {
       .backgroundColor(Color.Transparent)
       .enabled(!this.state.refreshing)
       .onClick(this.onRefresh)
-      .accessibilityText('刷新聊天频道与未读状态')
+      .accessibilityText($r('app.string.chat_refresh_accessibility'))
     }
     .width('100%')
     .height($r('app.float.page_header_height'))
@@ -125,7 +125,7 @@ export struct ChatRootPage {
         : '频道、私聊、未读与消息操作都需要 Authenticated Session。')
         .fontSize(13).fontColor($r('sys.color.font_secondary')).textAlign(TextAlign.Center)
       if (!this.authenticated) {
-        Button('登录并授权').onClick(this.onLogin)
+        Button($r('app.string.chat_login')).onClick(this.onLogin)
       }
     }
     .width('100%').height('100%').padding(32).justifyContent(FlexAlign.Center)
@@ -135,9 +135,9 @@ export struct ChatRootPage {
   private CapabilityErrorState(): void {
     Column({ space: 14 }) {
       SymbolGlyph($r('sys.symbol.exclamationmark_circle')).fontSize(42).fontColor([$r('app.color.status_error')])
-      Text('无法确认 Chat 权限').fontSize(18).fontWeight(FontWeight.Bold)
+      Text($r('app.string.chat_capability_failed')).fontSize(18).fontWeight(FontWeight.Bold)
       Text(this.capabilityError).fontSize(13).fontColor($r('sys.color.font_secondary')).textAlign(TextAlign.Center)
-      Button('重试账号能力检查').onClick(this.onRetryCapability)
+      Button($r('app.string.chat_capability_retry')).onClick(this.onRetryCapability)
     }
     .width('100%').height('100%').padding(32).justifyContent(FlexAlign.Center)
   }
@@ -205,18 +205,19 @@ export struct ChatRootPage {
     if (this.state.kind === ChatStateKind.LOADING && this.state.channels.length === 0) {
       Column({ space: 12 }) {
         LoadingProgress().width(36).height(36)
-        Text('正在读取服务器 Chat 频道').fontSize(13).fontColor($r('sys.color.font_secondary'))
+        Text($r('app.string.chat_channel_loading')).fontSize(13).fontColor($r('sys.color.font_secondary'))
       }.width('100%').height('100%').justifyContent(FlexAlign.Center)
     } else if (this.state.kind === ChatStateKind.ERROR && this.state.channels.length === 0) {
       Column({ space: 12 }) {
-        Text('聊天频道加载失败').fontSize(18).fontWeight(FontWeight.Bold)
+        Text($r('app.string.chat_channel_load_failed')).fontSize(18).fontWeight(FontWeight.Bold)
         Text(this.state.message).fontSize(13).fontColor($r('app.color.status_error')).textAlign(TextAlign.Center)
-        Button('重试').onClick(this.onRefresh)
+        Button($r('app.string.common_retry')).onClick(this.onRefresh)
       }.width('100%').height('100%').padding(32).justifyContent(FlexAlign.Center)
     } else if (this.channels(directMessages).length === 0) {
       Column({ space: 12 }) {
         Text(directMessages ? '暂无直接消息' : '暂无可见频道').fontSize(17).fontWeight(FontWeight.Bold)
-        Text('列表完全遵从服务端返回。').fontSize(13).fontColor($r('sys.color.font_secondary'))
+        Text($r('app.string.chat_channel_empty_description')).fontSize(13)
+          .fontColor($r('sys.color.font_secondary'))
       }.width('100%').height('100%').justifyContent(FlexAlign.Center)
     } else {
       List({ space: 10 }) {
@@ -236,7 +237,7 @@ export struct ChatRootPage {
         SymbolGlyph($r('sys.symbol.magnifyingglass'))
           .fontSize(20)
           .fontColor([$r('sys.color.font_secondary')])
-        TextInput({ text: this.searchText, placeholder: '搜索 Chat 消息' })
+        TextInput({ text: this.searchText, placeholder: $r('app.string.chat_search_placeholder') })
           .layoutWeight(1)
           .fontSize(14)
           .backgroundColor(Color.Transparent)
@@ -251,7 +252,7 @@ export struct ChatRootPage {
         .height(36)
         .backgroundColor(Color.Transparent)
         .onClick((): void => this.onSearch(this.searchText))
-        .accessibilityText('搜索 Chat 消息')
+        .accessibilityText($r('app.string.chat_search_placeholder'))
       }
       .width('100%')
       .height(48)
@@ -265,7 +266,7 @@ export struct ChatRootPage {
           SymbolGlyph($r('sys.symbol.envelope'))
             .fontSize(20)
             .fontColor([$r('sys.color.font_secondary')])
-          TextInput({ text: this.directUsername, placeholder: '输入用户名发起私聊' })
+          TextInput({ text: this.directUsername, placeholder: $r('app.string.chat_direct_placeholder') })
             .layoutWeight(1)
             .fontSize(14)
             .backgroundColor(Color.Transparent)
@@ -280,7 +281,7 @@ export struct ChatRootPage {
             .backgroundColor(Color.Transparent)
             .enabled(this.directUsername.trim().length > 0)
             .onClick((): void => this.onOpenDirectChat(this.directUsername))
-            .accessibilityText('发起新私聊')
+            .accessibilityText($r('app.string.chat_direct_start_accessibility'))
         }
         .width('100%')
         .height(48)
@@ -294,18 +295,19 @@ export struct ChatRootPage {
         Column({ space: 8 }) {
           SymbolGlyph($r('sys.symbol.magnifyingglass')).fontSize(34)
             .fontColor([$r('sys.color.font_tertiary')])
-          Text('输入关键词搜索可访问的 Chat 消息').fontSize(13).fontColor($r('sys.color.font_secondary'))
+          Text($r('app.string.chat_search_hint')).fontSize(13).fontColor($r('sys.color.font_secondary'))
         }.layoutWeight(1).width('100%').justifyContent(FlexAlign.Center)
       } else if (this.searchState.kind === ChatStateKind.LOADING) {
-        Column({ space: 8 }) { LoadingProgress().width(30).height(30); Text('正在搜索') }
+        Column({ space: 8 }) { LoadingProgress().width(30).height(30); Text($r('app.string.chat_searching')) }
           .layoutWeight(1).width('100%').justifyContent(FlexAlign.Center)
       } else if (this.searchState.kind === ChatStateKind.ERROR) {
         Column({ space: 8 }) {
           Text(this.searchState.message).fontSize(13).fontColor($r('app.color.status_error')).textAlign(TextAlign.Center)
-          Button('重试').onClick((): void => this.onSearch(this.searchText))
+          Button($r('app.string.common_retry')).onClick((): void => this.onSearch(this.searchText))
         }.layoutWeight(1).width('100%').justifyContent(FlexAlign.Center)
       } else if (this.searchState.kind === ChatStateKind.EMPTY) {
-        Column() { Text('没有找到 Chat 消息').fontSize(14).fontColor($r('sys.color.font_secondary')) }
+        Column() { Text($r('app.string.chat_search_empty')).fontSize(14)
+          .fontColor($r('sys.color.font_secondary')) }
           .layoutWeight(1).width('100%').justifyContent(FlexAlign.Center)
       } else {
         List({ space: 9 }) {
@@ -341,7 +343,7 @@ export struct ChatRootPage {
     if (this.authenticated && this.capabilityLoading) {
       Column({ space: 12 }) {
         LoadingProgress().width(36).height(36)
-        Text('正在确认 Chat 权限').fontSize(13).fontColor($r('sys.color.font_secondary'))
+        Text($r('app.string.chat_capability_loading')).fontSize(13).fontColor($r('sys.color.font_secondary'))
       }.width('100%').height('100%').justifyContent(FlexAlign.Center)
     } else if (this.authenticated && this.capabilityError.length > 0) {
       this.CapabilityErrorState()
