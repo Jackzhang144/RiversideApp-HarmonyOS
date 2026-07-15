@@ -53,6 +53,10 @@
       "value": "外部打开"
     },
     {
+      "name": "image_save",
+      "value": "保存图片"
+    },
+    {
       "name": "category_all",
       "value": "全部分类"
     },

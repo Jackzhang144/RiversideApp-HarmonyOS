@@ -9,13 +9,7 @@ export struct ImageViewerPage {
   @Require @Prop state: ImageViewerState;
   onCopyUrl: () => void = (): void => {};
   onOpenExternally: () => void = (): void => {};
-  onSaveAuthorized: () => void = (): void => {};
-  onSaveAuthorizationFailure: () => void = (): void => {};
-  private readonly saveButtonOptions: SaveButtonOptions = {
-    icon: SaveIconStyle.FULL_FILLED,
-    text: SaveDescription.SAVE_IMAGE,
-    buttonType: ButtonType.Capsule
-  };
+  onSave: () => void = (): void => {};
 
   private presentation(): ImageViewerPresentation {
     return new ImageViewerPresentation(this.state);
@@ -57,17 +51,11 @@ export struct ImageViewerPage {
       }
 
       Row({ space: 10 }) {
-        SaveButton(this.saveButtonOptions)
+        Button($r('app.string.image_save'))
           .width('32%')
           .height(46)
           .enabled(this.presentation().canSave())
-          .onClick((_event: ClickEvent, result: SaveButtonOnClickResult): void => {
-            if (result === SaveButtonOnClickResult.SUCCESS) {
-              this.onSaveAuthorized();
-            } else {
-              this.onSaveAuthorizationFailure();
-            }
-          })
+          .onClick(this.onSave)
         Button($r('app.string.action_copy_link'))
           .layoutWeight(1)
           .height(46)

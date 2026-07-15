@@ -112,21 +112,64 @@ export class MediaGalleryService {
 
   public async saveToGallery(media: CachedMedia): Promise<RepositoryResult<boolean>> {
     const helper: photoAccessHelper.PhotoAccessHelper = photoAccessHelper.getPhotoAccessHelper(this.context);
+    let sourceFile: fileIo.File | null = null;
+    let destinationFile: fileIo.File | null = null;
     try {
-      const request: photoAccessHelper.MediaAssetChangeRequest =
-        photoAccessHelper.MediaAssetChangeRequest.createImageAssetRequest(
-          this.context,
-          `file://${media.absoluteCachePath}`
-        );
-      await helper.applyChanges(request);
+      const config: photoAccessHelper.PhotoCreationConfig = {
+        title: this.galleryTitle(media.filename),
+        fileNameExtension: this.galleryExtension(media.filename),
+        photoType: photoAccessHelper.PhotoType.IMAGE,
+        subtype: photoAccessHelper.PhotoSubtype.DEFAULT
+      };
+      const destinationUris: Array<string> = await helper.showAssetsCreationDialog(
+        [media.absoluteCachePath],
+        [config]
+      );
+      const destinationUri: string | undefined = destinationUris[0];
+      if (destinationUri === undefined || destinationUri.trim().length === 0) {
+        return RepositoryResult.cancelled<boolean>('已取消保存图片');
+      }
+      sourceFile = await fileIo.open(media.absoluteCachePath, fileIo.OpenMode.READ_ONLY);
+      destinationFile = await fileIo.open(destinationUri, fileIo.OpenMode.WRITE_ONLY);
+      await fileIo.copyFile(sourceFile.fd, destinationFile.fd);
       return RepositoryResult.success<boolean>(true);
     } catch (_) {
       return RepositoryResult.storage<boolean>('无法将图片写入系统相册');
     } finally {
+      await this.closeFile(destinationFile);
+      await this.closeFile(sourceFile);
       try {
         await helper.release();
       } catch (_) {
       }
+    }
+  }
+
+  private galleryExtension(filename: string): string {
+    const normalized: string = filename.trim();
+    const separator: number = normalized.lastIndexOf('.');
+    if (separator < 0 || separator >= normalized.length - 1) {
+      return 'jpg';
+    }
+    return normalized.slice(separator + 1).toLowerCase();
+  }
+
+  private galleryTitle(filename: string): string {
+    const normalized: string = filename.trim();
+    const separator: number = normalized.lastIndexOf('.');
+    if (separator <= 0) {
+      return normalized.length > 0 ? normalized : 'riverside-image';
+    }
+    return normalized.slice(0, separator);
+  }
+
+  private async closeFile(file: fileIo.File | null): Promise<void> {
+    if (file === null) {
+      return;
+    }
+    try {
+      await fileIo.close(file);
+    } catch (_) {
     }
   }
 

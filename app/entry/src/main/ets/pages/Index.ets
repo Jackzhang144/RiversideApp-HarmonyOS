@@ -106,7 +106,7 @@ import { AuthRepository, AuthState, AuthStateKind } from '../auth/AuthRepository
 import { RepositoryAuthenticationLifecycle } from '../auth/RepositoryAuthenticationLifecycle';
 import { CategoryCacheScope } from '../cache/CategoryCache';
 import { AbilityContextRegistry } from '../core/AbilityContextRegistry';
-import { RepositoryResult } from '../core/RepositoryResult';
+import { RepositoryFailureCode, RepositoryResult } from '../core/RepositoryResult';
 import { RIVERSIDE_ABOUT_URL, RIVERSIDE_ORIGIN } from '../core/RiversideEnvironment';
 import { AccountPage } from '../components/AccountPage';
 import { AppSettingsPage } from '../components/AppSettingsPage';
@@ -1372,6 +1372,10 @@ struct Index {
     }
     this.imageViewerState = this.imageViewerState.saving();
     const result: RepositoryResult<boolean> = await service.saveToGallery(media);
+    if (result.failureCode === RepositoryFailureCode.CANCELLED) {
+      this.imageViewerState = this.imageViewerState.ready(media);
+      return;
+    }
     this.imageViewerState = result.isSuccess()
       ? this.imageViewerState.saved()
       : this.imageViewerState.failed(result.message);
@@ -2824,11 +2828,8 @@ struct Index {
           onOpenExternally: (): void => {
             this.openExternalLink(this.imageViewerState.remoteUrl);
           },
-          onSaveAuthorized: (): void => {
+          onSave: (): void => {
             this.saveViewerImage();
-          },
-          onSaveAuthorizationFailure: (): void => {
-            this.showAuthenticationMessage('未保存图片', '系统未授予本次保存授权');
           }
         })
       }
