@@ -29,6 +29,7 @@ export default function forumCardPresentationTest(): void {
 
       expect(presentation.mode).assertEqual(ForumCardMode.TOPIC_PREVIEW);
       expect(presentation.author?.name).assertEqual('李同学');
+      expect(presentation.author?.username).assertEqual('李同学');
       expect(presentation.author?.initial).assertEqual('李');
       expect(presentation.author?.timestamp).assertEqual('2026-07-11 14:32');
       expect(presentation.title).assertEqual('图书馆座位预约系统使用体验优化建议');
@@ -128,6 +129,7 @@ export default function forumCardPresentationTest(): void {
 
       expect(presentation.mode).assertEqual(ForumCardMode.REPLY);
       expect(presentation.author?.name).assertEqual('图书馆小助手');
+      expect(presentation.author?.username).assertEqual('图书馆小助手');
       expect(presentation.author?.timestamp).assertEqual('2026-07-11 15:02');
       expect(presentation.title).assertEqual('');
       expect(presentation.body).assertEqual('感谢同学提出的宝贵建议！');

@@ -22,11 +22,13 @@ export class ForumCardAuthor {
   public readonly name: string;
   public readonly initial: string;
   public readonly timestamp: string;
+  public readonly username: string;
 
-  public constructor(name: string, initial: string, timestamp: string) {
+  public constructor(name: string, initial: string, timestamp: string, username: string = '') {
     this.name = name;
     this.initial = initial;
     this.timestamp = timestamp;
+    this.username = username.trim();
   }
 }
 
@@ -65,7 +67,7 @@ export class ForumCardReplyAction {
 function displayAuthor(username: string): ForumCardAuthor {
   const name: string = username.trim().length > 0 ? username : '匿名';
   const initial: string = name === '匿名' ? '匿' : name.slice(0, 1).toUpperCase();
-  return new ForumCardAuthor(name, initial, '');
+  return new ForumCardAuthor(name, initial, '', name === '匿名' ? '' : username);
 }
 
 function displayTimestamp(timestamp: string): string {
@@ -90,7 +92,12 @@ function postAuthor(post: ForumPost): ForumCardAuthor {
   const displayName: string = post.userTitle.trim().length > 0
     ? `${authorBase.name} · ${post.userTitle.trim()}`
     : authorBase.name;
-  return new ForumCardAuthor(displayName, authorBase.initial, displayTimestamp(post.createdAt));
+  return new ForumCardAuthor(
+    displayName,
+    authorBase.initial,
+    displayTimestamp(post.createdAt),
+    authorBase.username
+  );
 }
 
 function topicReplyRestriction(detail: TopicDetail): string {
@@ -145,7 +152,8 @@ export class ForumCardPresentation {
     const author: ForumCardAuthor = new ForumCardAuthor(
       authorBase.name,
       authorBase.initial,
-      displayTimestamp(topic.lastPostedAt)
+      displayTimestamp(topic.lastPostedAt),
+      authorBase.username
     );
     const replyCount: number = Math.max(topic.postCount - 1, 0);
     const pinnedDescription: string = topic.pinned ? '，置顶' : '';

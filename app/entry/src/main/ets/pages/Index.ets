@@ -2094,6 +2094,9 @@ struct Index {
           onOpenImage: (url: string, title: string): void => {
             this.openImageViewer(url, title);
           },
+          onOpenAuthor: (username: string): void => {
+            this.openUserProfile(username);
+          },
           onReadProgress: (postNumber: number): void => {
             this.reportTopicReadProgress(postNumber);
           },
