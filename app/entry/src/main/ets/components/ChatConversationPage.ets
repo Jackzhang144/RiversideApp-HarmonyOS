@@ -1,5 +1,12 @@
 import { ChatComposerState, ChatConversationState, ChatStateKind } from '../app/ChatModel';
+import { RepositoryResult, RepositoryResultKind } from '../core/RepositoryResult';
 import { ComposerEdit } from '../models/AuthoringModels';
+import { applyChatComposerMention, findChatComposerMention } from '../models/ChatComposerEditing';
+import {
+  ComposerMentionQuery,
+  ComposerMentionRequestGate,
+  ComposerMentionUser
+} from '../models/ComposerMentionModels';
 import {
   absoluteChatUrl,
   ChatChannel,
@@ -25,6 +32,9 @@ export struct ChatConversationPage {
   @Prop uploadState: MediaUploadState | null = null;
   @Prop currentUsername: string = '';
   @State emojiQuery: string = '';
+  @State mentionUsers: Array<ComposerMentionUser> = [];
+  @State mentionLoading: boolean = false;
+  @State mentionMessage: string = '';
   onRetry: () => void = (): void => {};
   onLoadOlder: () => void = (): void => {};
   onLoadNewer: () => void = (): void => {};
@@ -37,6 +47,10 @@ export struct ChatConversationPage {
   onReply: (messageId: number) => void = (_messageId: number): void => {};
   onCancelReply: () => void = (): void => {};
   onMention: (username: string) => void = (_username: string): void => {};
+  onLoadMentionUsers: (term: string) => Promise<RepositoryResult<Array<ComposerMentionUser>>> =
+    async (_term: string): Promise<RepositoryResult<Array<ComposerMentionUser>>> => {
+      return RepositoryResult.success<Array<ComposerMentionUser>>([]);
+    };
   onInsertEmoji: (name: string, selectionStart: number, selectionEnd: number) => ComposerEdit | null =
     (_name: string, _selectionStart: number, _selectionEnd: number): ComposerEdit | null => null;
   onReact: (messageId: number, emoji: string, action: ChatReactionAction) => void =
@@ -50,8 +64,97 @@ export struct ChatConversationPage {
   onOpenProfile: (username: string) => void = (_username: string): void => {};
   onLeaveChannel: () => void = (): void => {};
   private readonly composerController: TextAreaController = new TextAreaController();
+  private readonly mentionRequestGate: ComposerMentionRequestGate = new ComposerMentionRequestGate();
+  private mentionTimer: number = -1;
   private composerSelectionStart: number = 0;
   private composerSelectionEnd: number = 0;
+
+  aboutToDisappear(): void {
+    this.cancelMentionTimer();
+    this.mentionRequestGate.invalidate();
+  }
+
+  private cancelMentionTimer(): void {
+    if (this.mentionTimer >= 0) {
+      clearTimeout(this.mentionTimer);
+      this.mentionTimer = -1;
+    }
+  }
+
+  private resetMentionSuggestions(): void {
+    this.mentionUsers = [];
+    this.mentionLoading = false;
+    this.mentionMessage = '';
+  }
+
+  private scheduleMentionSearch(source: string, cursor: number): void {
+    this.cancelMentionTimer();
+    this.mentionRequestGate.invalidate();
+    const query: ComposerMentionQuery | null = findChatComposerMention(source, cursor);
+    if (query === null) {
+      this.resetMentionSuggestions();
+      return;
+    }
+    this.resetMentionSuggestions();
+    this.mentionTimer = setTimeout((): void => {
+      this.mentionTimer = -1;
+      this.loadMentionUsers(query.term);
+    }, 300);
+  }
+
+  private async loadMentionUsers(term: string): Promise<void> {
+    const generation: number = this.mentionRequestGate.issue();
+    this.mentionLoading = true;
+    let result: RepositoryResult<Array<ComposerMentionUser>>;
+    try {
+      result = await this.onLoadMentionUsers(term);
+    } catch (_) {
+      if (this.mentionRequestGate.isCurrent(generation)) {
+        this.mentionLoading = false;
+        this.mentionUsers = [];
+        this.mentionMessage = '搜索用户失败，请稍后重试';
+      }
+      return;
+    }
+    if (!this.mentionRequestGate.isCurrent(generation)) {
+      return;
+    }
+    this.mentionLoading = false;
+    if (result.kind === RepositoryResultKind.SUCCESS && result.data !== null) {
+      this.mentionUsers = result.data;
+      this.mentionMessage = result.data.length === 0 ? '没有匹配的用户' : '';
+      return;
+    }
+    this.mentionUsers = [];
+    this.mentionMessage = result.kind === RepositoryResultKind.UNAUTHORIZED
+      ? '登录后可搜索用户'
+      : result.message;
+  }
+
+  private handleDraftChange(value: string): void {
+    this.onDraftChange(value);
+    this.scheduleMentionSearch(value, Math.min(this.composerSelectionEnd, value.length));
+  }
+
+  private selectMention(user: ComposerMentionUser): void {
+    const edit: ComposerEdit | null = applyChatComposerMention(
+      this.composer.draft,
+      this.composerSelectionEnd,
+      user.username
+    );
+    if (edit === null) {
+      this.resetMentionSuggestions();
+      return;
+    }
+    this.onDraftChange(edit.text);
+    this.composerSelectionStart = edit.selectionStart;
+    this.composerSelectionEnd = edit.selectionEnd;
+    this.resetMentionSuggestions();
+    this.mentionRequestGate.invalidate();
+    setTimeout((): void => {
+      this.composerController.setTextSelection(edit.selectionStart, edit.selectionEnd);
+    }, 0);
+  }
 
   private insertEmoji(name: string): void {
     const edit: ComposerEdit | null = this.onInsertEmoji(
@@ -349,6 +452,52 @@ export struct ChatConversationPage {
   }
 
   @Builder
+  private MentionSuggestions(): void {
+    if (this.mentionLoading || this.mentionUsers.length > 0 || this.mentionMessage.length > 0) {
+      Column({ space: 4 }) {
+        if (this.mentionLoading) {
+          Row({ space: 8 }) {
+            LoadingProgress().width(18).height(18)
+            Text('正在搜索用户').fontSize(12).fontColor('#52606D')
+          }
+          .width('100%')
+          .padding(8)
+        } else if (this.mentionUsers.length > 0) {
+          ForEach(this.mentionUsers, (user: ComposerMentionUser) => {
+            Row({ space: 8 }) {
+              if (user.avatarTemplate.length > 0) {
+                Image(absoluteChatUrl(user.avatarTemplate.replace('{size}', '48')))
+                  .width(28)
+                  .height(28)
+                  .borderRadius(14)
+                  .objectFit(ImageFit.Cover)
+              }
+              Column({ space: 2 }) {
+                Text(`@${user.username}`).fontSize(13).fontWeight(FontWeight.Medium)
+                if (user.name.length > 0) {
+                  Text(user.name).fontSize(11).fontColor('#52606D').maxLines(1)
+                }
+              }
+              .alignItems(HorizontalAlign.Start)
+              .layoutWeight(1)
+            }
+            .width('100%')
+            .padding({ left: 10, right: 10, top: 7, bottom: 7 })
+            .onClick((): void => this.selectMention(user))
+            .accessibilityText(`提及用户 ${user.username}`)
+          }, (user: ComposerMentionUser): string => user.username)
+        } else {
+          Text(this.mentionMessage).fontSize(12).fontColor('#52606D').width('100%').padding(8)
+        }
+      }
+      .width('100%')
+      .backgroundColor('#FFFFFF')
+      .border({ width: 1, color: '#E4E8EE' })
+      .borderRadius(10)
+    }
+  }
+
+  @Builder
   private ReplyComposerBar(reply: ChatMessage | null): void {
     if (reply !== null) {
       Row({ space: 8 }) {
@@ -390,6 +539,7 @@ export struct ChatConversationPage {
         }.width('100%')
       }
       this.EmojiBar()
+      this.MentionSuggestions()
       Row({ space: 8 }) {
         Button() { SymbolGlyph($r('sys.symbol.ohos_photo')).fontSize(20) }
           .width(40).height(40).backgroundColor('#EEF1F5')
@@ -401,10 +551,13 @@ export struct ChatConversationPage {
           controller: this.composerController
         })
           .layoutWeight(1).constraintSize({ minHeight: 42, maxHeight: 100 })
-          .backgroundColor('#F1F3F5').enabled(this.canWrite()).onChange(this.onDraftChange)
+          .backgroundColor('#F1F3F5').enabled(this.canWrite()).onChange((value: string): void => {
+            this.handleDraftChange(value);
+          })
           .onTextSelectionChange((selectionStart: number, selectionEnd: number): void => {
             this.composerSelectionStart = selectionStart;
             this.composerSelectionEnd = selectionEnd;
+            this.scheduleMentionSearch(this.composer.draft, selectionEnd);
           })
         Button() { SymbolGlyph($r('sys.symbol.paperplane')).fontSize(20) }
           .width(44).height(44).enabled(this.canWrite() && !this.composer.sending &&

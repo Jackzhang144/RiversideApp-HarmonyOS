@@ -2516,6 +2516,9 @@ struct Index {
           onReply: (messageId: number): void => { this.replyToChatMessage(messageId); },
           onCancelReply: (): void => { this.replyToChatMessage(null); },
           onMention: (username: string): void => { this.mentionChatUser(username); },
+          onLoadMentionUsers: (term: string): Promise<RepositoryResult<Array<ComposerMentionUser>>> => {
+            return this.loadComposerMentionUsers(term);
+          },
           onInsertEmoji: (
             name: string,
             selectionStart: number,

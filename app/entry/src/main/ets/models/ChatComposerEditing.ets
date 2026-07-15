@@ -1,4 +1,21 @@
 import { ComposerEdit, insertComposerText } from './AuthoringModels';
+import {
+  applyComposerMention,
+  ComposerMentionQuery,
+  findComposerMentionQuery
+} from './ComposerMentionModels';
+
+export function findChatComposerMention(source: string, cursor: number): ComposerMentionQuery | null {
+  return findComposerMentionQuery(source, cursor);
+}
+
+export function applyChatComposerMention(
+  source: string,
+  cursor: number,
+  username: string
+): ComposerEdit | null {
+  return applyComposerMention(source, cursor, username);
+}
 
 export function insertChatEmojiText(
   source: string,
