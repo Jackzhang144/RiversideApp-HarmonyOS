@@ -44,15 +44,23 @@ export struct ForumContentCard {
   @Builder
   private AuthorRow(author: ForumCardAuthor): void {
     Row({ space: 9 }) {
-      Text(author.initial)
-        .fontSize(13)
-        .fontWeight(FontWeight.Bold)
-        .fontColor($r('app.color.brand_primary'))
-        .width(36)
-        .height(36)
-        .textAlign(TextAlign.Center)
-        .backgroundColor($r('app.color.brand_tint_surface'))
-        .borderRadius(18)
+      if (author.avatarUrl.length > 0) {
+        Image(author.avatarUrl)
+          .width(36)
+          .height(36)
+          .objectFit(ImageFit.Cover)
+          .borderRadius(18)
+      } else {
+        Text(author.initial)
+          .fontSize(13)
+          .fontWeight(FontWeight.Bold)
+          .fontColor($r('app.color.brand_primary'))
+          .width(36)
+          .height(36)
+          .textAlign(TextAlign.Center)
+          .backgroundColor($r('app.color.brand_tint_surface'))
+          .borderRadius(18)
+      }
       Column({ space: 2 }) {
         Text(author.name)
           .fontSize(14)

@@ -12,6 +12,7 @@ export class Topic {
   public readonly lastPostedAt: string;
   public readonly pinned: boolean;
   public readonly username: string;
+  public readonly avatarUrl: string;
 
   public constructor(
     id: number,
@@ -23,7 +24,8 @@ export class Topic {
     excerpt: string,
     lastPostedAt: string,
     pinned: boolean,
-    username: string
+    username: string,
+    avatarUrl: string = ''
   ) {
     this.id = id;
     this.title = title;
@@ -35,6 +37,7 @@ export class Topic {
     this.lastPostedAt = lastPostedAt;
     this.pinned = pinned;
     this.username = username;
+    this.avatarUrl = absoluteForumAvatarUrl(avatarUrl);
   }
 }
 
@@ -245,10 +248,12 @@ export class ForumPost {
     this.replyToPostNumber = replyToPostNumber;
     this.createdAt = createdAt;
     this.userTitle = metadata.userTitle;
-    this.avatarUrl = metadata.avatarUrl;
+    this.avatarUrl = absoluteForumAvatarUrl(metadata.avatarUrl);
     this.flairUrl = metadata.flairUrl;
     this.replyToUsername = metadata.replyToUsername;
-    this.replyToAvatarUrl = metadata.replyToAvatarUrl;
+    this.replyToAvatarUrl = metadata.replyToAvatarUrl === null
+      ? null
+      : absoluteForumAvatarUrl(metadata.replyToAvatarUrl);
     this.likeCount = metadata.likeCount;
     this.reactions = metadata.reactions;
     this.currentUserReaction = metadata.currentUserReaction;

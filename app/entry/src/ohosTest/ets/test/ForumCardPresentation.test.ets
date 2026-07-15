@@ -4,7 +4,13 @@ import {
   ForumCardPresentation,
   ForumCardStatisticKind
 } from '../../../main/ets/components/ForumCardPresentation';
-import { Category, ForumPost, Topic, TopicDetail } from '../../../main/ets/models/ForumModels';
+import {
+  Category,
+  ForumPost,
+  ForumPostMetadata,
+  Topic,
+  TopicDetail
+} from '../../../main/ets/models/ForumModels';
 
 export default function forumCardPresentationTest(): void {
   describe('Forum card presentation contract', () => {
@@ -19,7 +25,8 @@ export default function forumCardPresentationTest(): void {
         '完整摘要内容',
         '2026-07-11T14:32:00Z',
         true,
-        '李同学'
+        '李同学',
+        '/user_avatar/river-side.cc/student/{size}/1.png'
       );
       const categories: Array<Category> = [
         new Category(10, '校内事务', '00AA88', '', 1, null, [])
@@ -31,6 +38,9 @@ export default function forumCardPresentationTest(): void {
       expect(presentation.author?.name).assertEqual('李同学');
       expect(presentation.author?.username).assertEqual('李同学');
       expect(presentation.author?.initial).assertEqual('李');
+      expect(presentation.author?.avatarUrl).assertEqual(
+        'https://river-side.cc/user_avatar/river-side.cc/student/64/1.png'
+      );
       expect(presentation.author?.timestamp).assertEqual('2026-07-11 14:32');
       expect(presentation.title).assertEqual('图书馆座位预约系统使用体验优化建议');
       expect(presentation.body).assertEqual('完整摘要内容');
@@ -56,7 +66,8 @@ export default function forumCardPresentationTest(): void {
         '完整主楼正文',
         1,
         null,
-        '2026-07-11T14:32:00Z'
+        '2026-07-11T14:32:00Z',
+        new ForumPostMetadata('', '/user_avatar/river-side.cc/student/{size}/1.png')
       );
       const detail: TopicDetail = new TopicDetail(
         2725,
@@ -78,6 +89,9 @@ export default function forumCardPresentationTest(): void {
       );
 
       expect(presentation.mode).assertEqual(ForumCardMode.TOPIC_STARTER);
+      expect(presentation.author?.avatarUrl).assertEqual(
+        'https://river-side.cc/user_avatar/river-side.cc/student/64/1.png'
+      );
       expect(presentation.title).assertEqual('图书馆座位预约系统使用体验优化建议');
       expect(presentation.body).assertEqual('完整主楼正文');
       expect(presentation.headerBadge?.label).assertEqual('#1');

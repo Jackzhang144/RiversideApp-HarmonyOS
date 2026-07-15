@@ -142,7 +142,8 @@ function topicFromReader(topic: JsonObjectReader): Topic | null {
     textOrEmpty(topic.string('excerpt')),
     textOrEmpty(topic.string('last_posted_at')),
     booleanOrFalse(topic.boolean('pinned')),
-    textOrEmpty(topic.string('last_poster_username'))
+    textOrEmpty(topic.string('last_poster_username')),
+    textOrEmpty(topic.string('avatar_template') ?? topic.string('last_poster_avatar_template'))
   );
 }
 

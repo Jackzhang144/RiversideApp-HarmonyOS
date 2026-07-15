@@ -50,10 +50,12 @@ export class DiscoveryResponseParser {
       const title: string = topic?.string('title') ?? topic?.string('fancy_title') ?? '';
       if (topic === null || id === null || title.trim().length === 0) continue;
       let username: string = topic.string('username') ?? '';
+      let avatarTemplate: string = topic.string('avatar_template') ?? '';
       if (username.length === 0) {
         for (const post of postReaders) {
           if (post.number('topic_id') === id) {
             username = post.string('username') ?? '';
+            avatarTemplate = post.string('avatar_template') ?? '';
             break;
           }
         }
@@ -68,7 +70,8 @@ export class DiscoveryResponseParser {
         topic.string('excerpt') ?? '',
         topic.string('last_posted_at') ?? topic.string('bumped_at') ?? '',
         topic.boolean('pinned') === true,
-        username
+        username,
+        avatarTemplate
       );
       topics.push(parsedTopic);
       topicsById.set(id, parsedTopic);
@@ -89,7 +92,8 @@ export class DiscoveryResponseParser {
         post.string('blurb') ?? '',
         post.string('created_at') ?? '',
         false,
-        post.string('username') ?? ''
+        post.string('username') ?? '',
+        post.string('avatar_template') ?? ''
       );
       posts.push(new SearchPost(
         id,

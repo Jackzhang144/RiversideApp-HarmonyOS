@@ -23,12 +23,20 @@ export class ForumCardAuthor {
   public readonly initial: string;
   public readonly timestamp: string;
   public readonly username: string;
+  public readonly avatarUrl: string;
 
-  public constructor(name: string, initial: string, timestamp: string, username: string = '') {
+  public constructor(
+    name: string,
+    initial: string,
+    timestamp: string,
+    username: string = '',
+    avatarUrl: string = ''
+  ) {
     this.name = name;
     this.initial = initial;
     this.timestamp = timestamp;
     this.username = username.trim();
+    this.avatarUrl = avatarUrl.trim();
   }
 }
 
@@ -64,10 +72,10 @@ export class ForumCardReplyAction {
   }
 }
 
-function displayAuthor(username: string): ForumCardAuthor {
+function displayAuthor(username: string, avatarUrl: string = ''): ForumCardAuthor {
   const name: string = username.trim().length > 0 ? username : '匿名';
   const initial: string = name === '匿名' ? '匿' : name.slice(0, 1).toUpperCase();
-  return new ForumCardAuthor(name, initial, '', name === '匿名' ? '' : username);
+  return new ForumCardAuthor(name, initial, '', name === '匿名' ? '' : username, avatarUrl);
 }
 
 function displayTimestamp(timestamp: string): string {
@@ -88,7 +96,7 @@ function topicCategoryName(topic: Topic, categories: Array<Category>): string {
 }
 
 function postAuthor(post: ForumPost): ForumCardAuthor {
-  const authorBase: ForumCardAuthor = displayAuthor(post.username);
+  const authorBase: ForumCardAuthor = displayAuthor(post.username, post.avatarUrl);
   const displayName: string = post.userTitle.trim().length > 0
     ? `${authorBase.name} · ${post.userTitle.trim()}`
     : authorBase.name;
@@ -96,7 +104,8 @@ function postAuthor(post: ForumPost): ForumCardAuthor {
     displayName,
     authorBase.initial,
     displayTimestamp(post.createdAt),
-    authorBase.username
+    authorBase.username,
+    authorBase.avatarUrl
   );
 }
 
@@ -148,12 +157,13 @@ export class ForumCardPresentation {
 
   public static topicPreview(topic: Topic, categories: Array<Category>): ForumCardPresentation {
     const categoryName: string = topicCategoryName(topic, categories);
-    const authorBase: ForumCardAuthor = displayAuthor(topic.username);
+    const authorBase: ForumCardAuthor = displayAuthor(topic.username, topic.avatarUrl);
     const author: ForumCardAuthor = new ForumCardAuthor(
       authorBase.name,
       authorBase.initial,
       displayTimestamp(topic.lastPostedAt),
-      authorBase.username
+      authorBase.username,
+      authorBase.avatarUrl
     );
     const replyCount: number = Math.max(topic.postCount - 1, 0);
     const pinnedDescription: string = topic.pinned ? '，置顶' : '';

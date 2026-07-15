@@ -146,7 +146,9 @@ export default function discourseForumRepositoryTest(): void {
     it('loads a Category Topic list through its canonical path', 0, async (done: Function) => {
       const client: StubForumHttpClient = new StubForumHttpClient();
       client.results.push(HttpTextResult.success(200,
-        '{"users":[{"id":24,"username":"Co-admin"}],"topic_list":{"topics":[{' +
+        '{"users":[{"id":24,"username":"Co-admin",' +
+        '"avatar_template":"/user_avatar/river-side.cc/co-admin/{size}/1.png"}],' +
+        '"topic_list":{"topics":[{' +
         '"id":2725,"title":"站务管理区重要主题导航","category_id":60,"posts_count":1,' +
         '"views":1959,"like_count":4,"pinned":true,"posters":[{"user_id":24}]}]}}'
       ));
@@ -157,6 +159,9 @@ export default function discourseForumRepositoryTest(): void {
       expect(client.paths[0]).assertEqual('/c/60.json?page=2');
       expect(result.kind).assertEqual(RepositoryResultKind.SUCCESS);
       expect(result.data?.[0].id).assertEqual(2725);
+      expect(result.data?.[0].avatarUrl).assertEqual(
+        'https://river-side.cc/user_avatar/river-side.cc/co-admin/64/1.png'
+      );
       done();
     });
 
@@ -301,6 +306,9 @@ export default function discourseForumRepositoryTest(): void {
         expect(result.data?.posts[0].bookmarkId).assertEqual(901);
         expect(result.data?.posts[0].canEdit).assertTrue();
         expect(result.data?.posts[0].canDelete).assertTrue();
+        expect(result.data?.posts[0].avatarUrl).assertEqual(
+          'https://river-side.cc/user_avatar/river-side.cc/co-admin/64/1_2.png'
+        );
         expect(result.data?.posts[1].isSystemAction()).assertTrue();
         done();
       });

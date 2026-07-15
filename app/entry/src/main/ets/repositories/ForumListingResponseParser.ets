@@ -10,6 +10,7 @@ import {
 interface UserDto {
   id: number | null;
   username: string | null;
+  avatar_template: string | null;
 }
 
 interface TopicPosterDto {
@@ -71,7 +72,8 @@ function parseLatestEnvelope(text: string): LatestTopicsDto | null {
       }
       users.push({
         id: user.number('id'),
-        username: user.string('username')
+        username: user.string('username'),
+        avatar_template: user.string('avatar_template')
       });
     }
   }
@@ -136,27 +138,27 @@ function decodePosters(topic: JsonObjectReader): Array<TopicPosterDto | null> | 
   return posters;
 }
 
-function usernameForTopic(
+function userForTopic(
   users: Array<UserDto | null>,
   posters: Array<TopicPosterDto | null> | null
-): string {
+): UserDto | null {
   if (!Array.isArray(posters) || posters.length === 0) {
-    return '';
+    return null;
   }
   const poster: TopicPosterDto | null = posters[0];
   if (poster === null) {
-    return '';
+    return null;
   }
   const userId: number | null = poster.user_id;
   if (typeof userId !== 'number') {
-    return '';
+    return null;
   }
   for (const user of users) {
-    if (user !== null && user.id === userId && typeof user.username === 'string') {
-      return user.username;
+    if (user !== null && user.id === userId) {
+      return user;
     }
   }
-  return '';
+  return null;
 }
 
 function topicFromDto(dto: TopicDto, users: Array<UserDto | null>): Topic | null {
@@ -172,6 +174,7 @@ function topicFromDto(dto: TopicDto, users: Array<UserDto | null>): Topic | null
   const lastPostedAt: string = textOrEmpty(dto.last_posted_at).length > 0
     ? textOrEmpty(dto.last_posted_at)
     : textOrEmpty(dto.bumped_at);
+  const author: UserDto | null = userForTopic(users, dto.posters);
   return new Topic(
     dto.id,
     title,
@@ -182,7 +185,8 @@ function topicFromDto(dto: TopicDto, users: Array<UserDto | null>): Topic | null
     textOrEmpty(dto.excerpt),
     lastPostedAt,
     dto.pinned === true,
-    usernameForTopic(users, dto.posters)
+    textOrEmpty(author?.username ?? null),
+    textOrEmpty(author?.avatar_template ?? null)
   );
 }
 
