@@ -67,7 +67,7 @@ export struct SearchPage {
     if (this.suggestionState.kind === SearchSuggestionStateKind.LOADING) {
       Row({ space: 8 }) {
         LoadingProgress().width(18).height(18)
-        Text('正在加载搜索建议').fontSize(12).fontColor($r('sys.color.font_secondary'))
+        Text($r('app.string.search_suggestion_loading')).fontSize(12).fontColor($r('sys.color.font_secondary'))
       }
       .width('100%')
       .padding({ left: 14, right: 14, top: 8, bottom: 10 })
@@ -98,7 +98,7 @@ export struct SearchPage {
       .borderRadius(10)
       .margin({ left: 12, right: 12, bottom: 10 })
     } else if (this.suggestionState.kind === SearchSuggestionStateKind.EMPTY) {
-      Text('暂无搜索建议，仍可直接搜索当前关键词')
+      Text($r('app.string.search_suggestion_empty'))
         .fontSize(12)
         .fontColor($r('sys.color.font_secondary'))
         .width('100%')
@@ -109,7 +109,7 @@ export struct SearchPage {
           .fontSize(12)
           .fontColor($r('app.color.status_error'))
           .layoutWeight(1)
-        Button('重试')
+        Button($r('app.string.common_retry'))
           .height(30)
           .fontSize(12)
           .onClick((): void => this.onLoadSuggestions(this.queryInput))
@@ -123,7 +123,7 @@ export struct SearchPage {
   private SearchInput(): void {
     Column() {
       Row({ space: 8 }) {
-        TextInput({ text: this.queryInput, placeholder: '搜索 Topic、Post、用户、Category、标签或群组' })
+        TextInput({ text: this.queryInput, placeholder: $r('app.string.search_placeholder') })
           .height(44)
           .layoutWeight(1)
           .backgroundColor($r('sys.color.background_secondary'))
@@ -133,12 +133,12 @@ export struct SearchPage {
             this.scheduleSuggestions(value);
           })
           .onSubmit((): void => this.submit())
-          .accessibilityText('论坛搜索关键词')
-        Button('搜索')
+          .accessibilityText($r('app.string.search_keyword_accessibility'))
+        Button($r('app.string.search_action'))
           .height(44)
           .enabled(this.queryInput.trim().length > 0 && this.state.kind !== SearchStateKind.LOADING)
           .onClick((): void => this.submit())
-          .accessibilityText('搜索论坛')
+          .accessibilityText($r('app.string.search_action_accessibility'))
       }
       .width('100%')
       .padding({ left: 12, right: 12, top: 12, bottom: 10 })
@@ -149,7 +149,7 @@ export struct SearchPage {
   }
 
   @Builder
-  private MessageState(title: string, message: string, retryable: boolean): void {
+  private MessageState(title: ResourceStr, message: ResourceStr, retryable: boolean): void {
     Column({ space: 14 }) {
       Text(title)
         .fontSize(22)
@@ -159,7 +159,7 @@ export struct SearchPage {
         .fontColor($r('sys.color.font_secondary'))
         .textAlign(TextAlign.Center)
       if (retryable) {
-        Button('重试')
+        Button($r('app.string.common_retry'))
           .onClick(this.onRetry)
       }
     }
@@ -170,7 +170,7 @@ export struct SearchPage {
   }
 
   @Builder
-  private SectionHeader(title: string, count: number): void {
+  private SectionHeader(title: ResourceStr, count: number): void {
     Row() {
       Text(title)
         .fontSize(16)
@@ -331,18 +331,18 @@ export struct SearchPage {
         LoadingProgress()
           .width(28)
           .height(28)
-        Text('正在加载更多搜索结果')
+        Text($r('app.string.search_loading_more'))
           .fontSize(12)
           .fontColor($r('sys.color.font_secondary'))
       } else if (this.state.paginationMessage.length > 0) {
         Text(this.state.paginationMessage)
           .fontSize(12)
           .fontColor($r('app.color.status_error'))
-        Button('重试加载更多')
+        Button($r('app.string.common_retry_load_more'))
           .height(34)
           .onClick(this.onLoadMore)
       } else if (!this.state.hasMore) {
-        Text('已经显示全部结果')
+        Text($r('app.string.search_all_results_shown'))
           .fontSize(12)
           .fontColor($r('sys.color.font_tertiary'))
       }
@@ -356,31 +356,31 @@ export struct SearchPage {
   private Results(): void {
     List({ space: 9 }) {
       if (this.state.result.users.length > 0) {
-        ListItem() { this.SectionHeader('用户', this.state.result.users.length) }
+        ListItem() { this.SectionHeader($r('app.string.search_section_user'), this.state.result.users.length) }
         ForEach(this.state.result.users, (user: SearchUser) => {
           ListItem() { this.UserRow(user) }
         }, (user: SearchUser): string => `user-${user.id}`)
       }
       if (this.state.result.categories.length > 0) {
-        ListItem() { this.SectionHeader('Category', this.state.result.categories.length) }
+        ListItem() { this.SectionHeader($r('app.string.search_section_category'), this.state.result.categories.length) }
         ForEach(this.state.result.categories, (category: Category) => {
           ListItem() { this.CategoryRow(category) }
         }, (category: Category): string => `category-${category.id}`)
       }
       if (this.state.result.tags.length > 0) {
-        ListItem() { this.SectionHeader('标签', this.state.result.tags.length) }
+        ListItem() { this.SectionHeader($r('app.string.search_section_tag'), this.state.result.tags.length) }
         ForEach(this.state.result.tags, (tag: SearchTag) => {
           ListItem() { this.TagRow(tag) }
         }, (tag: SearchTag): string => `tag-${tag.id}`)
       }
       if (this.state.result.groups.length > 0) {
-        ListItem() { this.SectionHeader('群组', this.state.result.groups.length) }
+        ListItem() { this.SectionHeader($r('app.string.search_section_group'), this.state.result.groups.length) }
         ForEach(this.state.result.groups, (group: SearchGroup) => {
           ListItem() { this.GroupRow(group) }
         }, (group: SearchGroup): string => `group-${group.id}`)
       }
       if (this.state.result.topics.length > 0) {
-        ListItem() { this.SectionHeader('Topic', this.state.result.topics.length) }
+        ListItem() { this.SectionHeader($r('app.string.search_section_topic'), this.state.result.topics.length) }
         ForEach(this.state.result.topics, (topic: Topic) => {
           ListItem() {
             ForumContentCard({
@@ -391,7 +391,7 @@ export struct SearchPage {
         }, (topic: Topic): string => `topic-${topic.id}`)
       }
       if (this.state.result.posts.length > 0) {
-        ListItem() { this.SectionHeader('Post', this.state.result.posts.length) }
+        ListItem() { this.SectionHeader($r('app.string.search_section_post'), this.state.result.posts.length) }
         ForEach(this.state.result.posts, (post: SearchPost) => {
           ListItem() { this.SearchPostRow(post) }
         }, (post: SearchPost): string => `post-${post.id}`)
@@ -410,7 +410,11 @@ export struct SearchPage {
     Column() {
       this.SearchInput()
       if (this.state.kind === SearchStateKind.INITIAL) {
-        this.MessageState('搜索 RiverSide', '输入关键词查找 Topic、Post、用户、Category、标签和群组。', false)
+        this.MessageState(
+          $r('app.string.search_initial_title'),
+          $r('app.string.search_initial_message'),
+          false
+        )
       } else if (this.state.kind === SearchStateKind.LOADING) {
         Column({ space: 12 }) {
           LoadingProgress()
@@ -424,9 +428,13 @@ export struct SearchPage {
         .layoutWeight(1)
         .justifyContent(FlexAlign.Center)
       } else if (this.state.kind === SearchStateKind.ERROR) {
-        this.MessageState('搜索失败', this.state.message, true)
+        this.MessageState($r('app.string.search_failed'), this.state.message, true)
       } else if (this.state.kind === SearchStateKind.EMPTY) {
-        this.MessageState('没有找到相关内容', `没有与“${this.state.query}”匹配的结果。`, false)
+        this.MessageState(
+          $r('app.string.search_empty_title'),
+          `没有与“${this.state.query}”匹配的结果。`,
+          false
+        )
       } else {
         this.Results()
       }

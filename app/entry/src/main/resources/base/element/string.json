@@ -147,6 +147,94 @@
     {
       "name": "about_open_page_accessibility",
       "value": "在应用内打开 RiverSide 关于页面"
+    },
+    {
+      "name": "home_online_loading",
+      "value": "正在读取在线用户"
+    },
+    {
+      "name": "home_online_load_failed",
+      "value": "在线用户加载失败"
+    },
+    {
+      "name": "home_empty_title",
+      "value": "还没有 Topic"
+    },
+    {
+      "name": "home_empty_message",
+      "value": "当前频道暂时没有可查看的内容。"
+    },
+    {
+      "name": "search_suggestion_loading",
+      "value": "正在加载搜索建议"
+    },
+    {
+      "name": "search_suggestion_empty",
+      "value": "暂无搜索建议，仍可直接搜索当前关键词"
+    },
+    {
+      "name": "search_placeholder",
+      "value": "搜索 Topic、Post、用户、Category、标签或群组"
+    },
+    {
+      "name": "search_keyword_accessibility",
+      "value": "论坛搜索关键词"
+    },
+    {
+      "name": "search_action",
+      "value": "搜索"
+    },
+    {
+      "name": "search_action_accessibility",
+      "value": "搜索论坛"
+    },
+    {
+      "name": "search_loading_more",
+      "value": "正在加载更多搜索结果"
+    },
+    {
+      "name": "search_all_results_shown",
+      "value": "已经显示全部结果"
+    },
+    {
+      "name": "search_section_user",
+      "value": "用户"
+    },
+    {
+      "name": "search_section_category",
+      "value": "Category"
+    },
+    {
+      "name": "search_section_tag",
+      "value": "标签"
+    },
+    {
+      "name": "search_section_group",
+      "value": "群组"
+    },
+    {
+      "name": "search_section_topic",
+      "value": "Topic"
+    },
+    {
+      "name": "search_section_post",
+      "value": "Post"
+    },
+    {
+      "name": "search_initial_title",
+      "value": "搜索 RiverSide"
+    },
+    {
+      "name": "search_initial_message",
+      "value": "输入关键词查找 Topic、Post、用户、Category、标签和群组。"
+    },
+    {
+      "name": "search_failed",
+      "value": "搜索失败"
+    },
+    {
+      "name": "search_empty_title",
+      "value": "没有找到相关内容"
     }
   ]
 }

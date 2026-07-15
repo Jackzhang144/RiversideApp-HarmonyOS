@@ -112,7 +112,7 @@ export struct HomeBrowsePage {
     if (this.onlineUsersState.kind === BrowseStateKind.LOADING) {
       Row({ space: 8 }) {
         LoadingProgress().width(18).height(18)
-        Text('正在读取在线用户').fontSize(12).fontColor($r('sys.color.font_secondary'))
+        Text($r('app.string.home_online_loading')).fontSize(12).fontColor($r('sys.color.font_secondary'))
       }
       .width('100%')
       .height(42)
@@ -151,11 +151,11 @@ export struct HomeBrowsePage {
       .accessibilityText(`查看 ${this.onlineUserCount} 位在线用户`)
     } else if (this.onlineUsersState.kind === BrowseStateKind.ERROR) {
       Row({ space: 8 }) {
-        Text('在线用户加载失败')
+        Text($r('app.string.home_online_load_failed'))
           .fontSize(12)
           .fontColor($r('sys.color.font_secondary'))
           .layoutWeight(1)
-        Button('重试').height(30).fontSize(12).onClick(this.onRetryOnlineUsers)
+        Button($r('app.string.common_retry')).height(30).fontSize(12).onClick(this.onRetryOnlineUsers)
       }
       .width('100%')
       .height(42)
@@ -239,14 +239,14 @@ export struct HomeBrowsePage {
   @Builder
   private retryableState(): void {
     Column({ space: 16 }) {
-      Text('加载失败')
+      Text($r('app.string.common_load_failed'))
         .fontSize(22)
         .fontWeight(FontWeight.Bold)
       Text(this.state.message)
         .fontSize(15)
         .fontColor($r('sys.color.font_secondary'))
         .textAlign(TextAlign.Center)
-      Button('重试')
+      Button($r('app.string.common_retry'))
         .onClick(this.onRetry)
         .accessibilityText(`重新加载${homeChannelLabel(this.selectedChannel)}`)
     }
@@ -259,14 +259,14 @@ export struct HomeBrowsePage {
   @Builder
   private emptyState(): void {
     Column({ space: 14 }) {
-      Text('还没有 Topic')
+      Text($r('app.string.home_empty_title'))
         .fontSize(22)
         .fontWeight(FontWeight.Bold)
-      Text(this.state.message.length > 0 ? this.state.message : '当前频道暂时没有可查看的内容。')
+      Text(this.state.message.length > 0 ? this.state.message : $r('app.string.home_empty_message'))
         .fontSize(15)
         .fontColor($r('sys.color.font_secondary'))
         .textAlign(TextAlign.Center)
-      Button('刷新')
+      Button($r('app.string.common_refresh'))
         .onClick(this.onRefresh)
         .accessibilityText(`刷新${homeChannelLabel(this.selectedChannel)}`)
     }
@@ -318,7 +318,7 @@ export struct HomeBrowsePage {
         LoadingProgress()
           .width(28)
           .height(28)
-        Text('正在加载更多')
+        Text($r('app.string.common_loading_more'))
           .fontSize(12)
           .fontColor($r('sys.color.font_secondary'))
       } else if (this.state.paginationMessage.length > 0) {
@@ -326,11 +326,11 @@ export struct HomeBrowsePage {
           .fontSize(12)
           .fontColor($r('app.color.status_error'))
           .textAlign(TextAlign.Center)
-        Button('重试加载更多')
+        Button($r('app.string.common_retry_load_more'))
           .height(34)
           .onClick(this.onLoadMore)
       } else if (!this.state.hasMore) {
-        Text('已经到底了')
+        Text($r('app.string.common_end_of_list'))
           .fontSize(12)
           .fontColor($r('sys.color.font_tertiary'))
       }
