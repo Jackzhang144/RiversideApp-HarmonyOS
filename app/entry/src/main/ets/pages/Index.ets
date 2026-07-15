@@ -126,6 +126,8 @@ import {
   DiscourseHttpClient
 } from '../network/DiscourseHttpClient';
 import { DiscourseForumRepository } from '../repositories/DiscourseForumRepository';
+import { DiscourseChatRepository } from '../repositories/DiscourseChatRepository';
+import { DiscourseNotificationRepository } from '../repositories/DiscourseNotificationRepository';
 import { DiscourseMediaRepository } from '../repositories/MediaRepository';
 import { DiscourseMediaTransport } from '../network/ForumMediaTransport';
 import {
@@ -332,7 +334,11 @@ struct Index {
     const mediaRepository: DiscourseMediaRepository = new DiscourseMediaRepository(
       new DiscourseMediaTransport(RIVERSIDE_ORIGIN, sessionProvider)
     );
-    this.chatModel = new ChatModel(forumRepository, mediaRepository, authenticationLifecycle);
+    this.chatModel = new ChatModel(
+      new DiscourseChatRepository(httpClient),
+      mediaRepository,
+      authenticationLifecycle
+    );
     this.chatPollingController = new ChatConversationPollingController(
       new SystemChatPollingTimer(),
       async (): Promise<void> => {
@@ -349,7 +355,10 @@ struct Index {
       }
     );
     this.synchronizeChatPolling();
-    this.notificationModel = new NotificationCentreModel(forumRepository, authenticationLifecycle);
+    this.notificationModel = new NotificationCentreModel(
+      new DiscourseNotificationRepository(httpClient),
+      authenticationLifecycle
+    );
     this.accountProfileModel = new ProfileManagementModel(
       forumRepository,
       authenticationLifecycle,

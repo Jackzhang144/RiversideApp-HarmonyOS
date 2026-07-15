@@ -11,7 +11,7 @@ import {
   ChatSendConfirmation,
   ChatSendRequest
 } from '../../../main/ets/models/ChatModels';
-import { DiscourseForumRepository } from '../../../main/ets/repositories/DiscourseForumRepository';
+import { DiscourseChatRepository } from '../../../main/ets/repositories/DiscourseChatRepository';
 import { HttpTextResult } from '../../../main/ets/network/DiscourseHttpClient';
 import { StubForumHttpClient } from './DiscourseForumRepository.test';
 
@@ -27,7 +27,7 @@ export default function chatRepositoryTest(): void {
           '"meta":{"can_load_more_past":true,"can_load_more_future":false}}'
         )
       );
-      const repository: DiscourseForumRepository = new DiscourseForumRepository(client);
+      const repository: DiscourseChatRepository = new DiscourseChatRepository(client);
 
       const channels: RepositoryResult<Array<ChatChannel>> = await repository.loadChatChannels();
       const query: ChatMessageQuery | null = ChatMessageQuery.around(9, 'past');
@@ -54,7 +54,7 @@ export default function chatRepositoryTest(): void {
         '{"channel":{"id":71,"title":"member","chatable_type":"DirectMessage"}}'
       ));
       client.putResults.push(HttpTextResult.success(200, '{}'));
-      const repository: DiscourseForumRepository = new DiscourseForumRepository(client);
+      const repository: DiscourseChatRepository = new DiscourseChatRepository(client);
 
       const opened: RepositoryResult<ChatChannel> = await repository.openDirectChat(' member ');
       const marked: RepositoryResult<boolean> = await repository.markChatRead(71, 18);
@@ -72,7 +72,7 @@ export default function chatRepositoryTest(): void {
       async (done: Function) => {
       const client: StubForumHttpClient = new StubForumHttpClient();
       client.jsonPostResults.push(HttpTextResult.success(200, '{"success":"OK","message_id":20}'));
-      const repository: DiscourseForumRepository = new DiscourseForumRepository(client);
+      const repository: DiscourseChatRepository = new DiscourseChatRepository(client);
       const request: ChatSendRequest | null = ChatSendRequest.create(
         71,
         ' 图片说明 ',
@@ -103,7 +103,7 @@ export default function chatRepositoryTest(): void {
       async (done: Function) => {
         const client: StubForumHttpClient = new StubForumHttpClient();
         client.jsonPostResults.push(HttpTextResult.success(200, '{}'));
-        const repository: DiscourseForumRepository = new DiscourseForumRepository(client);
+        const repository: DiscourseChatRepository = new DiscourseChatRepository(client);
         const request: ChatSendRequest | null = ChatSendRequest.create(
           71,
           '消息',
@@ -130,7 +130,7 @@ export default function chatRepositoryTest(): void {
       client.formPutResults.push(HttpTextResult.success(200, '{}'));
       client.deleteResults.push(HttpTextResult.success(200, '{}'));
       client.putResults.push(HttpTextResult.success(200, '{}'));
-      const repository: DiscourseForumRepository = new DiscourseForumRepository(client);
+      const repository: DiscourseChatRepository = new DiscourseChatRepository(client);
 
       const reacted: RepositoryResult<boolean> = await repository.reactToChatMessage(
         71,
@@ -166,7 +166,7 @@ export default function chatRepositoryTest(): void {
         )
       );
       client.deleteResults.push(HttpTextResult.success(200, '{}'));
-      const repository: DiscourseForumRepository = new DiscourseForumRepository(client);
+      const repository: DiscourseChatRepository = new DiscourseChatRepository(client);
 
       const emojis: RepositoryResult<Array<ChatEmoji>> = await repository.loadChatEmojis();
       const search: RepositoryResult<Array<ChatSearchResult>> = await repository.searchChat(' 结果 ', 20, 20);

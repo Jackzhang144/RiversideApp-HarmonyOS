@@ -2,7 +2,7 @@ import { describe, expect, it } from '@ohos/hypium';
 import { RepositoryResult, RepositoryResultKind } from '../../../main/ets/core/RepositoryResult';
 import { NotificationBucket, NotificationItem } from '../../../main/ets/models/NotificationModels';
 import { HttpTextResult } from '../../../main/ets/network/DiscourseHttpClient';
-import { DiscourseForumRepository } from '../../../main/ets/repositories/DiscourseForumRepository';
+import { DiscourseNotificationRepository } from '../../../main/ets/repositories/DiscourseNotificationRepository';
 import { StubForumHttpClient } from './DiscourseForumRepository.test';
 
 export default function notificationRepositoryTest(): void {
@@ -16,7 +16,7 @@ export default function notificationRepositoryTest(): void {
           '"posters":[{"user_id":8}]' +
         '}]}}'
       ));
-      const repository: DiscourseForumRepository = new DiscourseForumRepository(client);
+      const repository: DiscourseNotificationRepository = new DiscourseNotificationRepository(client);
 
       const result: RepositoryResult<Array<NotificationItem>> = await repository.loadNotificationItems(
         'jack', NotificationBucket.PRIVATE_MESSAGES, 2, 40
@@ -35,7 +35,7 @@ export default function notificationRepositoryTest(): void {
         HttpTextResult.success(200, '{"user_actions":[]}'),
         HttpTextResult.success(200, '{"user_actions":[]}')
       );
-      const repository: DiscourseForumRepository = new DiscourseForumRepository(client);
+      const repository: DiscourseNotificationRepository = new DiscourseNotificationRepository(client);
 
       await repository.loadNotificationItems('jack z', NotificationBucket.REPLIES, 0, 20);
       await repository.loadNotificationItems('jack z', NotificationBucket.MENTIONS, 0, 40);
@@ -58,7 +58,7 @@ export default function notificationRepositoryTest(): void {
           '"created_at":"2026-07-15T02:00:00.000Z","acting_username":"bob"' +
         '}]}')
       );
-      const repository: DiscourseForumRepository = new DiscourseForumRepository(client);
+      const repository: DiscourseNotificationRepository = new DiscourseNotificationRepository(client);
 
       const result: RepositoryResult<Array<NotificationItem>> = await repository.loadNotificationItems(
         'jack', NotificationBucket.REACTIONS, 3, 60
@@ -81,7 +81,7 @@ export default function notificationRepositoryTest(): void {
         HttpTextResult.success(200, '[]'),
         HttpTextResult.unauthorized()
       );
-      const repository: DiscourseForumRepository = new DiscourseForumRepository(client);
+      const repository: DiscourseNotificationRepository = new DiscourseNotificationRepository(client);
 
       const result: RepositoryResult<Array<NotificationItem>> = await repository.loadNotificationItems(
         'jack', NotificationBucket.REACTIONS, 0, 0

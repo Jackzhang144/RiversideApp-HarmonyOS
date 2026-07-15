@@ -43,38 +43,21 @@ import {
 import {
   ChatChannel,
   ChatEmoji,
-  ChatMessage,
   ChatMessagePage,
   ChatMessageQuery,
   ChatReactionAction,
   ChatSearchResult,
   ChatSendConfirmation,
-  ChatSendRequest,
-  parseChatChannelResponse,
-  parseChatChannels,
-  parseChatEmojis,
-  parseChatMessagePage,
-  parseChatSendConfirmation,
-  parseChatSearchResults
+  ChatSendRequest
 } from '../models/ChatModels';
-import {
-  NotificationBucket,
-  NotificationItem,
-  notificationUserActionFilter,
-  parseReactionReceivedItems,
-  parseUserActivityItems,
-  sortNotificationItemsNewestFirst
-} from '../models/NotificationModels';
+import { NotificationBucket, NotificationItem } from '../models/NotificationModels';
+import { DiscourseChatRepository } from './DiscourseChatRepository';
+import { DiscourseNotificationRepository } from './DiscourseNotificationRepository';
 
 interface DraftSavePayload {
   draft_key: string;
   data: string;
   sequence: number;
-}
-
-interface DirectChatPayload {
-  target_usernames: Array<string>;
-  name: string;
 }
 
 export class DiscourseForumRepository implements
@@ -84,10 +67,14 @@ export class DiscourseForumRepository implements
   NotificationRepository {
   private readonly client: ForumHttpClient;
   private readonly parser: ForumResponseParser;
+  private readonly chatRepository: DiscourseChatRepository;
+  private readonly notificationRepository: DiscourseNotificationRepository;
 
   public constructor(client: ForumHttpClient, parser: ForumResponseParser = new ForumResponseParser()) {
     this.client = client;
     this.parser = parser;
+    this.chatRepository = new DiscourseChatRepository(client);
+    this.notificationRepository = new DiscourseNotificationRepository(client, parser);
   }
 
   public async loadLatestTopics(): Promise<RepositoryResult<Array<Topic>>> {
@@ -100,177 +87,30 @@ export class DiscourseForumRepository implements
     page: number,
     offset: number
   ): Promise<RepositoryResult<Array<NotificationItem>>> {
-    const normalizedUsername: string = username.trim();
-    if (
-      normalizedUsername.length === 0 ||
-      !Number.isSafeInteger(page) || page < 0 ||
-      !Number.isSafeInteger(offset) || offset < 0
-    ) {
-      return RepositoryResult.failure<Array<NotificationItem>>('消息查询参数无效');
-    }
-    const encodedUsername: string = encodeURIComponent(normalizedUsername);
-    if (bucket === NotificationBucket.PRIVATE_MESSAGES) {
-      return this.loadPrivateMessageItems(encodedUsername, page);
-    }
-    if (bucket === NotificationBucket.REACTIONS) {
-      return this.loadReactionItems(encodedUsername, page, page * 20);
-    }
-    const filter: string | null = notificationUserActionFilter(bucket);
-    if (filter === null) {
-      return RepositoryResult.failure<Array<NotificationItem>>('消息分桶无效');
-    }
-    const response: HttpTextResult = await this.client.get(
-      `/user_actions.json?offset=${offset}&username=${encodedUsername}&filter=${filter}`
-    );
-    return this.parseUserActivityResponse(response);
-  }
-
-  private async loadPrivateMessageItems(
-    encodedUsername: string,
-    page: number
-  ): Promise<RepositoryResult<Array<NotificationItem>>> {
-    const response: HttpTextResult = await this.client.get(
-      `/topics/private-messages/${encodedUsername}.json?page=${page}`
-    );
-    if (response.kind === HttpTextResultKind.UNAUTHORIZED) {
-      return RepositoryResult.unauthorized<Array<NotificationItem>>();
-    }
-    if (!response.isSuccess()) {
-      return RepositoryResult.failure<Array<NotificationItem>>(response.message);
-    }
-    const topics: RepositoryResult<Array<Topic>> = this.parser.parseLatestTopics(response.body);
-    if (!topics.isSuccess() || topics.data === null) {
-      return RepositoryResult.failure<Array<NotificationItem>>(topics.message);
-    }
-    return RepositoryResult.success<Array<NotificationItem>>(
-      topics.data.map((topic: Topic): NotificationItem => NotificationItem.privateMessage(topic))
-    );
-  }
-
-  private async loadReactionItems(
-    encodedUsername: string,
-    page: number,
-    offset: number
-  ): Promise<RepositoryResult<Array<NotificationItem>>> {
-    const responses: Array<HttpTextResult> = await Promise.all([
-      this.client.get(
-        `/discourse-reactions/posts/reactions-received.json?username=${encodedUsername}&page=${page}`
-      ),
-      this.client.get(`/user_actions.json?offset=${offset}&username=${encodedUsername}&filter=2`)
-    ]);
-    for (const response of responses) {
-      if (response.kind === HttpTextResultKind.UNAUTHORIZED) {
-        return RepositoryResult.unauthorized<Array<NotificationItem>>();
-      }
-      if (!response.isSuccess()) {
-        return RepositoryResult.failure<Array<NotificationItem>>(response.message);
-      }
-    }
-    const customReactions: Array<NotificationItem> | null = parseReactionReceivedItems(responses[0].body);
-    const likes: Array<NotificationItem> | null = parseUserActivityItems(responses[1].body, '+1');
-    if (customReactions === null || likes === null) {
-      return RepositoryResult.failure<Array<NotificationItem>>('回应消息响应无效');
-    }
-    return RepositoryResult.success<Array<NotificationItem>>(
-      sortNotificationItemsNewestFirst(customReactions.concat(likes))
-    );
-  }
-
-  private parseUserActivityResponse(response: HttpTextResult): RepositoryResult<Array<NotificationItem>> {
-    if (response.kind === HttpTextResultKind.UNAUTHORIZED) {
-      return RepositoryResult.unauthorized<Array<NotificationItem>>();
-    }
-    if (!response.isSuccess()) {
-      return RepositoryResult.failure<Array<NotificationItem>>(response.message);
-    }
-    const items: Array<NotificationItem> | null = parseUserActivityItems(response.body);
-    return items === null
-      ? RepositoryResult.failure<Array<NotificationItem>>('活动消息响应无效')
-      : RepositoryResult.success<Array<NotificationItem>>(items);
+    return this.notificationRepository.loadNotificationItems(username, bucket, page, offset);
   }
 
   public async loadChatChannels(): Promise<RepositoryResult<Array<ChatChannel>>> {
-    const response: HttpTextResult = await this.client.get('/chat/api/me/channels');
-    if (response.kind === HttpTextResultKind.UNAUTHORIZED) {
-      return RepositoryResult.unauthorized<Array<ChatChannel>>();
-    }
-    if (!response.isSuccess()) {
-      return RepositoryResult.failure<Array<ChatChannel>>(response.message);
-    }
-    const channels: Array<ChatChannel> | null = parseChatChannels(response.body);
-    return channels === null
-      ? RepositoryResult.failure<Array<ChatChannel>>('聊天频道响应无效')
-      : RepositoryResult.success<Array<ChatChannel>>(channels);
+    return this.chatRepository.loadChatChannels();
   }
 
   public async loadChatMessages(
     channelId: number,
     query: ChatMessageQuery
   ): Promise<RepositoryResult<ChatMessagePage>> {
-    if (!Number.isSafeInteger(channelId) || channelId <= 0) {
-      return RepositoryResult.failure<ChatMessagePage>('聊天频道标识无效');
-    }
-    const response: HttpTextResult = await this.client.get(
-      `/chat/api/channels/${channelId}/messages.json?${query.queryString()}`
-    );
-    if (response.kind === HttpTextResultKind.UNAUTHORIZED) {
-      return RepositoryResult.unauthorized<ChatMessagePage>();
-    }
-    if (!response.isSuccess()) {
-      return RepositoryResult.failure<ChatMessagePage>(response.message);
-    }
-    const page: ChatMessagePage | null = parseChatMessagePage(response.body);
-    return page === null
-      ? RepositoryResult.failure<ChatMessagePage>('聊天消息响应无效')
-      : RepositoryResult.success<ChatMessagePage>(page);
+    return this.chatRepository.loadChatMessages(channelId, query);
   }
 
   public async openDirectChat(username: string): Promise<RepositoryResult<ChatChannel>> {
-    const normalizedUsername: string = username.trim();
-    if (normalizedUsername.length === 0) {
-      return RepositoryResult.failure<ChatChannel>('私聊用户名无效');
-    }
-    const payload: DirectChatPayload = { target_usernames: [normalizedUsername], name: '' };
-    const response: HttpTextResult = await this.client.postJson(
-      '/chat/api/direct-message-channels.json',
-      JSON.stringify(payload)
-    );
-    if (response.kind === HttpTextResultKind.UNAUTHORIZED) {
-      return RepositoryResult.unauthorized<ChatChannel>();
-    }
-    if (!response.isSuccess()) {
-      return RepositoryResult.failure<ChatChannel>(response.message);
-    }
-    const channel: ChatChannel | null = parseChatChannelResponse(response.body);
-    return channel === null
-      ? RepositoryResult.failure<ChatChannel>('私聊频道响应无效')
-      : RepositoryResult.success<ChatChannel>(channel);
+    return this.chatRepository.openDirectChat(username);
   }
 
   public async markChatRead(channelId: number, messageId: number): Promise<RepositoryResult<boolean>> {
-    if (!this.validChatMessageIdentity(channelId, messageId)) {
-      return RepositoryResult.failure<boolean>('聊天已读标识无效');
-    }
-    return this.booleanWriteResult(
-      await this.client.put(`/chat/api/channels/${channelId}/read?message_id=${messageId}`)
-    );
+    return this.chatRepository.markChatRead(channelId, messageId);
   }
 
   public async sendChatMessage(request: ChatSendRequest): Promise<RepositoryResult<ChatSendConfirmation>> {
-    const response: HttpTextResult = await this.client.postJson(
-      `/chat/${request.channelId}.json`,
-      JSON.stringify(request.toHttpExtraData())
-    );
-    if (response.kind === HttpTextResultKind.UNAUTHORIZED) {
-      return RepositoryResult.unauthorized<ChatSendConfirmation>();
-    }
-    if (!response.isSuccess()) {
-      return RepositoryResult.failure<ChatSendConfirmation>(response.message);
-    }
-    const confirmation: ChatSendConfirmation | null = parseChatSendConfirmation(response.body);
-    return confirmation === null
-      ? RepositoryResult.failure<ChatSendConfirmation>('服务器未确认已发送消息')
-      : RepositoryResult.success<ChatSendConfirmation>(confirmation);
+    return this.chatRepository.sendChatMessage(request);
   }
 
   public async reactToChatMessage(
@@ -279,44 +119,19 @@ export class DiscourseForumRepository implements
     emoji: string,
     action: ChatReactionAction
   ): Promise<RepositoryResult<boolean>> {
-    const normalizedEmoji: string = emoji.trim().replace(/:/g, '');
-    if (!this.validChatMessageIdentity(channelId, messageId) || normalizedEmoji.length === 0) {
-      return RepositoryResult.failure<boolean>('聊天 Reaction 请求无效');
-    }
-    const body: string = `react_action=${action}&emoji=${encodeURIComponent(normalizedEmoji)}`;
-    return this.booleanWriteResult(await this.client.putForm(`/chat/${channelId}/react/${messageId}`, body));
+    return this.chatRepository.reactToChatMessage(channelId, messageId, emoji, action);
   }
 
   public async deleteChatMessage(channelId: number, messageId: number): Promise<RepositoryResult<boolean>> {
-    if (!this.validChatMessageIdentity(channelId, messageId)) {
-      return RepositoryResult.failure<boolean>('聊天删除请求无效');
-    }
-    return this.booleanWriteResult(
-      await this.client.delete(`/chat/api/channels/${channelId}/messages/${messageId}`)
-    );
+    return this.chatRepository.deleteChatMessage(channelId, messageId);
   }
 
   public async restoreChatMessage(channelId: number, messageId: number): Promise<RepositoryResult<boolean>> {
-    if (!this.validChatMessageIdentity(channelId, messageId)) {
-      return RepositoryResult.failure<boolean>('聊天恢复请求无效');
-    }
-    return this.booleanWriteResult(
-      await this.client.put(`/chat/api/channels/${channelId}/messages/${messageId}/restore`)
-    );
+    return this.chatRepository.restoreChatMessage(channelId, messageId);
   }
 
   public async loadChatEmojis(): Promise<RepositoryResult<Array<ChatEmoji>>> {
-    const response: HttpTextResult = await this.client.get('/emojis.json');
-    if (response.kind === HttpTextResultKind.UNAUTHORIZED) {
-      return RepositoryResult.unauthorized<Array<ChatEmoji>>();
-    }
-    if (!response.isSuccess()) {
-      return RepositoryResult.failure<Array<ChatEmoji>>(response.message);
-    }
-    const emojis: Array<ChatEmoji> | null = parseChatEmojis(response.body);
-    return emojis === null
-      ? RepositoryResult.failure<Array<ChatEmoji>>('Emoji 响应无效')
-      : RepositoryResult.success<Array<ChatEmoji>>(emojis);
+    return this.chatRepository.loadChatEmojis();
   }
 
   public async searchChat(
@@ -324,37 +139,11 @@ export class DiscourseForumRepository implements
     offset: number,
     limit: number
   ): Promise<RepositoryResult<Array<ChatSearchResult>>> {
-    const normalizedQuery: string = query.trim();
-    if (
-      normalizedQuery.length === 0 ||
-      !Number.isSafeInteger(offset) || offset < 0 ||
-      !Number.isSafeInteger(limit) || limit <= 0 || limit > 100
-    ) {
-      return RepositoryResult.failure<Array<ChatSearchResult>>('聊天搜索参数无效');
-    }
-    const response: HttpTextResult = await this.client.get(
-      `/chat/api/search?query=${encodeURIComponent(normalizedQuery)}` +
-      `&sort=relevance&offset=${offset}&limit=${limit}`
-    );
-    if (response.kind === HttpTextResultKind.UNAUTHORIZED) {
-      return RepositoryResult.unauthorized<Array<ChatSearchResult>>();
-    }
-    if (!response.isSuccess()) {
-      return RepositoryResult.failure<Array<ChatSearchResult>>(response.message);
-    }
-    const results: Array<ChatSearchResult> | null = parseChatSearchResults(response.body);
-    return results === null
-      ? RepositoryResult.failure<Array<ChatSearchResult>>('聊天搜索响应无效')
-      : RepositoryResult.success<Array<ChatSearchResult>>(results);
+    return this.chatRepository.searchChat(query, offset, limit);
   }
 
   public async leaveChatChannel(channelId: number): Promise<RepositoryResult<boolean>> {
-    if (!Number.isSafeInteger(channelId) || channelId <= 0) {
-      return RepositoryResult.failure<boolean>('聊天频道标识无效');
-    }
-    return this.booleanWriteResult(
-      await this.client.delete(`/chat/api/channels/${channelId}/memberships/me/follows`)
-    );
+    return this.chatRepository.leaveChatChannel(channelId);
   }
 
   public async loadHomeTopics(channel: HomeChannel, page: number): Promise<RepositoryResult<Array<Topic>>> {
@@ -1004,8 +793,4 @@ export class DiscourseForumRepository implements
       : RepositoryResult.failure<boolean>(response.message);
   }
 
-  private validChatMessageIdentity(channelId: number, messageId: number): boolean {
-    return Number.isSafeInteger(channelId) && channelId > 0 &&
-      Number.isSafeInteger(messageId) && messageId > 0;
-  }
 }
