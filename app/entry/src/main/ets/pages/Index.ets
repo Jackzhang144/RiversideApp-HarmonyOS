@@ -347,9 +347,9 @@ struct Index {
       dependencies.discoverySettingsStore,
       dependencies.mediaRepository
     );
-    await model.restoreDiscoverySettings();
-    this.selectedHomeChannel = model.selectedHomeChannel;
-    this.worldCupEntryEnabled = model.worldCupEntryEnabled;
+    await model.discovery.restoreSettings();
+    this.selectedHomeChannel = model.discovery.selectedHomeChannel;
+    this.worldCupEntryEnabled = model.discovery.worldCupEntryEnabled;
     model.selectRoot(this.selectedRoot);
     this.model = model;
     this.synchronizePresenceHeartbeat();
@@ -460,11 +460,11 @@ struct Index {
       return;
     }
     this.accountIdentityLoading = false;
-    const channelChanged: boolean = model.selectedHomeChannel !== result.data.defaultHomeChannel &&
+    const channelChanged: boolean = model.discovery.selectedHomeChannel !== result.data.defaultHomeChannel &&
       result.data.defaultHomeChannel !== null;
     if (result.data.defaultHomeChannel !== null) {
-      await model.applyHomeChannelPreference(result.data.defaultHomeChannel);
-      this.selectedHomeChannel = model.selectedHomeChannel;
+      await model.discovery.applyHomeChannelPreference(result.data.defaultHomeChannel);
+      this.selectedHomeChannel = model.discovery.selectedHomeChannel;
       if (channelChanged) {
         await this.loadHome();
       }
@@ -502,10 +502,10 @@ struct Index {
     if (model === null) {
       return;
     }
-    const task: Promise<void> = model.loadHome();
-    this.homeState = model.homeState;
+    const task: Promise<void> = model.discovery.loadHome();
+    this.homeState = model.discovery.homeState;
     await task;
-    this.homeState = model.homeState;
+    this.homeState = model.discovery.homeState;
   }
 
   private async loadOnlineUsers(): Promise<void> {
@@ -540,10 +540,10 @@ struct Index {
     if (model === null) {
       return;
     }
-    const task: Promise<void> = model.refreshHome();
-    this.homeState = model.homeState;
+    const task: Promise<void> = model.discovery.refreshHome();
+    this.homeState = model.discovery.homeState;
     await task;
-    this.homeState = model.homeState;
+    this.homeState = model.discovery.homeState;
     this.showHomeRefreshMessage();
   }
 
@@ -557,10 +557,10 @@ struct Index {
 
   private async applyHomeChannelPreference(channel: HomeChannel): Promise<void> {
     const model: AppShellModel | null = this.model;
-    if (model === null || !await model.applyHomeChannelPreference(channel)) {
+    if (model === null || !await model.discovery.applyHomeChannelPreference(channel)) {
       return;
     }
-    this.selectedHomeChannel = model.selectedHomeChannel;
+    this.selectedHomeChannel = model.discovery.selectedHomeChannel;
     await this.loadHome();
   }
 
@@ -607,10 +607,10 @@ struct Index {
     if (model === null) {
       return;
     }
-    const task: Promise<void> = model.loadMoreHome();
-    this.homeState = model.homeState;
+    const task: Promise<void> = model.discovery.loadMoreHome();
+    this.homeState = model.discovery.homeState;
     await task;
-    this.homeState = model.homeState;
+    this.homeState = model.discovery.homeState;
   }
 
   private async setWorldCupEntryEnabled(enabled: boolean): Promise<void> {
@@ -619,17 +619,16 @@ struct Index {
       return;
     }
     this.worldCupEntryEnabled = enabled;
-    await model.setWorldCupEntryEnabled(enabled);
-    this.worldCupEntryEnabled = model.worldCupEntryEnabled;
+    await model.discovery.setWorldCupEntryEnabled(enabled);
+    this.worldCupEntryEnabled = model.discovery.worldCupEntryEnabled;
   }
 
   private openSearch(): void {
     const model: AppShellModel | null = this.model;
     if (model !== null) {
-      model.searchState = SearchState.initial();
-      this.searchState = model.searchState;
-      model.searchSuggestionState = SearchSuggestionState.initial();
-      this.searchSuggestionState = model.searchSuggestionState;
+      model.discovery.resetSearch();
+      this.searchState = model.discovery.searchState;
+      this.searchSuggestionState = model.discovery.searchSuggestionState;
     }
     this.pathStack.pushPath({ name: SEARCH_ROUTE });
   }
@@ -639,12 +638,12 @@ struct Index {
     if (model === null) {
       return;
     }
-    await model.loadSearchSuggestions('');
-    this.searchSuggestionState = model.searchSuggestionState;
-    const task: Promise<void> = model.searchForum(query);
-    this.searchState = model.searchState;
+    await model.discovery.loadSearchSuggestions('');
+    this.searchSuggestionState = model.discovery.searchSuggestionState;
+    const task: Promise<void> = model.discovery.searchForum(query);
+    this.searchState = model.discovery.searchState;
     await task;
-    this.searchState = model.searchState;
+    this.searchState = model.discovery.searchState;
   }
 
   private async loadSearchSuggestions(term: string): Promise<void> {
@@ -652,10 +651,10 @@ struct Index {
     if (model === null) {
       return;
     }
-    const task: Promise<void> = model.loadSearchSuggestions(term);
-    this.searchSuggestionState = model.searchSuggestionState;
+    const task: Promise<void> = model.discovery.loadSearchSuggestions(term);
+    this.searchSuggestionState = model.discovery.searchSuggestionState;
     await task;
-    this.searchSuggestionState = model.searchSuggestionState;
+    this.searchSuggestionState = model.discovery.searchSuggestionState;
   }
 
   private async retrySearch(): Promise<void> {
@@ -663,10 +662,10 @@ struct Index {
     if (model === null) {
       return;
     }
-    const task: Promise<void> = model.retrySearch();
-    this.searchState = model.searchState;
+    const task: Promise<void> = model.discovery.retrySearch();
+    this.searchState = model.discovery.searchState;
     await task;
-    this.searchState = model.searchState;
+    this.searchState = model.discovery.searchState;
   }
 
   private async loadMoreSearch(): Promise<void> {
@@ -674,10 +673,10 @@ struct Index {
     if (model === null) {
       return;
     }
-    const task: Promise<void> = model.loadMoreSearch();
-    this.searchState = model.searchState;
+    const task: Promise<void> = model.discovery.loadMoreSearch();
+    this.searchState = model.discovery.searchState;
     await task;
-    this.searchState = model.searchState;
+    this.searchState = model.discovery.searchState;
   }
 
   private async loadCategories(): Promise<void> {

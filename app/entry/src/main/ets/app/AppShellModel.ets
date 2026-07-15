@@ -11,12 +11,7 @@ import {
   TopicDetailMetadata,
   TopicPostBatch
 } from '../models/ForumModels';
-import {
-  ForumSearchResult,
-  HomeChannel,
-  homeChannelFromIndex
-} from '../models/DiscoveryModels';
-import { DiscoverySettings, DiscoverySettingsStore } from '../settings/DiscoverySettingsStore';
+import { DiscoverySettingsStore } from '../settings/DiscoverySettingsStore';
 import {
   CreateTopicRequest,
   DraftWriteRequest,
@@ -48,15 +43,10 @@ import { AuthenticationLifecycle } from './AuthenticationLifecycle';
 import {
   BrowseState,
   BrowseStateKind,
-  mergeSearchResults,
-  SearchState,
-  SearchStateKind,
-  SearchSuggestionState,
   uniqueTopics
 } from './BrowseModels';
 import {
   HomeSortTabIndex,
-  isHomeSortTabAvailable,
   RootDestination,
   rootDestinationForTabIndex,
   SecondaryDestination
@@ -80,6 +70,7 @@ import {
   uniquePosts
 } from './TopicReadingModels';
 import { ComposerMediaCoordinator, MediaUploadStateListener } from './ComposerMediaCoordinator';
+import { DiscoveryCoordinator } from './DiscoveryCoordinator';
 
 class TopicNavigationFrame {
   public readonly topic: Topic;
@@ -110,9 +101,7 @@ export class AppShellModel {
   public selectedRoot: RootDestination = RootDestination.HOME;
   public activeDestination: SecondaryDestination = SecondaryDestination.NONE;
   public requiresAuthentication: boolean = false;
-  public homeState: BrowseState<Topic> = BrowseState.initial<Topic>();
-  public selectedHomeChannel: HomeChannel = HomeChannel.LATEST_REPLIES;
-  public worldCupEntryEnabled: boolean = true;
+  public readonly discovery: DiscoveryCoordinator;
   public categoryState: BrowseState<Category> = BrowseState.initial<Category>();
   public selectedCategory: Category | null = null;
   public categoryTopicsState: BrowseState<Topic> = BrowseState.initial<Topic>();
@@ -122,14 +111,11 @@ export class AppShellModel {
   public topicComposerState: TopicComposerState = TopicComposerState.closed();
   public topicEditingTopicId: number | null = null;
   public topicEditingPostId: number | null = null;
-  public searchState: SearchState = SearchState.initial();
-  public searchSuggestionState: SearchSuggestionState = SearchSuggestionState.initial();
 
   private readonly repository: ForumRepository;
   private readonly categoryCache: CategoryCache;
   private categoryCacheScope: CategoryCacheScope;
   private readonly authenticationLifecycle: AuthenticationLifecycle | null;
-  private readonly discoverySettingsStore: DiscoverySettingsStore | null;
   private readonly mediaCoordinator: ComposerMediaCoordinator;
   private cachedCategories: Array<Category> | null = null;
   private previousPostIds: Array<number> = [];
@@ -139,12 +125,7 @@ export class AppShellModel {
   private selectedTopic: Topic | null = null;
   private selectedTopicPostNumber: number | null = null;
   private categoryRequestVersion: number = 0;
-  private homeRequestVersion: number = 0;
-  private searchRequestVersion: number = 0;
-  private searchSuggestionRequestVersion: number = 0;
-  private homePage: number = 0;
   private categoryTopicsPage: number = 0;
-  private searchNextPage: number = 1;
   private topicRequestVersion: number = 0;
   private topicReactionUsersRequestVersion: number = 0;
   private replyRequestVersion: number = 0;
@@ -170,7 +151,16 @@ export class AppShellModel {
     this.categoryCache = categoryCache;
     this.categoryCacheScope = categoryCacheScope;
     this.authenticationLifecycle = authenticationLifecycle;
-    this.discoverySettingsStore = discoverySettingsStore;
+    this.discovery = new DiscoveryCoordinator(
+      repository,
+      discoverySettingsStore,
+      (isUnauthorized: boolean): void => {
+        this.requiresAuthentication = isUnauthorized;
+      },
+      async (): Promise<void> => {
+        await this.notifyUnauthorized(true);
+      }
+    );
     this.mediaCoordinator = new ComposerMediaCoordinator(
       mediaRepository,
       (target: ComposerMediaTarget): boolean => this.hasEditableComposer(target),
@@ -193,76 +183,6 @@ export class AppShellModel {
     }
     this.selectRoot(destination);
     return true;
-  }
-
-  public selectHomeSortTab(index: number): boolean {
-    if (!isHomeSortTabAvailable(index)) {
-      return false;
-    }
-    const channel: HomeChannel | null = homeChannelFromIndex(index);
-    if (channel === null) {
-      return false;
-    }
-    if (this.selectedHomeChannel !== channel) {
-      this.selectedHomeChannel = channel;
-      this.homeRequestVersion += 1;
-      this.homePage = 0;
-      this.homeState = BrowseState.initial<Topic>();
-    }
-    return true;
-  }
-
-  public async restoreDiscoverySettings(): Promise<void> {
-    const store: DiscoverySettingsStore | null = this.discoverySettingsStore;
-    if (store === null) {
-      return;
-    }
-    try {
-      const settings: DiscoverySettings | null = await store.read();
-      if (settings === null) {
-        return;
-      }
-      this.selectedHomeChannel = settings.homeChannel;
-      this.worldCupEntryEnabled = settings.worldCupEntryEnabled;
-    } catch (_) {
-      // Settings restoration is best effort and falls back to the product defaults.
-    }
-  }
-
-  public async selectHomeChannel(index: number): Promise<boolean> {
-    const channel: HomeChannel | null = homeChannelFromIndex(index);
-    if (channel === null) {
-      return false;
-    }
-    return this.applyHomeChannelPreference(channel);
-  }
-
-  public async applyHomeChannelPreference(channel: HomeChannel): Promise<boolean> {
-    if (!this.selectHomeSortTab(channel)) {
-      return false;
-    }
-    await this.persistDiscoverySettings();
-    return true;
-  }
-
-  public async setWorldCupEntryEnabled(enabled: boolean): Promise<void> {
-    if (this.worldCupEntryEnabled === enabled) {
-      return;
-    }
-    this.worldCupEntryEnabled = enabled;
-    await this.persistDiscoverySettings();
-  }
-
-  private async persistDiscoverySettings(): Promise<void> {
-    const store: DiscoverySettingsStore | null = this.discoverySettingsStore;
-    if (store === null) {
-      return;
-    }
-    try {
-      await store.write(new DiscoverySettings(this.selectedHomeChannel, this.worldCupEntryEnabled));
-    } catch (_) {
-      // A failed preference write does not invalidate current browse content.
-    }
   }
 
   public updateCategoryCacheScope(scope: CategoryCacheScope): void {
@@ -1944,170 +1864,6 @@ export class AppShellModel {
       await this.notifyUnauthorized(true);
     }
     return result;
-  }
-
-  public async loadHome(): Promise<void> {
-    this.homeRequestVersion += 1;
-    const requestVersion: number = this.homeRequestVersion;
-    const channel: HomeChannel = this.selectedHomeChannel;
-    this.requiresAuthentication = false;
-    this.homeState = BrowseState.loading<Topic>();
-    this.homePage = 0;
-    const result: RepositoryResult<Array<Topic>> = await this.repository.loadHomeTopics(channel, 0);
-    if (requestVersion !== this.homeRequestVersion || channel !== this.selectedHomeChannel) {
-      return;
-    }
-    if (!result.isSuccess() || result.data === null) {
-      this.requiresAuthentication = result.isUnauthorized();
-      this.homeState = BrowseState.error<Topic>(result.message);
-      await this.notifyUnauthorized(result.isUnauthorized());
-      return;
-    }
-    this.homeState = result.data.length === 0
-      ? BrowseState.empty<Topic>()
-      : BrowseState.content<Topic>(result.data, false, '', true);
-  }
-
-  public async refreshHome(): Promise<void> {
-    this.requiresAuthentication = false;
-    const previousState: BrowseState<Topic> = this.homeState;
-    if (previousState.kind === BrowseStateKind.CONTENT) {
-      this.homeState = BrowseState.content<Topic>(previousState.items, true);
-    } else if (previousState.kind === BrowseStateKind.EMPTY) {
-      this.homeState = BrowseState.empty<Topic>(true);
-    } else {
-      await this.loadHome();
-      return;
-    }
-
-    this.homeRequestVersion += 1;
-    const requestVersion: number = this.homeRequestVersion;
-    const channel: HomeChannel = this.selectedHomeChannel;
-    const result: RepositoryResult<Array<Topic>> = await this.repository.loadHomeTopics(channel, 0);
-    if (requestVersion !== this.homeRequestVersion || channel !== this.selectedHomeChannel) {
-      return;
-    }
-    if (!result.isSuccess() || result.data === null) {
-      this.requiresAuthentication = result.isUnauthorized();
-      this.homeState = previousState.kind === BrowseStateKind.CONTENT
-        ? BrowseState.content<Topic>(previousState.items, false, result.message, previousState.hasMore)
-        : BrowseState.empty<Topic>(false, result.message);
-      await this.notifyUnauthorized(result.isUnauthorized());
-      return;
-    }
-    this.homeState = result.data.length === 0
-      ? BrowseState.empty<Topic>()
-      : BrowseState.content<Topic>(result.data, false, '', true);
-    this.homePage = 0;
-  }
-
-  public async loadMoreHome(): Promise<void> {
-    const state: BrowseState<Topic> = this.homeState;
-    if (state.kind !== BrowseStateKind.CONTENT || !state.hasMore || state.isLoadingMore) {
-      return;
-    }
-    const requestVersion: number = this.homeRequestVersion;
-    const channel: HomeChannel = this.selectedHomeChannel;
-    const nextPage: number = this.homePage + 1;
-    this.homeState = BrowseState.content<Topic>(state.items, false, '', true, true);
-    const result: RepositoryResult<Array<Topic>> = await this.repository.loadHomeTopics(channel, nextPage);
-    if (requestVersion !== this.homeRequestVersion || channel !== this.selectedHomeChannel) {
-      return;
-    }
-    if (!result.isSuccess() || result.data === null) {
-      this.requiresAuthentication = result.isUnauthorized();
-      this.homeState = BrowseState.content<Topic>(state.items, false, '', true, false, result.message);
-      await this.notifyUnauthorized(result.isUnauthorized());
-      return;
-    }
-    const merged: Array<Topic> = uniqueTopics(state.items, result.data);
-    const addedCount: number = merged.length - state.items.length;
-    this.homePage = nextPage;
-    this.homeState = BrowseState.content<Topic>(merged, false, '', addedCount > 0);
-  }
-
-  public async retryHome(): Promise<void> {
-    await this.loadHome();
-  }
-
-  public async searchForum(query: string): Promise<void> {
-    const normalizedQuery: string = query.trim();
-    this.searchRequestVersion += 1;
-    const requestVersion: number = this.searchRequestVersion;
-    if (normalizedQuery.length === 0) {
-      this.searchState = SearchState.initial();
-      this.searchNextPage = 1;
-      return;
-    }
-    this.requiresAuthentication = false;
-    this.searchState = SearchState.loading(normalizedQuery);
-    this.searchNextPage = 1;
-    const result: RepositoryResult<ForumSearchResult> = await this.repository.searchForum(normalizedQuery, 1);
-    if (requestVersion !== this.searchRequestVersion) {
-      return;
-    }
-    if (!result.isSuccess() || result.data === null) {
-      this.requiresAuthentication = result.isUnauthorized();
-      this.searchState = SearchState.error(normalizedQuery, result.message);
-      await this.notifyUnauthorized(result.isUnauthorized());
-      return;
-    }
-    this.searchNextPage = 2;
-    this.searchState = result.data.isEmpty()
-      ? SearchState.empty(normalizedQuery)
-      : SearchState.content(normalizedQuery, result.data);
-  }
-
-  public async retrySearch(): Promise<void> {
-    await this.searchForum(this.searchState.query);
-  }
-
-  public async loadMoreSearch(): Promise<void> {
-    const state: SearchState = this.searchState;
-    if (state.kind !== SearchStateKind.CONTENT || !state.hasMore || state.isLoadingMore) {
-      return;
-    }
-    const requestVersion: number = this.searchRequestVersion;
-    const page: number = this.searchNextPage;
-    this.searchState = SearchState.content(state.query, state.result, true);
-    const result: RepositoryResult<ForumSearchResult> = await this.repository.searchForum(state.query, page);
-    if (requestVersion !== this.searchRequestVersion) {
-      return;
-    }
-    if (!result.isSuccess() || result.data === null) {
-      this.requiresAuthentication = result.isUnauthorized();
-      this.searchState = SearchState.content(state.query, state.result, false, result.message);
-      await this.notifyUnauthorized(result.isUnauthorized());
-      return;
-    }
-    this.searchNextPage = page + 1;
-    this.searchState = SearchState.content(state.query, mergeSearchResults(state.result, result.data));
-  }
-
-  public async loadSearchSuggestions(term: string): Promise<void> {
-    const normalizedTerm: string = term.trim();
-    this.searchSuggestionRequestVersion += 1;
-    const requestVersion: number = this.searchSuggestionRequestVersion;
-    if (normalizedTerm.length === 0) {
-      this.searchSuggestionState = SearchSuggestionState.initial();
-      return;
-    }
-    this.searchSuggestionState = SearchSuggestionState.loading(normalizedTerm);
-    const result: RepositoryResult<Array<string>> = await this.repository.searchSuggestions(normalizedTerm);
-    if (requestVersion !== this.searchSuggestionRequestVersion) {
-      return;
-    }
-    if (result.isUnauthorized()) {
-      this.requiresAuthentication = true;
-      await this.notifyUnauthorized(true);
-    }
-    if (!result.isSuccess() || result.data === null) {
-      this.searchSuggestionState = SearchSuggestionState.error(normalizedTerm, result.message);
-      return;
-    }
-    this.searchSuggestionState = result.data.length === 0
-      ? SearchSuggestionState.empty(normalizedTerm)
-      : SearchSuggestionState.content(normalizedTerm, result.data);
   }
 
   public async loadCategories(): Promise<void> {

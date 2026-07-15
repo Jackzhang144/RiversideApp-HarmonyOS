@@ -400,13 +400,13 @@ export default function appShellModelTest(): void {
         CategoryCacheScope.anonymous()
       );
 
-      const loading: Promise<void> = model.loadHome();
-      expect(model.homeState.kind).assertEqual(BrowseStateKind.LOADING);
+      const loading: Promise<void> = model.discovery.loadHome();
+      expect(model.discovery.homeState.kind).assertEqual(BrowseStateKind.LOADING);
       await loading;
 
-      expect(model.homeState.kind).assertEqual(BrowseStateKind.CONTENT);
-      expect(model.homeState.items.length).assertEqual(1);
-      expect(model.homeState.items[0].id).assertEqual(2725);
+      expect(model.discovery.homeState.kind).assertEqual(BrowseStateKind.CONTENT);
+      expect(model.discovery.homeState.items.length).assertEqual(1);
+      expect(model.discovery.homeState.items[0].id).assertEqual(2725);
       done();
     });
 
@@ -418,13 +418,13 @@ export default function appShellModelTest(): void {
         CategoryCacheScope.anonymous()
       );
 
-      expect(model.selectHomeSortTab(HomeSortTabIndex.LATEST_REPLIES)).assertTrue();
-      expect(model.selectHomeSortTab(HomeSortTabIndex.LATEST_CREATED)).assertTrue();
-      expect(model.selectHomeSortTab(HomeSortTabIndex.UNREAD)).assertTrue();
-      expect(model.selectHomeSortTab(HomeSortTabIndex.HOT)).assertTrue();
-      expect(model.selectHomeSortTab(HomeSortTabIndex.FEATURED)).assertTrue();
-      expect(model.selectedHomeChannel).assertEqual(HomeChannel.FEATURED);
-      expect(model.selectHomeSortTab(99)).assertFalse();
+      expect(model.discovery.selectHomeSortTab(HomeSortTabIndex.LATEST_REPLIES)).assertTrue();
+      expect(model.discovery.selectHomeSortTab(HomeSortTabIndex.LATEST_CREATED)).assertTrue();
+      expect(model.discovery.selectHomeSortTab(HomeSortTabIndex.UNREAD)).assertTrue();
+      expect(model.discovery.selectHomeSortTab(HomeSortTabIndex.HOT)).assertTrue();
+      expect(model.discovery.selectHomeSortTab(HomeSortTabIndex.FEATURED)).assertTrue();
+      expect(model.discovery.selectedHomeChannel).assertEqual(HomeChannel.FEATURED);
+      expect(model.discovery.selectHomeSortTab(99)).assertFalse();
       expect(repository.latestCallCount).assertEqual(0);
       expect(model.activeDestination).assertEqual(SecondaryDestination.NONE);
     });
@@ -441,20 +441,20 @@ export default function appShellModelTest(): void {
         new MemoryCategoryCache(),
         CategoryCacheScope.anonymous()
       );
-      model.selectHomeSortTab(HomeSortTabIndex.HOT);
+      model.discovery.selectHomeSortTab(HomeSortTabIndex.HOT);
 
-      await model.loadHome();
-      await model.loadMoreHome();
+      await model.discovery.loadHome();
+      await model.discovery.loadMoreHome();
 
       expect(repository.requestedHomeChannels[0]).assertEqual(HomeChannel.HOT);
       expect(repository.requestedHomePages[0]).assertEqual(0);
       expect(repository.requestedHomePages[1]).assertEqual(1);
-      expect(model.homeState.items.length).assertEqual(2);
-      expect(model.homeState.items[1].id).assertEqual(2);
-      expect(model.homeState.hasMore).assertTrue();
+      expect(model.discovery.homeState.items.length).assertEqual(2);
+      expect(model.discovery.homeState.items[1].id).assertEqual(2);
+      expect(model.discovery.homeState.hasMore).assertTrue();
 
-      await model.loadMoreHome();
-      expect(model.homeState.hasMore).assertFalse();
+      await model.discovery.loadMoreHome();
+      expect(model.discovery.homeState.hasMore).assertFalse();
       done();
     });
 
@@ -496,18 +496,18 @@ export default function appShellModelTest(): void {
         CategoryCacheScope.anonymous()
       );
 
-      await model.searchForum('河畔');
-      expect(model.searchState.kind).assertEqual(SearchStateKind.CONTENT);
-      expect(model.searchState.result.topics.length).assertEqual(1);
-      expect(model.searchState.result.users.length).assertEqual(1);
+      await model.discovery.searchForum('河畔');
+      expect(model.discovery.searchState.kind).assertEqual(SearchStateKind.CONTENT);
+      expect(model.discovery.searchState.result.topics.length).assertEqual(1);
+      expect(model.discovery.searchState.result.users.length).assertEqual(1);
 
-      await model.loadMoreSearch();
+      await model.discovery.loadMoreSearch();
       expect(repository.requestedSearchPages[0]).assertEqual(1);
       expect(repository.requestedSearchPages[1]).assertEqual(2);
-      expect(model.searchState.result.topics.length).assertEqual(2);
-      expect(model.searchState.result.posts.length).assertEqual(2);
-      expect(model.searchState.result.users.length).assertEqual(2);
-      expect(model.searchState.hasMore).assertFalse();
+      expect(model.discovery.searchState.result.topics.length).assertEqual(2);
+      expect(model.discovery.searchState.result.posts.length).assertEqual(2);
+      expect(model.discovery.searchState.result.users.length).assertEqual(2);
+      expect(model.discovery.searchState.hasMore).assertFalse();
       done();
     });
 
@@ -523,16 +523,16 @@ export default function appShellModelTest(): void {
         CategoryCacheScope.anonymous()
       );
 
-      await model.searchForum('  ');
-      expect(model.searchState.kind).assertEqual(SearchStateKind.INITIAL);
+      await model.discovery.searchForum('  ');
+      expect(model.discovery.searchState.kind).assertEqual(SearchStateKind.INITIAL);
       expect(repository.requestedSearchPages.length).assertEqual(0);
 
-      await model.searchForum('河畔');
-      expect(model.searchState.kind).assertEqual(SearchStateKind.ERROR);
-      expect(model.searchState.message).assertEqual('搜索失败');
+      await model.discovery.searchForum('河畔');
+      expect(model.discovery.searchState.kind).assertEqual(SearchStateKind.ERROR);
+      expect(model.discovery.searchState.message).assertEqual('搜索失败');
 
-      await model.retrySearch();
-      expect(model.searchState.kind).assertEqual(SearchStateKind.EMPTY);
+      await model.discovery.retrySearch();
+      expect(model.discovery.searchState.kind).assertEqual(SearchStateKind.EMPTY);
       done();
     });
 
@@ -548,17 +548,17 @@ export default function appShellModelTest(): void {
         CategoryCacheScope.anonymous()
       );
 
-      await model.loadSearchSuggestions(' 河畔 ');
-      expect(model.searchSuggestionState.kind).assertEqual(SearchSuggestionStateKind.CONTENT);
-      expect(model.searchSuggestionState.items.length).assertEqual(2);
+      await model.discovery.loadSearchSuggestions(' 河畔 ');
+      expect(model.discovery.searchSuggestionState.kind).assertEqual(SearchSuggestionStateKind.CONTENT);
+      expect(model.discovery.searchSuggestionState.items.length).assertEqual(2);
       expect(repository.requestedSuggestionTerms[0]).assertEqual('河畔');
 
-      await model.loadSearchSuggestions('失败');
-      expect(model.searchSuggestionState.kind).assertEqual(SearchSuggestionStateKind.ERROR);
-      expect(model.searchSuggestionState.message).assertEqual('建议加载失败');
+      await model.discovery.loadSearchSuggestions('失败');
+      expect(model.discovery.searchSuggestionState.kind).assertEqual(SearchSuggestionStateKind.ERROR);
+      expect(model.discovery.searchSuggestionState.message).assertEqual('建议加载失败');
 
-      await model.loadSearchSuggestions('   ');
-      expect(model.searchSuggestionState.kind).assertEqual(SearchSuggestionStateKind.INITIAL);
+      await model.discovery.loadSearchSuggestions('   ');
+      expect(model.discovery.searchSuggestionState.kind).assertEqual(SearchSuggestionStateKind.INITIAL);
       expect(repository.requestedSuggestionTerms.length).assertEqual(2);
       done();
     });
@@ -574,12 +574,12 @@ export default function appShellModelTest(): void {
         settings
       );
 
-      await model.restoreDiscoverySettings();
-      expect(model.selectedHomeChannel).assertEqual(HomeChannel.HOT);
-      expect(model.worldCupEntryEnabled).assertFalse();
+      await model.discovery.restoreSettings();
+      expect(model.discovery.selectedHomeChannel).assertEqual(HomeChannel.HOT);
+      expect(model.discovery.worldCupEntryEnabled).assertFalse();
 
-      expect(await model.selectHomeChannel(HomeSortTabIndex.FEATURED)).assertTrue();
-      await model.setWorldCupEntryEnabled(true);
+      expect(await model.discovery.selectHomeChannel(HomeSortTabIndex.FEATURED)).assertTrue();
+      await model.discovery.setWorldCupEntryEnabled(true);
       expect(settings.writes.length).assertEqual(2);
       expect(settings.stored?.homeChannel).assertEqual(HomeChannel.FEATURED);
       expect(settings.stored?.worldCupEntryEnabled).assertTrue();
@@ -596,8 +596,8 @@ export default function appShellModelTest(): void {
         settings
       );
 
-      expect(await model.applyHomeChannelPreference(HomeChannel.LATEST_CREATED)).assertTrue();
-      expect(model.selectedHomeChannel).assertEqual(HomeChannel.LATEST_CREATED);
+      expect(await model.discovery.applyHomeChannelPreference(HomeChannel.LATEST_CREATED)).assertTrue();
+      expect(model.discovery.selectedHomeChannel).assertEqual(HomeChannel.LATEST_CREATED);
       expect(settings.stored?.homeChannel).assertEqual(HomeChannel.LATEST_CREATED);
       done();
     });
@@ -644,12 +644,12 @@ export default function appShellModelTest(): void {
         authentication
       );
 
-      await model.loadHome();
-      expect(model.homeState.kind).assertEqual(BrowseStateKind.ERROR);
-      expect(model.homeState.message).assertEqual('网络连接失败');
+      await model.discovery.loadHome();
+      expect(model.discovery.homeState.kind).assertEqual(BrowseStateKind.ERROR);
+      expect(model.discovery.homeState.message).assertEqual('网络连接失败');
 
-      await model.retryHome();
-      expect(model.homeState.kind).assertEqual(BrowseStateKind.EMPTY);
+      await model.discovery.retryHome();
+      expect(model.discovery.homeState.kind).assertEqual(BrowseStateKind.EMPTY);
       expect(repository.latestCallCount).assertEqual(2);
       expect(authentication.unauthorizedCallCount).assertEqual(0);
       done();
@@ -667,23 +667,23 @@ export default function appShellModelTest(): void {
         new MemoryCategoryCache(),
         CategoryCacheScope.anonymous()
       );
-      await model.loadHome();
+      await model.discovery.loadHome();
 
-      const failingRefresh: Promise<void> = model.refreshHome();
-      expect(model.homeState.kind).assertEqual(BrowseStateKind.CONTENT);
-      expect(model.homeState.isRefreshing).assertTrue();
-      expect(model.homeState.items[0].id).assertEqual(2725);
+      const failingRefresh: Promise<void> = model.discovery.refreshHome();
+      expect(model.discovery.homeState.kind).assertEqual(BrowseStateKind.CONTENT);
+      expect(model.discovery.homeState.isRefreshing).assertTrue();
+      expect(model.discovery.homeState.items[0].id).assertEqual(2725);
       await failingRefresh;
 
-      expect(model.homeState.kind).assertEqual(BrowseStateKind.CONTENT);
-      expect(model.homeState.isRefreshing).assertFalse();
-      expect(model.homeState.items[0].id).assertEqual(2725);
-      expect(model.homeState.message).assertEqual('刷新失败');
+      expect(model.discovery.homeState.kind).assertEqual(BrowseStateKind.CONTENT);
+      expect(model.discovery.homeState.isRefreshing).assertFalse();
+      expect(model.discovery.homeState.items[0].id).assertEqual(2725);
+      expect(model.discovery.homeState.message).assertEqual('刷新失败');
 
-      await model.refreshHome();
-      expect(model.homeState.kind).assertEqual(BrowseStateKind.CONTENT);
-      expect(model.homeState.items[0].id).assertEqual(3000);
-      expect(model.homeState.message).assertEqual('');
+      await model.discovery.refreshHome();
+      expect(model.discovery.homeState.kind).assertEqual(BrowseStateKind.CONTENT);
+      expect(model.discovery.homeState.items[0].id).assertEqual(3000);
+      expect(model.discovery.homeState.message).assertEqual('');
       done();
     });
 
@@ -698,10 +698,10 @@ export default function appShellModelTest(): void {
         authentication
       );
 
-      await model.loadHome();
+      await model.discovery.loadHome();
 
       expect(model.requiresAuthentication).assertTrue();
-      expect(model.homeState.kind).assertEqual(BrowseStateKind.ERROR);
+      expect(model.discovery.homeState.kind).assertEqual(BrowseStateKind.ERROR);
       expect(authentication.unauthorizedCallCount).assertEqual(1);
       done();
     });
