@@ -1,6 +1,6 @@
 {
   "modelVersion": "6.1.0",
-  "description": "Please describe the basic information.",
+  "description": "RiverSide HarmonyOS client",
   "dependencies": {
   },
   "devDependencies": {
