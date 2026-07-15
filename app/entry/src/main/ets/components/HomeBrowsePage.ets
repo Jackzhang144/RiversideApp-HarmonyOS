@@ -202,9 +202,9 @@ export struct HomeBrowsePage {
   private topicList(): void {
     Refresh({ refreshing: this.state.isRefreshing }) {
       List({ space: 10 }) {
-        ListItem() {
-          this.worldCupPreference()
-        }
+        // ListItem() {
+        //   this.worldCupPreference()
+        // }
         ForEach(this.state.items, (topic: Topic) => {
           ListItem() {
             ForumContentCard({
