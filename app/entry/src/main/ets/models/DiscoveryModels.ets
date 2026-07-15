@@ -1,17 +1,9 @@
 import { Category, Topic } from './ForumModels';
 import { forumPlainText, ForumPlainTextContext } from '../core/ForumPlainText';
-
-const RIVERSIDE_ORIGIN: string = 'https://river-side.cc';
+import { RIVERSIDE_URL_RESOLVER } from '../core/RiversideEnvironment';
 
 function onlineAvatarUrl(template: string): string {
-  const normalizedTemplate: string = template.trim().replace('{size}', '96');
-  if (normalizedTemplate.length === 0) {
-    return '';
-  }
-  if (normalizedTemplate.startsWith('https://') || normalizedTemplate.startsWith('http://')) {
-    return normalizedTemplate;
-  }
-  return `${RIVERSIDE_ORIGIN}${normalizedTemplate.startsWith('/') ? '' : '/'}${normalizedTemplate}`;
+  return RIVERSIDE_URL_RESOLVER.avatar(template, 96);
 }
 
 export class OnlineUser {

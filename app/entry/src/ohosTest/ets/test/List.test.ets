@@ -37,8 +37,10 @@ import notificationRepositoryTest from './NotificationRepository.test';
 import notificationCentreModelTest from './NotificationCentreModel.test';
 import presenceHeartbeatTest from './PresenceHeartbeat.test';
 import forumPlainTextTest from './ForumPlainText.test';
+import riversideEnvironmentTest from './RiversideEnvironment.test';
 
 export default function tests(): void {
+  riversideEnvironmentTest();
   forumPlainTextTest();
   composerEmojiModelsTest();
   composerMentionTest();

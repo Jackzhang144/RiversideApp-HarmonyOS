@@ -1,6 +1,5 @@
 import { forumPlainText, ForumPlainTextContext } from '../core/ForumPlainText';
-
-const RIVERSIDE_BASE_URL: string = 'https://river-side.cc';
+import { RIVERSIDE_URL_RESOLVER } from '../core/RiversideEnvironment';
 const VERIFIED_GROUP_NAMES: Array<string> = [
   'verified_uestcer',
   'scuer',
@@ -11,16 +10,7 @@ const VERIFIED_GROUP_NAMES: Array<string> = [
 const VERIFIED_GROUP_IDS: Array<number> = [41, 45, 46, 48, 49];
 
 export function absoluteProfileUrl(value: string): string {
-  const normalized: string = value.trim();
-  if (normalized.length === 0) {
-    return '';
-  }
-  if (normalized.startsWith('https://') || normalized.startsWith('http://')) {
-    return normalized;
-  }
-  return normalized.startsWith('/')
-    ? `${RIVERSIDE_BASE_URL}${normalized}`
-    : `${RIVERSIDE_BASE_URL}/${normalized}`;
+  return RIVERSIDE_URL_RESOLVER.absolute(value);
 }
 
 export class ProfileGroup {

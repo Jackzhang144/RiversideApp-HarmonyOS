@@ -1,7 +1,5 @@
 import { Category, ForumPost, PostReaction } from '../models/ForumModels';
-
-const REACTION_EMOJI_BASE_URL: string = 'https://river-side.cc/images/emoji/twitter';
-const RIVERSIDE_ORIGIN: string = 'https://river-side.cc';
+import { RIVERSIDE_URL_RESOLVER } from '../core/RiversideEnvironment';
 
 export class PostFlagOption {
   public readonly typeId: number;
@@ -47,10 +45,7 @@ export function normalizeTopicFloor(value: string, highestPostNumber: number): n
 }
 
 export function topicPostUrl(topicId: number, postNumber: number): string {
-  if (!Number.isInteger(topicId) || topicId <= 0 || !Number.isInteger(postNumber) || postNumber <= 0) {
-    return '';
-  }
-  return `${RIVERSIDE_ORIGIN}/t/${topicId}/${postNumber}`;
+  return RIVERSIDE_URL_RESOLVER.topicPost(topicId, postNumber);
 }
 
 export function topicPostListIndex(posts: Array<ForumPost>, postNumber: number): number {
@@ -149,7 +144,7 @@ export function reactionEmojiKey(value: string): string {
 }
 
 export function reactionEmojiUrl(reactionId: string): string {
-  return `${REACTION_EMOJI_BASE_URL}/${reactionEmojiKey(reactionId)}.png?v=15`;
+  return RIVERSIDE_URL_RESOLVER.reactionEmoji(reactionEmojiKey(reactionId));
 }
 
 export function reactionAccessibilityLabel(reactionId: string): string {

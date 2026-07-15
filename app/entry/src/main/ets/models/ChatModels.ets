@@ -1,7 +1,6 @@
 import { JsonObjectReader } from '../core/JsonObjectReader';
 import { forumPlainText, ForumPlainTextContext } from '../core/ForumPlainText';
-
-const RIVERSIDE_ORIGIN: string = 'https://river-side.cc';
+import { RIVERSIDE_URL_RESOLVER } from '../core/RiversideEnvironment';
 
 function nonNegativeInteger(value: number | null): number {
   return value !== null && Number.isInteger(value) && value > 0 ? value : 0;
@@ -32,28 +31,11 @@ export function chatPlainText(value: string): string {
 }
 
 export function absoluteChatUrl(value: string): string {
-  const normalized: string = value.trim();
-  if (normalized.startsWith('upload://')) {
-    const shortPath: string = normalized.substring('upload://'.length).replace(/\s/g, '');
-    return shortPath.length === 0 ? '' : `${RIVERSIDE_ORIGIN}/uploads/short-url/${shortPath}`;
-  }
-  if (normalized.startsWith('//')) {
-    return `https:${normalized}`;
-  }
-  if (normalized.startsWith('/')) {
-    return `${RIVERSIDE_ORIGIN}${normalized}`;
-  }
-  return normalized;
+  return RIVERSIDE_URL_RESOLVER.chat(value);
 }
 
 export function chatMessagePermalink(channelId: number, channelSlug: string, messageId: number): string {
-  if (!Number.isSafeInteger(channelId) || channelId <= 0 ||
-    !Number.isSafeInteger(messageId) || messageId <= 0) {
-    return '';
-  }
-  const normalizedSlug: string = channelSlug.trim();
-  const routeSlug: string = normalizedSlug.length > 0 ? normalizedSlug : channelId.toString();
-  return `${RIVERSIDE_ORIGIN}/chat/c/${routeSlug}/${channelId}/${messageId}`;
+  return RIVERSIDE_URL_RESOLVER.chatMessage(channelId, channelSlug, messageId);
 }
 
 export class ChatChannel {
@@ -226,7 +208,7 @@ export class ChatEmoji {
   public imageUrl(): string {
     return this.url.length > 0
       ? this.url
-      : `${RIVERSIDE_ORIGIN}/images/emoji/twitter/${this.name}.png?v=15`;
+      : RIVERSIDE_URL_RESOLVER.reactionEmoji(this.name);
   }
 }
 

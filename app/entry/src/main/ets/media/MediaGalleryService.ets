@@ -3,6 +3,7 @@ import { fileIo } from '@kit.CoreFileKit';
 import { photoAccessHelper } from '@kit.MediaLibraryKit';
 import { http } from '@kit.NetworkKit';
 import { RepositoryResult } from '../core/RepositoryResult';
+import { RIVERSIDE_ORIGIN } from '../core/RiversideEnvironment';
 import { CachedMedia } from '../models/MediaModels';
 import { isSameHttpsOrigin } from '../models/ImageViewerModels';
 import {
@@ -12,7 +13,6 @@ import {
 } from '../network/DiscourseHttpClient';
 
 const MAX_IMAGE_BYTES: number = 30 * 1024 * 1024;
-const DEFAULT_TRUSTED_BASE_URL: string = 'https://river-side.cc';
 
 class DetectedImageType {
   public readonly extension: string;
@@ -61,7 +61,7 @@ export class MediaGalleryService {
   public constructor(
     context: common.UIAbilityContext,
     sessionProvider: AuthenticatedSessionProvider | null = null,
-    trustedBaseUrl: string = DEFAULT_TRUSTED_BASE_URL
+    trustedBaseUrl: string = RIVERSIDE_ORIGIN
   ) {
     this.context = context;
     this.headersFactory = new DiscourseRequestHeadersFactory(sessionProvider);

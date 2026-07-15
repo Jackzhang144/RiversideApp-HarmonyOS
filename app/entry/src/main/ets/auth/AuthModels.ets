@@ -1,8 +1,8 @@
 import { uri } from '@kit.ArkTS';
 import { JsonObjectReader } from '../core/JsonObjectReader';
 import { RepositoryResult } from '../core/RepositoryResult';
+import { RIVERSIDE_AUTHORIZATION_ENDPOINT } from '../core/RiversideEnvironment';
 
-const AUTHORIZATION_ENDPOINT: string = 'https://river-side.cc/user-api-key/new';
 const AUTH_REDIRECT: string = 'riverside://auth_redirect';
 const AUTH_SCOPES: string = 'read,write,session_info';
 const APPLICATION_NAME: string = 'RiverSide Mobile';
@@ -54,7 +54,7 @@ export class AuthorizationRequest {
       return null;
     }
 
-    let authorizationUri: uri.URI = new uri.URI(AUTHORIZATION_ENDPOINT);
+    let authorizationUri: uri.URI = new uri.URI(RIVERSIDE_AUTHORIZATION_ENDPOINT);
     authorizationUri = authorizationUri.addQueryValue('public_key', normalizedPem);
     authorizationUri = authorizationUri.addQueryValue('nonce', normalizedNonce);
     authorizationUri = authorizationUri.addQueryValue('scopes', AUTH_SCOPES);

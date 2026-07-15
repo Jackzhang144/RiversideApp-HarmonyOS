@@ -1,4 +1,5 @@
 import { forumPostPlainText } from '../core/ForumPlainText';
+import { RIVERSIDE_URL_RESOLVER } from '../core/RiversideEnvironment';
 
 export class Topic {
   public readonly id: number;
@@ -112,14 +113,7 @@ export class PostFlagRequest {
 }
 
 function absoluteForumAvatarUrl(value: string): string {
-  const normalized: string = value.trim().replace('{size}', '64');
-  if (normalized.length === 0 || normalized.startsWith('https://')) {
-    return normalized;
-  }
-  if (normalized.startsWith('/')) {
-    return `https://river-side.cc${normalized}`;
-  }
-  return '';
+  return RIVERSIDE_URL_RESOLVER.avatar(value, 64, false, true);
 }
 
 export class PostReactionUser {

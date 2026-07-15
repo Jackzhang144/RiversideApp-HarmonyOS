@@ -1,13 +1,22 @@
-const RIVERSIDE_ORIGIN: string = 'https://river-side.cc';
+import {
+  RIVERSIDE_FOOD_HOST,
+  RIVERSIDE_HOST,
+  RIVERSIDE_MAP_HOST,
+  RIVERSIDE_ORIGIN,
+  RIVERSIDE_REVIEW_HOST,
+  RIVERSIDE_RSDATE_HOST,
+  RIVERSIDE_URL_RESOLVER,
+  RIVERSIDE_WHISPER_HOST
+} from '../core/RiversideEnvironment';
 
 export const BILIBILI_URL_TRUST_LIST: string = '{"UrlPermissionList":[' +
-  '{"scheme":"https","host":"river-side.cc"},' +
+  `{"scheme":"https","host":"${RIVERSIDE_HOST}"},` +
   '{"scheme":"https","host":"player.bilibili.com"},' +
   '{"scheme":"https","host":"www.bilibili.com","path":"blackboard/webplayer"}' +
   ']}';
 
 export const YOUTUBE_URL_TRUST_LIST: string = '{"UrlPermissionList":[' +
-  '{"scheme":"https","host":"river-side.cc"},' +
+  `{"scheme":"https","host":"${RIVERSIDE_HOST}"},` +
   '{"scheme":"https","host":"www.youtube.com","path":"embed"},' +
   '{"scheme":"https","host":"www.youtube-nocookie.com","path":"embed"}' +
   ']}';
@@ -216,17 +225,7 @@ function stripHtml(text: string): string {
 }
 
 function absoluteUrl(raw: string): string {
-  const value: string = decodeEntities(raw.trim());
-  if (value.startsWith('//')) {
-    return `https:${value}`;
-  }
-  if (value.startsWith('/')) {
-    return `${RIVERSIDE_ORIGIN}${value}`;
-  }
-  if (/^https:\/\//i.test(value)) {
-    return `https://${value.slice(8)}`;
-  }
-  return value;
+  return RIVERSIDE_URL_RESOLVER.richContent(decodeEntities(raw.trim()));
 }
 
 function urlHost(url: string): string {
@@ -700,7 +699,7 @@ export function classifyRichNavigation(rawUrl: string): RichNavigationTarget {
   if (!/^https:\/\//i.test(url)) {
     return RichNavigationTarget.blocked(url);
   }
-  if (urlHost(url) !== 'river-side.cc') {
+  if (urlHost(url) !== RIVERSIDE_HOST) {
     return RichNavigationTarget.external(url);
   }
   const path: string = urlPath(url);
@@ -734,7 +733,7 @@ export function isAllowedEmbedNavigation(provider: RichEmbedProvider, rawUrl: st
   }
   const host: string = urlHost(url);
   const path: string = urlPath(url);
-  if (host === 'river-side.cc') {
+  if (host === RIVERSIDE_HOST) {
     return true;
   }
   if (provider === RichEmbedProvider.BILIBILI) {
@@ -745,19 +744,19 @@ export function isAllowedEmbedNavigation(provider: RichEmbedProvider, rawUrl: st
     return (host === 'www.youtube.com' || host === 'www.youtube-nocookie.com') && path.startsWith('/embed/');
   }
   if (provider === RichEmbedProvider.WHISPER) {
-    return host === 'whisper.river-side.cc';
+    return host === RIVERSIDE_WHISPER_HOST;
   }
   if (provider === RichEmbedProvider.REVIEW) {
-    return host === 'review.river-side.cc';
+    return host === RIVERSIDE_REVIEW_HOST;
   }
   if (provider === RichEmbedProvider.MAP) {
-    return host === 'map.river-side.cc';
+    return host === RIVERSIDE_MAP_HOST;
   }
   if (provider === RichEmbedProvider.FOOD) {
-    return host === 'food.river-side.cc';
+    return host === RIVERSIDE_FOOD_HOST;
   }
   if (provider === RichEmbedProvider.RSDATE) {
-    return host === 'rsdate.river-side.cc';
+    return host === RIVERSIDE_RSDATE_HOST;
   }
   return false;
 }
@@ -769,20 +768,20 @@ export function embedTrustList(provider: RichEmbedProvider): string {
   if (provider === RichEmbedProvider.YOUTUBE) {
     return YOUTUBE_URL_TRUST_LIST;
   }
-  let host: string = 'river-side.cc';
+  let host: string = RIVERSIDE_HOST;
   if (provider === RichEmbedProvider.WHISPER) {
-    host = 'whisper.river-side.cc';
+    host = RIVERSIDE_WHISPER_HOST;
   } else if (provider === RichEmbedProvider.REVIEW) {
-    host = 'review.river-side.cc';
+    host = RIVERSIDE_REVIEW_HOST;
   } else if (provider === RichEmbedProvider.MAP) {
-    host = 'map.river-side.cc';
+    host = RIVERSIDE_MAP_HOST;
   } else if (provider === RichEmbedProvider.FOOD) {
-    host = 'food.river-side.cc';
+    host = RIVERSIDE_FOOD_HOST;
   } else if (provider === RichEmbedProvider.RSDATE) {
-    host = 'rsdate.river-side.cc';
+    host = RIVERSIDE_RSDATE_HOST;
   }
   return '{"UrlPermissionList":[' +
-    '{"scheme":"https","host":"river-side.cc"},' +
+    `{"scheme":"https","host":"${RIVERSIDE_HOST}"},` +
     `{"scheme":"https","host":"${host}"}` +
     ']}';
 }

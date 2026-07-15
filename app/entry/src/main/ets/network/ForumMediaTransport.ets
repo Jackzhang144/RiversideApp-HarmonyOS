@@ -1,6 +1,7 @@
 import { util } from '@kit.ArkTS';
 import { fileIo } from '@kit.CoreFileKit';
 import { http } from '@kit.NetworkKit';
+import { RIVERSIDE_ORIGIN } from '../core/RiversideEnvironment';
 import {
   CachedMedia,
   isUploadImageSizeSupported,
@@ -14,7 +15,6 @@ import {
   HttpTextResult
 } from './DiscourseHttpClient';
 
-const DEFAULT_BASE_URL: string = 'https://river-side.cc';
 const CONNECT_TIMEOUT_MS: number = 8000;
 const READ_TIMEOUT_MS: number = 30000;
 
@@ -177,7 +177,7 @@ export class DiscourseMediaTransport implements ForumMediaTransport {
   private readonly headersFactory: DiscourseRequestHeadersFactory;
 
   public constructor(
-    baseUrl: string = DEFAULT_BASE_URL,
+    baseUrl: string = RIVERSIDE_ORIGIN,
     sessionProvider: AuthenticatedSessionProvider | null = null
   ) {
     this.baseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;

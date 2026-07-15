@@ -2,8 +2,7 @@ import { JSON as ArkJSON } from '@kit.ArkTS';
 import { JsonObjectReader } from '../core/JsonObjectReader';
 import { forumPlainText, ForumPlainTextContext } from '../core/ForumPlainText';
 import { Topic } from './ForumModels';
-
-const RIVERSIDE_BASE_URL: string = 'https://river-side.cc';
+import { RIVERSIDE_URL_RESOLVER } from '../core/RiversideEnvironment';
 
 export enum NotificationBucket {
   PRIVATE_MESSAGES = 'private-messages',
@@ -50,12 +49,7 @@ function positiveInteger(value: number | undefined): number {
 }
 
 function absoluteNotificationUrl(value: string): string {
-  const normalized: string = value.trim().replace('{size}', '96');
-  if (normalized.length === 0) return '';
-  if (normalized.startsWith('https://') || normalized.startsWith('http://')) return normalized;
-  return normalized.startsWith('/')
-    ? `${RIVERSIDE_BASE_URL}${normalized}`
-    : `${RIVERSIDE_BASE_URL}/${normalized}`;
+  return RIVERSIDE_URL_RESOLVER.avatar(value, 96);
 }
 
 export class NotificationItem {

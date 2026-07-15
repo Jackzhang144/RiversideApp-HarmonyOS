@@ -59,6 +59,7 @@ import { CategoryCacheScope } from '../cache/CategoryCache';
 import { PreferencesCategoryCache } from '../cache/PreferencesCategoryCache';
 import { AbilityContextRegistry } from '../core/AbilityContextRegistry';
 import { RepositoryResult } from '../core/RepositoryResult';
+import { RIVERSIDE_ABOUT_URL, RIVERSIDE_ORIGIN } from '../core/RiversideEnvironment';
 import { AccountPage } from '../components/AccountPage';
 import { AppSettingsPage } from '../components/AppSettingsPage';
 import { AboutPage, AppVersionInfo } from '../components/AboutPage';
@@ -162,7 +163,6 @@ const RICH_EMBED_ROUTE: string = 'rich-embed';
 const IMAGE_VIEWER_ROUTE: string = 'image-viewer';
 const UI_PROTOTYPE_ROUTE: string = 'ui-prototype';
 const CHAT_CONVERSATION_ROUTE: string = 'chat-conversation';
-const RIVERSIDE_BASE_URL: string = 'https://river-side.cc';
 const ROOT_TAB_SELECTED_COLOR: ResourceColor = $r('app.color.brand_primary');
 
 class RepositorySessionProvider implements AuthenticatedSessionProvider {
@@ -319,7 +319,7 @@ struct Index {
       }
     );
     this.authenticationLifecycle = authenticationLifecycle;
-    const httpClient: DiscourseHttpClient = new DiscourseHttpClient(RIVERSIDE_BASE_URL, sessionProvider);
+    const httpClient: DiscourseHttpClient = new DiscourseHttpClient(RIVERSIDE_ORIGIN, sessionProvider);
     const forumRepository: DiscourseForumRepository = new DiscourseForumRepository(httpClient);
     this.forumRepository = forumRepository;
     this.presenceHeartbeat = new PresenceHeartbeat(
@@ -330,7 +330,7 @@ struct Index {
       authenticationLifecycle
     );
     const mediaRepository: DiscourseMediaRepository = new DiscourseMediaRepository(
-      new DiscourseMediaTransport(RIVERSIDE_BASE_URL, sessionProvider)
+      new DiscourseMediaTransport(RIVERSIDE_ORIGIN, sessionProvider)
     );
     this.chatModel = new ChatModel(forumRepository, mediaRepository, authenticationLifecycle);
     this.chatPollingController = new ChatConversationPollingController(
@@ -1334,7 +1334,7 @@ struct Index {
   }
 
   private async openImageViewer(url: string, title: string): Promise<void> {
-    const normalizedUrl: string = normalizeRemoteImageUrl(url, RIVERSIDE_BASE_URL);
+    const normalizedUrl: string = normalizeRemoteImageUrl(url, RIVERSIDE_ORIGIN);
     if (normalizedUrl.length === 0) {
       this.showAuthenticationMessage('无法查看图片', '图片地址无效');
       return;
@@ -2403,7 +2403,7 @@ struct Index {
         AboutPage({
           version: this.appVersion,
           onOpenWebsite: (): void => {
-            this.openRichEmbed('https://river-side.cc/about', RichEmbedProvider.NONE, '关于 RiverSide');
+            this.openRichEmbed(RIVERSIDE_ABOUT_URL, RichEmbedProvider.NONE, '关于 RiverSide');
           }
         })
       }

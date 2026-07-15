@@ -1,4 +1,16 @@
 import { RichEmbedProvider } from '../models/RichContentModels';
+import {
+  RIVERSIDE_FOOD_ENTRY_URL,
+  RIVERSIDE_FOOD_HOME_URL,
+  RIVERSIDE_MAP_ENTRY_URL,
+  RIVERSIDE_MAP_HOME_URL,
+  RIVERSIDE_REVIEW_ENTRY_URL,
+  RIVERSIDE_REVIEW_HOME_URL,
+  RIVERSIDE_RSDATE_ENTRY_URL,
+  RIVERSIDE_RSDATE_HOME_URL,
+  RIVERSIDE_WHISPER_ENTRY_URL,
+  RIVERSIDE_WHISPER_HOME_URL
+} from '../core/RiversideEnvironment';
 
 export class FeatureSitePresentation {
   public readonly title: string;
@@ -18,32 +30,32 @@ export function featureSitePresentations(): Array<FeatureSitePresentation> {
   return [
     new FeatureSitePresentation(
       '树洞',
-      'https://whisper.river-side.cc/',
-      'https://whisper.river-side.cc/auth/start?mode=interactive',
+      RIVERSIDE_WHISPER_HOME_URL,
+      RIVERSIDE_WHISPER_ENTRY_URL,
       RichEmbedProvider.WHISPER
     ),
     new FeatureSitePresentation(
       '选课指南',
-      'https://review.river-side.cc/',
-      'https://review.river-side.cc/auth/start?mode=interactive',
+      RIVERSIDE_REVIEW_HOME_URL,
+      RIVERSIDE_REVIEW_ENTRY_URL,
       RichEmbedProvider.REVIEW
     ),
     new FeatureSitePresentation(
       '校友地图',
-      'https://map.river-side.cc/',
-      'https://map.river-side.cc/auth/start?mode=interactive',
+      RIVERSIDE_MAP_HOME_URL,
+      RIVERSIDE_MAP_ENTRY_URL,
       RichEmbedProvider.MAP
     ),
     new FeatureSitePresentation(
       '觅电',
-      'https://food.river-side.cc/',
-      'https://food.river-side.cc/auth/discourse',
+      RIVERSIDE_FOOD_HOME_URL,
+      RIVERSIDE_FOOD_ENTRY_URL,
       RichEmbedProvider.FOOD
     ),
     new FeatureSitePresentation(
       'RS date',
-      'https://rsdate.river-side.cc/',
-      'https://rsdate.river-side.cc/auth/start?mode=interactive',
+      RIVERSIDE_RSDATE_HOME_URL,
+      RIVERSIDE_RSDATE_ENTRY_URL,
       RichEmbedProvider.RSDATE
     )
   ];

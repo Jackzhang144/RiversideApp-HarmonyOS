@@ -1,8 +1,8 @@
 import { http } from '@kit.NetworkKit';
 import { AuthenticatedSession } from '../auth/AuthModels';
+import { RIVERSIDE_ORIGIN } from '../core/RiversideEnvironment';
 import { ReplyRequest } from '../models/ReplyModels';
 
-const DEFAULT_BASE_URL: string = 'https://river-side.cc';
 const USER_AGENT: string = 'RiversideApp/0.1';
 const CONNECT_TIMEOUT_MS: number = 8000;
 const READ_TIMEOUT_MS: number = 10000;
@@ -176,7 +176,7 @@ export class DiscourseHttpClient implements ForumHttpClient {
   private readonly headersFactory: DiscourseRequestHeadersFactory;
 
   public constructor(
-    baseUrl: string = DEFAULT_BASE_URL,
+    baseUrl: string = RIVERSIDE_ORIGIN,
     sessionProvider: AuthenticatedSessionProvider | null = null
   ) {
     this.baseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
