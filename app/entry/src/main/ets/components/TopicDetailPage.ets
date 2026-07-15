@@ -24,6 +24,7 @@ import {
 } from '../models/ForumModels';
 import { RichEmbedProvider } from '../models/RichContentModels';
 import { MediaUploadState } from '../models/MediaModels';
+import { ChatEmoji } from '../models/ChatModels';
 import {
   categoryLabel,
   displayedReactions,
@@ -47,6 +48,8 @@ export struct TopicDetailPage {
   @Prop replyState: ReplyComposerState = ReplyComposerState.closed();
   @Prop mediaState: MediaUploadState | null = null;
   @Prop categories: Array<Category> = [];
+  @Prop emojis: Array<ChatEmoji> = [];
+  @Prop emojiLoading: boolean = false;
   @Link replySheetVisible: boolean;
   onRetry: () => void = (): void => {};
   onRefresh: () => void = (): void => {};
@@ -92,6 +95,7 @@ export struct TopicDetailPage {
   onCancelMedia: () => void = (): void => {};
   onRetryMedia: () => void = (): void => {};
   onRemoveMedia: () => void = (): void => {};
+  onLoadEmojis: () => void = (): void => {};
   private readProgressTimer: number = -1;
   private pendingReadPostNumber: number = 0;
   private readonly readingScroller: Scroller = new Scroller();
@@ -820,6 +824,8 @@ export struct TopicDetailPage {
   private ReplyComposerSheet(): void {
     ForumComposer({
       presentation: this.composerPresentation(),
+      emojis: this.emojis,
+      emojiLoading: this.emojiLoading,
       onTitleChange: (_title: string): void => {},
       onBodyChange: (body: string): void => this.onReplyDraftChange(body),
       onSubmit: (): void => this.onSubmitReply(),
@@ -829,7 +835,8 @@ export struct TopicDetailPage {
       onSelectMedia: (): void => this.onSelectMedia(),
       onCancelMedia: (): void => this.onCancelMedia(),
       onRetryMedia: (): void => this.onRetryMedia(),
-      onRemoveMedia: (): void => this.onRemoveMedia()
+      onRemoveMedia: (): void => this.onRemoveMedia(),
+      onLoadEmojis: (): void => this.onLoadEmojis()
     })
   }
 

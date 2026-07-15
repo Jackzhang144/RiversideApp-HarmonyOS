@@ -223,6 +223,7 @@ struct Index {
   @State chatComposerState: ChatComposerState = new ChatComposerState();
   @State chatSearchState: ChatSearchState = new ChatSearchState();
   @State chatEmojis: Array<ChatEmoji> = [];
+  @State composerEmojiLoading: boolean = false;
   @State chatUploadState: MediaUploadState | null = null;
   @State notificationState: NotificationCentreState = new NotificationCentreState();
   @State profileUsername: string = '';
@@ -712,6 +713,21 @@ struct Index {
     this.chatSearchState = model.searchState;
     this.chatEmojis = model.emojis;
     this.synchronizeChatPolling();
+  }
+
+  private async loadComposerEmojis(): Promise<void> {
+    const model: ChatModel | null = this.chatModel;
+    if (model === null || this.composerEmojiLoading) {
+      return;
+    }
+    if (model.emojis.length > 0) {
+      this.chatEmojis = model.emojis;
+      return;
+    }
+    this.composerEmojiLoading = true;
+    await model.loadEmojis();
+    this.synchronizeChatState();
+    this.composerEmojiLoading = false;
   }
 
   private synchronizeChatPolling(): void {
@@ -2359,6 +2375,8 @@ struct Index {
           replyState: this.replyState,
           mediaState: this.composerMediaState,
           categories: this.categoryState.items,
+          emojis: this.chatEmojis,
+          emojiLoading: this.composerEmojiLoading,
           replySheetVisible: this.replySheetVisible,
           onRetry: (): void => {
             this.retryTopic();
@@ -2452,6 +2470,9 @@ struct Index {
           },
           onRemoveMedia: (): void => {
             this.removeComposerImageState();
+          },
+          onLoadEmojis: (): void => {
+            this.loadComposerEmojis();
           }
         })
       }
@@ -2671,6 +2692,8 @@ struct Index {
           presentation: this.topicComposerPresentation(),
           categories: this.categoryState.items,
           selectedCategoryId: this.topicComposerState.categoryId,
+          emojis: this.chatEmojis,
+          emojiLoading: this.composerEmojiLoading,
           onTitleChange: (title: string): void => {
             this.updateTopicTitle(title);
           },
@@ -2703,6 +2726,9 @@ struct Index {
           },
           onRemoveMedia: (): void => {
             this.removeComposerImageState();
+          },
+          onLoadEmojis: (): void => {
+            this.loadComposerEmojis();
           }
         })
       }

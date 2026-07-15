@@ -6,9 +6,10 @@ import {
 import {
   applyComposerTool,
   ComposerEdit,
-  ComposerTool,
-  insertComposerText
+  ComposerTool
 } from '../models/AuthoringModels';
+import { filterComposerEmojis, insertComposerEmoji } from '../models/ComposerEmojiModels';
+import { ChatEmoji } from '../models/ChatModels';
 import { Category } from '../models/ForumModels';
 
 @Component
@@ -23,6 +24,10 @@ export struct ForumComposer {
   );
   @Prop categories: Array<Category> = [];
   @Prop selectedCategoryId: number | null = null;
+  @Prop emojis: Array<ChatEmoji> = [];
+  @Prop emojiLoading: boolean = false;
+  @State emojiPickerVisible: boolean = false;
+  @State emojiQuery: string = '';
   onTitleChange: (title: string) => void = (_title: string): void => {};
   onCategoryChange: (categoryId: number) => void = (_categoryId: number): void => {};
   onBodyChange: (body: string) => void = (_body: string): void => {};
@@ -34,6 +39,7 @@ export struct ForumComposer {
   onCancelMedia: () => void = (): void => {};
   onRetryMedia: () => void = (): void => {};
   onRemoveMedia: () => void = (): void => {};
+  onLoadEmojis: () => void = (): void => {};
   private readonly bodyController: TextAreaController = new TextAreaController();
   private selectionStart: number = 0;
   private selectionEnd: number = 0;
@@ -102,13 +108,29 @@ export struct ForumComposer {
     this.applyEdit(edit);
   }
 
-  private insertText(text: string): void {
-    this.applyEdit(insertComposerText(
+  private insertEmoji(name: string): void {
+    const edit: ComposerEdit | null = insertComposerEmoji(
       this.presentation.bodyDraft,
       this.selectionStart,
       this.selectionEnd,
-      text
-    ));
+      name
+    );
+    if (edit === null) {
+      return;
+    }
+    this.applyEdit(edit);
+    this.emojiPickerVisible = false;
+  }
+
+  private visibleEmojis(): Array<ChatEmoji> {
+    return filterComposerEmojis(this.emojis, this.emojiQuery);
+  }
+
+  private toggleEmojiPicker(): void {
+    this.emojiPickerVisible = !this.emojiPickerVisible;
+    if (this.emojiPickerVisible) {
+      this.onLoadEmojis();
+    }
   }
 
   private applyEdit(edit: ComposerEdit): void {
@@ -135,13 +157,93 @@ export struct ForumComposer {
 
   @Builder
   private EmojiPicker(): void {
-    Menu() {
-      ForEach(['😀', '😂', '😍', '👍', '🎉', '❤️', '🤔', '🙏'], (emoji: string) => {
-        MenuItem({ content: emoji })
-          .enabled(this.presentation.canEdit())
-          .onClick((): void => this.insertText(emoji))
-      }, (emoji: string): string => emoji)
+    Column({ space: 10 }) {
+      Row({ space: 8 }) {
+        Text('Emoji')
+          .fontSize(15)
+          .fontWeight(FontWeight.Medium)
+          .layoutWeight(1)
+        Button('关闭', { type: ButtonType.Normal })
+          .height(30)
+          .fontSize(11)
+          .backgroundColor('#F5F6F8')
+          .fontColor($r('sys.color.font_secondary'))
+          .onClick((): void => {
+            this.emojiPickerVisible = false;
+          })
+      }
+      .width('100%')
+      TextInput({ text: this.emojiQuery, placeholder: '按名称搜索 Emoji' })
+        .width('100%')
+        .height(38)
+        .fontSize(12)
+        .enabled(this.presentation.canEdit())
+        .backgroundColor('#FFFFFF')
+        .onChange((value: string): void => {
+          this.emojiQuery = value;
+        })
+        .accessibilityText('搜索 Emoji 名称')
+      if (this.emojiLoading && this.emojis.length === 0) {
+        Row({ space: 8 }) {
+          LoadingProgress().width(24).height(24)
+          Text('正在读取 Emoji 列表')
+            .fontSize(12)
+            .fontColor($r('sys.color.font_secondary'))
+        }
+        .height(92)
+        .justifyContent(FlexAlign.Center)
+      } else if (this.visibleEmojis().length === 0) {
+        Column({ space: 8 }) {
+          Text(this.emojis.length === 0 ? '未读取到 Emoji' : '没有匹配的 Emoji')
+            .fontSize(12)
+            .fontColor($r('sys.color.font_secondary'))
+          if (this.emojis.length === 0) {
+            Button('重试')
+              .height(32)
+              .fontSize(11)
+              .onClick(this.onLoadEmojis)
+          }
+        }
+        .height(92)
+        .justifyContent(FlexAlign.Center)
+      } else {
+        Grid() {
+          ForEach(this.visibleEmojis(), (emoji: ChatEmoji) => {
+            GridItem() {
+              Button() {
+                Column({ space: 3 }) {
+                  Image(emoji.imageUrl())
+                    .width(28)
+                    .height(28)
+                    .objectFit(ImageFit.Contain)
+                  Text(emoji.name)
+                    .fontSize(8)
+                    .fontColor($r('sys.color.font_tertiary'))
+                    .maxLines(1)
+                    .textOverflow({ overflow: TextOverflow.Ellipsis })
+                }
+              }
+              .width('100%')
+              .height(54)
+              .backgroundColor('#FFFFFF')
+              .enabled(this.presentation.canEdit())
+              .onClick((): void => this.insertEmoji(emoji.name))
+              .accessibilityText(`插入 Emoji ${emoji.name}`)
+            }
+          }, (emoji: ChatEmoji): string => emoji.name)
+        }
+        .columnsTemplate('1fr 1fr 1fr 1fr 1fr')
+        .columnsGap(7)
+        .rowsGap(7)
+        .height(230)
+        .width('100%')
+        .edgeEffect(EdgeEffect.Spring)
+      }
     }
+    .width('100%')
+    .padding(12)
+    .backgroundColor('#F5F7FA')
+    .borderRadius(12)
   }
 
   @Builder
@@ -173,12 +275,8 @@ export struct ForumComposer {
         .enabled(this.presentation.canEdit())
         .backgroundColor('#EAF2FF')
         .margin({ right: 7, bottom: 7 })
-        .onClick((): void => this.insertText('😀'))
-        .bindContextMenu(this.EmojiPicker(), ResponseType.LongPress, {
-          preview: MenuPreviewMode.NONE,
-          enableArrow: true
-        })
-        .accessibilityText('插入 Emoji，长按选择其他 Emoji')
+        .onClick((): void => this.toggleEmojiPicker())
+        .accessibilityText('打开 Emoji 选择器')
       Button() {
         SymbolGlyph($r('sys.symbol.ohos_photo'))
           .fontSize(18)
@@ -367,6 +465,9 @@ export struct ForumComposer {
           .fontColor($r('sys.color.font_tertiary'))
           .width('100%')
         this.ComposerTools()
+        if (this.emojiPickerVisible) {
+          this.EmojiPicker()
+        }
         this.MediaStatus()
         this.StatusMessage()
         this.DraftActions()
