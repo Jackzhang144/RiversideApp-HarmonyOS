@@ -4,10 +4,12 @@ import {
   ChatChannel,
   ChatMessage,
   ChatMessagePage,
-  chatMessagePermalink,
+  chatMessagePermalink
+} from '../../../main/ets/models/ChatModels';
+import {
   parseChatChannels,
   parseChatMessagePage
-} from '../../../main/ets/models/ChatModels';
+} from '../../../main/ets/repositories/ChatResponseParser';
 
 export default function chatModelsTest(): void {
   describe('Chat server data models', () => {

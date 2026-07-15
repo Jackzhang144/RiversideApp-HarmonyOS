@@ -7,14 +7,16 @@ import {
   ChatReactionAction,
   ChatSearchResult,
   ChatSendConfirmation,
-  ChatSendRequest,
+  ChatSendRequest
+} from '../models/ChatModels';
+import {
   parseChatChannelResponse,
   parseChatChannels,
   parseChatEmojis,
   parseChatMessagePage,
   parseChatSearchResults,
   parseChatSendConfirmation
-} from '../models/ChatModels';
+} from './ChatResponseParser';
 import { ForumHttpClient, HttpTextResult, HttpTextResultKind } from '../network/DiscourseHttpClient';
 import { ChatRepository } from './ChatRepository';
 
