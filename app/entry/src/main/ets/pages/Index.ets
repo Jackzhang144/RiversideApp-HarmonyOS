@@ -3066,8 +3066,9 @@ struct Index {
             newTopicAvailable: this.canCreateAuthoringTopic(),
             onlineUsersState: this.onlineUsersState,
             onlineUserCount: this.onlineUserCount,
-            onOpenOnlineUsers: (): void => {
-              this.openOnlineUsers();
+            topSafeArea: this.topAvoidHeight(),
+            onOpenOnlineUser: (user: OnlineUser): void => {
+              this.openUserProfile(user.username);
             },
             onRetryOnlineUsers: (): void => {
               this.loadOnlineUsers();

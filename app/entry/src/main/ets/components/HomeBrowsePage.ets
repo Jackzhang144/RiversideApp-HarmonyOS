@@ -9,7 +9,6 @@ import {
   HomeHeaderActionPresentation,
   featureSitePresentations
 } from './HomePresentation';
-import { RichEmbedProvider } from '../models/RichNavigationPolicy';
 
 @Component
 export struct HomeBrowsePage {
@@ -20,6 +19,9 @@ export struct HomeBrowsePage {
   @Prop newTopicAvailable: boolean = true;
   @Prop onlineUsersState: BrowseState<OnlineUser> = BrowseState.initial<OnlineUser>();
   @Prop onlineUserCount: number = 0;
+  @Prop topSafeArea: number = 0;
+  @State private featureMenuVisible: boolean = false;
+  @State private onlineUsersSheetVisible: boolean = false;
   onRetry: () => void = (): void => {};
   onRefresh: () => void = (): void => {};
   onLoadMore: () => void = (): void => {};
@@ -28,185 +30,187 @@ export struct HomeBrowsePage {
   onOpenNewTopic: () => void = (): void => {};
   onSelectChannel: (index: number) => void = (_index: number): void => {};
   onWorldCupEntryChange: (enabled: boolean) => void = (_enabled: boolean): void => {};
-  onOpenOnlineUsers: () => void = (): void => {};
+  onOpenOnlineUser: (user: OnlineUser) => void = (_user: OnlineUser): void => {};
   onRetryOnlineUsers: () => void = (): void => {};
   onOpenFeatureSite: (site: FeatureSitePresentation) => void = (_site: FeatureSitePresentation): void => {};
 
-  private featureIcon(provider: RichEmbedProvider): Resource {
-    if (provider === RichEmbedProvider.WHISPER) {
-      return $r('sys.symbol.message');
-    }
-    if (provider === RichEmbedProvider.REVIEW) {
-      return $r('sys.symbol.book');
-    }
-    if (provider === RichEmbedProvider.MAP) {
-      return $r('sys.symbol.pin');
-    }
-    if (provider === RichEmbedProvider.FOOD) {
-      return $r('sys.symbol.fork_knife');
-    }
-    return $r('sys.symbol.heart');
-  }
-
   @Builder
-  private featureSites(): void {
-    Scroll() {
-      Row({ space: 9 }) {
-        ForEach(featureSitePresentations(), (site: FeatureSitePresentation) => {
-          Column({ space: 5 }) {
-            SymbolGlyph(this.featureIcon(site.provider))
-              .fontSize(22)
-              .fontColor([$r('app.color.brand_primary')])
-            Text(site.title)
-              .fontSize(11)
-              .fontWeight(FontWeight.Bold)
-              .fontColor($r('sys.color.font_primary'))
-              .maxLines(1)
-          }
-          .width(72)
-          .height(62)
-          .justifyContent(FlexAlign.Center)
-          .backgroundColor($r('sys.color.background_secondary'))
-          .borderRadius(10)
-          .border({ width: 1, color: $r('sys.color.comp_divider') })
-          .onClick((): void => this.onOpenFeatureSite(site))
-          .accessibilityText(`打开 ${site.title}`)
-        }, (site: FeatureSitePresentation): string => site.provider)
-      }
-      .padding({ left: 12, right: 12, top: 8, bottom: 8 })
-    }
-    .width('100%')
-    .height(78)
-    .scrollable(ScrollDirection.Horizontal)
-    .scrollBar(BarState.Off)
-    .edgeEffect(EdgeEffect.Spring)
-    .backgroundColor($r('sys.color.comp_background_primary'))
-  }
-
-  @Builder
-  private onlineAvatar(user: OnlineUser): void {
+  private onlineAvatar(user: OnlineUser, size: number): void {
     Stack() {
       Text(user.username.slice(0, 1).toUpperCase())
-        .width(28)
-        .height(28)
-        .fontSize(10)
+        .width(size)
+        .height(size)
+        .fontSize(13)
         .fontWeight(FontWeight.Bold)
         .fontColor($r('app.color.brand_primary'))
         .textAlign(TextAlign.Center)
         .backgroundColor($r('app.color.brand_tint_surface'))
-        .borderRadius(14)
+        .borderRadius(size / 2)
       if (user.avatarUrl.length > 0) {
         Image(user.avatarUrl)
-          .width(28)
-          .height(28)
-          .borderRadius(14)
+          .width(size)
+          .height(size)
+          .borderRadius(size / 2)
           .objectFit(ImageFit.Cover)
       }
     }
-    .width(28)
-    .height(28)
+    .width(size)
+    .height(size)
   }
 
   @Builder
-  private onlineUsersStrip(): void {
+  private OnlineUsersSheet(): void {
     if (this.onlineUsersState.kind === BrowseStateKind.LOADING) {
-      Row({ space: 8 }) {
-        LoadingProgress().width(18).height(18)
-        Text($r('app.string.home_online_loading')).fontSize(12).fontColor($r('sys.color.font_secondary'))
+      Column({ space: 10 }) {
+        LoadingProgress().width(36).height(36)
+        Text($r('app.string.home_online_loading')).fontSize(14).fontColor($r('sys.color.font_secondary'))
       }
       .width('100%')
-      .height(42)
-      .padding({ left: 16, right: 16 })
-      .backgroundColor($r('sys.color.comp_background_primary'))
-    } else if (this.onlineUsersState.kind === BrowseStateKind.CONTENT) {
-      Row({ space: 7 }) {
-        Text(`在线（${this.onlineUserCount}）`)
-          .fontSize(13)
-          .fontWeight(FontWeight.Bold)
-          .fontColor($r('sys.color.font_primary'))
-        ForEach(this.onlineUsersState.items.slice(0, 7), (user: OnlineUser) => {
-          this.onlineAvatar(user)
-        }, (user: OnlineUser): string => `${user.id}-${user.username}`)
-        if (this.onlineUserCount > 7) {
-          Text(`+${this.onlineUserCount - 7}`)
-            .width(28)
-            .height(28)
-            .fontSize(9)
-            .fontWeight(FontWeight.Bold)
-            .fontColor($r('sys.color.font_secondary'))
-            .textAlign(TextAlign.Center)
-            .backgroundColor($r('sys.color.background_secondary'))
-            .borderRadius(14)
-        }
-        Blank()
-        SymbolGlyph($r('sys.symbol.chevron_right'))
-          .fontSize(15)
-          .fontColor([$r('sys.color.font_tertiary')])
-      }
-      .width('100%')
-      .height(44)
-      .padding({ left: 16, right: 12 })
-      .backgroundColor($r('sys.color.comp_background_primary'))
-      .onClick(this.onOpenOnlineUsers)
-      .accessibilityText(`查看 ${this.onlineUserCount} 位在线用户`)
+      .height(220)
+      .justifyContent(FlexAlign.Center)
     } else if (this.onlineUsersState.kind === BrowseStateKind.ERROR) {
-      Row({ space: 8 }) {
-        Text($r('app.string.home_online_load_failed'))
-          .fontSize(12)
-          .fontColor($r('sys.color.font_secondary'))
-          .layoutWeight(1)
-        Button($r('app.string.common_retry')).height(30).fontSize(12).onClick(this.onRetryOnlineUsers)
+      Column({ space: 12 }) {
+        Text(this.onlineUsersState.message.length > 0
+          ? this.onlineUsersState.message : $r('app.string.home_online_load_failed'))
+          .fontSize(14)
+          .fontColor($r('app.color.status_error'))
+        Button($r('app.string.common_retry')).height(34).fontSize(13).onClick(this.onRetryOnlineUsers)
       }
       .width('100%')
-      .height(42)
-      .padding({ left: 16, right: 12 })
-      .backgroundColor($r('sys.color.comp_background_primary'))
+      .height(220)
+      .justifyContent(FlexAlign.Center)
+    } else if (this.onlineUsersState.items.length === 0) {
+      Text('当前没有可展示的在线用户')
+        .width('100%')
+        .height(220)
+        .fontSize(14)
+        .fontColor($r('sys.color.font_secondary'))
+        .textAlign(TextAlign.Center)
+    } else {
+      List({ space: 12 }) {
+        ForEach(this.onlineUsersState.items, (user: OnlineUser) => {
+          ListItem() {
+            Button() {
+              Row({ space: 12 }) {
+                this.onlineAvatar(user, 42)
+                Column({ space: 3 }) {
+                  Text(user.displayName).fontSize(15).fontWeight(FontWeight.Medium).maxLines(1)
+                  Text(`@${user.username}`).fontSize(12).fontColor($r('sys.color.font_secondary')).maxLines(1)
+                }
+                .alignItems(HorizontalAlign.Start)
+                .layoutWeight(1)
+                SymbolGlyph($r('sys.symbol.chevron_right'))
+                  .fontSize(15)
+                  .fontColor([$r('sys.color.font_tertiary')])
+              }
+              .width('100%')
+            }
+            .width('100%')
+            .height(58)
+            .backgroundColor(Color.Transparent)
+            .onClick((): void => {
+              this.onlineUsersSheetVisible = false;
+              this.onOpenOnlineUser(user);
+            })
+            .accessibilityText(`查看 ${user.username} 的资料`)
+          }
+        }, (user: OnlineUser): string => `${user.id}-${user.username}`)
+      }
+      .width('100%')
+      .height(320)
     }
   }
 
   @Builder
-  private headerAction(
+  private floatingAction(
     icon: Resource,
     action: HomeHeaderActionPresentation,
     onClick: () => void
   ): void {
     Button() {
       SymbolGlyph(icon)
-        .fontSize(21)
-        .fontColor([$r('sys.color.font_tertiary')])
+        .fontSize(19)
+        .fontColor([$r('sys.color.font_primary')])
         .hitTestBehavior(HitTestMode.None)
     }
-    .width(40)
-    .height(40)
-    .backgroundColor(Color.Transparent)
+    .width(38)
+    .height(38)
+    .backgroundColor($r('sys.color.comp_background_primary'))
+    .borderRadius(14)
+    .border({ width: 1, color: $r('sys.color.comp_divider') })
     .enabled(action.available)
     .onClick(onClick)
     .accessibilityText(action.accessibilityText)
   }
 
   @Builder
-  private header(): void {
-    Row({ space: 4 }) {
-      Text('Riverside')
-        .fontSize(20)
-        .fontWeight(FontWeight.Bold)
-        .layoutWeight(1)
-      this.headerAction(
+  private FeatureSiteMenu(): void {
+    Menu() {
+      ForEach(featureSitePresentations(), (site: FeatureSitePresentation) => {
+        MenuItem({ content: site.title })
+          .onClick((): void => {
+            this.featureMenuVisible = false;
+            this.onOpenFeatureSite(site);
+          })
+      }, (site: FeatureSitePresentation): string => site.provider)
+    }
+    .width(180)
+  }
+
+  @Builder
+  private Header(): void {
+    Row({ space: 8 }) {
+      Button() {
+        Image($r('app.media.riverside_harmony_foreground_v2'))
+          .width(28)
+          .height(28)
+          .objectFit(ImageFit.Contain)
+      }
+      .width(48)
+      .height(42)
+      .backgroundColor($r('sys.color.comp_background_primary'))
+      .borderRadius(14)
+      .border({ width: 1, color: $r('sys.color.comp_divider') })
+      .onClick((): void => {
+        this.featureMenuVisible = !this.featureMenuVisible;
+      })
+      .bindMenu(this.featureMenuVisible, this.FeatureSiteMenu, {
+        onWillDisappear: (): void => {
+          this.featureMenuVisible = false;
+        }
+      })
+      .accessibilityText('打开 Riverside 功能入口')
+      Blank()
+      this.floatingAction(
         $r('sys.symbol.magnifyingglass'),
         HomeHeaderActionPresentation.search(),
         this.onOpenSearch
       )
-      this.headerAction(
+      this.floatingAction(
         $r('sys.symbol.plus'),
         HomeHeaderActionPresentation.newTopic(this.newTopicAvailable),
         this.onOpenNewTopic
       )
+      Button() {
+        Text(this.onlineUserCount.toString())
+          .fontSize(14)
+          .fontWeight(FontWeight.Bold)
+          .fontColor($r('sys.color.font_primary'))
+      }
+        .width(46)
+        .height(38)
+        .backgroundColor($r('sys.color.comp_background_primary'))
+        .borderRadius(14)
+        .border({ width: 1, color: $r('sys.color.comp_divider') })
+        .onClick((): void => {
+          this.onlineUsersSheetVisible = true;
+        })
+        .accessibilityText(`查看 ${this.onlineUserCount} 位在线用户`)
     }
     .width('100%')
-    .height($r('app.float.page_header_height'))
-    .padding({ left: 16, right: 10 })
-    .backgroundColor($r('sys.color.comp_background_primary'))
-    .border({ width: { bottom: 1 }, color: $r('sys.color.comp_divider') })
+    .height(this.topSafeArea + 58)
+    .padding({ left: 16, right: 16, top: this.topSafeArea, bottom: 8 })
+    .backgroundColor(Color.Transparent)
   }
 
   private sortTabStyle(channel: HomeChannel): SubTabBarStyle {
@@ -390,9 +394,7 @@ export struct HomeBrowsePage {
 
   build() {
     Column() {
-      this.header()
-      this.featureSites()
-      this.onlineUsersStrip()
+      this.Header()
       HdsTabs({ index: this.selectedChannel }) {
         TabContent() {
           this.channelContent()
@@ -430,5 +432,12 @@ export struct HomeBrowsePage {
     .width('100%')
     .height('100%')
     .backgroundColor($r('sys.color.comp_background_primary'))
+    .bindSheet($$this.onlineUsersSheetVisible, this.OnlineUsersSheet(), {
+      detents: [SheetSize.MEDIUM, SheetSize.LARGE],
+      detentSelection: SheetSize.MEDIUM,
+      showClose: true,
+      dragBar: true,
+      title: { title: `在线用户（${this.onlineUserCount}）`, subtitle: '点击头像或用户名查看用户资料' }
+    })
   }
 }
