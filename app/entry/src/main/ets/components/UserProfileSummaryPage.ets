@@ -15,6 +15,8 @@ export struct UserProfileSummaryPage {
   onFollowingChange: (following: boolean) => void = (): void => {};
   onNotificationLevelChange: (level: ProfileNotificationLevel) => void = (): void => {};
   onOpenDirectChat: (username: string) => void = (_username: string): void => {};
+  onOpenTopics: (username: string) => void = (_username: string): void => {};
+  onOpenReplies: (username: string) => void = (_username: string): void => {};
 
   @Builder
   private LoadingState(): void {
@@ -185,6 +187,15 @@ export struct UserProfileSummaryPage {
           .borderRadius(14)
         }
         this.SummaryCard(this.state.summary)
+        Row({ space: 10 }) {
+          Button(this.ownProfile ? '我的 Topic' : 'TA 的 Topic', { type: ButtonType.Normal })
+            .layoutWeight(1)
+            .onClick((): void => this.onOpenTopics(profile.username))
+          Button(this.ownProfile ? '我的 Reply' : 'TA 的 Reply', { type: ButtonType.Normal })
+            .layoutWeight(1)
+            .onClick((): void => this.onOpenReplies(profile.username))
+        }
+        .width('100%')
         if (profile.groups.length > 0) {
           Column({ space: 8 }) {
             Text('群组').fontSize(16).fontWeight(FontWeight.Bold).width('100%')

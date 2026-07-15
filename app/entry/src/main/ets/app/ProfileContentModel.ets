@@ -12,6 +12,36 @@ export enum ProfileContentKind {
   BOOKMARKS = 'bookmarks'
 }
 
+export function profileContentKindsForProfile(ownProfile: boolean): Array<ProfileContentKind> {
+  if (ownProfile) {
+    return [
+      ProfileContentKind.TOPICS,
+      ProfileContentKind.REPLIES,
+      ProfileContentKind.DRAFTS,
+      ProfileContentKind.BOOKMARKS
+    ];
+  }
+  return [ProfileContentKind.TOPICS, ProfileContentKind.REPLIES];
+}
+
+export function profileContentDestinationTitle(
+  kind: ProfileContentKind,
+  ownProfile: boolean,
+  username: string
+): string {
+  const owner: string = ownProfile ? '我的' : `${username} 的`;
+  if (kind === ProfileContentKind.TOPICS) {
+    return `${owner} Topic`;
+  }
+  if (kind === ProfileContentKind.REPLIES) {
+    return `${owner} Reply`;
+  }
+  if (kind === ProfileContentKind.DRAFTS) {
+    return '我的草稿';
+  }
+  return '我的书签';
+}
+
 export class ProfileContentState {
   public readonly kind: ProfileContentKind;
   public readonly loading: boolean;

@@ -39,7 +39,12 @@ import {
   NotificationCentreState
 } from '../app/NotificationCentreModel';
 import { ProfileManagementModel, ProfileViewState } from '../app/ProfileManagementModel';
-import { ProfileContentKind, ProfileContentModel, ProfileContentState } from '../app/ProfileContentModel';
+import {
+  ProfileContentKind,
+  ProfileContentModel,
+  ProfileContentState,
+  profileContentDestinationTitle
+} from '../app/ProfileContentModel';
 import { AuthenticatedSession } from '../auth/AuthModels';
 import { AuthRepository, AuthState, AuthStateKind } from '../auth/AuthRepository';
 import { HuksAuthenticatedSessionStore } from '../auth/HuksAuthenticatedSessionStore';
@@ -205,6 +210,8 @@ struct Index {
   @State profileMediaState: MediaUploadState | null = null;
   @State profileIsOwn: boolean = false;
   @State profileContentState: ProfileContentState = new ProfileContentState();
+  @State profileContentUsername: string = '';
+  @State profileContentOwn: boolean = true;
   @State richEmbedUrl: string = '';
   @State richEmbedTitle: string = '';
   @State richEmbedProvider: RichEmbedProvider = RichEmbedProvider.NONE;
@@ -344,6 +351,8 @@ struct Index {
       this.synchronizeChatState();
       this.synchronizeNotificationState();
       this.profileContentState = new ProfileContentState();
+      this.profileContentUsername = '';
+      this.profileContentOwn = true;
     }
     this.categoryState = model.categoryState;
     if (reloadCategories) {
@@ -1654,17 +1663,23 @@ struct Index {
       return;
     }
     if (kind === AccountPlaceholderKind.MY_TOPICS) {
-      this.openProfileContent(ProfileContentKind.TOPICS);
+      this.openProfileContent(ProfileContentKind.TOPICS, profile.username, true);
     } else if (kind === AccountPlaceholderKind.MY_REPLIES) {
-      this.openProfileContent(ProfileContentKind.REPLIES);
+      this.openProfileContent(ProfileContentKind.REPLIES, profile.username, true);
     } else if (kind === AccountPlaceholderKind.MY_DRAFTS) {
-      this.openProfileContent(ProfileContentKind.DRAFTS);
+      this.openProfileContent(ProfileContentKind.DRAFTS, profile.username, true);
     } else if (kind === AccountPlaceholderKind.MY_BOOKMARKS) {
-      this.openProfileContent(ProfileContentKind.BOOKMARKS);
+      this.openProfileContent(ProfileContentKind.BOOKMARKS, profile.username, true);
     }
   }
 
-  private openProfileContent(kind: ProfileContentKind): void {
+  private openProfileContent(kind: ProfileContentKind, username: string, ownProfile: boolean): void {
+    const normalizedUsername: string = username.trim();
+    if (normalizedUsername.length === 0) {
+      return;
+    }
+    this.profileContentUsername = normalizedUsername;
+    this.profileContentOwn = ownProfile;
     this.profileContentState = new ProfileContentState(kind, true);
     this.pathStack.pushPath({ name: PROFILE_CONTENT_ROUTE });
     this.loadProfileContent();
@@ -1672,7 +1687,7 @@ struct Index {
 
   private async loadProfileContent(): Promise<void> {
     const model: ProfileContentModel | null = this.profileContentModel;
-    const username: string = this.accountProfileState.profile?.username ?? '';
+    const username: string = this.profileContentUsername;
     if (model === null || username.length === 0) {
       return;
     }
@@ -1681,7 +1696,7 @@ struct Index {
     await task;
     if (this.profileContentModel === model &&
       this.authState.kind === AuthStateKind.AUTHENTICATED &&
-      this.accountProfileState.profile?.username === username) {
+      this.profileContentUsername === username) {
       this.profileContentState = model.state;
     }
   }
@@ -1698,16 +1713,11 @@ struct Index {
   }
 
   private profileContentTitle(): string {
-    if (this.profileContentState.kind === ProfileContentKind.TOPICS) {
-      return '我的 Topic';
-    }
-    if (this.profileContentState.kind === ProfileContentKind.REPLIES) {
-      return '我的 Reply';
-    }
-    if (this.profileContentState.kind === ProfileContentKind.DRAFTS) {
-      return '我的草稿';
-    }
-    return '我的书签';
+    return profileContentDestinationTitle(
+      this.profileContentState.kind,
+      this.profileContentOwn,
+      this.profileContentUsername
+    );
   }
 
   private async changeProfileFollowing(following: boolean): Promise<void> {
@@ -2231,6 +2241,12 @@ struct Index {
           },
           onOpenDirectChat: (username: string): void => {
             this.openDirectChat(username);
+          },
+          onOpenTopics: (username: string): void => {
+            this.openProfileContent(ProfileContentKind.TOPICS, username, this.profileIsOwn);
+          },
+          onOpenReplies: (username: string): void => {
+            this.openProfileContent(ProfileContentKind.REPLIES, username, this.profileIsOwn);
           }
         })
       }

@@ -1,7 +1,9 @@
 import { describe, expect, it } from '@ohos/hypium';
 import {
   ProfileContentKind,
-  ProfileContentModel
+  ProfileContentModel,
+  profileContentDestinationTitle,
+  profileContentKindsForProfile
 } from '../../../main/ets/app/ProfileContentModel';
 import { ProfileSessionLifecycle } from '../../../main/ets/app/ProfileManagementModel';
 import { HttpTextResult } from '../../../main/ets/network/DiscourseHttpClient';
@@ -26,6 +28,18 @@ function topicListJson(id: number, title: string): string {
 
 export default function profileContentModelTest(): void {
   describe('Profile content pagination state', () => {
+    it('projects the content destinations available to own and other profiles', 0, (): void => {
+      expect(profileContentKindsForProfile(true).length).assertEqual(4);
+      const otherKinds: Array<ProfileContentKind> = profileContentKindsForProfile(false);
+      expect(otherKinds.length).assertEqual(2);
+      expect(otherKinds[0]).assertEqual(ProfileContentKind.TOPICS);
+      expect(otherKinds[1]).assertEqual(ProfileContentKind.REPLIES);
+      expect(profileContentDestinationTitle(ProfileContentKind.TOPICS, false, 'member'))
+        .assertEqual('member 的 Topic');
+      expect(profileContentDestinationTitle(ProfileContentKind.REPLIES, true, 'member'))
+        .assertEqual('我的 Reply');
+    });
+
     it('loads and deduplicates Topic pages using the native page contract', 0,
       async (done: Function) => {
         const client: StubForumHttpClient = new StubForumHttpClient();
