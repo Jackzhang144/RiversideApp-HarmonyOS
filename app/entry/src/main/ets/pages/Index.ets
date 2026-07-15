@@ -20,6 +20,7 @@ import {
   ReplyComposerStateKind,
   rootDestinationForTabIndex,
   RootDestination,
+  SecondaryDestination,
   SearchState,
   SearchSuggestionState,
   TopicComposerState,
@@ -1588,7 +1589,11 @@ struct Index {
   private handleSecondaryBack(): boolean {
     const model: AppShellModel | null = this.model;
     if (model !== null) {
+      const closingTopic: boolean = model.activeDestination === SecondaryDestination.TOPIC;
       model.closeSecondary();
+      if (closingTopic) {
+        this.synchronizeTopicState(model);
+      }
     }
     return false;
   }

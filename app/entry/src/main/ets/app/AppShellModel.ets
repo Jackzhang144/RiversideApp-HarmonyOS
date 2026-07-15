@@ -954,6 +954,31 @@ function mergeSearchResults(existing: ForumSearchResult, incoming: ForumSearchRe
   return new ForumSearchResult(topics, posts, users, categories, tags, groups, incoming.hasMore);
 }
 
+class TopicNavigationFrame {
+  public readonly topic: Topic;
+  public readonly requestedPostNumber: number | null;
+  public readonly state: TopicReadState;
+  public readonly previousPostIds: Array<number>;
+  public readonly nextPostIds: Array<number>;
+  public readonly returnDestination: SecondaryDestination;
+
+  public constructor(
+    topic: Topic,
+    requestedPostNumber: number | null,
+    state: TopicReadState,
+    previousPostIds: Array<number>,
+    nextPostIds: Array<number>,
+    returnDestination: SecondaryDestination
+  ) {
+    this.topic = topic;
+    this.requestedPostNumber = requestedPostNumber;
+    this.state = state;
+    this.previousPostIds = previousPostIds.slice();
+    this.nextPostIds = nextPostIds.slice();
+    this.returnDestination = returnDestination;
+  }
+}
+
 export class AppShellModel {
   public selectedRoot: RootDestination = RootDestination.HOME;
   public activeDestination: SecondaryDestination = SecondaryDestination.NONE;
@@ -987,6 +1012,7 @@ export class AppShellModel {
   private cachedCategories: Array<Category> | null = null;
   private previousPostIds: Array<number> = [];
   private nextPostIds: Array<number> = [];
+  private topicNavigationStack: Array<TopicNavigationFrame> = [];
   private topicReturnDestination: SecondaryDestination = SecondaryDestination.NONE;
   private selectedTopic: Topic | null = null;
   private selectedTopicPostNumber: number | null = null;
@@ -1181,6 +1207,25 @@ export class AppShellModel {
   }
 
   public async openTopic(topic: Topic, initialPostNumber: number | null = null): Promise<void> {
+    const opensNestedTopic: boolean = this.activeDestination === SecondaryDestination.TOPIC &&
+      this.selectedTopic !== null && this.selectedTopic.id !== topic.id;
+    if (opensNestedTopic && this.selectedTopic !== null) {
+      this.topicNavigationStack.push(new TopicNavigationFrame(
+        this.selectedTopic,
+        this.selectedTopicPostNumber,
+        this.topicState,
+        this.previousPostIds,
+        this.nextPostIds,
+        this.topicReturnDestination
+      ));
+    }
+    const returnDestination: SecondaryDestination = opensNestedTopic
+      ? SecondaryDestination.TOPIC
+      : this.activeDestination === SecondaryDestination.TOPIC
+        ? this.topicReturnDestination
+        : this.activeDestination === SecondaryDestination.CATEGORY_TOPICS
+          ? SecondaryDestination.CATEGORY_TOPICS
+          : SecondaryDestination.NONE;
     this.topicRequestVersion += 1;
     const requestVersion: number = this.topicRequestVersion;
     this.requiresAuthentication = false;
@@ -1191,9 +1236,7 @@ export class AppShellModel {
     this.replyState = ReplyComposerState.closed();
     this.selectedTopic = topic;
     this.selectedTopicPostNumber = initialPostNumber;
-    this.topicReturnDestination = this.activeDestination === SecondaryDestination.CATEGORY_TOPICS
-      ? SecondaryDestination.CATEGORY_TOPICS
-      : SecondaryDestination.NONE;
+    this.topicReturnDestination = returnDestination;
     this.activeDestination = SecondaryDestination.TOPIC;
     this.topicState = TopicReadState.loading(topic);
     const result: RepositoryResult<TopicDetail> =
@@ -2336,6 +2379,17 @@ export class AppShellModel {
     if (this.activeDestination === SecondaryDestination.TOPIC) {
       this.topicRequestVersion += 1;
       this.replyRequestVersion += 1;
+      const previousTopic: TopicNavigationFrame | undefined = this.topicNavigationStack.pop();
+      if (previousTopic !== undefined) {
+        this.activeDestination = SecondaryDestination.TOPIC;
+        this.topicReturnDestination = previousTopic.returnDestination;
+        this.selectedTopic = previousTopic.topic;
+        this.selectedTopicPostNumber = previousTopic.requestedPostNumber;
+        this.topicState = previousTopic.state;
+        this.previousPostIds = previousTopic.previousPostIds.slice();
+        this.nextPostIds = previousTopic.nextPostIds.slice();
+        return;
+      }
       this.activeDestination = this.topicReturnDestination;
       this.topicReturnDestination = SecondaryDestination.NONE;
     } else {

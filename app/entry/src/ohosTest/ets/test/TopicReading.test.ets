@@ -460,6 +460,91 @@ export default function topicReadingTest(): void {
       done();
     });
 
+    it('restores the previous Topic read window and requested floor after a nested Topic closes', 0,
+      async (done: Function) => {
+        const repository: TopicReadingRepository = new TopicReadingRepository();
+        const primaryDetail: TopicDetail = new TopicDetail(
+          2725,
+          '定点阅读 Topic',
+          100,
+          4,
+          0,
+          false,
+          false,
+          true,
+          [102728, 102729, 102730, 102731],
+          [secondPost(), thirdPost()],
+          4,
+          new TopicDetailMetadata(60, false, 'Co-admin', [], [], 2)
+        );
+        const nestedPost: ForumPost = new ForumPost(
+          203007,
+          1,
+          'admin',
+          '<p>嵌套 Topic 内容</p>',
+          '嵌套 Topic 内容',
+          7,
+          null,
+          '2026-01-28T01:00:00Z'
+        );
+        const nestedDetail: TopicDetail = new TopicDetail(
+          3000,
+          '嵌套 Topic',
+          10,
+          7,
+          0,
+          false,
+          false,
+          true,
+          [203007],
+          [nestedPost],
+          7,
+          new TopicDetailMetadata(60, false, 'admin', [], [], 7)
+        );
+        repository.topicDetailResults.push(
+          RepositoryResult.success<TopicDetail>(primaryDetail),
+          RepositoryResult.success<TopicDetail>(nestedDetail),
+          RepositoryResult.success<TopicDetail>(primaryDetail)
+        );
+        repository.topicPostResults.push(
+          RepositoryResult.success<TopicPostBatch>(new TopicPostBatch([firstPost()])),
+          RepositoryResult.success<TopicPostBatch>(new TopicPostBatch([fourthPost()]))
+        );
+        const model: AppShellModel = new AppShellModel(
+          repository,
+          new MemoryCategoryCache(),
+          CategoryCacheScope.anonymous()
+        );
+
+        await model.openTopic(topic(), 2);
+        await model.openTopic(topicWithId(3000, '嵌套 Topic'), 7);
+        model.closeSecondary();
+
+        expect(model.activeDestination).assertEqual(SecondaryDestination.TOPIC);
+        expect(model.topicState.topicId).assertEqual(2725);
+        expect(model.topicState.posts.map((post: ForumPost): number => post.postNumber).join(','))
+          .assertEqual('2,3');
+        expect(model.topicState.readProgressState.lastReadPostNumber).assertEqual(2);
+        expect(model.topicState.hasPreviousPosts).assertTrue();
+        expect(model.topicState.hasNextPosts).assertTrue();
+
+        await model.loadPreviousPosts();
+        await model.loadMorePosts();
+        expect(repository.requestedPostIds[0].join(',')).assertEqual('102728');
+        expect(repository.requestedPostIds[1].join(',')).assertEqual('102731');
+        expect(model.topicState.posts.map((post: ForumPost): number => post.postNumber).join(','))
+          .assertEqual('1,2,3,4');
+
+        await model.retryTopic();
+        expect(repository.requestedTopicPostNumbers.map((postNumber: number | null): string => {
+          return postNumber === null ? 'null' : postNumber.toString();
+        }).join(',')).assertEqual('2,7,2');
+
+        model.closeSecondary();
+        expect(model.activeDestination).assertEqual(SecondaryDestination.NONE);
+        done();
+      });
+
     it('retries a failed Topic first screen without losing its identity', 0, async (done: Function) => {
       const repository: TopicReadingRepository = new TopicReadingRepository();
       repository.topicDetailResults.push(RepositoryResult.failure<TopicDetail>('网络连接失败'));
