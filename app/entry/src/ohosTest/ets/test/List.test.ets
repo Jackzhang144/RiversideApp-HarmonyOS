@@ -26,6 +26,7 @@ import sessionStoreTest from './SessionStore.test';
 import topicReadingTest from './TopicReading.test';
 import topicPostWindowTest from './TopicPostWindow.test';
 import topicInteractionAuthoringTest from './TopicInteractionAuthoring.test';
+import topicPostInteractionTest from './TopicPostInteraction.test';
 import topicReadingPresentationTest from './TopicReadingPresentation.test';
 import chatModelsTest from './ChatModels.test';
 import composerEmojiModelsTest from './ComposerEmojiModels.test';
@@ -85,5 +86,6 @@ export default function tests(): void {
   topicReadingTest();
   topicPostWindowTest();
   topicInteractionAuthoringTest();
+  topicPostInteractionTest();
   topicReadingPresentationTest();
 }
