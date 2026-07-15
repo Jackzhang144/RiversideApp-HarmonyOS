@@ -64,12 +64,15 @@ class PendingRepositoryResult<T> {
 class TopicReadingRepository implements ForumRepository {
   public topicDetailResults: Array<RepositoryResult<TopicDetail>> = [];
   public topicPostResults: Array<RepositoryResult<TopicPostBatch>> = [];
+  public topicPostTasks: Array<Promise<RepositoryResult<TopicPostBatch>>> = [];
   public topicSuggestionResults: Array<RepositoryResult<Array<Topic>>> = [];
   public reactionResults: Array<RepositoryResult<ForumPost>> = [];
   public createBookmarkResults: Array<RepositoryResult<number>> = [];
   public deleteBookmarkResults: Array<RepositoryResult<boolean>> = [];
   public deletePostResults: Array<RepositoryResult<boolean>> = [];
   public deletePostTasks: Array<Promise<RepositoryResult<boolean>>> = [];
+  public acceptedAnswerResults: Array<RepositoryResult<boolean>> = [];
+  public acceptedAnswerTasks: Array<Promise<RepositoryResult<boolean>>> = [];
   public markTopicReadResults: Array<RepositoryResult<boolean>> = [];
   public markTopicReadTasks: Array<Promise<RepositoryResult<boolean>>> = [];
   public clearNotificationResults: Array<RepositoryResult<number>> = [];
@@ -85,6 +88,7 @@ class TopicReadingRepository implements ForumRepository {
   public requestedBookmarkPostIds: Array<number> = [];
   public requestedDeleteBookmarkIds: Array<number> = [];
   public requestedDeletePostIds: Array<number> = [];
+  public requestedAcceptedAnswers: Array<string> = [];
   public requestedReadTimings: Array<string> = [];
   public requestedNotificationProgress: Array<string> = [];
   public currentUserResults: Array<RepositoryResult<CurrentUser>> = [];
@@ -147,6 +151,10 @@ class TopicReadingRepository implements ForumRepository {
 
   public async loadTopicPosts(_topicId: number, postIds: Array<number>): Promise<RepositoryResult<TopicPostBatch>> {
     this.requestedPostIds.push(postIds);
+    const task: Promise<RepositoryResult<TopicPostBatch>> | undefined = this.topicPostTasks.shift();
+    if (task !== undefined) {
+      return await task;
+    }
     const result: RepositoryResult<TopicPostBatch> | undefined = this.topicPostResults.shift();
     return result ?? RepositoryResult.failure<TopicPostBatch>('missing Post result');
   }
@@ -179,6 +187,15 @@ class TopicReadingRepository implements ForumRepository {
       return await task;
     }
     return this.deletePostResults.shift() ?? RepositoryResult.failure<boolean>('missing Post delete result');
+  }
+
+  public async setPostAcceptedAnswer(postId: number, accepted: boolean): Promise<RepositoryResult<boolean>> {
+    this.requestedAcceptedAnswers.push(`${postId}:${accepted}`);
+    const task: Promise<RepositoryResult<boolean>> | undefined = this.acceptedAnswerTasks.shift();
+    if (task !== undefined) {
+      return await task;
+    }
+    return this.acceptedAnswerResults.shift() ?? RepositoryResult.failure<boolean>('missing solution result');
   }
 
   public async markTopicRead(
@@ -317,6 +334,27 @@ function reactedFirstPost(): ForumPost {
     null,
     '2026-01-27T14:46:08.722Z',
     new ForumPostMetadata('', '', '', null, null, 1, [new PostReaction('heart', 1)], 'heart')
+  );
+}
+
+function solutionReply(
+  acceptedAnswer: boolean,
+  canAcceptAnswer: boolean,
+  canUnacceptAnswer: boolean
+): ForumPost {
+  return new ForumPost(
+    102729,
+    1,
+    'admin',
+    '<p>可采纳的回答</p>',
+    '可采纳的回答',
+    2,
+    null,
+    '2026-01-28T00:00:00Z',
+    new ForumPostMetadata(
+      '', '', '', null, null, 0, [], null, false, false,
+      acceptedAnswer, canAcceptAnswer, canUnacceptAnswer
+    )
   );
 }
 
@@ -1303,6 +1341,180 @@ export default function topicReadingTest(): void {
       expect(model.topicState.detail?.lastReadPostNumber).assertEqual(1);
       expect(model.topicState.detail?.postCount).assertEqual(1);
       expect(model.topicState.detail?.postIds.join(',')).assertEqual('102728');
+      done();
+    });
+
+    it('changes solution state only after the server confirms accept or unaccept', 0,
+      async (done: Function) => {
+        const repository: TopicReadingRepository = new TopicReadingRepository();
+        repository.topicDetailResults.push(RepositoryResult.success<TopicDetail>(new TopicDetail(
+          2725, '求助 Topic', 10, 2, 0, false, false, true,
+          [102728, 102729], [firstPost(), solutionReply(false, true, false)]
+        )));
+        repository.acceptedAnswerResults.push(
+          RepositoryResult.failure<boolean>('采纳失败'),
+          RepositoryResult.success<boolean>(true),
+          RepositoryResult.success<boolean>(true)
+        );
+        const model: AppShellModel = new AppShellModel(
+          repository, new MemoryCategoryCache(), CategoryCacheScope.anonymous()
+        );
+        await model.openTopic(topic());
+
+        await model.togglePostAcceptedAnswer(102729);
+        expect(model.topicState.posts[1].acceptedAnswer).assertFalse();
+        expect(model.topicState.posts[1].canAcceptAnswer).assertTrue();
+        expect(model.topicState.postActionState.message).assertEqual('采纳失败');
+
+        await model.togglePostAcceptedAnswer(102729);
+        expect(model.topicState.posts[1].acceptedAnswer).assertTrue();
+        expect(model.topicState.posts[1].canAcceptAnswer).assertFalse();
+        expect(model.topicState.posts[1].canUnacceptAnswer).assertTrue();
+
+        await model.togglePostAcceptedAnswer(102729);
+        expect(repository.requestedAcceptedAnswers.join(',')).assertEqual(
+          '102729:true,102729:true,102729:false'
+        );
+        expect(model.topicState.posts[1].acceptedAnswer).assertFalse();
+        expect(model.topicState.posts[1].canAcceptAnswer).assertTrue();
+        expect(model.topicState.posts[1].canUnacceptAnswer).assertFalse();
+        done();
+      });
+
+    it('honors solution capabilities and routes unauthorized writes through the session lifecycle', 0,
+      async (done: Function) => {
+        const repository: TopicReadingRepository = new TopicReadingRepository();
+        repository.topicDetailResults.push(RepositoryResult.success<TopicDetail>(new TopicDetail(
+          2725, '求助 Topic', 10, 3, 0, false, false, true,
+          [102728, 102729, 102730], [
+            firstPost(),
+            solutionReply(false, false, false),
+            new ForumPost(
+              102730,
+              2,
+              'helper',
+              '<p>等待采纳</p>',
+              '等待采纳',
+              3,
+              null,
+              '2026-01-28T00:01:00Z',
+              new ForumPostMetadata('', '', '', null, null, 0, [], null, false, false, false, true, false)
+            )
+          ]
+        )));
+        repository.acceptedAnswerResults.push(RepositoryResult.unauthorized<boolean>());
+        const lifecycle: TopicAuthenticationLifecycle = new TopicAuthenticationLifecycle();
+        const model: AppShellModel = new AppShellModel(
+          repository,
+          new MemoryCategoryCache(),
+          CategoryCacheScope.anonymous(),
+          lifecycle
+        );
+        await model.openTopic(topic());
+
+        await model.togglePostAcceptedAnswer(102729);
+        expect(repository.requestedAcceptedAnswers.length).assertEqual(0);
+
+        await model.togglePostAcceptedAnswer(102730);
+        expect(repository.requestedAcceptedAnswers.join(',')).assertEqual('102730:true');
+        expect(model.topicState.posts[2].acceptedAnswer).assertFalse();
+        expect(model.topicState.posts[2].canAcceptAnswer).assertTrue();
+        expect(model.requiresAuthentication).assertTrue();
+        expect(lifecycle.unauthorizedCallCount).assertEqual(1);
+        done();
+      });
+
+    it('keeps one trusted solution and does not overlap solution writes with Post pagination', 0,
+      async (done: Function) => {
+        const repository: TopicReadingRepository = new TopicReadingRepository();
+        repository.topicDetailResults.push(RepositoryResult.success<TopicDetail>(new TopicDetail(
+          2725, '求助 Topic', 10, 4, 0, false, false, true,
+          [102728, 102729, 102730, 102731], [
+            firstPost(),
+            solutionReply(true, false, true),
+            new ForumPost(
+              102730,
+              2,
+              'helper',
+              '<p>更合适的回答</p>',
+              '更合适的回答',
+              3,
+              null,
+              '2026-01-28T00:01:00Z',
+              new ForumPostMetadata('', '', '', null, null, 0, [], null, false, false, false, true, false)
+            )
+          ]
+        )));
+        const pendingSolution: PendingRepositoryResult<boolean> = new PendingRepositoryResult<boolean>();
+        repository.acceptedAnswerTasks.push(pendingSolution.promise);
+        const model: AppShellModel = new AppShellModel(
+          repository, new MemoryCategoryCache(), CategoryCacheScope.anonymous()
+        );
+        await model.openTopic(topic());
+
+        const solutionTask: Promise<void> = model.togglePostAcceptedAnswer(102730);
+        await model.loadMorePosts();
+        expect(repository.requestedPostIds.length).assertEqual(0);
+        pendingSolution.complete(RepositoryResult.success<boolean>(true));
+        await solutionTask;
+        expect(model.topicState.posts[1].acceptedAnswer).assertFalse();
+        expect(model.topicState.posts[2].acceptedAnswer).assertTrue();
+
+        const pendingPosts: PendingRepositoryResult<TopicPostBatch> =
+          new PendingRepositoryResult<TopicPostBatch>();
+        repository.topicPostTasks.push(pendingPosts.promise);
+        const paginationTask: Promise<void> = model.loadMorePosts();
+        await model.togglePostAcceptedAnswer(102730);
+        expect(repository.requestedAcceptedAnswers.join(',')).assertEqual('102730:true');
+        pendingPosts.complete(RepositoryResult.success<TopicPostBatch>(new TopicPostBatch([fourthPost()])));
+        await paginationTask;
+        expect(model.topicState.posts[2].acceptedAnswer).assertTrue();
+        done();
+      });
+
+    it('serializes previous and next Post pagination around solution actions', 0, async (done: Function) => {
+      const repository: TopicReadingRepository = new TopicReadingRepository();
+      const postIds: Array<number> = [];
+      for (let postId: number = 102701; postId <= 102723; postId += 1) {
+        postIds.push(postId);
+      }
+      const candidate: ForumPost = new ForumPost(
+        102722,
+        2,
+        'helper',
+        '<p>分页中的回答</p>',
+        '分页中的回答',
+        22,
+        null,
+        '2026-01-28T00:01:00Z',
+        new ForumPostMetadata('', '', '', null, null, 0, [], null, false, false, false, true, false)
+      );
+      repository.topicDetailResults.push(RepositoryResult.success<TopicDetail>(new TopicDetail(
+        2725, '求助 Topic', 10, 23, 0, false, false, true, postIds, [candidate]
+      )));
+      const pendingPrevious: PendingRepositoryResult<TopicPostBatch> =
+        new PendingRepositoryResult<TopicPostBatch>();
+      repository.topicPostTasks.push(pendingPrevious.promise);
+      const model: AppShellModel = new AppShellModel(
+        repository, new MemoryCategoryCache(), CategoryCacheScope.anonymous()
+      );
+      await model.openTopic(topic(), 22);
+
+      const previousTask: Promise<void> = model.loadPreviousPosts();
+      await model.loadMorePosts();
+      expect(repository.requestedPostIds.length).assertEqual(1);
+      pendingPrevious.complete(RepositoryResult.success<TopicPostBatch>(new TopicPostBatch([])));
+      await previousTask;
+
+      const pendingNext: PendingRepositoryResult<TopicPostBatch> = new PendingRepositoryResult<TopicPostBatch>();
+      repository.topicPostTasks.push(pendingNext.promise);
+      const nextTask: Promise<void> = model.loadMorePosts();
+      await model.loadPreviousPosts();
+      await model.togglePostAcceptedAnswer(102722);
+      expect(repository.requestedPostIds.length).assertEqual(2);
+      expect(repository.requestedAcceptedAnswers.length).assertEqual(0);
+      pendingNext.complete(RepositoryResult.success<TopicPostBatch>(new TopicPostBatch([])));
+      await nextTask;
       done();
     });
 

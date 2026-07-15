@@ -257,6 +257,38 @@ export class ForumPost {
     );
   }
 
+  public withAcceptedAnswer(acceptedAnswer: boolean): ForumPost {
+    return new ForumPost(
+      this.id,
+      this.userId,
+      this.username,
+      this.cooked,
+      this.raw,
+      this.postNumber,
+      this.replyToPostNumber,
+      this.createdAt,
+      new ForumPostMetadata(
+        this.userTitle,
+        this.avatarUrl,
+        this.flairUrl,
+        this.replyToUsername,
+        this.replyToAvatarUrl,
+        this.likeCount,
+        this.reactions,
+        this.currentUserReaction,
+        this.canEdit,
+        this.canDelete,
+        acceptedAnswer,
+        !acceptedAnswer,
+        acceptedAnswer,
+        this.bookmarked,
+        this.bookmarkId,
+        this.postType,
+        this.actionCode
+      )
+    );
+  }
+
   public withRawContent(raw: string): ForumPost {
     return new ForumPost(
       this.id,

@@ -44,6 +44,8 @@ export interface ForumRepository {
 
   deletePost(postId: number): Promise<RepositoryResult<boolean>>;
 
+  setPostAcceptedAnswer(postId: number, accepted: boolean): Promise<RepositoryResult<boolean>>;
+
   markTopicRead(
     topicId: number,
     postNumbers: Array<number>,

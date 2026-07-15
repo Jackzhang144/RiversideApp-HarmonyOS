@@ -135,6 +135,10 @@ class StubForumRepository implements ForumRepository {
     return RepositoryResult.failure<boolean>('missing Post delete result');
   }
 
+  public async setPostAcceptedAnswer(_postId: number, _accepted: boolean): Promise<RepositoryResult<boolean>> {
+    return RepositoryResult.failure<boolean>('missing solution result');
+  }
+
   public async markTopicRead(
     _topicId: number,
     _postNumbers: Array<number>,

@@ -1465,6 +1465,17 @@ struct Index {
     this.synchronizeTopicState(model);
   }
 
+  private async togglePostAcceptedAnswer(postId: number): Promise<void> {
+    const model: AppShellModel | null = this.model;
+    if (model === null) {
+      return;
+    }
+    const task: Promise<void> = model.togglePostAcceptedAnswer(postId);
+    this.synchronizeTopicState(model);
+    await task;
+    this.synchronizeTopicState(model);
+  }
+
   private async reportTopicReadProgress(postNumber: number): Promise<void> {
     const model: AppShellModel | null = this.model;
     if (model === null) {
@@ -2343,6 +2354,9 @@ struct Index {
           },
           onDeletePost: (postId: number): void => {
             this.confirmDeletePost(postId);
+          },
+          onToggleAcceptedAnswer: (postId: number): void => {
+            this.togglePostAcceptedAnswer(postId);
           },
           onCopyPostLink: (topicId: number, postNumber: number): void => {
             this.copyPostLink(topicId, postNumber);

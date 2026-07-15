@@ -388,6 +388,25 @@ export default function discourseForumRepositoryTest(): void {
       done();
     });
 
+    it('accepts and unaccepts a solution through the Flutter-compatible form contracts', 0,
+      async (done: Function) => {
+        const client: StubForumHttpClient = new StubForumHttpClient();
+        client.formResults.push(
+          HttpTextResult.success(200, '{}'),
+          HttpTextResult.success(200, '{}')
+        );
+        const repository: DiscourseForumRepository = new DiscourseForumRepository(client);
+
+        const accepted: RepositoryResult<boolean> = await repository.setPostAcceptedAnswer(102729, true);
+        const unaccepted: RepositoryResult<boolean> = await repository.setPostAcceptedAnswer(102729, false);
+
+        expect(client.formRequests[0]).assertEqual('/solution/accept|id=102729');
+        expect(client.formRequests[1]).assertEqual('/solution/unaccept|id=102729');
+        expect(accepted.data).assertTrue();
+        expect(unaccepted.data).assertTrue();
+         done();
+       });
+
     it('reports sorted unique Topic timings without encoding bracket keys', 0, async (done: Function) => {
       const client: StubForumHttpClient = new StubForumHttpClient();
       client.formResults.push(HttpTextResult.success(200, '{}'));

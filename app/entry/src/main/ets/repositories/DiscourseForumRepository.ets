@@ -628,6 +628,14 @@ export class DiscourseForumRepository implements
     return RepositoryResult.success<boolean>(true);
   }
 
+  public async setPostAcceptedAnswer(postId: number, accepted: boolean): Promise<RepositoryResult<boolean>> {
+    if (!Number.isInteger(postId) || postId <= 0) {
+      return RepositoryResult.failure<boolean>('Post 标识无效');
+    }
+    const path: string = accepted ? '/solution/accept' : '/solution/unaccept';
+    return this.booleanWriteResult(await this.client.postForm(path, `id=${postId}`));
+  }
+
   public async markTopicRead(
     topicId: number,
     postNumbers: Array<number>,

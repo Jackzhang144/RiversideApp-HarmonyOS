@@ -47,6 +47,7 @@ export struct TopicDetailPage {
   ): void => {};
   onToggleBookmark: (postId: number) => void = (_postId: number): void => {};
   onDeletePost: (postId: number) => void = (_postId: number): void => {};
+  onToggleAcceptedAnswer: (postId: number) => void = (_postId: number): void => {};
   onCopyPostLink: (topicId: number, postNumber: number) => void = (
     _topicId: number,
     _postNumber: number
@@ -555,6 +556,18 @@ export struct TopicDetailPage {
   private PostActions(post: ForumPost): void {
     Column({ space: 7 }) {
       Flex({ direction: FlexDirection.Row, wrap: FlexWrap.Wrap, justifyContent: FlexAlign.Start }) {
+        if (post.acceptedAnswer) {
+          Text('已采纳')
+            .height(34)
+            .fontSize(12)
+            .fontWeight(FontWeight.Medium)
+            .fontColor('#1B5E20')
+            .padding({ left: 10, right: 10 })
+            .backgroundColor('#E8F5E9')
+            .borderRadius(17)
+            .margin({ right: 6, bottom: 6 })
+            .accessibilityText('此回答已被采纳')
+        }
         ForEach(displayedReactions(post.reactions), (reaction: PostReaction) => {
           this.ReactionSummary(reaction)
         }, (reaction: PostReaction): string => reaction.id)
@@ -577,6 +590,17 @@ export struct TopicDetailPage {
         .enabled(!this.state.postActionState.busy)
         .onClick((): void => this.onToggleBookmark(post.id))
         .accessibilityText(this.isPostBookmarked(post.id) ? '取消收藏' : '收藏')
+        if (post.canAcceptAnswer || post.canUnacceptAnswer) {
+          Button(post.acceptedAnswer ? '取消采纳' : '采纳回答')
+            .height(34)
+            .fontSize(12)
+            .backgroundColor(post.acceptedAnswer ? '#FFF3E0' : '#E8F5E9')
+            .fontColor(post.acceptedAnswer ? '#B85C00' : '#1B5E20')
+            .margin({ right: 6, bottom: 6 })
+            .enabled(!this.state.postActionState.busy)
+            .onClick((): void => this.onToggleAcceptedAnswer(post.id))
+            .accessibilityText(post.acceptedAnswer ? '取消采纳此回答' : '采纳此回答')
+        }
         Button('复制链接')
           .height(34)
           .fontSize(12)

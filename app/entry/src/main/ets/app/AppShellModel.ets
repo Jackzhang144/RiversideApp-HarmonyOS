@@ -149,7 +149,8 @@ export enum TopicPostActionKind {
   NONE = 'none',
   REACTION = 'reaction',
   BOOKMARK = 'bookmark',
-  DELETE = 'delete'
+  DELETE = 'delete',
+  SOLUTION = 'solution'
 }
 
 export class TopicPostJumpState {
@@ -1411,6 +1412,7 @@ export class AppShellModel {
       this.topicState.isLoadingPrevious ||
       this.topicState.isRefreshing ||
       this.topicState.postJumpState.busy ||
+      this.topicState.postActionState.busy ||
       (this.topicState.kind !== TopicReadStateKind.CONTENT && this.topicState.kind !== TopicReadStateKind.EMPTY)
     ) {
       return;
@@ -1559,8 +1561,10 @@ export class AppShellModel {
     if (
       detail === null ||
       this.topicState.isLoadingMore ||
+      this.topicState.isLoadingPrevious ||
       this.topicState.isRefreshing ||
       this.topicState.postJumpState.busy ||
+      this.topicState.postActionState.busy ||
       this.nextPostIds.length === 0 ||
       (this.topicState.kind !== TopicReadStateKind.CONTENT && this.topicState.kind !== TopicReadStateKind.EMPTY)
     ) {
@@ -1611,8 +1615,10 @@ export class AppShellModel {
     if (
       detail === null ||
       this.topicState.isLoadingPrevious ||
+      this.topicState.isLoadingMore ||
       this.topicState.isRefreshing ||
       this.topicState.postJumpState.busy ||
+      this.topicState.postActionState.busy ||
       this.previousPostIds.length === 0 ||
       (this.topicState.kind !== TopicReadStateKind.CONTENT && this.topicState.kind !== TopicReadStateKind.EMPTY)
     ) {
@@ -1711,6 +1717,62 @@ export class AppShellModel {
       return;
     }
     this.topicState = TopicReadState.withPosts(this.topicState, replacePost(this.topicState.posts, result.data));
+    this.topicState = TopicReadState.withPostAction(this.topicState, TopicPostActionState.idle());
+  }
+
+  public async togglePostAcceptedAnswer(postId: number): Promise<void> {
+    const detail: TopicDetail | null = this.topicState.detail;
+    const post: ForumPost | undefined = this.topicState.posts.find(
+      (candidate: ForumPost): boolean => candidate.id === postId
+    );
+    if (
+      detail === null ||
+      post === undefined ||
+      this.topicState.postActionState.busy ||
+      this.topicState.isLoadingMore ||
+      this.topicState.isLoadingPrevious ||
+      this.topicState.isRefreshing ||
+      this.topicState.postJumpState.busy
+    ) {
+      return;
+    }
+    let accepted: boolean = false;
+    if (post.canUnacceptAnswer) {
+      accepted = false;
+    } else if (post.canAcceptAnswer) {
+      accepted = true;
+    } else {
+      return;
+    }
+
+    const requestVersion: number = this.topicRequestVersion;
+    this.topicState = TopicReadState.withPostAction(
+      this.topicState,
+      TopicPostActionState.loading(TopicPostActionKind.SOLUTION, post.id)
+    );
+    const result: RepositoryResult<boolean> = await this.repository.setPostAcceptedAnswer(post.id, accepted);
+    if (requestVersion !== this.topicRequestVersion || this.topicState.topicId !== detail.id) {
+      return;
+    }
+    if (!result.isSuccess() || result.data !== true) {
+      this.requiresAuthentication = result.isUnauthorized();
+      this.topicState = TopicReadState.withPostAction(
+        this.topicState,
+        TopicPostActionState.error(TopicPostActionKind.SOLUTION, post.id, result.message)
+      );
+      await this.notifyUnauthorized(result.isUnauthorized());
+      return;
+    }
+    const updatedPosts: Array<ForumPost> = this.topicState.posts.map((candidate: ForumPost): ForumPost => {
+      if (candidate.id === post.id) {
+        return candidate.withAcceptedAnswer(accepted);
+      }
+      if (accepted && candidate.acceptedAnswer) {
+        return candidate.withAcceptedAnswer(false);
+      }
+      return candidate;
+    });
+    this.topicState = TopicReadState.withPosts(this.topicState, updatedPosts);
     this.topicState = TopicReadState.withPostAction(this.topicState, TopicPostActionState.idle());
   }
 
