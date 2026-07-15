@@ -24,6 +24,8 @@ import replyTransportTest from './ReplyTransport.test';
 import richContentTest from './RichContent.test';
 import sessionStoreTest from './SessionStore.test';
 import topicReadingTest from './TopicReading.test';
+import topicRefreshTest from './TopicRefresh.test';
+import topicPaginationTest from './TopicPagination.test';
 import topicPostWindowTest from './TopicPostWindow.test';
 import topicInteractionAuthoringTest from './TopicInteractionAuthoring.test';
 import topicPostInteractionTest from './TopicPostInteraction.test';
@@ -84,6 +86,8 @@ export default function tests(): void {
   richContentTest();
   sessionStoreTest();
   topicReadingTest();
+  topicRefreshTest();
+  topicPaginationTest();
   topicPostWindowTest();
   topicInteractionAuthoringTest();
   topicPostInteractionTest();
