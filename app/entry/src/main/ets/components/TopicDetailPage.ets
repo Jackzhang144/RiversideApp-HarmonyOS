@@ -29,6 +29,7 @@ import {
   reactionEmojiUrl,
   shouldShowSuggestedTopics,
   systemActionLabel,
+  topicPostRenderKey,
   topicPostListIndex
 } from './TopicReadingPresentation';
 
@@ -963,7 +964,7 @@ export struct TopicDetailPage {
             }
           }
         )
-      }, (post: ForumPost): string => post.id.toString())
+      }, (post: ForumPost): string => topicPostRenderKey(post))
       ListItem() {
         this.PaginationFooter()
       }

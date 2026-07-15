@@ -2,6 +2,7 @@ import { describe, expect, it } from '@ohos/hypium';
 import {
   Category,
   ForumPost,
+  ForumPostMetadata,
   PostReaction
 } from '../../../main/ets/models/ForumModels';
 import {
@@ -17,6 +18,7 @@ import {
   selectedBookmarkPostIds,
   shouldShowSuggestedTopics,
   systemActionLabel,
+  topicPostRenderKey,
   topicPostListIndex,
   topicPostUrl
 } from '../../../main/ets/components/TopicReadingPresentation';
@@ -120,6 +122,19 @@ export default function topicReadingPresentationTest(): void {
       expect(topicPostListIndex(pinpointWindow, 3)).assertEqual(6);
       expect(topicPostListIndex(pinpointWindow, 2)).assertEqual(-1);
       expect(topicPostListIndex(completeWindow, 0)).assertEqual(-1);
+    });
+
+    it('changes the card render key when a visible Post interaction changes', 0, () => {
+      const original: ForumPost = new ForumPost(
+        102, 1, 'admin', '', '原始正文', 2, null, '',
+        new ForumPostMetadata('', '', '', null, null, 1, [new PostReaction('heart', 1)])
+      );
+      const reacted: ForumPost = new ForumPost(
+        102, 1, 'admin', '', '原始正文', 2, null, '',
+        new ForumPostMetadata('', '', '', null, null, 2, [new PostReaction('heart', 2)], 'heart')
+      );
+
+      expect(topicPostRenderKey(original) !== topicPostRenderKey(reacted)).assertTrue();
     });
 
     it('offers the six frozen Flutter flag reasons with explicit message requirements', 0, () => {

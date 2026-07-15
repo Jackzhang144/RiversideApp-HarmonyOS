@@ -65,6 +65,29 @@ export function topicPostListIndex(posts: Array<ForumPost>, postNumber: number):
   return hasStarterPost ? stateIndex + 5 : stateIndex + 6;
 }
 
+/**
+ * Makes ArkUI recreate a Post card when information visible in the card changes.
+ * A Post id alone is not sufficient here: reactions, bookmarks and edits retain
+ * the same id after the server confirms an operation.
+ */
+export function topicPostRenderKey(post: ForumPost): string {
+  const reactions: string = post.reactions
+    .map((reaction: PostReaction): string => `${reaction.id}:${reaction.count}`)
+    .join(',');
+  return [
+    post.id.toString(),
+    post.cooked,
+    post.raw,
+    post.likeCount.toString(),
+    reactions,
+    post.currentUserReaction ?? '',
+    post.bookmarked ? '1' : '0',
+    post.acceptedAnswer ? '1' : '0',
+    post.canEdit ? '1' : '0',
+    post.canDelete ? '1' : '0'
+  ].join('|');
+}
+
 export function shouldShowSuggestedTopics(hasNextPosts: boolean, suggestionCount: number): boolean {
   return !hasNextPosts && Number.isInteger(suggestionCount) && suggestionCount > 0;
 }
