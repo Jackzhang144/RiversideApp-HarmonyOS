@@ -54,6 +54,13 @@ export struct AccountPage {
           SymbolGlyph($r('sys.symbol.person_crop_circle_fill_1'))
             .fontSize(42)
             .fontColor(['#317AF7'])
+          if (presentation.avatarUrl.length > 0) {
+            Image(presentation.avatarUrl)
+              .width(64)
+              .height(64)
+              .borderRadius(32)
+              .objectFit(ImageFit.Cover)
+          }
         }
         .width(64)
         .height(64)

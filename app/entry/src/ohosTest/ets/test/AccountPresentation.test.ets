@@ -78,6 +78,7 @@ export default function accountPresentationTest(): void {
       const signingOut: AccountPresentation = accountPresentationFor(AuthState.signingOut());
 
       expect(signedOut.primaryAction).assertEqual(AccountPrimaryAction.LOGIN);
+      expect(signedOut.avatarUrl).assertEqual('');
       expect(restoring.primaryAction).assertEqual(AccountPrimaryAction.NONE);
       expect(restoring.busy).assertTrue();
       expect(failed.primaryAction).assertEqual(AccountPrimaryAction.LOGIN);
@@ -115,6 +116,7 @@ export default function accountPresentationTest(): void {
         'co-admin',
         {
           name: '协管员',
+          avatarUrl: '/user_avatar/river-side.cc/co-admin/192/1.png',
           title: '社区维护',
           moderator: true,
           trustLevel: 3,
@@ -143,6 +145,9 @@ export default function accountPresentationTest(): void {
       expect(presentation.title).assertEqual('协管员');
       expect(presentation.detail).assertEqual('版主 · 已认证 · 信任等级 3');
       expect(presentation.capabilityDetail).assertEqual('可发帖 · 可发起私聊');
+      expect(presentation.avatarUrl).assertEqual(
+        'https://river-side.cc/user_avatar/river-side.cc/co-admin/192/1.png'
+      );
       assertPersistentContent(presentation, true);
     });
   });

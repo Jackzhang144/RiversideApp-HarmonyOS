@@ -54,6 +54,7 @@ export class AccountPresentation {
   public readonly busy: boolean;
   public readonly error: boolean;
   public readonly capabilityDetail: string;
+  public readonly avatarUrl: string;
   public readonly placeholderSections: Array<AccountPlaceholderSection>;
   public readonly prototypeEntryVisible: boolean = true;
 
@@ -64,7 +65,8 @@ export class AccountPresentation {
     busy: boolean,
     error: boolean,
     placeholderSections: Array<AccountPlaceholderSection>,
-    capabilityDetail: string = ''
+    capabilityDetail: string = '',
+    avatarUrl: string = ''
   ) {
     this.title = title;
     this.detail = detail;
@@ -73,6 +75,7 @@ export class AccountPresentation {
     this.error = error;
     this.placeholderSections = placeholderSections;
     this.capabilityDetail = capabilityDetail;
+    this.avatarUrl = avatarUrl;
   }
 }
 
@@ -126,7 +129,8 @@ export function accountPresentationFor(
         false,
         false,
         placeholderSections,
-        capabilityDetailFor(identity)
+        capabilityDetailFor(identity),
+        identity.avatarUrl
       );
     }
     return new AccountPresentation(
