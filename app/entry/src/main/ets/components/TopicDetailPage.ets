@@ -567,10 +567,7 @@ export struct TopicDetailPage {
   @Builder
   private ReadingContent(): void {
     List({ space: 10 }) {
-      if (this.state.detail !== null && shouldShowSuggestedTopics(
-        this.state.hasNextPosts,
-        this.state.detail.suggestedTopics.length
-      )) {
+      if (this.state.detail !== null) {
         ListItem() {
           this.TopicStarter(
             this.state.detail,
@@ -623,7 +620,10 @@ export struct TopicDetailPage {
       ListItem() {
         this.PaginationFooter()
       }
-      if (this.state.detail !== null) {
+      if (this.state.detail !== null && shouldShowSuggestedTopics(
+        this.state.hasNextPosts,
+        this.state.detail.suggestedTopics.length
+      )) {
         ListItem() {
           this.SuggestedTopics(this.state.detail)
         }
