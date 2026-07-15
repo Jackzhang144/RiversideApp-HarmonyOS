@@ -1,4 +1,6 @@
 import { Category, ForumPost, Topic, TopicDetail } from '../models/ForumModels';
+import { RichContentInlineFragment } from '../models/RichContentBlocks';
+import { parsePlainTextInlineEmojis } from '../models/RichContentParser';
 
 export enum ForumCardMode {
   TOPIC_PREVIEW = 'topic-preview',
@@ -124,6 +126,7 @@ export class ForumCardPresentation {
   public readonly author: ForumCardAuthor | null;
   public readonly title: string;
   public readonly body: string;
+  public readonly bodyInlineFragments: Array<RichContentInlineFragment>;
   public readonly headerBadge: ForumCardBadge | null;
   public readonly footerBadge: ForumCardBadge | null;
   public readonly statistics: Array<ForumCardStatistic>;
@@ -141,12 +144,14 @@ export class ForumCardPresentation {
     statistics: Array<ForumCardStatistic>,
     replyAction: ForumCardReplyAction | null,
     restrictionText: string,
-    accessibilityText: string
+    accessibilityText: string,
+    bodyInlineFragments: Array<RichContentInlineFragment> = []
   ) {
     this.mode = mode;
     this.author = author;
     this.title = title;
     this.body = body;
+    this.bodyInlineFragments = bodyInlineFragments;
     this.headerBadge = headerBadge;
     this.footerBadge = footerBadge;
     this.statistics = statistics;
@@ -181,7 +186,8 @@ export class ForumCardPresentation {
       null,
       '',
       `${topic.title}，作者 ${author.name}，${categoryName}${pinnedDescription}，` +
-        `${replyCount} 条 Reply，${topic.viewCount} 浏览`
+        `${replyCount} 条 Reply，${topic.viewCount} 浏览`,
+      parsePlainTextInlineEmojis(topic.excerpt)
     );
   }
 

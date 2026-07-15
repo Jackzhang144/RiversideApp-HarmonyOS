@@ -9,6 +9,10 @@ import {
   ForumCardStatisticKind
 } from './ForumCardPresentation';
 import { RichEmbedProvider } from '../models/RichNavigationPolicy';
+import {
+  RichContentInlineFragment,
+  RichContentInlineFragmentKind
+} from '../models/RichContentBlocks';
 import { RichPostContent } from './RichPostContent';
 
 @Component
@@ -99,7 +103,23 @@ export struct ForumContentCard {
           .width('100%')
       }
       if (this.presentation.body.length > 0) {
-        Text(this.presentation.body)
+        Text() {
+          if (this.presentation.bodyInlineFragments.length > 0) {
+            ForEach(this.presentation.bodyInlineFragments, (fragment: RichContentInlineFragment) => {
+              if (fragment.kind === RichContentInlineFragmentKind.EMOJI) {
+                ImageSpan(fragment.imageUrl)
+                  .width(16)
+                  .height(16)
+                  .objectFit(ImageFit.Contain)
+                  .verticalAlign(ImageSpanAlignment.CENTER)
+              } else {
+                Span(fragment.text)
+              }
+            }, (fragment: RichContentInlineFragment, index: number): string => `${index}-${fragment.text}`)
+          } else {
+            Span(this.presentation.body)
+          }
+        }
           .fontSize(13)
           .fontColor($r('sys.color.font_secondary'))
           .lineHeight(20)

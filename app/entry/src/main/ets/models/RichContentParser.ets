@@ -201,6 +201,44 @@ function inlineEmoji(tag: string): RichContentInlineFragment | null {
   return RichContentInlineFragment.emoji(token, url);
 }
 
+export function parsePlainTextInlineEmojis(text: string): Array<RichContentInlineFragment> {
+  if (!text.includes(':')) {
+    return [];
+  }
+  const fragments: Array<RichContentInlineFragment> = [];
+  let textStart: number = 0;
+  let cursor: number = 0;
+  while (cursor < text.length) {
+    const tokenStart: number = text.indexOf(':', cursor);
+    if (tokenStart < 0) {
+      break;
+    }
+    const tokenEnd: number = text.indexOf(':', tokenStart + 1);
+    if (tokenEnd < 0) {
+      break;
+    }
+    const token: string = text.substring(tokenStart, tokenEnd + 1);
+    if (!EMOJI_TOKEN_PATTERN.test(token)) {
+      cursor = tokenStart + 1;
+      continue;
+    }
+    if (tokenStart > textStart) {
+      fragments.push(RichContentInlineFragment.textFragment(text.substring(textStart, tokenStart)));
+    }
+    const name: string = token.substring(1, token.length - 1);
+    fragments.push(RichContentInlineFragment.emoji(token, RIVERSIDE_URL_RESOLVER.reactionEmoji(name)));
+    cursor = tokenEnd + 1;
+    textStart = cursor;
+  }
+  if (fragments.length === 0) {
+    return [];
+  }
+  if (textStart < text.length) {
+    fragments.push(RichContentInlineFragment.textFragment(text.substring(textStart)));
+  }
+  return fragments;
+}
+
 function extractImages(html: string): Array<RichContentBlock> {
   const tags: Array<string> = html.match(/<img\b[^>]*>/gi) ?? [];
   const blocks: Array<RichContentBlock> = [];

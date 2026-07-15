@@ -4,7 +4,10 @@ import {
   RichContentBlockKind,
   RichContentInlineFragmentKind
 } from '../../../main/ets/models/RichContentBlocks';
-import { parseRichPostContent } from '../../../main/ets/models/RichContentParser';
+import {
+  parsePlainTextInlineEmojis,
+  parseRichPostContent
+} from '../../../main/ets/models/RichContentParser';
 import {
   BILIBILI_URL_TRUST_LIST,
   classifyRichNavigation,
@@ -83,6 +86,18 @@ export default function richContentTest(): void {
       expect(text.inlineFragments[1].imageUrl)
         .assertEqual('https://river-side.cc/images/emoji/twitter/melting_face.png');
       expect(blocksOfKind(blocks, RichContentBlockKind.IMAGE).length).assertEqual(1);
+    });
+
+    it('renders plain Topic excerpts Emoji shortcodes inline', 0, () => {
+      const fragments = parsePlainTextInlineEmojis('看到了 :joy: 以后继续阅读');
+
+      expect(fragments.length).assertEqual(3);
+      expect(fragments[0].text).assertEqual('看到了 ');
+      expect(fragments[1].kind).assertEqual(RichContentInlineFragmentKind.EMOJI);
+      expect(fragments[1].text).assertEqual(':joy:');
+      expect(fragments[1].imageUrl)
+        .assertEqual('https://river-side.cc/images/emoji/twitter/joy.png?v=15');
+      expect(fragments[2].text).assertEqual(' 以后继续阅读');
     });
 
     it('recognizes Bilibili and YouTube links without exposing arbitrary iframes', 0, () => {

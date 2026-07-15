@@ -11,6 +11,7 @@ import {
   Topic,
   TopicDetail
 } from '../../../main/ets/models/ForumModels';
+import { RichContentInlineFragmentKind } from '../../../main/ets/models/RichContentBlocks';
 
 export default function forumCardPresentationTest(): void {
   describe('Forum card presentation contract', () => {
@@ -22,7 +23,7 @@ export default function forumCardPresentationTest(): void {
         24,
         1200,
         8,
-        '完整摘要内容',
+        '完整摘要 :joy: 内容',
         '2026-07-11T14:32:00Z',
         true,
         '李同学',
@@ -43,7 +44,11 @@ export default function forumCardPresentationTest(): void {
       );
       expect(presentation.author?.timestamp).assertEqual('2026-07-11 14:32');
       expect(presentation.title).assertEqual('图书馆座位预约系统使用体验优化建议');
-      expect(presentation.body).assertEqual('完整摘要内容');
+      expect(presentation.body).assertEqual('完整摘要 :joy: 内容');
+      expect(presentation.bodyInlineFragments.length).assertEqual(3);
+      expect(presentation.bodyInlineFragments[1].kind).assertEqual(RichContentInlineFragmentKind.EMOJI);
+      expect(presentation.bodyInlineFragments[1].imageUrl)
+        .assertEqual('https://river-side.cc/images/emoji/twitter/joy.png?v=15');
       expect(presentation.headerBadge?.label).assertEqual('置顶');
       expect(presentation.footerBadge?.label).assertEqual('校内事务');
       expect(presentation.statistics.length).assertEqual(2);
