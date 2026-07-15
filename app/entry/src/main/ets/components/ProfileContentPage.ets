@@ -37,7 +37,7 @@ export struct ProfileContentPage {
   @Builder
   private RowCard(title: string, detail: string, onClick: () => void): void {
     Column({ space: 6 }) {
-      Text(title.length > 0 ? title : '未命名内容')
+      Text(title.length > 0 ? title : $r('app.string.profile_content_unnamed'))
         .fontSize(16)
         .fontWeight(FontWeight.Medium)
         .width('100%')
@@ -57,12 +57,12 @@ export struct ProfileContentPage {
     Column({ space: 8 }) {
       if (this.loadingMore) {
         LoadingProgress().width(28).height(28)
-        Text('正在加载更多').fontSize(12).fontColor($r('sys.color.font_secondary'))
+        Text($r('app.string.common_loading_more')).fontSize(12).fontColor($r('sys.color.font_secondary'))
       } else if (this.message.length > 0) {
         Text(this.message).fontSize(12).fontColor($r('app.color.status_error')).textAlign(TextAlign.Center)
-        Button('重试加载更多').height(34).onClick(this.onLoadMore)
+        Button($r('app.string.common_retry_load_more')).height(34).onClick(this.onLoadMore)
       } else if (!this.hasMore && this.kind !== ProfileContentKind.DRAFTS) {
-        Text('已经显示全部内容').fontSize(12).fontColor($r('sys.color.font_tertiary'))
+        Text($r('app.string.profile_content_all_shown')).fontSize(12).fontColor($r('sys.color.font_tertiary'))
       }
     }
     .width('100%')
@@ -74,17 +74,17 @@ export struct ProfileContentPage {
     if (this.loading) {
       Column({ space: 12 }) {
         LoadingProgress().width(36).height(36)
-        Text('正在加载').fontSize(14).fontColor($r('sys.color.font_secondary'))
+        Text($r('app.string.common_loading')).fontSize(14).fontColor($r('sys.color.font_secondary'))
       }
       .width('100%').height('100%').justifyContent(FlexAlign.Center)
     } else if (this.message.length > 0 && this.empty()) {
       Column({ space: 12 }) {
         Text(this.message).fontSize(14).fontColor($r('app.color.status_error')).textAlign(TextAlign.Center)
-        Button('重试').onClick(this.onRetry)
+        Button($r('app.string.common_retry')).onClick(this.onRetry)
       }
       .width('100%').height('100%').padding(28).justifyContent(FlexAlign.Center)
     } else if (this.empty()) {
-      Column() { Text('暂无内容').fontSize(15).fontColor($r('sys.color.font_secondary')) }
+      Column() { Text($r('app.string.common_no_content')).fontSize(15).fontColor($r('sys.color.font_secondary')) }
         .width('100%').height('100%').justifyContent(FlexAlign.Center)
     } else {
       List({ space: 10 }) {

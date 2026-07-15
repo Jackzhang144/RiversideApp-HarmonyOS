@@ -68,12 +68,12 @@ export struct ImageViewerPage {
               this.onSaveAuthorizationFailure();
             }
           })
-        Button('复制链接')
+        Button($r('app.string.action_copy_link'))
           .layoutWeight(1)
           .height(46)
           .enabled(this.presentation().canCopyUrl())
           .onClick(this.onCopyUrl)
-        Button('外部打开')
+        Button($r('app.string.action_open_external'))
           .layoutWeight(1)
           .height(46)
           .enabled(this.presentation().canOpenExternally())

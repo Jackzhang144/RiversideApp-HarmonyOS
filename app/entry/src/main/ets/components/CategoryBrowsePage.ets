@@ -52,7 +52,7 @@ export struct CategoryBrowsePage {
   @Builder
   private Header(): void {
     Row({ space: 8 }) {
-      Text('全部分类')
+      Text($r('app.string.category_all'))
         .fontSize(20)
         .fontWeight(FontWeight.Bold)
         .layoutWeight(1)
@@ -70,7 +70,7 @@ export struct CategoryBrowsePage {
       LoadingProgress()
         .width(40)
         .height(40)
-      Text('正在加载分类')
+      Text($r('app.string.category_loading'))
         .fontSize(16)
         .fontColor($r('sys.color.font_secondary'))
     }
@@ -82,16 +82,16 @@ export struct CategoryBrowsePage {
   @Builder
   private RetryableState(): void {
     Column({ space: 16 }) {
-      Text('加载失败')
+      Text($r('app.string.common_load_failed'))
         .fontSize(22)
         .fontWeight(FontWeight.Bold)
       Text(this.state.message)
         .fontSize(15)
         .fontColor($r('sys.color.font_secondary'))
         .textAlign(TextAlign.Center)
-      Button('重试')
+      Button($r('app.string.common_retry'))
         .onClick(this.onRefresh)
-        .accessibilityText('重新加载分类')
+        .accessibilityText($r('app.string.category_reload_accessibility'))
     }
     .padding(32)
     .width('100%')
@@ -102,10 +102,10 @@ export struct CategoryBrowsePage {
   @Builder
   private EmptyState(): void {
     Column({ space: 14 }) {
-      Text('还没有分类')
+      Text($r('app.string.category_empty_title'))
         .fontSize(22)
         .fontWeight(FontWeight.Bold)
-      Text(this.state.message.length > 0 ? this.state.message : '刷新后仍没有可展示的分类。')
+      Text(this.state.message.length > 0 ? this.state.message : $r('app.string.category_empty_message'))
         .fontSize(15)
         .fontColor($r('sys.color.font_secondary'))
         .textAlign(TextAlign.Center)
@@ -114,9 +114,9 @@ export struct CategoryBrowsePage {
           .width(36)
           .height(36)
       } else {
-        Button('刷新')
+        Button($r('app.string.common_refresh'))
           .onClick(this.onRefresh)
-          .accessibilityText('刷新分类')
+          .accessibilityText($r('app.string.category_refresh_accessibility'))
       }
     }
     .padding(32)

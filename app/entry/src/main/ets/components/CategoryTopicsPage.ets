@@ -17,7 +17,7 @@ export struct CategoryTopicsPage {
       LoadingProgress()
         .width(40)
         .height(40)
-      Text('正在加载 Topic')
+      Text($r('app.string.category_topic_loading'))
         .fontSize(16)
         .fontColor($r('sys.color.font_secondary'))
     }
@@ -30,16 +30,16 @@ export struct CategoryTopicsPage {
   @Builder
   private RetryableState(): void {
     Column({ space: 16 }) {
-      Text('加载失败')
+      Text($r('app.string.common_load_failed'))
         .fontSize(22)
         .fontWeight(FontWeight.Bold)
       Text(this.state.message)
         .fontSize(15)
         .fontColor($r('sys.color.font_secondary'))
         .textAlign(TextAlign.Center)
-      Button('重试')
+      Button($r('app.string.common_retry'))
         .onClick(this.onRefresh)
-        .accessibilityText('重新加载 Category Topic')
+        .accessibilityText($r('app.string.category_topic_reload_accessibility'))
     }
     .padding(32)
     .width('100%')
@@ -51,16 +51,16 @@ export struct CategoryTopicsPage {
   @Builder
   private EmptyState(): void {
     Column({ space: 14 }) {
-      Text('这个 Category 还没有 Topic')
+      Text($r('app.string.category_topic_empty_title'))
         .fontSize(22)
         .fontWeight(FontWeight.Bold)
-      Text('稍后再来看看，或手动刷新。')
+      Text($r('app.string.category_topic_empty_message'))
         .fontSize(15)
         .fontColor($r('sys.color.font_secondary'))
         .textAlign(TextAlign.Center)
-      Button('刷新')
+      Button($r('app.string.common_refresh'))
         .onClick(this.onRefresh)
-        .accessibilityText('刷新 Category Topic')
+        .accessibilityText($r('app.string.category_topic_refresh_accessibility'))
     }
     .padding(32)
     .width('100%')
@@ -104,7 +104,7 @@ export struct CategoryTopicsPage {
               LoadingProgress()
                 .width(28)
                 .height(28)
-              Text('正在加载更多 Topic')
+              Text($r('app.string.category_topic_loading_more'))
                 .fontSize(12)
                 .fontColor($r('sys.color.font_secondary'))
             } else if (this.state.paginationMessage.length > 0) {
@@ -112,11 +112,11 @@ export struct CategoryTopicsPage {
                 .fontSize(12)
                 .fontColor($r('app.color.status_error'))
                 .textAlign(TextAlign.Center)
-              Button('重试加载更多')
+              Button($r('app.string.common_retry_load_more'))
                 .height(34)
                 .onClick(this.onLoadMore)
             } else if (!this.state.hasMore) {
-              Text('已经到底了')
+              Text($r('app.string.common_end_of_list'))
                 .fontSize(12)
                 .fontColor($r('sys.color.font_tertiary'))
             }

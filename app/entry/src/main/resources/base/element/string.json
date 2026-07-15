@@ -11,6 +11,142 @@
     {
       "name": "EntryAbility_label",
       "value": "Riverside"
+    },
+    {
+      "name": "common_loading",
+      "value": "正在加载"
+    },
+    {
+      "name": "common_load_failed",
+      "value": "加载失败"
+    },
+    {
+      "name": "common_retry",
+      "value": "重试"
+    },
+    {
+      "name": "common_refresh",
+      "value": "刷新"
+    },
+    {
+      "name": "common_loading_more",
+      "value": "正在加载更多"
+    },
+    {
+      "name": "common_retry_load_more",
+      "value": "重试加载更多"
+    },
+    {
+      "name": "common_end_of_list",
+      "value": "已经到底了"
+    },
+    {
+      "name": "common_no_content",
+      "value": "暂无内容"
+    },
+    {
+      "name": "action_copy_link",
+      "value": "复制链接"
+    },
+    {
+      "name": "action_open_external",
+      "value": "外部打开"
+    },
+    {
+      "name": "category_all",
+      "value": "全部分类"
+    },
+    {
+      "name": "category_loading",
+      "value": "正在加载分类"
+    },
+    {
+      "name": "category_reload_accessibility",
+      "value": "重新加载分类"
+    },
+    {
+      "name": "category_empty_title",
+      "value": "还没有分类"
+    },
+    {
+      "name": "category_empty_message",
+      "value": "刷新后仍没有可展示的分类。"
+    },
+    {
+      "name": "category_refresh_accessibility",
+      "value": "刷新分类"
+    },
+    {
+      "name": "category_topic_loading",
+      "value": "正在加载 Topic"
+    },
+    {
+      "name": "category_topic_reload_accessibility",
+      "value": "重新加载 Category Topic"
+    },
+    {
+      "name": "category_topic_empty_title",
+      "value": "这个 Category 还没有 Topic"
+    },
+    {
+      "name": "category_topic_empty_message",
+      "value": "稍后再来看看，或手动刷新。"
+    },
+    {
+      "name": "category_topic_refresh_accessibility",
+      "value": "刷新 Category Topic"
+    },
+    {
+      "name": "category_topic_loading_more",
+      "value": "正在加载更多 Topic"
+    },
+    {
+      "name": "profile_content_unnamed",
+      "value": "未命名内容"
+    },
+    {
+      "name": "profile_content_all_shown",
+      "value": "已经显示全部内容"
+    },
+    {
+      "name": "login_not_completed",
+      "value": "登录未完成"
+    },
+    {
+      "name": "login_retry",
+      "value": "重新登录"
+    },
+    {
+      "name": "login_retry_accessibility",
+      "value": "重新开始 RiverSide 登录"
+    },
+    {
+      "name": "login_generating_request",
+      "value": "正在创建安全授权请求"
+    },
+    {
+      "name": "login_validating_session",
+      "value": "正在校验并保存认证会话"
+    },
+    {
+      "name": "login_finishing",
+      "value": "正在完成登录"
+    },
+    {
+      "name": "about_product_name",
+      "value": "RiverSide"
+    },
+    {
+      "name": "about_product_description",
+      "value": "RiverSide HarmonyOS 客户端"
+    },
+    {
+      "name": "about_open_page",
+      "value": "查看 RiverSide 关于页面"
+    },
+    {
+      "name": "about_open_page_accessibility",
+      "value": "在应用内打开 RiverSide 关于页面"
     }
   ]
 }
