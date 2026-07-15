@@ -154,12 +154,20 @@ export struct ChatRootPage {
         .backgroundColor('#EAF2FF')
         .borderRadius(22)
       Column({ space: 5 }) {
-        Text(channel.title)
-          .fontSize(16)
-          .fontWeight(FontWeight.Bold)
-          .maxLines(1)
-          .textOverflow({ overflow: TextOverflow.Ellipsis })
-          .width('100%')
+        Row({ space: 8 }) {
+          Text(channel.title)
+            .fontSize(16)
+            .fontWeight(FontWeight.Bold)
+            .maxLines(1)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
+          if (channel.unreadCount > 0) {
+            Circle()
+              .width(8)
+              .height(8)
+              .fill('#D52B32')
+          }
+        }
+        .width('100%')
         Row({ space: 8 }) {
           Text(channel.preview.length > 0
             ? (channel.lastMessageUsername.length > 0
@@ -182,12 +190,6 @@ export struct ChatRootPage {
       }
       .alignItems(HorizontalAlign.Start)
       .layoutWeight(1)
-      if (channel.unreadCount > 0) {
-        Circle()
-          .width(8)
-          .height(8)
-          .fill('#D52B32')
-      }
     }
     .width('100%')
     .padding(14)
