@@ -17,6 +17,7 @@ import { MediaUploadState } from '../models/MediaModels';
 import {
   categoryLabel,
   displayedReactions,
+  normalizeTopicFloor,
   reactionAccessibilityLabel,
   reactionEmojiUrl,
   shouldShowSuggestedTopics,
@@ -25,7 +26,7 @@ import {
 
 @Component
 export struct TopicDetailPage {
-  @Prop state: TopicReadState = TopicReadState.initial();
+  @Prop @Watch('synchronizeFloorFromState') state: TopicReadState = TopicReadState.initial();
   @Link bookmarkedPostIds: Array<number>;
   @Link lastReadPostNumber: number;
   @Link readProgressBusy: boolean;
@@ -58,6 +59,8 @@ export struct TopicDetailPage {
   onOpenImage: (url: string, title: string) => void = (_url: string, _title: string): void => {};
   onOpenAuthor: (username: string) => void = (_username: string): void => {};
   onReadProgress: (postNumber: number) => void = (_postNumber: number): void => {};
+  onJumpToPost: (postNumber: number) => Promise<boolean> = async (_postNumber: number): Promise<boolean> => false;
+  onRetryPostJump: () => Promise<boolean> = async (): Promise<boolean> => false;
   onReplyDraftChange: (draft: string) => void = (_draft: string): void => {};
   onSubmitReply: () => void = (): void => {};
   onSaveReplyDraft: () => void = (): void => {};
@@ -70,12 +73,42 @@ export struct TopicDetailPage {
   onRemoveMedia: () => void = (): void => {};
   private readProgressTimer: number = -1;
   private pendingReadPostNumber: number = 0;
+  private readonly readingScroller: Scroller = new Scroller();
+  @State private currentPostNumber: number = 1;
+  @State private currentTopicId: number = 0;
+  @State private selectedFloor: number = 1;
+  @State private floorInput: string = '1';
+  @State private floorInputMessage: string = '';
 
   aboutToDisappear(): void {
     if (this.readProgressTimer >= 0) {
       clearTimeout(this.readProgressTimer);
       this.readProgressTimer = -1;
     }
+  }
+
+  aboutToAppear(): void {
+    this.synchronizeFloorFromState();
+  }
+
+  private synchronizeFloorFromState(): void {
+    const currentPostVisible: boolean = this.currentTopicId === this.state.topicId && this.state.posts.some(
+      (post: ForumPost): boolean => post.postNumber === this.currentPostNumber
+    );
+    if (currentPostVisible) {
+      return;
+    }
+    const requestedPostNumber: number = this.state.postJumpState.targetPostNumber;
+    const requestedPostVisible: boolean = this.state.posts.some(
+      (post: ForumPost): boolean => post.postNumber === requestedPostNumber
+    );
+    const focusedPostNumber: number = requestedPostVisible
+      ? requestedPostNumber
+      : this.state.posts[0]?.postNumber ?? 1;
+    this.currentTopicId = this.state.topicId;
+    this.currentPostNumber = focusedPostNumber;
+    this.selectedFloor = focusedPostNumber;
+    this.floorInput = focusedPostNumber.toString();
   }
 
   private scheduleReadProgress(postNumber: number): void {
@@ -150,6 +183,51 @@ export struct TopicDetailPage {
 
   private canReplyHere(): boolean {
     return this.state.canReply;
+  }
+
+  private highestPostNumber(): number {
+    return Math.max(1, this.state.detail?.highestPostNumber ?? 1);
+  }
+
+  private listIndexForPost(postNumber: number): number {
+    const stateIndex: number = this.state.posts.findIndex(
+      (post: ForumPost): boolean => post.postNumber === postNumber
+    );
+    if (stateIndex < 0) {
+      return -1;
+    }
+    if (this.hasStarterPost() && stateIndex === 0) {
+      return 0;
+    }
+    return this.hasStarterPost() ? stateIndex + 5 : stateIndex + 6;
+  }
+
+  private scrollToPost(postNumber: number): void {
+    const listIndex: number = this.listIndexForPost(postNumber);
+    if (listIndex >= 0) {
+      this.readingScroller.scrollToIndex(listIndex, true, ScrollAlign.START);
+    }
+  }
+
+  private async jumpToFloor(retry: boolean = false): Promise<void> {
+    const targetPostNumber: number | null = retry
+      ? this.state.postJumpState.targetPostNumber
+      : normalizeTopicFloor(this.floorInput, this.highestPostNumber());
+    if (targetPostNumber === null || targetPostNumber <= 0) {
+      this.floorInputMessage = '请输入有效楼层';
+      return;
+    }
+    this.floorInputMessage = '';
+    this.floorInput = targetPostNumber.toString();
+    this.selectedFloor = targetPostNumber;
+    const succeeded: boolean = retry
+      ? await this.onRetryPostJump()
+      : await this.onJumpToPost(targetPostNumber);
+    if (!succeeded) {
+      return;
+    }
+    this.currentPostNumber = targetPostNumber;
+    setTimeout((): void => this.scrollToPost(targetPostNumber), 50);
   }
 
   @Builder
@@ -232,6 +310,90 @@ export struct TopicDetailPage {
     }
     .width('100%')
     .padding({ left: 4, right: 4 })
+  }
+
+  @Builder
+  private FloorLocator(): void {
+    Column({ space: 8 }) {
+      Row({ space: 8 }) {
+        Text(`当前 #${this.currentPostNumber} / ${this.highestPostNumber()}`)
+          .fontSize(13)
+          .fontWeight(FontWeight.Medium)
+          .layoutWeight(1)
+        TextInput({ text: this.floorInput, placeholder: '楼层' })
+          .width(88)
+          .height(36)
+          .type(InputType.Number)
+          .enabled(!this.state.postJumpState.busy)
+          .onChange((value: string): void => {
+            this.floorInput = value;
+            const normalized: number | null = normalizeTopicFloor(value, this.highestPostNumber());
+            if (normalized !== null) {
+              this.selectedFloor = normalized;
+            }
+          })
+        Button('跳转')
+          .height(36)
+          .fontSize(13)
+          .enabled(!this.state.postJumpState.busy)
+          .onClick((): void => {
+            this.jumpToFloor();
+          })
+          .accessibilityText('跳转到输入楼层')
+      }
+      if (this.highestPostNumber() > 1) {
+        Slider({
+          value: this.selectedFloor,
+          min: 1,
+          max: this.highestPostNumber(),
+          step: 1,
+          style: SliderStyle.OutSet
+        })
+          .enabled(!this.state.postJumpState.busy)
+          .onChange((value: number, mode: SliderChangeMode): void => {
+            const targetPostNumber: number = Math.floor(value);
+            this.selectedFloor = targetPostNumber;
+            this.floorInput = targetPostNumber.toString();
+            if (mode === SliderChangeMode.End) {
+              this.jumpToFloor();
+            }
+          })
+      }
+      if (this.state.postJumpState.busy) {
+        Row({ space: 6 }) {
+          LoadingProgress()
+            .width(18)
+            .height(18)
+          Text(`正在定位 #${this.state.postJumpState.targetPostNumber}`)
+            .fontSize(12)
+            .fontColor($r('sys.color.font_secondary'))
+        }
+      } else if (this.state.postJumpState.message.length > 0) {
+        Row({ space: 8 }) {
+          Text(this.state.postJumpState.message)
+            .fontSize(12)
+            .fontColor('#C62828')
+            .layoutWeight(1)
+          Button('重试')
+            .height(32)
+            .fontSize(12)
+            .onClick((): void => {
+              this.jumpToFloor(true);
+            })
+            .accessibilityText(`重试定位楼层 ${this.state.postJumpState.targetPostNumber}`)
+        }
+      } else if (this.floorInputMessage.length > 0) {
+        Text(this.floorInputMessage)
+          .fontSize(12)
+          .fontColor('#C62828')
+          .width('100%')
+      }
+    }
+    .width('100%')
+    .padding(12)
+    .backgroundColor('#FFFFFF')
+    .borderRadius(12)
+    .border({ width: 1, color: '#E8EBF0' })
   }
 
   @Builder
@@ -568,7 +730,7 @@ export struct TopicDetailPage {
 
   @Builder
   private ReadingContent(): void {
-    List({ space: 10 }) {
+    List({ space: 10, scroller: this.readingScroller }) {
       if (this.state.detail !== null) {
         ListItem() {
           this.TopicStarter(
@@ -580,12 +742,19 @@ export struct TopicDetailPage {
           { ratios: [0.6], expectedUpdateInterval: 500 },
           (_isExpanding: boolean, currentRatio: number): void => {
             if (currentRatio >= 0.6 && this.hasStarterPost()) {
+              this.currentPostNumber = this.state.posts[0].postNumber;
+              this.currentTopicId = this.state.topicId;
+              this.selectedFloor = this.currentPostNumber;
+              this.floorInput = this.currentPostNumber.toString();
               this.scheduleReadProgress(this.state.posts[0].postNumber);
             }
           }
         )
         ListItem() {
           this.TopicMetadata(this.state.detail)
+        }
+        ListItem() {
+          this.FloorLocator()
         }
         ListItem() {
           this.ReadProgressFeedback()
@@ -614,6 +783,10 @@ export struct TopicDetailPage {
           { ratios: [0.6], expectedUpdateInterval: 500 },
           (_isExpanding: boolean, currentRatio: number): void => {
             if (currentRatio >= 0.6) {
+              this.currentPostNumber = post.postNumber;
+              this.currentTopicId = this.state.topicId;
+              this.selectedFloor = post.postNumber;
+              this.floorInput = post.postNumber.toString();
               this.scheduleReadProgress(post.postNumber);
             }
           }

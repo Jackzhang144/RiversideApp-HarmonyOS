@@ -81,7 +81,7 @@ import { AccountPlaceholderKind } from '../components/AccountPresentation';
 import { ImageViewerPage } from '../components/ImageViewerPage';
 import { selectedBookmarkPostIds, topicPostUrl } from '../components/TopicReadingPresentation';
 import { UiPrototypePage } from '../components/prototype/UiPrototypePage';
-import { Category, Topic } from '../models/ForumModels';
+import { Category, ForumPost, Topic } from '../models/ForumModels';
 import {
   ChatChannel,
   ChatEmoji,
@@ -1297,6 +1297,35 @@ struct Index {
     this.synchronizeTopicState(model);
   }
 
+  private async jumpToTopicPost(postNumber: number): Promise<boolean> {
+    const model: AppShellModel | null = this.model;
+    if (model === null) {
+      return false;
+    }
+    const task: Promise<void> = model.jumpToTopicPost(postNumber);
+    this.synchronizeTopicState(model);
+    await task;
+    this.synchronizeTopicState(model);
+    return model.topicState.postJumpState.targetPostNumber === postNumber &&
+      model.topicState.postJumpState.message.length === 0 &&
+      model.topicState.posts.some((post: ForumPost): boolean => post.postNumber === postNumber);
+  }
+
+  private async retryTopicPostJump(): Promise<boolean> {
+    const model: AppShellModel | null = this.model;
+    if (model === null) {
+      return false;
+    }
+    const targetPostNumber: number = model.topicState.postJumpState.targetPostNumber;
+    const task: Promise<void> = model.retryTopicPostJump();
+    this.synchronizeTopicState(model);
+    await task;
+    this.synchronizeTopicState(model);
+    return targetPostNumber > 0 &&
+      model.topicState.postJumpState.message.length === 0 &&
+      model.topicState.posts.some((post: ForumPost): boolean => post.postNumber === targetPostNumber);
+  }
+
   private async togglePostReaction(postId: number, reaction: string): Promise<void> {
     const model: AppShellModel | null = this.model;
     if (model === null) {
@@ -2203,6 +2232,12 @@ struct Index {
           },
           onReadProgress: (postNumber: number): void => {
             this.reportTopicReadProgress(postNumber);
+          },
+          onJumpToPost: async (postNumber: number): Promise<boolean> => {
+            return await this.jumpToTopicPost(postNumber);
+          },
+          onRetryPostJump: async (): Promise<boolean> => {
+            return await this.retryTopicPostJump();
           },
           onOpenReply: (postNumber: number | null): void => {
             this.openReply(postNumber);

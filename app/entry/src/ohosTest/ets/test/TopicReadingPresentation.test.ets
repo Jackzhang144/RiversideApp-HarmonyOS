@@ -6,6 +6,7 @@ import {
 } from '../../../main/ets/models/ForumModels';
 import {
   categoryLabel,
+  normalizeTopicFloor,
   displayedReactions,
   reactionAccessibilityLabel,
   reactionCount,
@@ -87,6 +88,16 @@ export default function topicReadingPresentationTest(): void {
       expect(shouldShowSuggestedTopics(false, 2)).assertTrue();
       expect(shouldShowSuggestedTopics(true, 2)).assertFalse();
       expect(shouldShowSuggestedTopics(false, 0)).assertFalse();
+    });
+
+    it('normalizes typed and Slider floor targets against the Topic range', 0, () => {
+      expect(normalizeTopicFloor('37', 120)).assertEqual(37);
+      expect(normalizeTopicFloor('37.8', 120)).assertEqual(37);
+      expect(normalizeTopicFloor('0', 120)).assertEqual(1);
+      expect(normalizeTopicFloor('999', 120)).assertEqual(120);
+      expect(normalizeTopicFloor('not-a-floor', 120)).assertEqual(null);
+      expect(normalizeTopicFloor('37th', 120)).assertEqual(null);
+      expect(normalizeTopicFloor('2', 0)).assertEqual(null);
     });
   });
 }

@@ -3,6 +3,18 @@ import { Category, ForumPost, PostReaction } from '../models/ForumModels';
 const REACTION_EMOJI_BASE_URL: string = 'https://river-side.cc/images/emoji/twitter';
 const RIVERSIDE_ORIGIN: string = 'https://river-side.cc';
 
+export function normalizeTopicFloor(value: string, highestPostNumber: number): number | null {
+  const normalized: string = value.trim();
+  if (normalized.length === 0 || !Number.isSafeInteger(highestPostNumber) || highestPostNumber <= 0) {
+    return null;
+  }
+  const parsed: number = Number(normalized);
+  if (!Number.isFinite(parsed)) {
+    return null;
+  }
+  return Math.min(highestPostNumber, Math.max(1, Math.floor(parsed)));
+}
+
 export function topicPostUrl(topicId: number, postNumber: number): string {
   if (!Number.isInteger(topicId) || topicId <= 0 || !Number.isInteger(postNumber) || postNumber <= 0) {
     return '';

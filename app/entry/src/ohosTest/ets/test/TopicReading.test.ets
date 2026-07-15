@@ -610,6 +610,7 @@ export default function topicReadingTest(): void {
 
       expect(repository.requestedTopicPostNumbers.join(',')).assertEqual('12,12');
       expect(model.topicState.posts[0].postNumber).assertEqual(12);
+      expect(model.topicState.postJumpState.targetPostNumber).assertEqual(12);
       done();
     });
 
@@ -765,6 +766,117 @@ export default function topicReadingTest(): void {
         .assertEqual('1,2,3,4,5');
       expect(model.topicState.hasPreviousPosts).assertFalse();
       expect(model.topicState.hasNextPosts).assertFalse();
+      expect(model.topicState.postJumpState.targetPostNumber).assertEqual(3);
+      done();
+    });
+
+    it('keeps the current Post window when a floor jump fails and retries that target', 0,
+      async (done: Function) => {
+        const repository: TopicReadingRepository = new TopicReadingRepository();
+        repository.topicDetailResults.push(
+          RepositoryResult.success<TopicDetail>(new TopicDetail(
+            2725, '定点阅读', 100, 80, 0, false, false, true,
+            [102728, 102729, 102730], [firstPost(), secondPost()], 80
+          )),
+          RepositoryResult.failure<TopicDetail>('楼层加载失败'),
+          RepositoryResult.success<TopicDetail>(new TopicDetail(
+            2725, '定点阅读', 100, 80, 0, false, false, true,
+            [103735, 103736, 103737, 103738, 103739], [
+              new ForumPost(103736, 24, 'Co-admin', '<p>前一楼</p>', '前一楼', 36, null, '2026-01-28T00:00:00Z'),
+              new ForumPost(103737, 24, 'Co-admin', '<p>目标楼层</p>', '目标楼层', 37, null, '2026-01-28T00:01:00Z'),
+              new ForumPost(103738, 1, 'admin', '<p>后一楼</p>', '后一楼', 38, null, '2026-01-28T00:02:00Z')
+            ], 80
+          ))
+        );
+        const model: AppShellModel = new AppShellModel(
+          repository,
+          new MemoryCategoryCache(),
+          CategoryCacheScope.anonymous()
+        );
+
+        await model.openTopic(topic());
+        const visiblePostIds: string = model.topicState.posts.map((post: ForumPost): number => post.id).join(',');
+
+        const failedJump: Promise<void> = model.jumpToTopicPost(37);
+        expect(model.topicState.postJumpState.busy).assertTrue();
+        await failedJump;
+
+        expect(model.topicState.posts.map((post: ForumPost): number => post.id).join(','))
+          .assertEqual(visiblePostIds);
+        expect(model.topicState.hasNextPosts).assertTrue();
+        expect(model.topicState.postJumpState.targetPostNumber).assertEqual(37);
+        expect(model.topicState.postJumpState.message).assertEqual('楼层加载失败');
+
+        await model.retryTopicPostJump();
+
+        expect(repository.requestedTopicPostNumbers.map((postNumber: number | null): string => {
+          return postNumber === null ? 'null' : postNumber.toString();
+        }).join(',')).assertEqual('null,37,37');
+        expect(model.topicState.posts.map((post: ForumPost): number => post.postNumber).join(','))
+          .assertEqual('36,37,38');
+        expect(model.topicState.hasPreviousPosts).assertTrue();
+        expect(model.topicState.hasNextPosts).assertTrue();
+        expect(model.topicState.postJumpState.targetPostNumber).assertEqual(37);
+        expect(model.topicState.postJumpState.message).assertEqual('');
+        done();
+      });
+
+    it('does not start pagination while a floor jump is in flight', 0, async (done: Function) => {
+      const repository: TopicReadingRepository = new TopicReadingRepository();
+      repository.topicDetailResults.push(RepositoryResult.success<TopicDetail>(new TopicDetail(
+        2725, '定点阅读', 100, 3, 0, false, false, true,
+        [102728, 102729, 102730], [firstPost()], 3
+      )));
+      const model: AppShellModel = new AppShellModel(
+        repository,
+        new MemoryCategoryCache(),
+        CategoryCacheScope.anonymous()
+      );
+      await model.openTopic(topic());
+      const jumpResult: PendingRepositoryResult<TopicDetail> = new PendingRepositoryResult<TopicDetail>();
+      repository.topicDetailTasks.push(jumpResult.promise);
+
+      const jumpTask: Promise<void> = model.jumpToTopicPost(2);
+      expect(model.topicState.postJumpState.busy).assertTrue();
+      await model.loadMorePosts();
+
+      expect(repository.requestedPostIds.length).assertEqual(0);
+      expect(model.topicState.isLoadingMore).assertFalse();
+      jumpResult.complete(RepositoryResult.failure<TopicDetail>('楼层加载失败'));
+      await jumpTask;
+      done();
+    });
+
+    it('does not invalidate an in-flight pagination request with a floor jump', 0, async (done: Function) => {
+      const repository: TopicReadingRepository = new TopicReadingRepository();
+      repository.topicDetailResults.push(
+        RepositoryResult.success<TopicDetail>(new TopicDetail(
+          2725, '定点阅读', 100, 3, 0, false, false, true,
+          [102728, 102729, 102730], [firstPost()], 3
+        )),
+        RepositoryResult.success<TopicDetail>(new TopicDetail(
+          2725, '定点阅读', 100, 3, 0, false, false, true,
+          [102728, 102729, 102730], [secondPost()], 3
+        ))
+      );
+      repository.topicPostResults.push(RepositoryResult.success<TopicPostBatch>(new TopicPostBatch([
+        secondPost(), thirdPost()
+      ])));
+      const model: AppShellModel = new AppShellModel(
+        repository,
+        new MemoryCategoryCache(),
+        CategoryCacheScope.anonymous()
+      );
+      await model.openTopic(topic());
+
+      const paginationTask: Promise<void> = model.loadMorePosts();
+      expect(model.topicState.isLoadingMore).assertTrue();
+      await model.jumpToTopicPost(2);
+
+      expect(repository.requestedTopicPostNumbers.length).assertEqual(1);
+      await paginationTask;
+      expect(model.topicState.isLoadingMore).assertFalse();
+      expect(model.topicState.posts.length).assertEqual(3);
       done();
     });
 
