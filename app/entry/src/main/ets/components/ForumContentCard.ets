@@ -13,7 +13,10 @@ import {
   RichContentInlineFragment,
   RichContentInlineFragmentKind
 } from '../models/RichContentBlocks';
+import { ForumPost } from '../models/ForumModels';
+import { TopicPostActionState } from '../app/TopicReadingModels';
 import { RichPostContent } from './RichPostContent';
+import { TopicPostActionBar } from './TopicPostActionBar';
 
 @Component
 export struct ForumContentCard {
@@ -21,8 +24,15 @@ export struct ForumContentCard {
   @Prop richCooked: string = '';
   @Prop richRaw: string = '';
   @Prop authorActionAvailable: boolean = false;
+  @Prop topicId: number = 0;
+  @Prop post: ForumPost | null = null;
+  @Prop postActionState: TopicPostActionState = TopicPostActionState.idle();
+  @Prop bookmarked: boolean = false;
+  @Prop editable: boolean = false;
+  @Prop validReactions: Array<string> = [];
   onOpenTopic: () => void = (): void => {};
   onReply: (postNumber: number | null) => void = (_postNumber: number | null): void => {};
+  onOpenReplyTarget: (postNumber: number) => void = (_postNumber: number): void => {};
   onOpenRichLink: (url: string) => void = (_url: string): void => {};
   onOpenRichEmbed: (url: string, provider: RichEmbedProvider, title: string) => void = (
     _url: string,
@@ -31,6 +41,20 @@ export struct ForumContentCard {
   ): void => {};
   onOpenImage: (url: string, title: string) => void = (_url: string, _title: string): void => {};
   onOpenAuthor: (username: string) => void = (_username: string): void => {};
+  onToggleReaction: (postId: number, reaction: string) => void = (
+    _postId: number,
+    _reaction: string
+  ): void => {};
+  onOpenReactionUsers: (postId: number) => void = (_postId: number): void => {};
+  onToggleBookmark: (postId: number) => void = (_postId: number): void => {};
+  onToggleAcceptedAnswer: (postId: number) => void = (_postId: number): void => {};
+  onCopyPostLink: (topicId: number, postNumber: number) => void = (
+    _topicId: number,
+    _postNumber: number
+  ): void => {};
+  onReport: (post: ForumPost) => void = (_post: ForumPost): void => {};
+  onEdit: (postId: number) => void = (_postId: number): void => {};
+  onDelete: (postId: number) => void = (_postId: number): void => {};
 
   @Builder
   private Badge(badge: ForumCardBadge): void {
@@ -89,6 +113,49 @@ export struct ForumContentCard {
     .accessibilityText(
       this.authorActionAvailable && author.username.length > 0 ? `查看用户 ${author.username}` : author.name
     )
+  }
+
+  @Builder
+  private ReplyTarget(post: ForumPost, targetPostNumber: number): void {
+    Row({ space: 6 }) {
+      if (post.replyToAvatarUrl !== null && post.replyToAvatarUrl.length > 0) {
+        Image(post.replyToAvatarUrl)
+          .width(18)
+          .height(18)
+          .objectFit(ImageFit.Cover)
+          .borderRadius(9)
+      } else {
+        Text(post.replyToUsername?.slice(0, 1).toUpperCase() ?? '回')
+          .width(18)
+          .height(18)
+          .textAlign(TextAlign.Center)
+          .fontSize(9)
+          .fontWeight(FontWeight.Medium)
+          .fontColor($r('app.color.brand_primary'))
+          .backgroundColor($r('app.color.brand_tint_surface'))
+          .borderRadius(9)
+      }
+      if (post.replyToUsername !== null && post.replyToUsername.length > 0) {
+        Text(`回复 ${post.replyToUsername}`)
+          .fontSize(12)
+          .fontColor($r('app.color.text_link'))
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+      } else {
+        Text(`回复 #${targetPostNumber}`)
+          .fontSize(12)
+          .fontColor($r('app.color.text_link'))
+      }
+      SymbolGlyph($r('sys.symbol.arrowshape_turn_up_left'))
+        .fontSize(13)
+        .fontColor([$r('app.color.text_link')])
+    }
+    .width('100%')
+    .padding({ left: 8, right: 8, top: 6, bottom: 6 })
+    .backgroundColor($r('sys.color.background_secondary'))
+    .borderRadius(8)
+    .onClick((): void => this.onOpenReplyTarget(targetPostNumber))
+    .accessibilityText(`跳转至回复对象 #${targetPostNumber}`)
   }
 
   @Builder
@@ -230,10 +297,33 @@ export struct ForumContentCard {
     }
   }
 
+  @Builder
+  private PostActions(post: ForumPost): void {
+    TopicPostActionBar({
+      post: post,
+      topicId: this.topicId,
+      validReactions: this.validReactions,
+      actionState: this.postActionState,
+      bookmarked: this.bookmarked,
+      editable: this.editable,
+      onToggleReaction: this.onToggleReaction,
+      onOpenReactionUsers: this.onOpenReactionUsers,
+      onToggleBookmark: this.onToggleBookmark,
+      onToggleAcceptedAnswer: this.onToggleAcceptedAnswer,
+      onCopyPostLink: this.onCopyPostLink,
+      onReport: this.onReport,
+      onEdit: this.onEdit,
+      onDelete: this.onDelete
+    })
+  }
+
   build() {
     Column({ space: 10 }) {
       if (this.presentation.author !== null) {
         this.AuthorRow(this.presentation.author)
+      }
+      if (this.post !== null && this.post.replyToPostNumber !== null) {
+        this.ReplyTarget(this.post, this.post.replyToPostNumber)
       }
       this.Content()
       if (this.presentation.footerBadge !== null || this.presentation.statistics.length > 0 ||
@@ -241,6 +331,9 @@ export struct ForumContentCard {
         this.Footer()
       }
       this.Restriction()
+      if (this.post !== null) {
+        this.PostActions(this.post)
+      }
     }
     .alignItems(HorizontalAlign.Start)
     .width('100%')

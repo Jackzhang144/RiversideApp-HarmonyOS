@@ -8,7 +8,6 @@ import {
 } from './ForumComposerPresentation';
 import { ForumCardPresentation } from './ForumCardPresentation';
 import { ForumContentCard } from './ForumContentCard';
-import { TopicPostActionBar } from './TopicPostActionBar';
 import {
   Category,
   ForumPost,
@@ -339,16 +338,30 @@ export struct TopicDetailPage {
         richCooked: post?.cooked ?? '',
         richRaw: post?.raw ?? '',
         authorActionAvailable: true,
+        topicId: this.state.topicId,
+        post: post,
+        postActionState: this.state.postActionState,
+        bookmarked: post === null ? false : this.bookmarkedPostIds.includes(post.id),
+        editable: post === null ? false : this.canEditPost(post),
+        validReactions: this.state.detail?.validReactions ?? [],
         onOpenRichLink: (url: string): void => this.onOpenRichLink(url),
         onOpenRichEmbed: (url: string, provider: RichEmbedProvider, title: string): void =>
           this.onOpenRichEmbed(url, provider, title),
         onOpenImage: (url: string, title: string): void => this.onOpenImage(url, title),
         onOpenAuthor: (username: string): void => this.onOpenAuthor(username),
-        onReply: (postNumber: number | null): void => this.onOpenReply(postNumber)
+        onReply: (postNumber: number | null): void => this.onOpenReply(postNumber),
+        onOpenReplyTarget: (postNumber: number): void => {
+          this.onJumpToPost(postNumber);
+        },
+        onToggleReaction: (postId: number, reaction: string): void => this.onToggleReaction(postId, reaction),
+        onOpenReactionUsers: (postId: number): void => this.onOpenReactionUsers(postId),
+        onToggleBookmark: (postId: number): void => this.onToggleBookmark(postId),
+        onToggleAcceptedAnswer: (postId: number): void => this.onToggleAcceptedAnswer(postId),
+        onCopyPostLink: (topicId: number, postNumber: number): void => this.onCopyPostLink(topicId, postNumber),
+        onReport: (target: ForumPost): void => this.openPostFlag(target),
+        onEdit: (postId: number): void => this.onOpenEdit(postId),
+        onDelete: (postId: number): void => this.onDeletePost(postId)
       })
-      if (post !== null) {
-        this.PostActions(post)
-      }
     }
     .width('100%')
   }
@@ -479,31 +492,35 @@ export struct TopicDetailPage {
 
   @Builder
   private Reply(post: ForumPost): void {
-    Column({ space: 8 }) {
-      if (post.replyToPostNumber !== null) {
-        Text(post.replyToUsername === null
-          ? `回复 #${post.replyToPostNumber}`
-          : `回复 @${post.replyToUsername} · #${post.replyToPostNumber}`)
-          .fontSize(12)
-          .fontColor($r('app.color.text_link'))
-          .width('100%')
-          .padding({ left: 8 })
-      }
-      ForumContentCard({
-        presentation: ForumCardPresentation.reply(post, this.canReplyHere()),
-        richCooked: post.cooked,
-        richRaw: post.raw,
-        authorActionAvailable: true,
-        onOpenRichLink: (url: string): void => this.onOpenRichLink(url),
-        onOpenRichEmbed: (url: string, provider: RichEmbedProvider, title: string): void =>
-          this.onOpenRichEmbed(url, provider, title),
-        onOpenImage: (url: string, title: string): void => this.onOpenImage(url, title),
-        onOpenAuthor: (username: string): void => this.onOpenAuthor(username),
-        onReply: (postNumber: number | null): void => this.onOpenReply(postNumber)
-      })
-      this.PostActions(post)
-    }
-    .width('100%')
+    ForumContentCard({
+      presentation: ForumCardPresentation.reply(post, this.canReplyHere()),
+      richCooked: post.cooked,
+      richRaw: post.raw,
+      authorActionAvailable: true,
+      topicId: this.state.topicId,
+      post: post,
+      postActionState: this.state.postActionState,
+      bookmarked: this.bookmarkedPostIds.includes(post.id),
+      editable: this.canEditPost(post),
+      validReactions: this.state.detail?.validReactions ?? [],
+      onOpenRichLink: (url: string): void => this.onOpenRichLink(url),
+      onOpenRichEmbed: (url: string, provider: RichEmbedProvider, title: string): void =>
+        this.onOpenRichEmbed(url, provider, title),
+      onOpenImage: (url: string, title: string): void => this.onOpenImage(url, title),
+      onOpenAuthor: (username: string): void => this.onOpenAuthor(username),
+      onReply: (postNumber: number | null): void => this.onOpenReply(postNumber),
+      onOpenReplyTarget: (postNumber: number): void => {
+        this.onJumpToPost(postNumber);
+      },
+      onToggleReaction: (postId: number, reaction: string): void => this.onToggleReaction(postId, reaction),
+      onOpenReactionUsers: (postId: number): void => this.onOpenReactionUsers(postId),
+      onToggleBookmark: (postId: number): void => this.onToggleBookmark(postId),
+      onToggleAcceptedAnswer: (postId: number): void => this.onToggleAcceptedAnswer(postId),
+      onCopyPostLink: (topicId: number, postNumber: number): void => this.onCopyPostLink(topicId, postNumber),
+      onReport: (target: ForumPost): void => this.openPostFlag(target),
+      onEdit: (postId: number): void => this.onOpenEdit(postId),
+      onDelete: (postId: number): void => this.onDeletePost(postId)
+    })
   }
 
   @Builder
@@ -628,28 +645,6 @@ export struct TopicDetailPage {
     .width('100%')
     .padding({ left: 20, right: 20, top: 8, bottom: 20 })
     .alignItems(HorizontalAlign.Start)
-  }
-
-  @Builder
-  private PostActions(post: ForumPost): void {
-    TopicPostActionBar({
-      post: post,
-      topicId: this.state.topicId,
-      validReactions: this.state.detail?.validReactions ?? [],
-      actionState: this.state.postActionState,
-      bookmarked: this.bookmarkedPostIds.includes(post.id),
-      editable: this.canEditPost(post),
-      onToggleReaction: (postId: number, reaction: string): void =>
-        this.onToggleReaction(postId, reaction),
-      onOpenReactionUsers: (postId: number): void => this.onOpenReactionUsers(postId),
-      onToggleBookmark: (postId: number): void => this.onToggleBookmark(postId),
-      onToggleAcceptedAnswer: (postId: number): void => this.onToggleAcceptedAnswer(postId),
-      onCopyPostLink: (topicId: number, postNumber: number): void =>
-        this.onCopyPostLink(topicId, postNumber),
-      onReport: (target: ForumPost): void => this.openPostFlag(target),
-      onEdit: (postId: number): void => this.onOpenEdit(postId),
-      onDelete: (postId: number): void => this.onDeletePost(postId)
-    })
   }
 
   private openPostFlag(post: ForumPost): void {
