@@ -14,6 +14,35 @@ import { SymbolGlyphModifier, window } from '@kit.ArkUI';
 import { AppShellModel } from '../app/AppShellModel';
 import { AppDependencyGraph } from '../app/AppDependencyGraph';
 import {
+  APP_ABOUT_TITLE,
+  APP_CHAT_FALLBACK_TITLE,
+  APP_CHAT_IMAGE_TITLE,
+  APP_EDIT_TOPIC_TITLE,
+  APP_IMAGE_VIEWER_TITLE,
+  APP_LOGIN_TITLE,
+  APP_NEW_TOPIC_TITLE,
+  APP_PRODUCT_TITLE,
+  APP_PROFILE_EDITOR_TITLE,
+  APP_PROFILE_TITLE,
+  APP_SEARCH_TITLE,
+  APP_SETTINGS_TITLE,
+  APP_TOPIC_DETAIL_TITLE,
+  APP_UNAVAILABLE_PAGE_TITLE,
+  BACK_LABEL,
+  BACK_TO_ACCOUNT_LABEL,
+  BACK_TO_CATEGORY_LABEL,
+  BACK_TO_CHAT_LIST_LABEL,
+  BACK_TO_HOME_LABEL,
+  BACK_TO_PROFILE_LABEL,
+  BACK_TO_TOPIC_LABEL,
+  BACK_TO_TOPIC_LIST_LABEL,
+  CANCEL_LOGIN_LABEL,
+  ROOT_ACCOUNT_LABEL,
+  ROOT_CATEGORY_LABEL,
+  ROOT_CHAT_LABEL,
+  ROOT_HOME_LABEL
+} from '../app/AppNavigationCopy';
+import {
   ABOUT_ROUTE,
   APP_SETTINGS_ROUTE,
   CATEGORY_TOPICS_ROUTE,
@@ -2367,8 +2396,8 @@ struct Index {
       .titleBar({
         enableComponentSafeArea: true,
         content: {
-          title: { mainTitle: '应用设置' },
-          backIcon: { label: '返回我的' }
+          title: { mainTitle: APP_SETTINGS_TITLE },
+          backIcon: { label: BACK_TO_ACCOUNT_LABEL }
         }
       })
       .onBackPressed((): boolean => false)
@@ -2377,15 +2406,15 @@ struct Index {
         AboutPage({
           version: this.appVersion,
           onOpenWebsite: (): void => {
-            this.openRichEmbed(RIVERSIDE_ABOUT_URL, RichEmbedProvider.NONE, '关于 RiverSide');
+            this.openRichEmbed(RIVERSIDE_ABOUT_URL, RichEmbedProvider.NONE, APP_ABOUT_TITLE);
           }
         })
       }
       .titleBar({
         enableComponentSafeArea: true,
         content: {
-          title: { mainTitle: '关于 RiverSide' },
-          backIcon: { label: '返回我的' }
+          title: { mainTitle: APP_ABOUT_TITLE },
+          backIcon: { label: BACK_TO_ACCOUNT_LABEL }
         }
       })
       .onBackPressed((): boolean => false)
@@ -2403,7 +2432,7 @@ struct Index {
         enableComponentSafeArea: true,
         content: {
           title: { mainTitle: `在线用户（${this.onlineUserCount}）` },
-          backIcon: { label: '返回首页' }
+          backIcon: { label: BACK_TO_HOME_LABEL }
         }
       })
       .onBackPressed((): boolean => this.handleSecondaryBack())
@@ -2427,7 +2456,7 @@ struct Index {
         enableComponentSafeArea: true,
         content: {
           title: { mainTitle: this.categoryTitle },
-          backIcon: { label: '返回 Category' }
+          backIcon: { label: BACK_TO_CATEGORY_LABEL }
         }
       })
       .onBackPressed((): boolean => this.handleSecondaryBack())
@@ -2466,8 +2495,8 @@ struct Index {
       .titleBar({
         enableComponentSafeArea: true,
         content: {
-          title: { mainTitle: '搜索论坛' },
-          backIcon: { label: '返回首页' }
+          title: { mainTitle: APP_SEARCH_TITLE },
+          backIcon: { label: BACK_TO_HOME_LABEL }
         }
       })
       .onBackPressed((): boolean => this.handleSecondaryBack())
@@ -2598,8 +2627,8 @@ struct Index {
       .titleBar({
         enableComponentSafeArea: true,
         content: {
-          title: { mainTitle: 'Topic 详情' },
-          backIcon: { label: '返回 Topic 列表' }
+          title: { mainTitle: APP_TOPIC_DETAIL_TITLE },
+          backIcon: { label: BACK_TO_TOPIC_LIST_LABEL }
         }
       })
       .onBackPressed((): boolean => this.handleSecondaryBack())
@@ -2640,7 +2669,7 @@ struct Index {
           onCopyMessageLink: (channelId: number, channelSlug: string, messageId: number): void => {
             this.copyChatMessageLink(channelId, channelSlug, messageId);
           },
-          onOpenImage: (url: string): void => { this.openImageViewer(url, 'Chat 图片'); },
+          onOpenImage: (url: string): void => { this.openImageViewer(url, APP_CHAT_IMAGE_TITLE); },
           onOpenProfile: (username: string): void => { this.openUserProfile(username); },
           onLeaveChannel: (): void => { this.confirmLeaveChatChannel(); }
         })
@@ -2648,8 +2677,8 @@ struct Index {
       .titleBar({
         enableComponentSafeArea: true,
         content: {
-          title: { mainTitle: this.chatConversationState.channel?.title ?? 'Chat' },
-          backIcon: { label: '返回聊天列表' }
+          title: { mainTitle: this.chatConversationState.channel?.title ?? APP_CHAT_FALLBACK_TITLE },
+          backIcon: { label: BACK_TO_CHAT_LIST_LABEL }
         }
       })
       .onShown((): void => {
@@ -2692,8 +2721,8 @@ struct Index {
       .titleBar({
         enableComponentSafeArea: true,
         content: {
-          title: { mainTitle: 'Profile' },
-          backIcon: { label: '返回 Topic' }
+          title: { mainTitle: APP_PROFILE_TITLE },
+          backIcon: { label: BACK_TO_TOPIC_LABEL }
         }
       })
       .onBackPressed((): boolean => false)
@@ -2722,8 +2751,8 @@ struct Index {
       .titleBar({
         enableComponentSafeArea: true,
         content: {
-          title: { mainTitle: '编辑个人资料' },
-          backIcon: { label: '返回 Profile' }
+          title: { mainTitle: APP_PROFILE_EDITOR_TITLE },
+          backIcon: { label: BACK_TO_PROFILE_LABEL }
         }
       })
       .onBackPressed((): boolean => false)
@@ -2763,7 +2792,7 @@ struct Index {
         enableComponentSafeArea: true,
         content: {
           title: { mainTitle: this.profileContentTitle() },
-          backIcon: { label: '返回我的' }
+          backIcon: { label: BACK_TO_ACCOUNT_LABEL }
         }
       })
       .onBackPressed((): boolean => false)
@@ -2781,7 +2810,7 @@ struct Index {
         enableComponentSafeArea: true,
         content: {
           title: { mainTitle: this.richEmbedTitle },
-          backIcon: { label: '返回 Topic' }
+          backIcon: { label: BACK_TO_TOPIC_LABEL }
         }
       })
       .onBackPressed((): boolean => this.handleRichEmbedBack())
@@ -2806,8 +2835,10 @@ struct Index {
       .titleBar({
         enableComponentSafeArea: true,
         content: {
-          title: { mainTitle: this.imageViewerState.title.length > 0 ? this.imageViewerState.title : '查看原图' },
-          backIcon: { label: '返回 Topic' }
+          title: {
+            mainTitle: this.imageViewerState.title.length > 0 ? this.imageViewerState.title : APP_IMAGE_VIEWER_TITLE
+          },
+          backIcon: { label: BACK_TO_TOPIC_LABEL }
         }
       })
       .onBackPressed((): boolean => false)
@@ -2864,9 +2895,9 @@ struct Index {
         enableComponentSafeArea: true,
         content: {
           title: {
-            mainTitle: this.model?.topicEditingTopicId === null ? '发布新 Topic' : '编辑 Topic'
+            mainTitle: this.model?.topicEditingTopicId === null ? APP_NEW_TOPIC_TITLE : APP_EDIT_TOPIC_TITLE
           },
-          backIcon: { label: '返回' }
+          backIcon: { label: BACK_LABEL }
         }
       })
       .onBackPressed((): boolean => this.handleTopicComposerBack())
@@ -2885,8 +2916,8 @@ struct Index {
       .titleBar({
         enableComponentSafeArea: true,
         content: {
-          title: { mainTitle: '登录 RiverSide' },
-          backIcon: { label: '取消登录' }
+          title: { mainTitle: APP_LOGIN_TITLE },
+          backIcon: { label: CANCEL_LOGIN_LABEL }
         }
       })
       .onBackPressed((): boolean => this.cancelLogin())
@@ -2903,11 +2934,11 @@ struct Index {
       .onBackPressed((): boolean => this.handleSecondaryBack())
     } else {
       HdsNavDestination() {
-        Text('页面不可用')
+        Text(APP_UNAVAILABLE_PAGE_TITLE)
       }
       .titleBar({
         enableComponentSafeArea: true,
-        content: { title: { mainTitle: 'Riverside' } }
+        content: { title: { mainTitle: APP_PRODUCT_TITLE } }
       })
       .onBackPressed((): boolean => this.handleSecondaryBack())
     }
@@ -3043,7 +3074,7 @@ struct Index {
             }
           })
         }
-        .tabBar(this.rootTabStyle('首页', $r('sys.symbol.house')))
+        .tabBar(this.rootTabStyle(ROOT_HOME_LABEL, $r('sys.symbol.house')))
 
         TabContent() {
           CategoryBrowsePage({
@@ -3056,7 +3087,7 @@ struct Index {
             }
           })
         }
-        .tabBar(this.rootTabStyle('Category', $r('sys.symbol.square_grid_2x2')))
+        .tabBar(this.rootTabStyle(ROOT_CATEGORY_LABEL, $r('sys.symbol.square_grid_2x2')))
 
         TabContent() {
           ChatRootPage({
@@ -3077,7 +3108,7 @@ struct Index {
             onOpenDirectChat: (username: string): void => { this.openDirectChat(username); }
           })
         }
-        .tabBar(this.rootTabStyle('聊天', $r('sys.symbol.message')))
+        .tabBar(this.rootTabStyle(ROOT_CHAT_LABEL, $r('sys.symbol.message')))
 
         TabContent() {
           NotificationCentrePage({
@@ -3116,7 +3147,7 @@ struct Index {
             }
           })
         }
-        .tabBar(this.rootTabStyle('我的', $r('sys.symbol.person_crop_circle_fill_1')))
+        .tabBar(this.rootTabStyle(ROOT_ACCOUNT_LABEL, $r('sys.symbol.person_crop_circle_fill_1')))
       }
       .scrollable(false)
       .barPosition(BarPosition.End)

@@ -1,0 +1,29 @@
+export const APP_PRODUCT_TITLE: string = 'Riverside';
+export const APP_SETTINGS_TITLE: string = '应用设置';
+export const APP_ABOUT_TITLE: string = '关于 RiverSide';
+export const APP_SEARCH_TITLE: string = '搜索论坛';
+export const APP_TOPIC_DETAIL_TITLE: string = 'Topic 详情';
+export const APP_PROFILE_TITLE: string = 'Profile';
+export const APP_PROFILE_EDITOR_TITLE: string = '编辑个人资料';
+export const APP_LOGIN_TITLE: string = '登录 RiverSide';
+export const APP_NEW_TOPIC_TITLE: string = '发布新 Topic';
+export const APP_EDIT_TOPIC_TITLE: string = '编辑 Topic';
+export const APP_IMAGE_VIEWER_TITLE: string = '查看原图';
+export const APP_CHAT_FALLBACK_TITLE: string = 'Chat';
+export const APP_CHAT_IMAGE_TITLE: string = 'Chat 图片';
+export const APP_UNAVAILABLE_PAGE_TITLE: string = '页面不可用';
+
+export const BACK_TO_ACCOUNT_LABEL: string = '返回我的';
+export const BACK_TO_HOME_LABEL: string = '返回首页';
+export const BACK_TO_CATEGORY_LABEL: string = '返回 Category';
+export const BACK_TO_TOPIC_LIST_LABEL: string = '返回 Topic 列表';
+export const BACK_TO_CHAT_LIST_LABEL: string = '返回聊天列表';
+export const BACK_TO_TOPIC_LABEL: string = '返回 Topic';
+export const BACK_TO_PROFILE_LABEL: string = '返回 Profile';
+export const BACK_LABEL: string = '返回';
+export const CANCEL_LOGIN_LABEL: string = '取消登录';
+
+export const ROOT_HOME_LABEL: string = '首页';
+export const ROOT_CATEGORY_LABEL: string = 'Category';
+export const ROOT_CHAT_LABEL: string = '聊天';
+export const ROOT_ACCOUNT_LABEL: string = '我的';
