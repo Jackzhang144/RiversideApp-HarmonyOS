@@ -248,7 +248,7 @@ export struct ForumComposer {
         if (this.mentionLoading) {
           Row({ space: 8 }) {
             LoadingProgress().width(18).height(18)
-            Text('正在搜索用户').fontSize(12).fontColor($r('sys.color.font_secondary'))
+            Text($r('app.string.chat_mention_loading')).fontSize(12).fontColor($r('sys.color.font_secondary'))
           }
           .width('100%')
           .padding(8)
@@ -305,7 +305,7 @@ export struct ForumComposer {
           .fontSize(15)
           .fontWeight(FontWeight.Medium)
           .layoutWeight(1)
-        Button('关闭', { type: ButtonType.Normal })
+        Button($r('app.string.action_close'), { type: ButtonType.Normal })
           .height(30)
           .fontSize(11)
           .backgroundColor($r('sys.color.background_secondary'))
@@ -315,7 +315,7 @@ export struct ForumComposer {
           })
       }
       .width('100%')
-      TextInput({ text: this.emojiQuery, placeholder: '按名称搜索 Emoji' })
+      TextInput({ text: this.emojiQuery, placeholder: $r('app.string.composer_emoji_search_placeholder') })
         .width('100%')
         .height(38)
         .fontSize(12)
@@ -324,11 +324,11 @@ export struct ForumComposer {
         .onChange((value: string): void => {
           this.emojiQuery = value;
         })
-        .accessibilityText('搜索 Emoji 名称')
+        .accessibilityText($r('app.string.composer_emoji_search_accessibility'))
       if (this.emojiLoading && this.emojis.length === 0) {
         Row({ space: 8 }) {
           LoadingProgress().width(24).height(24)
-          Text('正在读取 Emoji 列表')
+          Text($r('app.string.composer_emoji_loading'))
             .fontSize(12)
             .fontColor($r('sys.color.font_secondary'))
         }
@@ -340,7 +340,7 @@ export struct ForumComposer {
             .fontSize(12)
             .fontColor($r('sys.color.font_secondary'))
           if (this.emojis.length === 0) {
-            Button('重试')
+            Button($r('app.string.common_retry'))
               .height(32)
               .fontSize(11)
               .onClick(this.onLoadEmojis)
@@ -418,7 +418,7 @@ export struct ForumComposer {
         .backgroundColor($r('sys.color.background_secondary'))
         .margin({ right: 7, bottom: 7 })
         .onClick((): void => this.toggleEmojiPicker())
-        .accessibilityText('打开 Emoji 选择器')
+        .accessibilityText($r('app.string.composer_emoji_open_accessibility'))
       Button() {
         SymbolGlyph($r('sys.symbol.ohos_photo'))
           .fontSize(18)
@@ -455,7 +455,7 @@ export struct ForumComposer {
           .width('100%')
         Row({ space: 8 }) {
           if (this.presentation.canCancelMedia()) {
-            Button('取消上传')
+            Button($r('app.string.composer_upload_cancel'))
               .height(34)
               .fontSize(12)
               .backgroundColor($r('sys.color.background_secondary'))
@@ -463,7 +463,7 @@ export struct ForumComposer {
               .onClick(this.onCancelMedia)
           }
           if (this.presentation.canRetryMedia()) {
-            Button('重试上传')
+            Button($r('app.string.composer_upload_retry'))
               .height(34)
               .fontSize(12)
               .backgroundColor($r('sys.color.background_secondary'))
@@ -471,7 +471,7 @@ export struct ForumComposer {
               .onClick(this.onRetryMedia)
           }
           if (this.presentation.canRemoveMedia()) {
-            Button('移除状态')
+            Button($r('app.string.composer_upload_remove_status'))
               .height(34)
               .fontSize(12)
               .backgroundColor($r('sys.color.background_secondary'))
@@ -505,11 +505,11 @@ export struct ForumComposer {
   @Builder
   private PrimaryAction(): void {
     if (this.presentation.needsAuthentication()) {
-      Button('重新登录后继续')
+      Button($r('app.string.composer_reauthenticate'))
         .width('100%')
         .height(48)
         .onClick(this.onReauthenticate)
-        .accessibilityText('重新登录并保留编辑器草稿')
+        .accessibilityText($r('app.string.composer_reauthenticate_accessibility'))
     } else {
       Button(this.presentation.submitLabel())
         .width('100%')
@@ -526,22 +526,22 @@ export struct ForumComposer {
   private DraftActions(): void {
     if (this.presentation.showsDraftActions) {
       Row({ space: 10 }) {
-        Button('保存草稿')
+        Button($r('app.string.composer_save_draft'))
           .layoutWeight(1)
           .height(42)
           .enabled(this.presentation.canEdit())
           .backgroundColor($r('sys.color.background_secondary'))
           .fontColor($r('app.color.text_link'))
           .onClick(this.onSaveDraft)
-          .accessibilityText('保存服务端草稿')
-        Button('舍弃')
+          .accessibilityText($r('app.string.composer_save_draft_accessibility'))
+        Button($r('app.string.composer_discard'))
           .layoutWeight(1)
           .height(42)
           .enabled(!this.presentation.isBusy())
           .backgroundColor($r('sys.color.background_secondary'))
           .fontColor($r('app.color.status_error'))
           .onClick(this.onDiscard)
-          .accessibilityText('舍弃草稿并关闭编辑器')
+          .accessibilityText($r('app.string.composer_discard_accessibility'))
       }
       .width('100%')
     }
@@ -560,11 +560,11 @@ export struct ForumComposer {
             .enabled(this.presentation.canEdit())
             .backgroundColor($r('sys.color.background_secondary'))
             .onChange((value: string): void => this.onTitleChange(value))
-            .accessibilityText('Topic 标题')
+            .accessibilityText($r('app.string.composer_topic_title_accessibility'))
         }
         if (this.presentation.showsCategoryInput) {
           Column({ space: 6 }) {
-            Text('Category')
+            Text($r('app.string.composer_category_label'))
               .fontSize(12)
               .fontColor($r('sys.color.font_secondary'))
               .width('100%')
@@ -579,7 +579,7 @@ export struct ForumComposer {
                   this.onCategoryChange(category.id);
                 }
               })
-              .accessibilityText('选择 Topic Category')
+              .accessibilityText($r('app.string.composer_category_accessibility'))
           }
           .width('100%')
         }

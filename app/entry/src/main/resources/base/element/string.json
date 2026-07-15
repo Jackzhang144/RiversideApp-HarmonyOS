@@ -491,6 +491,206 @@
     {
       "name": "chat_silenced_message",
       "value": "当前账号不能在此频道发言；历史消息仍可阅读。"
+    },
+    {
+      "name": "action_close",
+      "value": "关闭"
+    },
+    {
+      "name": "action_edit",
+      "value": "编辑"
+    },
+    {
+      "name": "composer_emoji_search_placeholder",
+      "value": "按名称搜索 Emoji"
+    },
+    {
+      "name": "composer_emoji_search_accessibility",
+      "value": "搜索 Emoji 名称"
+    },
+    {
+      "name": "composer_emoji_loading",
+      "value": "正在读取 Emoji 列表"
+    },
+    {
+      "name": "composer_emoji_open_accessibility",
+      "value": "打开 Emoji 选择器"
+    },
+    {
+      "name": "composer_upload_cancel",
+      "value": "取消上传"
+    },
+    {
+      "name": "composer_upload_retry",
+      "value": "重试上传"
+    },
+    {
+      "name": "composer_upload_remove_status",
+      "value": "移除状态"
+    },
+    {
+      "name": "composer_reauthenticate",
+      "value": "重新登录后继续"
+    },
+    {
+      "name": "composer_reauthenticate_accessibility",
+      "value": "重新登录并保留编辑器草稿"
+    },
+    {
+      "name": "composer_save_draft",
+      "value": "保存草稿"
+    },
+    {
+      "name": "composer_save_draft_accessibility",
+      "value": "保存服务端草稿"
+    },
+    {
+      "name": "composer_discard",
+      "value": "舍弃"
+    },
+    {
+      "name": "composer_discard_accessibility",
+      "value": "舍弃草稿并关闭编辑器"
+    },
+    {
+      "name": "composer_topic_title_accessibility",
+      "value": "Topic 标题"
+    },
+    {
+      "name": "composer_category_label",
+      "value": "Category"
+    },
+    {
+      "name": "composer_category_accessibility",
+      "value": "选择 Topic Category"
+    },
+    {
+      "name": "topic_loading",
+      "value": "正在加载 Topic 与首屏 Post"
+    },
+    {
+      "name": "topic_load_failed",
+      "value": "Topic 加载失败"
+    },
+    {
+      "name": "topic_reload_accessibility",
+      "value": "重新加载 Topic"
+    },
+    {
+      "name": "topic_floor_placeholder",
+      "value": "楼层"
+    },
+    {
+      "name": "topic_floor_jump",
+      "value": "跳转"
+    },
+    {
+      "name": "topic_floor_jump_accessibility",
+      "value": "跳转到输入楼层"
+    },
+    {
+      "name": "topic_read_progress_syncing",
+      "value": "正在同步阅读进度"
+    },
+    {
+      "name": "topic_reaction_users_loading",
+      "value": "正在加载回应用户"
+    },
+    {
+      "name": "topic_reaction_users_empty",
+      "value": "暂无可展示的回应用户"
+    },
+    {
+      "name": "topic_accepted_answer",
+      "value": "已采纳"
+    },
+    {
+      "name": "topic_accepted_answer_accessibility",
+      "value": "此回答已被采纳"
+    },
+    {
+      "name": "topic_report",
+      "value": "举报"
+    },
+    {
+      "name": "topic_server_state_syncing",
+      "value": "正在同步服务端状态"
+    },
+    {
+      "name": "topic_report_description",
+      "value": "感谢您维护社区的文明！版主收到举报后将尽快进行审核。"
+    },
+    {
+      "name": "topic_report_placeholder",
+      "value": "请描述具体问题（必填）"
+    },
+    {
+      "name": "topic_report_submit",
+      "value": "提交举报"
+    },
+    {
+      "name": "topic_posts_empty",
+      "value": "首屏还没有可展示的 Post"
+    },
+    {
+      "name": "topic_posts_loading_more",
+      "value": "正在加载更多 Post"
+    },
+    {
+      "name": "topic_posts_retry_more_accessibility",
+      "value": "重试加载更多 Post"
+    },
+    {
+      "name": "topic_posts_all_shown",
+      "value": "已显示全部 Post"
+    },
+    {
+      "name": "topic_posts_loading_earlier",
+      "value": "正在加载更早的 Post"
+    },
+    {
+      "name": "topic_posts_retry_earlier",
+      "value": "重试加载更早 Post"
+    },
+    {
+      "name": "topic_posts_load_earlier",
+      "value": "加载更早 Post"
+    },
+    {
+      "name": "topic_posts_load_earlier_accessibility",
+      "value": "加载当前窗口之前的 Post"
+    },
+    {
+      "name": "topic_continue_reading",
+      "value": "继续阅读"
+    },
+    {
+      "name": "rich_post_table_accessibility",
+      "value": "Post 表格"
+    },
+    {
+      "name": "rich_post_image_failed",
+      "value": "图片加载失败"
+    },
+    {
+      "name": "rich_post_play_isolated",
+      "value": "在隔离 ArkWeb 中播放"
+    },
+    {
+      "name": "embed_load_failed",
+      "value": "嵌入内容未加载"
+    },
+    {
+      "name": "embed_open_external",
+      "value": "确认后外部打开"
+    },
+    {
+      "name": "embed_open_external_accessibility",
+      "value": "确认后使用外部应用打开嵌入链接"
+    },
+    {
+      "name": "embed_no_native_bridge",
+      "value": "无原生 bridge"
     }
   ]
 }

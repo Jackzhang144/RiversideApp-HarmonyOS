@@ -242,7 +242,7 @@ export struct RichPostContent {
     .width('100%')
     .scrollable(ScrollDirection.Horizontal)
     .borderRadius(8)
-    .accessibilityText('Post 表格')
+    .accessibilityText($r('app.string.rich_post_table_accessibility'))
   }
 
   @Builder
@@ -253,7 +253,7 @@ export struct RichPostContent {
           SymbolGlyph($r('sys.symbol.ohos_photo'))
             .fontSize(18)
             .fontColor([$r('sys.color.font_tertiary')])
-          Text('图片加载失败')
+          Text($r('app.string.rich_post_image_failed'))
             .fontSize(13)
             .fontColor($r('sys.color.font_secondary'))
         }
@@ -325,7 +325,7 @@ export struct RichPostContent {
           .fontSize(14)
           .fontWeight(FontWeight.Bold)
           .fontColor($r('app.color.on_accent'))
-        Text('在隔离 ArkWeb 中播放')
+        Text($r('app.string.rich_post_play_isolated'))
           .fontSize(11)
           .fontColor($r('app.color.code_text'))
       }

@@ -306,7 +306,7 @@ export struct TopicDetailPage {
       LoadingProgress()
         .width(40)
         .height(40)
-      Text('正在加载 Topic 与首屏 Post')
+      Text($r('app.string.topic_loading'))
         .fontSize(16)
         .fontColor($r('sys.color.font_secondary'))
     }
@@ -319,16 +319,16 @@ export struct TopicDetailPage {
   @Builder
   private RetryableState(): void {
     Column({ space: 16 }) {
-      Text('Topic 加载失败')
+      Text($r('app.string.topic_load_failed'))
         .fontSize(22)
         .fontWeight(FontWeight.Bold)
       Text(this.state.message)
         .fontSize(15)
         .fontColor($r('sys.color.font_secondary'))
         .textAlign(TextAlign.Center)
-      Button('重试')
+      Button($r('app.string.common_retry'))
         .onClick(this.onRetry)
-        .accessibilityText('重新加载 Topic')
+        .accessibilityText($r('app.string.topic_reload_accessibility'))
     }
     .padding(32)
     .width('100%')
@@ -390,7 +390,7 @@ export struct TopicDetailPage {
           .fontSize(13)
           .fontWeight(FontWeight.Medium)
           .layoutWeight(1)
-        TextInput({ text: this.floorInput, placeholder: '楼层' })
+        TextInput({ text: this.floorInput, placeholder: $r('app.string.topic_floor_placeholder') })
           .width(88)
           .height(36)
           .type(InputType.Number)
@@ -402,14 +402,14 @@ export struct TopicDetailPage {
               this.selectedFloor = normalized;
             }
           })
-        Button('跳转')
+        Button($r('app.string.topic_floor_jump'))
           .height(36)
           .fontSize(13)
           .enabled(!this.state.postJumpState.busy)
           .onClick((): void => {
             this.jumpToFloor();
           })
-          .accessibilityText('跳转到输入楼层')
+          .accessibilityText($r('app.string.topic_floor_jump_accessibility'))
       }
       if (this.highestPostNumber() > 1) {
         Slider({
@@ -444,7 +444,7 @@ export struct TopicDetailPage {
             .fontSize(12)
             .fontColor($r('app.color.status_error'))
             .layoutWeight(1)
-          Button('重试')
+          Button($r('app.string.common_retry'))
             .height(32)
             .fontSize(12)
             .onClick((): void => {
@@ -469,7 +469,7 @@ export struct TopicDetailPage {
   @Builder
   private ReadProgressFeedback(): void {
     if (this.readProgressBusy) {
-      Text('正在同步阅读进度')
+      Text($r('app.string.topic_read_progress_syncing'))
         .fontSize(12)
         .fontColor($r('sys.color.font_secondary'))
         .width('100%')
@@ -584,14 +584,16 @@ export struct TopicDetailPage {
     Column({ space: 12 }) {
       if (this.reactionUsersState.kind === BrowseStateKind.LOADING) {
         LoadingProgress().width(36).height(36)
-        Text('正在加载回应用户').fontSize(14).fontColor($r('sys.color.font_secondary'))
+        Text($r('app.string.topic_reaction_users_loading')).fontSize(14)
+          .fontColor($r('sys.color.font_secondary'))
       } else if (this.reactionUsersState.kind === BrowseStateKind.ERROR) {
         Text(this.reactionUsersState.message.length > 0
           ? this.reactionUsersState.message : '回应用户加载失败')
           .fontSize(14)
           .fontColor($r('app.color.status_error'))
       } else if (this.reactionUsersState.items.length === 0) {
-        Text('暂无可展示的回应用户').fontSize(14).fontColor($r('sys.color.font_secondary'))
+        Text($r('app.string.topic_reaction_users_empty')).fontSize(14)
+          .fontColor($r('sys.color.font_secondary'))
       } else {
         if (this.reactionUsersState.message.length > 0) {
           Text(this.reactionUsersState.message)
@@ -701,7 +703,7 @@ export struct TopicDetailPage {
     Column({ space: 7 }) {
       Flex({ direction: FlexDirection.Row, wrap: FlexWrap.Wrap, justifyContent: FlexAlign.Start }) {
         if (post.acceptedAnswer) {
-          Text('已采纳')
+          Text($r('app.string.topic_accepted_answer'))
             .height(34)
             .fontSize(12)
             .fontWeight(FontWeight.Medium)
@@ -710,7 +712,7 @@ export struct TopicDetailPage {
             .backgroundColor($r('sys.color.background_secondary'))
             .borderRadius(17)
             .margin({ right: 6, bottom: 6 })
-            .accessibilityText('此回答已被采纳')
+            .accessibilityText($r('app.string.topic_accepted_answer_accessibility'))
         }
         ForEach(displayedReactions(post.reactions), (reaction: PostReaction) => {
           this.ReactionSummary(post.id, reaction)
@@ -747,7 +749,7 @@ export struct TopicDetailPage {
             .onClick((): void => this.onToggleAcceptedAnswer(post.id))
             .accessibilityText(post.acceptedAnswer ? '取消采纳此回答' : '采纳此回答')
         }
-        Button('复制链接')
+        Button($r('app.string.action_copy_link'))
           .height(34)
           .fontSize(12)
           .backgroundColor($r('sys.color.background_secondary'))
@@ -755,7 +757,7 @@ export struct TopicDetailPage {
           .margin({ right: 6, bottom: 6 })
           .onClick((): void => this.onCopyPostLink(this.state.topicId, post.postNumber))
           .accessibilityText(`复制 Post #${post.postNumber} 链接`)
-        Button('举报')
+        Button($r('app.string.topic_report'))
           .height(34)
           .fontSize(12)
           .backgroundColor($r('sys.color.background_secondary'))
@@ -765,7 +767,7 @@ export struct TopicDetailPage {
           .onClick((): void => this.openPostFlag(post))
           .accessibilityText(`举报 Post #${post.postNumber}`)
         if (this.canEditPost(post)) {
-          Button('编辑')
+          Button($r('app.string.action_edit'))
             .height(34)
             .fontSize(12)
             .backgroundColor($r('sys.color.background_secondary'))
@@ -776,7 +778,7 @@ export struct TopicDetailPage {
             .accessibilityText(post.postNumber === 1 ? '编辑 Topic' : `编辑 Post #${post.postNumber}`)
         }
         if (post.canDelete) {
-          Button('删除')
+          Button($r('app.string.action_delete'))
             .height(34)
             .fontSize(12)
             .backgroundColor($r('sys.color.background_secondary'))
@@ -793,7 +795,7 @@ export struct TopicDetailPage {
           LoadingProgress()
             .width(18)
             .height(18)
-          Text('正在同步服务端状态')
+          Text($r('app.string.topic_server_state_syncing'))
             .fontSize(12)
             .fontColor($r('sys.color.font_secondary'))
         }
@@ -887,7 +889,7 @@ export struct TopicDetailPage {
   private PostFlagSheet(): void {
     Scroll() {
       Column({ space: 8 }) {
-        Text('感谢您维护社区的文明！版主收到举报后将尽快进行审核。')
+        Text($r('app.string.topic_report_description'))
           .fontSize(12)
           .fontColor($r('sys.color.font_secondary'))
           .width('100%')
@@ -895,13 +897,13 @@ export struct TopicDetailPage {
           this.FlagOption(option)
         }, (option: PostFlagOption): string => option.typeId.toString())
         if (this.selectedFlagOption()?.needsMessage === true) {
-          TextArea({ text: this.flagMessage, placeholder: '请描述具体问题（必填）' })
+          TextArea({ text: this.flagMessage, placeholder: $r('app.string.topic_report_placeholder') })
             .width('100%')
             .height(96)
             .maxLength(1000)
             .onChange((value: string): void => { this.flagMessage = value; })
         }
-        Button('提交举报')
+        Button($r('app.string.topic_report_submit'))
           .width('100%')
           .height(44)
           .enabled(this.canSubmitPostFlag())
@@ -936,7 +938,7 @@ export struct TopicDetailPage {
   @Builder
   private EmptyPostState(): void {
     Column({ space: 12 }) {
-      Text('首屏还没有可展示的 Post')
+      Text($r('app.string.topic_posts_empty'))
         .fontSize(18)
         .fontWeight(FontWeight.Bold)
       Text(this.state.hasMorePosts ? '可以继续加载后续 Post。' : '这个 Topic 暂无内容。')
@@ -981,7 +983,7 @@ export struct TopicDetailPage {
         LoadingProgress()
           .width(32)
           .height(32)
-        Text('正在加载更多 Post')
+        Text($r('app.string.topic_posts_loading_more'))
           .fontSize(14)
           .fontColor($r('sys.color.font_secondary'))
       } else if (this.state.paginationMessage.length > 0) {
@@ -989,13 +991,13 @@ export struct TopicDetailPage {
           .fontSize(14)
           .fontColor($r('app.color.status_error'))
           .textAlign(TextAlign.Center)
-        Button('重试加载更多')
+        Button($r('app.string.common_retry_load_more'))
           .height(40)
           .fontSize(13)
           .onClick(this.onLoadMore)
-          .accessibilityText('重试加载更多 Post')
+          .accessibilityText($r('app.string.topic_posts_retry_more_accessibility'))
       } else if (!this.state.hasNextPosts && this.state.posts.length > 0) {
-        Text('已显示全部 Post')
+        Text($r('app.string.topic_posts_all_shown'))
           .fontSize(13)
           .fontColor($r('sys.color.font_tertiary'))
       }
@@ -1012,23 +1014,23 @@ export struct TopicDetailPage {
         LoadingProgress()
           .width(28)
           .height(28)
-        Text('正在加载更早的 Post')
+        Text($r('app.string.topic_posts_loading_earlier'))
           .fontSize(13)
           .fontColor($r('sys.color.font_secondary'))
       } else if (this.state.previousPaginationMessage.length > 0) {
         Text(this.state.previousPaginationMessage)
           .fontSize(13)
           .fontColor($r('app.color.status_error'))
-        Button('重试加载更早 Post')
+        Button($r('app.string.topic_posts_retry_earlier'))
           .height(38)
           .fontSize(13)
           .onClick(this.onLoadPrevious)
       } else if (this.state.hasPreviousPosts) {
-        Button('加载更早 Post')
+        Button($r('app.string.topic_posts_load_earlier'))
           .height(38)
           .fontSize(13)
           .onClick(this.onLoadPrevious)
-          .accessibilityText('加载当前窗口之前的 Post')
+          .accessibilityText($r('app.string.topic_posts_load_earlier_accessibility'))
       }
     }
     .width('100%')
@@ -1039,7 +1041,7 @@ export struct TopicDetailPage {
   private SuggestedTopics(detail: TopicDetail): void {
     if (detail.suggestedTopics.length > 0) {
       Column({ space: 10 }) {
-        Text('继续阅读')
+        Text($r('app.string.topic_continue_reading'))
           .fontSize(17)
           .fontWeight(FontWeight.Bold)
           .width('100%')
