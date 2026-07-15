@@ -20,9 +20,16 @@ import { MediaUploadResult, MediaUploadState, MediaUploadStateKind } from '../mo
 import {
   ChatMessageFragment,
   ChatMessageFragmentKind,
+  formatChatMessageTimestamp,
+  isChatMessageGroupStart,
   presentChatMessageBody,
   presentChatText
 } from './ChatMessagePresentation';
+
+const CHAT_MESSAGE_LONG_PRESS_DURATION_MILLISECONDS: number = 450;
+const CHAT_REACTION_SHEET_DELAY_MILLISECONDS: number = 120;
+const CHAT_REACTION_ACTION_LIMIT: number = 20;
+const CHAT_ACTION_MESSAGE_PREVIEW_LENGTH: number = 100;
 
 @Component
 export struct ChatConversationPage {
@@ -32,6 +39,7 @@ export struct ChatConversationPage {
   @Prop uploadState: MediaUploadState | null = null;
   @Prop currentUsername: string = '';
   @State emojiQuery: string = '';
+  @State emojiPickerVisible: boolean = false;
   @State mentionUsers: Array<ComposerMentionUser> = [];
   @State mentionLoading: boolean = false;
   @State mentionMessage: string = '';
@@ -189,18 +197,6 @@ export struct ChatConversationPage {
     return emoji?.imageUrl() ?? '';
   }
 
-  private reactionUsernames(message: ChatMessage): string {
-    const usernames: Array<string> = [];
-    message.reactions.forEach((reaction: ChatReaction): void => {
-      reaction.users.forEach((user: ChatReactionUser): void => {
-        if (!usernames.includes(user.username)) {
-          usernames.push(user.username);
-        }
-      });
-    });
-    return usernames.join('、');
-  }
-
   private canDelete(message: ChatMessage): boolean {
     const channel: ChatChannel | null = this.state.channel;
     if (channel === null) {
@@ -219,6 +215,107 @@ export struct ChatConversationPage {
     const query: string = this.emojiQuery.trim().toLowerCase();
     return this.emojis.filter((emoji: ChatEmoji): boolean => query.length === 0 ||
       emoji.name.toLowerCase().includes(query) || emoji.group.toLowerCase().includes(query)).slice(0, 40);
+  }
+
+  private displayUsername(message: ChatMessage): string {
+    return message.username.length > 0 ? message.username : '未知用户';
+  }
+
+  private avatarInitial(message: ChatMessage): string {
+    const username: string = this.displayUsername(message);
+    return username.slice(0, 1).toUpperCase();
+  }
+
+  private showReactionActions(message: ChatMessage): void {
+    const sheets: Array<SheetInfo> = this.emojis.slice(0, CHAT_REACTION_ACTION_LIMIT)
+      .map((emoji: ChatEmoji): SheetInfo => {
+      return {
+        title: `:${emoji.name}:`,
+        icon: emoji.imageUrl(),
+        action: (): void => this.onReact(message.id, emoji.name, ChatReactionAction.ADD)
+      };
+      });
+    if (sheets.length === 0) {
+      return;
+    }
+    this.getUIContext().showActionSheet({
+      title: $r('app.string.chat_reaction_add'),
+      message: `回应 ${this.displayUsername(message)} 的消息`,
+      sheets: sheets,
+      cancel: (): void => {}
+    });
+  }
+
+  private showMessageActions(message: ChatMessage): void {
+    const channel: ChatChannel | null = this.state.channel;
+    const sheets: Array<SheetInfo> = [];
+    if (!message.deleted && this.canWrite()) {
+      sheets.push({
+        title: $r('app.string.action_reply'),
+        action: (): void => this.onReply(message.id)
+      });
+    }
+    sheets.push({
+      title: $r('app.string.action_copy'),
+      action: (): void => this.onCopyMessage(message.message)
+    });
+    if (channel !== null) {
+      sheets.push({
+        title: $r('app.string.action_copy_link'),
+        action: (): void => this.onCopyMessageLink(channel.id, channel.slug, message.id)
+      });
+    }
+    if (!message.deleted && this.canWrite() && message.username.length > 0) {
+      sheets.push({
+        title: `@${message.username}`,
+        action: (): void => this.onMention(message.username)
+      });
+    }
+    if (!message.deleted && this.canWrite() && this.emojis.length > 0) {
+      sheets.push({
+        title: $r('app.string.chat_reaction_add'),
+        action: (): void => {
+          setTimeout(
+            (): void => this.showReactionActions(message),
+            CHAT_REACTION_SHEET_DELAY_MILLISECONDS
+          );
+        }
+      });
+    }
+    if (this.canDelete(message)) {
+      sheets.push({
+        title: message.deleted ? $r('app.string.action_restore') : $r('app.string.action_delete'),
+        action: (): void => {
+          if (message.deleted) {
+            this.onRestore(message.id);
+          } else {
+            this.onDelete(message.id);
+          }
+        }
+      });
+    }
+    this.getUIContext().showActionSheet({
+      title: this.displayUsername(message),
+      message: message.displayText().slice(0, CHAT_ACTION_MESSAGE_PREVIEW_LENGTH),
+      sheets: sheets,
+      cancel: (): void => {}
+    });
+  }
+
+  private showChannelActions(): void {
+    const channel: ChatChannel | null = this.state.channel;
+    if (channel === null || channel.isDirectMessage) {
+      return;
+    }
+    this.getUIContext().showActionSheet({
+      title: channel.title,
+      message: channel.subtitle,
+      sheets: [{
+        title: $r('app.string.chat_leave_channel'),
+        action: (): void => this.onLeaveChannel()
+      }],
+      cancel: (): void => {}
+    });
   }
 
   @Builder
@@ -307,32 +404,79 @@ export struct ChatConversationPage {
   }
 
   @Builder
-  private MessageCard(message: ChatMessage): void {
-    Column({ space: 8 }) {
-      Row({ space: 8 }) {
-        Text(message.username.length > 0 ? message.username : '未知用户')
-          .fontSize(12).fontWeight(FontWeight.Bold).fontColor($r('app.color.brand_primary'))
+  private AuthorAvatar(message: ChatMessage, visible: boolean): void {
+    if (visible) {
+      if (message.avatarUrl.length > 0) {
+        Image(message.avatarUrl)
+          .width(36)
+          .height(36)
+          .objectFit(ImageFit.Cover)
+          .borderRadius($r('app.float.forum_author_avatar_corner_radius'))
           .onClick((): void => this.onOpenProfile(message.username))
-        Text(message.createdAt.replace('T', ' ').replace('Z', ''))
-          .fontSize(10).fontColor($r('sys.color.font_tertiary')).layoutWeight(1)
+          .accessibilityText(`查看用户 ${this.displayUsername(message)}`)
+      } else {
+        Text(this.avatarInitial(message))
+          .width(36)
+          .height(36)
+          .fontSize(13)
+          .fontWeight(FontWeight.Bold)
+          .fontColor($r('app.color.brand_primary'))
+          .textAlign(TextAlign.Center)
+          .backgroundColor($r('app.color.brand_tint_surface'))
+          .borderRadius($r('app.float.forum_author_avatar_corner_radius'))
+          .onClick((): void => this.onOpenProfile(message.username))
+          .accessibilityText(`查看用户 ${this.displayUsername(message)}`)
       }
-      .width('100%')
+    } else {
+      Blank().width(36).height(1)
+    }
+  }
+
+  @Builder
+  private MessageBubble(message: ChatMessage, groupStart: boolean): void {
+    Column({ space: 7 }) {
+      if (groupStart) {
+        Row({ space: 8 }) {
+          Text(this.displayUsername(message))
+            .fontSize(13)
+            .fontWeight(FontWeight.Bold)
+            .fontColor($r('app.color.brand_primary'))
+            .maxLines(1)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
+          Text(formatChatMessageTimestamp(message.createdAt))
+            .fontSize(10)
+            .fontColor($r('sys.color.font_tertiary'))
+            .layoutWeight(1)
+            .textAlign(message.username === this.currentUsername ? TextAlign.End : TextAlign.Start)
+        }
+        .width('100%')
+      }
 
       if (message.replyTo !== null) {
         Column({ space: 3 }) {
-          Text(`回复 ${message.replyTo.username}`).fontSize(11).fontWeight(FontWeight.Bold).fontColor($r('app.color.brand_primary'))
+          Text(`回复 ${message.replyTo.username}`)
+            .fontSize(11)
+            .fontWeight(FontWeight.Bold)
+            .fontColor($r('app.color.text_link'))
           this.ReplyPreviewText(message.replyTo.excerpt)
         }
-        .width('100%').padding(8).backgroundColor($r('sys.color.background_secondary'))
-        .border({ width: { left: 3 }, color: $r('app.color.brand_primary') })
+        .width('100%')
+        .padding({ left: 9, right: 9, top: 7, bottom: 7 })
+        .backgroundColor($r('sys.color.background_secondary'))
+        .borderRadius(8)
+        .border({ width: { left: 3 }, color: $r('app.color.quote_border') })
       }
 
       this.MessageBody(message)
 
       if (!message.deleted && message.uploadUrls.length > 0) {
         ForEach(message.uploadUrls, (url: string): void => {
-          Image(absoluteChatUrl(url)).width('100%').height(180).borderRadius(10)
-            .objectFit(ImageFit.Contain).backgroundColor($r('sys.color.background_secondary'))
+          Image(absoluteChatUrl(url))
+            .width('100%')
+            .height(180)
+            .borderRadius(10)
+            .objectFit(ImageFit.Contain)
+            .backgroundColor($r('sys.color.background_secondary'))
             .onClick((): void => this.onOpenImage(absoluteChatUrl(url)))
             .accessibilityText($r('app.string.chat_image_open_accessibility'))
         }, (url: string): string => url)
@@ -345,58 +489,45 @@ export struct ChatConversationPage {
           }, (reaction: ChatReaction): string => reaction.emoji)
         }
         .width('100%')
-        Text(this.reactionUsernames(message))
-          .fontSize(10).fontColor($r('sys.color.font_tertiary')).maxLines(2).width('100%')
       }
-
-      Row({ space: 6 }) {
-        Button($r('app.string.action_copy'), { type: ButtonType.Normal }).height(30).fontSize(11)
-          .onClick((): void => this.onCopyMessage(message.message))
-        if (this.state.channel !== null) {
-          Button($r('app.string.action_copy_link'), { type: ButtonType.Normal }).height(30).fontSize(11)
-            .onClick((): void => this.onCopyMessageLink(
-              this.state.channel?.id ?? 0,
-              this.state.channel?.slug ?? '',
-              message.id
-            ))
-        }
-        if (!message.deleted && this.canWrite()) {
-          Button($r('app.string.action_reply'), { type: ButtonType.Normal }).height(30).fontSize(11)
-            .onClick((): void => this.onReply(message.id))
-          Button('@', { type: ButtonType.Normal }).height(30).fontSize(11)
-            .onClick((): void => this.onMention(message.username))
-          if (this.emojis.length > 0) {
-            ForEach(this.emojis.slice(0, 5), (emoji: ChatEmoji): void => {
-              Button() {
-                Image(emoji.imageUrl()).width(18).height(18).objectFit(ImageFit.Contain)
-              }
-              .width(30).height(30).backgroundColor($r('sys.color.background_secondary'))
-              .onClick((): void => this.onReact(message.id, emoji.name, ChatReactionAction.ADD))
-              .accessibilityText(`添加 Reaction ${emoji.name}`)
-            }, (emoji: ChatEmoji): string => emoji.name)
-          }
-        }
-        if (this.canDelete(message) && !message.deleted) {
-          Button($r('app.string.action_delete'), { type: ButtonType.Normal }).height(30).fontSize(11)
-            .fontColor($r('app.color.status_error'))
-            .onClick((): void => this.onDelete(message.id))
-        } else if (this.canDelete(message) && message.deleted) {
-          Button($r('app.string.action_restore'), { type: ButtonType.Normal }).height(30).fontSize(11)
-            .onClick((): void => this.onRestore(message.id))
-        }
-      }
-      .width('100%')
     }
-    .width('88%').padding(12)
+    .width('82%')
+    .padding({ left: 11, right: 11, top: 9, bottom: 9 })
     .backgroundColor(message.username === this.currentUsername
-      ? $r('sys.color.background_secondary')
+      ? $r('app.color.brand_tint_surface')
       : $r('sys.color.comp_background_primary'))
-    .borderRadius($r('app.float.card_corner_radius')).border({ width: 1, color: $r('sys.color.comp_divider') })
+    .borderRadius($r('app.float.card_corner_radius'))
+    .border({
+      width: message.username === this.currentUsername ? 0 : 1,
+      color: $r('sys.color.comp_divider')
+    })
+    .gesture(
+      LongPressGesture({ duration: CHAT_MESSAGE_LONG_PRESS_DURATION_MILLISECONDS })
+        .onAction((): void => this.showMessageActions(message))
+    )
+    .accessibilityText(`${this.displayUsername(message)}：${message.displayText()}，长按显示消息操作`)
+  }
+
+  @Builder
+  private MessageRow(message: ChatMessage, groupStart: boolean): void {
+    Row({ space: 8 }) {
+      if (message.username !== this.currentUsername) {
+        this.AuthorAvatar(message, groupStart)
+      }
+      this.MessageBubble(message, groupStart)
+      if (message.username === this.currentUsername) {
+        this.AuthorAvatar(message, groupStart)
+      }
+    }
+    .width('100%')
+    .justifyContent(message.username === this.currentUsername ? FlexAlign.End : FlexAlign.Start)
+    .alignItems(VerticalAlign.Top)
+    .margin({ top: groupStart ? 10 : 3 })
   }
 
   @Builder
   private MessageList(): void {
-    List({ space: 10 }) {
+    List({ space: 0 }) {
       if (this.state.canLoadMorePast || this.state.loadingPast || this.state.message.length > 0) {
         ListItem() {
           Column({ space: 5 }) {
@@ -404,23 +535,36 @@ export struct ChatConversationPage {
               Text(this.state.message).fontSize(11).fontColor($r('app.color.status_error')).textAlign(TextAlign.Center)
             }
             if (this.state.canLoadMorePast || this.state.loadingPast) {
-              Button(this.state.loadingPast ? '正在加载' : '加载更早消息')
-                .enabled(!this.state.loadingPast).height(34).onClick(this.onLoadOlder)
+              Button(this.state.loadingPast
+                ? $r('app.string.chat_message_loading_more')
+                : $r('app.string.chat_message_load_older'), { type: ButtonType.Normal })
+                .enabled(!this.state.loadingPast)
+                .height(32)
+                .fontSize(12)
+                .fontColor($r('app.color.text_link'))
+                .backgroundColor(Color.Transparent)
+                .onClick(this.onLoadOlder)
             }
-          }.width('100%')
+          }.width('100%').padding({ top: 4, bottom: 4 })
         }
       }
-      ForEach(this.state.messages, (message: ChatMessage): void => {
+      ForEach(this.state.messages, (message: ChatMessage, index: number): void => {
         ListItem() {
-          Row() { this.MessageCard(message) }
-            .width('100%')
-            .justifyContent(message.username === this.currentUsername ? FlexAlign.End : FlexAlign.Start)
+          this.MessageRow(message, isChatMessageGroupStart(this.state.messages, index))
         }
       }, (message: ChatMessage): string => message.id.toString())
       if (this.state.canLoadMoreFuture || this.state.loadingFuture) {
         ListItem() {
-          Button(this.state.loadingFuture ? '正在加载' : '加载更新消息')
-            .width('100%').enabled(!this.state.loadingFuture).onClick(this.onLoadNewer)
+          Button(this.state.loadingFuture
+            ? $r('app.string.chat_message_loading_more')
+            : $r('app.string.chat_message_load_newer'), { type: ButtonType.Normal })
+            .width('100%')
+            .height(32)
+            .fontSize(12)
+            .fontColor($r('app.color.text_link'))
+            .backgroundColor(Color.Transparent)
+            .enabled(!this.state.loadingFuture)
+            .onClick(this.onLoadNewer)
         }
       }
     }
@@ -431,10 +575,14 @@ export struct ChatConversationPage {
 
   @Builder
   private EmojiBar(): void {
-    if (this.emojis.length > 0) {
-      Column({ space: 5 }) {
+    if (this.emojiPickerVisible && this.emojis.length > 0) {
+      Column({ space: 7 }) {
         TextInput({ text: this.emojiQuery, placeholder: $r('app.string.chat_emoji_search_placeholder') })
-          .width('100%').height(34).fontSize(11).backgroundColor($r('sys.color.background_secondary'))
+          .width('100%')
+          .height(36)
+          .fontSize(12)
+          .backgroundColor($r('sys.color.background_secondary'))
+          .borderRadius(18)
           .enabled(this.canWrite())
           .onChange((value: string): void => { this.emojiQuery = value; })
         List({ space: 6 }) {
@@ -443,15 +591,23 @@ export struct ChatConversationPage {
               Button() {
                 Image(emoji.imageUrl()).width(22).height(22).objectFit(ImageFit.Contain)
               }
-              .width(34).height(34).backgroundColor($r('sys.color.background_secondary')).enabled(this.canWrite())
+              .width(36)
+              .height(36)
+              .borderRadius(18)
+              .backgroundColor($r('sys.color.background_secondary'))
+              .enabled(this.canWrite())
               .onClick((): void => this.insertEmoji(emoji.name))
               .accessibilityText(`插入 Emoji ${emoji.name}`)
             }
           }, (emoji: ChatEmoji): string => emoji.name)
         }
-        .width('100%').height(40).listDirection(Axis.Horizontal).edgeEffect(EdgeEffect.Spring)
+        .width('100%')
+        .height(42)
+        .listDirection(Axis.Horizontal)
+        .edgeEffect(EdgeEffect.Spring)
       }
       .width('100%')
+      .padding({ left: 2, right: 2, top: 2, bottom: 2 })
     }
   }
 
@@ -506,14 +662,26 @@ export struct ChatConversationPage {
     if (reply !== null) {
       Row({ space: 8 }) {
         Column({ space: 2 }) {
-          Text(`回复 ${reply.username}`).fontSize(11).fontWeight(FontWeight.Bold).fontColor($r('app.color.brand_primary'))
+          Text(`回复 ${reply.username}`)
+            .fontSize(11)
+            .fontWeight(FontWeight.Bold)
+            .fontColor($r('app.color.text_link'))
           this.ReplyPreviewText(reply.displayText())
         }
         .layoutWeight(1)
-        Button($r('app.string.action_cancel'), { type: ButtonType.Normal }).height(28).fontSize(10)
+        Button('×', { type: ButtonType.Normal })
+          .width(28)
+          .height(28)
+          .fontSize(18)
+          .backgroundColor(Color.Transparent)
           .onClick(this.onCancelReply)
+          .accessibilityText($r('app.string.action_cancel'))
       }
-      .width('100%').padding(8).backgroundColor($r('sys.color.background_secondary')).borderRadius(8)
+      .width('100%')
+      .padding({ left: 10, right: 6, top: 7, bottom: 7 })
+      .backgroundColor($r('sys.color.background_secondary'))
+      .borderRadius(8)
+      .border({ width: { left: 3 }, color: $r('app.color.quote_border') })
     }
   }
 
@@ -524,10 +692,26 @@ export struct ChatConversationPage {
       if (this.composer.uploads.length > 0) {
         Flex({ direction: FlexDirection.Row, wrap: FlexWrap.Wrap, justifyContent: FlexAlign.Start }) {
           ForEach(this.composer.uploads, (upload: MediaUploadResult): void => {
-            Button(`图片 ${upload.id} ×`, { type: ButtonType.Normal })
-              .height(30).fontSize(10).onClick((): void => this.onRemoveUpload(upload.id))
+            Stack({ alignContent: Alignment.TopEnd }) {
+              Image(absoluteChatUrl(upload.url.length > 0 ? upload.url : upload.shortUrl))
+                .width(64)
+                .height(64)
+                .objectFit(ImageFit.Cover)
+                .borderRadius(8)
+              Button('×', { type: ButtonType.Normal })
+                .width(24)
+                .height(24)
+                .fontSize(14)
+                .backgroundColor($r('sys.color.comp_background_primary'))
+                .onClick((): void => this.onRemoveUpload(upload.id))
+                .accessibilityText(`移除图片 ${upload.originalFilename}`)
+            }
+            .width(64)
+            .height(64)
+            .margin({ right: 8, bottom: 8 })
           }, (upload: MediaUploadResult): string => upload.id.toString())
-        }.width('100%')
+        }
+        .width('100%')
       }
       if (this.uploadState !== null) {
         Row({ space: 8 }) {
@@ -547,9 +731,16 @@ export struct ChatConversationPage {
       }
       this.EmojiBar()
       this.MentionSuggestions()
-      Row({ space: 8 }) {
-        Button() { SymbolGlyph($r('sys.symbol.ohos_photo')).fontSize(20) }
-          .width(40).height(40).backgroundColor($r('sys.color.background_secondary'))
+      Row({ space: 7 }) {
+        Button() {
+          SymbolGlyph($r('sys.symbol.ohos_photo'))
+            .fontSize(20)
+            .fontColor([$r('sys.color.font_primary')])
+        }
+          .width(40)
+          .height(40)
+          .borderRadius(20)
+          .backgroundColor($r('sys.color.background_secondary'))
           .enabled(!this.composer.sending && this.canWrite())
           .onClick(this.onSelectImages).accessibilityText($r('app.string.chat_image_select_accessibility'))
         TextArea({
@@ -557,8 +748,11 @@ export struct ChatConversationPage {
           placeholder: $r('app.string.chat_composer_placeholder'),
           controller: this.composerController
         })
-          .layoutWeight(1).constraintSize({ minHeight: 42, maxHeight: 100 })
-          .backgroundColor($r('sys.color.background_secondary')).enabled(this.canWrite()).onChange((value: string): void => {
+          .layoutWeight(1)
+          .constraintSize({ minHeight: 42, maxHeight: 100 })
+          .backgroundColor($r('sys.color.background_secondary'))
+          .borderRadius(20)
+          .enabled(this.canWrite()).onChange((value: string): void => {
             this.handleDraftChange(value);
           })
           .onTextSelectionChange((selectionStart: number, selectionEnd: number): void => {
@@ -566,8 +760,28 @@ export struct ChatConversationPage {
             this.composerSelectionEnd = selectionEnd;
             this.scheduleMentionSearch(this.composer.draft, selectionEnd);
           })
+        if (this.emojis.length > 0) {
+          Button() {
+            Image(this.emojis[0].imageUrl())
+              .width(20)
+              .height(20)
+              .objectFit(ImageFit.Contain)
+          }
+            .width(40)
+            .height(40)
+            .borderRadius(20)
+            .backgroundColor(this.emojiPickerVisible
+              ? $r('app.color.brand_selected_surface')
+              : $r('sys.color.background_secondary'))
+            .enabled(this.canWrite())
+            .onClick((): void => { this.emojiPickerVisible = !this.emojiPickerVisible; })
+            .accessibilityText($r('app.string.chat_emoji_toggle_accessibility'))
+        }
         Button() { SymbolGlyph($r('sys.symbol.paperplane')).fontSize(20) }
-          .width(44).height(44).enabled(this.canWrite() && !this.composer.sending &&
+          .width(44)
+          .height(44)
+          .borderRadius(22)
+          .enabled(this.canWrite() && !this.composer.sending &&
             (this.composer.draft.trim().length > 0 || this.composer.uploads.length > 0))
           .onClick(this.onSend).accessibilityText($r('app.string.chat_send_accessibility'))
       }
@@ -577,7 +791,8 @@ export struct ChatConversationPage {
           .fontColor(this.composer.sending ? $r('sys.color.font_secondary') : $r('app.color.status_error')).width('100%')
       }
     }
-    .width('100%').padding({ left: 12, right: 12, top: 8, bottom: 12 })
+    .width('100%')
+    .padding({ left: 12, right: 12, top: 8, bottom: 10 })
     .backgroundColor($r('sys.color.comp_background_primary'))
     .border({ width: { top: 1 }, color: $r('sys.color.comp_divider') })
   }
@@ -585,13 +800,31 @@ export struct ChatConversationPage {
   build() {
     Column() {
       if (this.state.channel !== null && !this.state.channel.isDirectMessage) {
-        Row() {
-          Text(this.state.channel.subtitle).fontSize(11).fontColor($r('sys.color.font_secondary')).layoutWeight(1)
-          Button($r('app.string.chat_leave_channel'), { type: ButtonType.Normal }).height(30).fontSize(10)
-            .fontColor($r('app.color.status_error'))
-            .onClick(this.onLeaveChannel)
-        }.width('100%').padding({ left: 12, right: 12, top: 5, bottom: 5 })
+        Row({ space: 8 }) {
+          SymbolGlyph($r('sys.symbol.message'))
+            .fontSize(16)
+            .fontColor([$r('sys.color.font_secondary')])
+          Text(this.state.channel.subtitle)
+            .fontSize(12)
+            .fontColor($r('sys.color.font_secondary'))
+            .layoutWeight(1)
+            .maxLines(1)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
+          Button() {
+            Text('···').fontSize(18).fontWeight(FontWeight.Bold)
+          }
+          .width(36)
+          .height(32)
+          .borderRadius(16)
+          .backgroundColor(Color.Transparent)
+          .onClick((): void => this.showChannelActions())
+          .accessibilityText($r('app.string.chat_channel_actions_accessibility'))
+        }
+        .width('100%')
+        .height(42)
+        .padding({ left: 12, right: 8 })
           .backgroundColor($r('sys.color.comp_background_primary'))
+          .border({ width: { bottom: 1 }, color: $r('sys.color.comp_divider') })
       }
       if (this.state.channel?.userSilenced === true) {
         Text($r('app.string.chat_silenced_message'))

@@ -445,6 +445,30 @@
       "value": "消息加载失败"
     },
     {
+      "name": "chat_message_loading_more",
+      "value": "正在加载"
+    },
+    {
+      "name": "chat_message_load_older",
+      "value": "加载更早消息"
+    },
+    {
+      "name": "chat_message_load_newer",
+      "value": "加载更新消息"
+    },
+    {
+      "name": "chat_reaction_add",
+      "value": "添加 Reaction"
+    },
+    {
+      "name": "chat_emoji_toggle_accessibility",
+      "value": "展开或收起 Emoji 面板"
+    },
+    {
+      "name": "chat_channel_actions_accessibility",
+      "value": "频道操作"
+    },
+    {
       "name": "action_copy",
       "value": "复制"
     },
@@ -482,7 +506,7 @@
     },
     {
       "name": "chat_composer_placeholder",
-      "value": "输入消息，支持 @ 与 Emoji"
+      "value": "输入消息"
     },
     {
       "name": "chat_send_accessibility",

@@ -1,5 +1,7 @@
 import { ChatEmoji, ChatMessage } from '../models/ChatModels';
 
+const CHAT_MESSAGE_GROUP_WINDOW_MILLISECONDS: number = 5 * 60 * 1000;
+
 const EMOJI_NAME_PATTERN: RegExp = /^[A-Za-z0-9_+\-]+$/;
 
 export enum ChatMessageFragmentKind {
@@ -71,4 +73,30 @@ export function presentChatMessageBody(
   emojis: Array<ChatEmoji>
 ): Array<ChatMessageFragment> {
   return presentChatText(message.displayText(), emojis);
+}
+
+export function formatChatMessageTimestamp(value: string): string {
+  const normalized: string = value.trim();
+  if (normalized.length >= 16 && normalized.includes('T')) {
+    return normalized.slice(0, 16).replace('T', ' ');
+  }
+  return normalized;
+}
+
+export function isChatMessageGroupStart(messages: Array<ChatMessage>, index: number): boolean {
+  if (index <= 0 || index >= messages.length) {
+    return true;
+  }
+  const current: ChatMessage = messages[index];
+  const previous: ChatMessage = messages[index - 1];
+  if (current.username !== previous.username) {
+    return true;
+  }
+  const currentTime: number = Date.parse(current.createdAt);
+  const previousTime: number = Date.parse(previous.createdAt);
+  if (!Number.isFinite(currentTime) || !Number.isFinite(previousTime)) {
+    return true;
+  }
+  const elapsed: number = currentTime - previousTime;
+  return elapsed < 0 || elapsed > CHAT_MESSAGE_GROUP_WINDOW_MILLISECONDS;
 }
