@@ -8,10 +8,10 @@ import {
 } from './ForumComposerPresentation';
 import { ForumCardPresentation } from './ForumCardPresentation';
 import { ForumContentCard } from './ForumContentCard';
+import { TopicPostActionBar } from './TopicPostActionBar';
 import {
   Category,
   ForumPost,
-  PostReaction,
   PostReactionUser,
   PostReactionUsers,
   Topic,
@@ -24,11 +24,9 @@ import { RepositoryResult } from '../core/RepositoryResult';
 import { ComposerMentionUser } from '../models/ComposerMentionModels';
 import {
   categoryLabel,
-  displayedReactions,
   normalizeTopicFloor,
   PostFlagOption,
   postFlagOptions,
-  reactionAccessibilityLabel,
   reactionEmojiUrl,
   shouldShowSuggestedTopics,
   systemActionLabel,
@@ -209,10 +207,6 @@ export struct TopicDetailPage {
 
   private visiblePosts(): Array<ForumPost> {
     return this.hasStarterPost() ? this.state.posts.slice(1) : this.state.posts;
-  }
-
-  private isPostBookmarked(postId: number): boolean {
-    return this.bookmarkedPostIds.includes(postId);
   }
 
   private composerStatus(): ForumComposerStatus {
@@ -535,27 +529,6 @@ export struct TopicDetailPage {
   }
 
   @Builder
-  private ReactionSummary(postId: number, reaction: PostReaction): void {
-    Row({ space: 5 }) {
-      Image(reactionEmojiUrl(reaction.id))
-        .width(18)
-        .height(18)
-        .objectFit(ImageFit.Contain)
-      Text(reaction.count.toString())
-        .fontSize(12)
-        .fontWeight(FontWeight.Medium)
-        .fontColor($r('app.color.text_link'))
-    }
-    .height(34)
-    .padding({ left: 10, right: 10 })
-    .backgroundColor($r('sys.color.background_secondary'))
-    .borderRadius(17)
-    .margin({ right: 6, bottom: 6 })
-    .onClick((): void => this.onOpenReactionUsers(postId))
-    .accessibilityText(`${reactionAccessibilityLabel(reaction.id)}回应，${reaction.count} 次`)
-  }
-
-  @Builder
   private ReactionUserAvatar(user: PostReactionUser): void {
     Stack() {
       Text(user.username.slice(0, 1).toUpperCase())
@@ -658,160 +631,25 @@ export struct TopicDetailPage {
   }
 
   @Builder
-  private ReactionPicker(post: ForumPost): void {
-    Menu() {
-      ForEach(this.state.detail?.validReactions ?? [], (reaction: string) => {
-        MenuItem({
-          startIcon: reactionEmojiUrl(reaction),
-          content: reactionAccessibilityLabel(reaction)
-        })
-          .enabled(!this.state.postActionState.busy)
-          .onClick((): void => this.onToggleReaction(post.id, reaction))
-      }, (reaction: string): string => reaction)
-    }
-  }
-
-  @Builder
-  private ReactionTrigger(post: ForumPost): void {
-    Button() {
-      Image(reactionEmojiUrl('+1'))
-        .width(18)
-        .height(18)
-        .objectFit(ImageFit.Contain)
-    }
-    .width(42)
-    .height(34)
-    .backgroundColor(post.currentUserReaction === '+1'
-      ? $r('app.color.brand_primary')
-      : $r('sys.color.background_secondary'))
-    .margin({ right: 6, bottom: 6 })
-    .enabled(!this.state.postActionState.busy)
-    .onClick((): void => this.onToggleReaction(post.id, '+1'))
-    .bindContextMenu(this.ReactionPicker(post), ResponseType.LongPress, {
-      preview: MenuPreviewMode.NONE,
-      enableArrow: true
-    })
-    .accessibilityText(
-      post.currentUserReaction === '+1'
-        ? '取消赞同回应，长按选择其他回应'
-        : '添加赞同回应，长按选择其他回应'
-    )
-  }
-
-  @Builder
   private PostActions(post: ForumPost): void {
-    Column({ space: 7 }) {
-      Flex({ direction: FlexDirection.Row, wrap: FlexWrap.Wrap, justifyContent: FlexAlign.Start }) {
-        if (post.acceptedAnswer) {
-          Text($r('app.string.topic_accepted_answer'))
-            .height(34)
-            .fontSize(12)
-            .fontWeight(FontWeight.Medium)
-            .fontColor($r('app.color.status_success'))
-            .padding({ left: 10, right: 10 })
-            .backgroundColor($r('sys.color.background_secondary'))
-            .borderRadius(17)
-            .margin({ right: 6, bottom: 6 })
-            .accessibilityText($r('app.string.topic_accepted_answer_accessibility'))
-        }
-        ForEach(displayedReactions(post.reactions), (reaction: PostReaction) => {
-          this.ReactionSummary(post.id, reaction)
-        }, (reaction: PostReaction): string => reaction.id)
-        this.ReactionTrigger(post)
-        Button() {
-          if (this.isPostBookmarked(post.id)) {
-            SymbolGlyph($r('sys.symbol.bookmark_fill'))
-              .fontSize(18)
-              .fontColor([$r('app.color.on_accent')])
-          } else {
-            SymbolGlyph($r('sys.symbol.bookmark'))
-              .fontSize(18)
-              .fontColor([$r('app.color.text_link')])
-          }
-        }
-        .width(42)
-        .height(34)
-        .backgroundColor(this.isPostBookmarked(post.id)
-          ? $r('app.color.brand_primary')
-          : $r('sys.color.background_secondary'))
-        .margin({ right: 6, bottom: 6 })
-        .enabled(!this.state.postActionState.busy)
-        .onClick((): void => this.onToggleBookmark(post.id))
-        .accessibilityText(this.isPostBookmarked(post.id) ? '取消收藏' : '收藏')
-        if (post.canAcceptAnswer || post.canUnacceptAnswer) {
-          Button(post.acceptedAnswer ? '取消采纳' : '采纳回答')
-            .height(34)
-            .fontSize(12)
-            .backgroundColor($r('sys.color.background_secondary'))
-            .fontColor(post.acceptedAnswer ? $r('app.color.status_warning') : $r('app.color.status_success'))
-            .margin({ right: 6, bottom: 6 })
-            .enabled(!this.state.postActionState.busy)
-            .onClick((): void => this.onToggleAcceptedAnswer(post.id))
-            .accessibilityText(post.acceptedAnswer ? '取消采纳此回答' : '采纳此回答')
-        }
-        Button($r('app.string.action_copy_link'))
-          .height(34)
-          .fontSize(12)
-          .backgroundColor($r('sys.color.background_secondary'))
-          .fontColor($r('app.color.text_link'))
-          .margin({ right: 6, bottom: 6 })
-          .onClick((): void => this.onCopyPostLink(this.state.topicId, post.postNumber))
-          .accessibilityText(`复制 Post #${post.postNumber} 链接`)
-        Button($r('app.string.topic_report'))
-          .height(34)
-          .fontSize(12)
-          .backgroundColor($r('sys.color.background_secondary'))
-          .fontColor($r('sys.color.font_secondary'))
-          .margin({ right: 6, bottom: 6 })
-          .enabled(!this.state.postActionState.busy)
-          .onClick((): void => this.openPostFlag(post))
-          .accessibilityText(`举报 Post #${post.postNumber}`)
-        if (this.canEditPost(post)) {
-          Button($r('app.string.action_edit'))
-            .height(34)
-            .fontSize(12)
-            .backgroundColor($r('sys.color.background_secondary'))
-            .fontColor($r('app.color.text_link'))
-            .margin({ right: 6, bottom: 6 })
-            .enabled(!this.state.postActionState.busy)
-            .onClick((): void => this.onOpenEdit(post.id))
-            .accessibilityText(post.postNumber === 1 ? '编辑 Topic' : `编辑 Post #${post.postNumber}`)
-        }
-        if (post.canDelete) {
-          Button($r('app.string.action_delete'))
-            .height(34)
-            .fontSize(12)
-            .backgroundColor($r('sys.color.background_secondary'))
-            .fontColor($r('app.color.status_error'))
-            .margin({ right: 6, bottom: 6 })
-            .enabled(!this.state.postActionState.busy)
-            .onClick((): void => this.onDeletePost(post.id))
-            .accessibilityText(post.postNumber === 1 ? '删除 Topic 首帖' : `删除 Post #${post.postNumber}`)
-        }
-      }
-      .width('100%')
-      if (this.state.postActionState.postId === post.id && this.state.postActionState.busy) {
-        Row({ space: 6 }) {
-          LoadingProgress()
-            .width(18)
-            .height(18)
-          Text($r('app.string.topic_server_state_syncing'))
-            .fontSize(12)
-            .fontColor($r('sys.color.font_secondary'))
-        }
-      } else if (
-        this.state.postActionState.postId === post.id &&
-        this.state.postActionState.message.length > 0
-      ) {
-        Text(this.state.postActionState.message)
-          .fontSize(12)
-          .fontColor($r('app.color.status_error'))
-          .width('100%')
-      }
-    }
-    .alignItems(HorizontalAlign.Start)
-    .width('100%')
-    .padding({ left: 8, right: 8 })
+    TopicPostActionBar({
+      post: post,
+      topicId: this.state.topicId,
+      validReactions: this.state.detail?.validReactions ?? [],
+      actionState: this.state.postActionState,
+      bookmarked: this.bookmarkedPostIds.includes(post.id),
+      editable: this.canEditPost(post),
+      onToggleReaction: (postId: number, reaction: string): void =>
+        this.onToggleReaction(postId, reaction),
+      onOpenReactionUsers: (postId: number): void => this.onOpenReactionUsers(postId),
+      onToggleBookmark: (postId: number): void => this.onToggleBookmark(postId),
+      onToggleAcceptedAnswer: (postId: number): void => this.onToggleAcceptedAnswer(postId),
+      onCopyPostLink: (topicId: number, postNumber: number): void =>
+        this.onCopyPostLink(topicId, postNumber),
+      onReport: (target: ForumPost): void => this.openPostFlag(target),
+      onEdit: (postId: number): void => this.onOpenEdit(postId),
+      onDelete: (postId: number): void => this.onDeletePost(postId)
+    })
   }
 
   private openPostFlag(post: ForumPost): void {
