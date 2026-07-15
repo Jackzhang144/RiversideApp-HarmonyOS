@@ -19,7 +19,6 @@ import {
 } from '../models/DiscoveryModels';
 import { DiscoverySettings, DiscoverySettingsStore } from '../settings/DiscoverySettingsStore';
 import {
-  AUTHORING_CATEGORY_ID,
   CreateTopicRequest,
   DraftWriteRequest,
   EditPostRequest,
@@ -311,6 +310,7 @@ export class TopicComposerState {
   public readonly kind: TopicComposerStateKind;
   public readonly title: string;
   public readonly raw: string;
+  public readonly categoryId: number | null;
   public readonly draftSequence: number;
   public readonly createdTopicId: number | null;
   public readonly message: string;
@@ -319,6 +319,7 @@ export class TopicComposerState {
     kind: TopicComposerStateKind,
     title: string,
     raw: string,
+    categoryId: number | null,
     draftSequence: number,
     createdTopicId: number | null,
     message: string
@@ -326,17 +327,23 @@ export class TopicComposerState {
     this.kind = kind;
     this.title = title;
     this.raw = raw;
+    this.categoryId = categoryId !== null && Number.isInteger(categoryId) && categoryId > 0 ? categoryId : null;
     this.draftSequence = Math.max(0, draftSequence);
     this.createdTopicId = createdTopicId;
     this.message = message;
   }
 
   public static closed(): TopicComposerState {
-    return new TopicComposerState(TopicComposerStateKind.CLOSED, '', '', 0, null, '');
+    return new TopicComposerState(TopicComposerStateKind.CLOSED, '', '', null, 0, null, '');
   }
 
-  public static editing(title: string = '', raw: string = '', draftSequence: number = 0): TopicComposerState {
-    return new TopicComposerState(TopicComposerStateKind.EDITING, title, raw, draftSequence, null, '');
+  public static editing(
+    title: string = '',
+    raw: string = '',
+    categoryId: number | null = null,
+    draftSequence: number = 0
+  ): TopicComposerState {
+    return new TopicComposerState(TopicComposerStateKind.EDITING, title, raw, categoryId, draftSequence, null, '');
   }
 
   public static submitting(state: TopicComposerState): TopicComposerState {
@@ -344,6 +351,7 @@ export class TopicComposerState {
       TopicComposerStateKind.SUBMITTING,
       state.title,
       state.raw,
+      state.categoryId,
       state.draftSequence,
       null,
       '正在发布 Topic'
@@ -355,6 +363,7 @@ export class TopicComposerState {
       TopicComposerStateKind.SAVING_DRAFT,
       state.title,
       state.raw,
+      state.categoryId,
       state.draftSequence,
       null,
       '正在保存草稿'
@@ -366,6 +375,7 @@ export class TopicComposerState {
       TopicComposerStateKind.ERROR,
       state.title,
       state.raw,
+      state.categoryId,
       state.draftSequence,
       null,
       message
@@ -377,6 +387,7 @@ export class TopicComposerState {
       TopicComposerStateKind.REAUTHENTICATE,
       state.title,
       state.raw,
+      state.categoryId,
       state.draftSequence,
       null,
       '登录已失效，重新登录后可继续发布'
@@ -384,15 +395,19 @@ export class TopicComposerState {
   }
 
   public static success(topicId: number, message: string = 'Topic 已发布'): TopicComposerState {
-    return new TopicComposerState(TopicComposerStateKind.SUCCESS, '', '', 0, topicId, message);
+    return new TopicComposerState(TopicComposerStateKind.SUCCESS, '', '', null, 0, topicId, message);
   }
 
   public withTitle(title: string): TopicComposerState {
-    return TopicComposerState.editing(title, this.raw, this.draftSequence);
+    return TopicComposerState.editing(title, this.raw, this.categoryId, this.draftSequence);
   }
 
   public withRaw(raw: string): TopicComposerState {
-    return TopicComposerState.editing(this.title, raw, this.draftSequence);
+    return TopicComposerState.editing(this.title, raw, this.categoryId, this.draftSequence);
+  }
+
+  public withCategoryId(categoryId: number | null): TopicComposerState {
+    return TopicComposerState.editing(this.title, this.raw, categoryId, this.draftSequence);
   }
 
   public isBusy(): boolean {
@@ -1479,7 +1494,6 @@ export class AppShellModel {
     if (
       !this.topicState.canReply ||
       this.topicState.detail === null ||
-      this.topicState.detail.categoryId !== AUTHORING_CATEGORY_ID ||
       this.replyState.isBusy()
     ) {
       return;
@@ -1521,7 +1535,6 @@ export class AppShellModel {
     );
     if (
       detail === null ||
-      detail.categoryId !== AUTHORING_CATEGORY_ID ||
       post === undefined ||
       !post.canEdit ||
       this.replyState.isBusy()
@@ -1536,7 +1549,7 @@ export class AppShellModel {
       this.topicEditingTopicId = detail.id;
       this.topicEditingPostId = post.id;
       this.topicEditingOriginalTitle = detail.title;
-      this.topicComposerState = TopicComposerState.editing(detail.title, post.raw);
+      this.topicComposerState = TopicComposerState.editing(detail.title, post.raw, detail.categoryId);
       return true;
     }
     this.beginComposerSession(ComposerMediaTarget.REPLY);
@@ -1843,7 +1856,6 @@ export class AppShellModel {
     const detail: TopicDetail | null = this.topicState.detail;
     if (
       detail === null ||
-      detail.categoryId !== AUTHORING_CATEGORY_ID ||
       this.replyState.isBusy() ||
       (this.replyState.editingPostId === null && !this.topicState.canReply)
     ) {
@@ -1976,24 +1988,28 @@ export class AppShellModel {
     this.transitionReplyState(ReplyComposerState.success('Post 已保存'), onStateChange);
   }
 
-  public openNewTopic(): void {
+  public openNewTopic(initialCategoryId: number | null = null): void {
     this.beginComposerSession(ComposerMediaTarget.TOPIC);
     this.topicComposerRequestVersion += 1;
     this.topicEditingTopicId = null;
     this.topicEditingPostId = null;
     this.topicEditingOriginalTitle = '';
     this.topicDraftKey = 'new_topic';
-    this.topicComposerState = TopicComposerState.editing();
+    this.topicComposerState = TopicComposerState.editing('', '', initialCategoryId);
   }
 
   public openTopicDraft(draft: ServerDraft): boolean {
-    if (!draft.draftKey.startsWith('new_topic') ||
-      (draft.categoryId !== null && draft.categoryId !== AUTHORING_CATEGORY_ID)) {
+    if (!draft.draftKey.startsWith('new_topic')) {
       return false;
     }
-    this.openNewTopic();
+    this.openNewTopic(draft.categoryId);
     this.topicDraftKey = draft.draftKey;
-    this.topicComposerState = TopicComposerState.editing(draft.title, draft.raw, draft.sequence);
+    this.topicComposerState = TopicComposerState.editing(
+      draft.title,
+      draft.raw,
+      draft.categoryId,
+      draft.sequence
+    );
     return true;
   }
 
@@ -2015,6 +2031,16 @@ export class AppShellModel {
     }
   }
 
+  public updateTopicComposerCategory(categoryId: number): void {
+    if (
+      (this.topicComposerState.kind === TopicComposerStateKind.EDITING ||
+        this.topicComposerState.kind === TopicComposerStateKind.ERROR) &&
+      Number.isInteger(categoryId) && categoryId > 0
+    ) {
+      this.topicComposerState = this.topicComposerState.withCategoryId(categoryId);
+    }
+  }
+
   public async restoreTopicDraft(): Promise<void> {
     if (this.topicEditingTopicId !== null || this.topicComposerState.kind !== TopicComposerStateKind.EDITING) {
       return;
@@ -2022,11 +2048,13 @@ export class AppShellModel {
     const requestVersion: number = this.topicComposerRequestVersion;
     const title: string = this.topicComposerState.title;
     const raw: string = this.topicComposerState.raw;
+    const categoryId: number | null = this.topicComposerState.categoryId;
     const result: RepositoryResult<Array<ServerDraft>> = await this.repository.loadDrafts();
     if (
       requestVersion !== this.topicComposerRequestVersion ||
       this.topicComposerState.title !== title ||
-      this.topicComposerState.raw !== raw
+      this.topicComposerState.raw !== raw ||
+      this.topicComposerState.categoryId !== categoryId
     ) {
       return;
     }
@@ -2042,12 +2070,16 @@ export class AppShellModel {
     }
     const draft: ServerDraft | undefined = result.data.find(
       (candidate: ServerDraft): boolean => candidate.draftKey.startsWith('new_topic') &&
-        (candidate.categoryId === null || candidate.categoryId === AUTHORING_CATEGORY_ID) &&
         candidate.sequence !== this.ignoredTopicDraftSequence
     );
     if (draft !== undefined) {
       this.topicDraftKey = draft.draftKey;
-      this.topicComposerState = TopicComposerState.editing(draft.title, draft.raw, draft.sequence);
+      this.topicComposerState = TopicComposerState.editing(
+        draft.title,
+        draft.raw,
+        draft.categoryId,
+        draft.sequence
+      );
     }
   }
 
@@ -2058,6 +2090,7 @@ export class AppShellModel {
     const request: DraftWriteRequest | null = DraftWriteRequest.newTopic(
       this.topicComposerState.title,
       this.topicComposerState.raw,
+      this.topicComposerState.categoryId ?? 0,
       this.topicComposerState.draftSequence,
       this.topicDraftKey
     );
@@ -2078,7 +2111,12 @@ export class AppShellModel {
       this.topicComposerState = TopicComposerState.error(editing, result.message);
       return false;
     }
-    this.topicComposerState = TopicComposerState.editing(editing.title, editing.raw, result.data);
+    this.topicComposerState = TopicComposerState.editing(
+      editing.title,
+      editing.raw,
+      editing.categoryId,
+      result.data
+    );
     this.ignoredTopicDraftSequence = 0;
     return true;
   }
@@ -2128,6 +2166,7 @@ export class AppShellModel {
       this.topicComposerState = TopicComposerState.editing(
         this.topicComposerState.title,
         this.topicComposerState.raw,
+        this.topicComposerState.categoryId,
         this.topicComposerState.draftSequence
       );
     }
@@ -2143,10 +2182,11 @@ export class AppShellModel {
     }
     const request: CreateTopicRequest | null = CreateTopicRequest.create(
       this.topicComposerState.title,
-      this.topicComposerState.raw
+      this.topicComposerState.raw,
+      this.topicComposerState.categoryId ?? 0
     );
     if (request === null) {
-      this.topicComposerState = TopicComposerState.error(this.topicComposerState, '请填写标题和内容');
+      this.topicComposerState = TopicComposerState.error(this.topicComposerState, '请填写标题、Category 和内容');
       return;
     }
     const editing: TopicComposerState = this.topicComposerState;
@@ -2185,12 +2225,17 @@ export class AppShellModel {
     const postId: number | null = this.topicEditingPostId;
     const topicRequest: EditTopicRequest | null = topicId === null
       ? null
-      : EditTopicRequest.create(topicId, this.topicComposerState.title, this.topicEditingOriginalTitle);
+      : EditTopicRequest.create(
+        topicId,
+        this.topicComposerState.title,
+        this.topicEditingOriginalTitle,
+        this.topicComposerState.categoryId ?? 0
+      );
     const postRequest: EditPostRequest | null = postId === null
       ? null
       : EditPostRequest.create(postId, this.topicComposerState.raw);
     if (topicRequest === null || postRequest === null) {
-      this.topicComposerState = TopicComposerState.error(this.topicComposerState, '请填写标题和内容');
+      this.topicComposerState = TopicComposerState.error(this.topicComposerState, '请填写标题、Category 和内容');
       return;
     }
     const editing: TopicComposerState = this.topicComposerState;
@@ -2218,7 +2263,7 @@ export class AppShellModel {
         ? TopicReadState.withPosts(this.topicState, posts)
         : TopicReadState.withDetailAndPosts(
           this.topicState,
-          detail.withTitleAndPosts(topicRequest.title, posts),
+          detail.withTitleAndPosts(topicRequest.title, posts, topicRequest.categoryId),
           posts
         );
     }

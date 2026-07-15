@@ -739,24 +739,26 @@ export default function topicReadingTest(): void {
       done();
     });
 
-    it('rejects Reply authoring outside Category 111 before any server write', 0, async (done: Function) => {
+    it('allows Reply authoring in any Category permitted by the server', 0, async (done: Function) => {
       const repository: TopicReadingRepository = new TopicReadingRepository();
       repository.topicDetailResults.push(RepositoryResult.success<TopicDetail>(new TopicDetail(
         2725, '非创作分区', 10, 1, 0, false, false, true,
         [102728], [firstPost()], 1, new TopicDetailMetadata(54)
       )));
+      repository.currentUserResults.push(authenticatedUserResult());
+      repository.replySubmitResults.push(ReplySubmitResult.created(fourthPost()));
       const model: AppShellModel = new AppShellModel(
         repository, new MemoryCategoryCache(), CategoryCacheScope.anonymous()
       );
       await model.openTopic(topic());
 
       model.openReply(null);
-      expect(model.replyState.kind).assertEqual(ReplyComposerStateKind.CLOSED);
-      model.updateReplyDraft('不应发布');
+      expect(model.replyState.kind).assertEqual(ReplyComposerStateKind.EDITING);
+      model.updateReplyDraft('允许发布');
       await model.submitReply();
 
-      expect(model.replyState.kind).assertEqual(ReplyComposerStateKind.CLOSED);
-      expect(repository.submittedReplies.length).assertEqual(0);
+      expect(model.replyState.kind).assertEqual(ReplyComposerStateKind.SUCCESS);
+      expect(repository.submittedReplies.length).assertEqual(1);
       done();
     });
 
@@ -1128,11 +1130,11 @@ export default function topicReadingTest(): void {
         done();
       });
 
-    it('restores and retries a rejected new Topic draft without leaving Category 111', 0,
+    it('restores and retries a rejected new Topic draft in its selected Category', 0,
       async (done: Function) => {
         const repository: TopicReadingRepository = new TopicReadingRepository();
         repository.draftResults.push(RepositoryResult.success<Array<ServerDraft>>([
-          new ServerDraft('new_topic_1720000000', 2, 'createTopic', '课程笔记', '草稿正文', 111, null, null)
+          new ServerDraft('new_topic_1720000000', 2, 'createTopic', '课程笔记', '草稿正文', 54, null, null)
         ]));
         repository.topicSubmitResults.push(
           TopicSubmitResult.rejected('标题不符合要求'),
@@ -1146,13 +1148,14 @@ export default function topicReadingTest(): void {
         await model.restoreTopicDraft();
         expect(model.topicComposerState.title).assertEqual('课程笔记');
         expect(model.topicComposerState.raw).assertEqual('草稿正文');
+        expect(model.topicComposerState.categoryId).assertEqual(54);
         expect(model.topicComposerState.draftSequence).assertEqual(2);
 
         await model.submitTopicComposer();
         expect(model.topicComposerState.kind).assertEqual(TopicComposerStateKind.ERROR);
         expect(model.topicComposerState.title).assertEqual('课程笔记');
         expect(model.topicComposerState.raw).assertEqual('草稿正文');
-        expect(repository.submittedTopics[0].categoryId).assertEqual(111);
+        expect(repository.submittedTopics[0].categoryId).assertEqual(54);
 
         await model.submitTopicComposer();
         expect(model.topicComposerState.kind).assertEqual(TopicComposerStateKind.SUCCESS);

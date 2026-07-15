@@ -9,6 +9,7 @@ import {
   ComposerTool,
   insertComposerText
 } from '../models/AuthoringModels';
+import { Category } from '../models/ForumModels';
 
 @Component
 export struct ForumComposer {
@@ -20,7 +21,10 @@ export struct ForumComposer {
     ForumComposerStatus.EDITING,
     ''
   );
+  @Prop categories: Array<Category> = [];
+  @Prop selectedCategoryId: number | null = null;
   onTitleChange: (title: string) => void = (_title: string): void => {};
+  onCategoryChange: (categoryId: number) => void = (_categoryId: number): void => {};
   onBodyChange: (body: string) => void = (_body: string): void => {};
   onSubmit: () => void = (): void => {};
   onSaveDraft: () => void = (): void => {};
@@ -33,6 +37,27 @@ export struct ForumComposer {
   private readonly bodyController: TextAreaController = new TextAreaController();
   private selectionStart: number = 0;
   private selectionEnd: number = 0;
+
+  private categoryOptions(): Array<SelectOption> {
+    const options: Array<SelectOption> = [];
+    for (const category of this.categories) {
+      options.push({ value: category.name });
+    }
+    return options;
+  }
+
+  private selectedCategoryIndex(): number {
+    return this.categories.findIndex(
+      (category: Category): boolean => category.id === this.selectedCategoryId
+    );
+  }
+
+  private selectedCategoryName(): string {
+    const selected: Category | undefined = this.categories.find(
+      (category: Category): boolean => category.id === this.selectedCategoryId
+    );
+    return selected?.name ?? '请选择 Category';
+  }
 
   @Builder
   private ComposerContext(): void {
@@ -295,6 +320,27 @@ export struct ForumComposer {
             .backgroundColor('#F5F6F8')
             .onChange((value: string): void => this.onTitleChange(value))
             .accessibilityText('Topic 标题')
+        }
+        if (this.presentation.showsCategoryInput) {
+          Column({ space: 6 }) {
+            Text('Category')
+              .fontSize(12)
+              .fontColor($r('sys.color.font_secondary'))
+              .width('100%')
+            Select(this.categoryOptions())
+              .selected(this.selectedCategoryIndex())
+              .value(this.selectedCategoryName())
+              .width('100%')
+              .enabled(this.presentation.canEdit() && this.categories.length > 0)
+              .onSelect((index: number, _value: string): void => {
+                const category: Category | undefined = this.categories[index];
+                if (category !== undefined) {
+                  this.onCategoryChange(category.id);
+                }
+              })
+              .accessibilityText('选择 Topic Category')
+          }
+          .width('100%')
         }
         TextArea({
           text: this.presentation.bodyDraft,

@@ -12,7 +12,6 @@ import {
 import { ForumCardPresentation } from './ForumCardPresentation';
 import { ForumContentCard } from './ForumContentCard';
 import { Category, ForumPost, PostReaction, Topic, TopicDetail } from '../models/ForumModels';
-import { AUTHORING_CATEGORY_ID } from '../models/AuthoringModels';
 import { RichEmbedProvider } from '../models/RichContentModels';
 import { MediaUploadState } from '../models/MediaModels';
 import {
@@ -137,14 +136,14 @@ export struct TopicDetailPage {
   }
 
   private canEditPost(post: ForumPost): boolean {
-    if (!post.canEdit || this.state.detail?.categoryId !== AUTHORING_CATEGORY_ID) {
+    if (!post.canEdit) {
       return false;
     }
     return post.postNumber !== 1 || this.state.detail?.canEdit === true;
   }
 
   private canReplyHere(): boolean {
-    return this.state.canReply && this.state.detail?.categoryId === AUTHORING_CATEGORY_ID;
+    return this.state.canReply;
   }
 
   @Builder

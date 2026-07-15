@@ -3,12 +3,28 @@ import {
   applyComposerTool,
   autoReplyQuote,
   ComposerEdit,
-  ComposerTool
+  ComposerTool,
+  CreateTopicRequest,
+  DraftWriteRequest,
+  EditTopicRequest
 } from '../../../main/ets/models/AuthoringModels';
 import { ForumPost } from '../../../main/ets/models/ForumModels';
 
 export default function authoringModelsTest(): void {
   describe('Topic authoring public behavior', () => {
+    it('keeps the user-selected Category through create edit and draft requests', 0, () => {
+      const create: CreateTopicRequest | null = CreateTopicRequest.create('课程笔记', '正文', 42);
+      const edit: EditTopicRequest | null = EditTopicRequest.create(19139, '新标题', '旧标题', 43);
+      const draft: DraftWriteRequest | null = DraftWriteRequest.newTopic('草稿标题', '草稿正文', 44, 2);
+
+      expect(create?.categoryId).assertEqual(42);
+      expect(edit?.categoryId).assertEqual(43);
+      expect(draft?.categoryId).assertEqual(44);
+      expect(CreateTopicRequest.create('标题', '正文', 0)).assertNull();
+      expect(EditTopicRequest.create(19139, '标题', '旧标题', -1)).assertNull();
+      expect(DraftWriteRequest.newTopic('标题', '正文', 0)).assertNull();
+    });
+
     it('applies Markdown tools to the active text selection', 0, () => {
       const bold: ComposerEdit = applyComposerTool('前缀正文后缀', 2, 4, ComposerTool.BOLD);
       const link: ComposerEdit = applyComposerTool('', 0, 0, ComposerTool.LINK);

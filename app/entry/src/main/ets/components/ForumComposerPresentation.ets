@@ -27,6 +27,8 @@ export class ForumComposerPresentation {
   public readonly status: ForumComposerStatus;
   public readonly message: string;
   public readonly showsTitleInput: boolean;
+  public readonly showsCategoryInput: boolean;
+  public readonly categorySelected: boolean;
   public readonly titlePlaceholder: string;
   public readonly bodyPlaceholder: string;
   public readonly showsDraftActions: boolean;
@@ -45,7 +47,8 @@ export class ForumComposerPresentation {
     bodyDraft: string,
     status: ForumComposerStatus,
     message: string,
-    mediaState: MediaUploadState | null
+    mediaState: MediaUploadState | null,
+    categorySelected: boolean = true
   ) {
     this.mode = mode;
     this.sheetTitle = this.isReplyMode() ? 'Reply 编辑器' : '发帖 编辑器';
@@ -59,6 +62,8 @@ export class ForumComposerPresentation {
     this.message = message;
     this.mediaState = mediaState;
     this.showsTitleInput = this.isTopicMode();
+    this.showsCategoryInput = this.isTopicMode();
+    this.categorySelected = categorySelected;
     this.showsDraftActions = mode === ForumComposerMode.REPLY || mode === ForumComposerMode.TOPIC;
     this.titlePlaceholder = 'Topic 标题';
     this.bodyPlaceholder = this.isReplyMode()
@@ -96,18 +101,20 @@ export class ForumComposerPresentation {
     bodyDraft: string,
     status: ForumComposerStatus,
     message: string,
-    mediaState: MediaUploadState | null = null
+    mediaState: MediaUploadState | null = null,
+    categorySelected: boolean = true
   ): ForumComposerPresentation {
     return new ForumComposerPresentation(
       ForumComposerMode.TOPIC,
       '发布到 RiverSide',
-      '仅发布到测试专用 Category #111',
+      categorySelected ? `发布到 ${categoryName}` : '请选择 Category',
       categoryName,
       titleDraft,
       bodyDraft,
       status,
       message,
-      mediaState
+      mediaState,
+      categorySelected
     );
   }
 
@@ -173,7 +180,8 @@ export class ForumComposerPresentation {
       this.isBusy() ||
       this.needsAuthentication() ||
       this.isMediaPending() ||
-      this.bodyDraft.trim().length === 0
+      this.bodyDraft.trim().length === 0 ||
+      (this.showsCategoryInput && !this.categorySelected)
     ) {
       return false;
     }

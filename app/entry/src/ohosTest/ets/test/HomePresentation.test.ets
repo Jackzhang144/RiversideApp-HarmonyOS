@@ -21,7 +21,7 @@ export default function homePresentationTest(): void {
 
       const unavailable: HomeHeaderActionPresentation = HomeHeaderActionPresentation.newTopic(false);
       expect(unavailable.available).assertFalse();
-      expect(unavailable.accessibilityText).assertEqual('发布新 Topic，当前账户无 Category #111 创建权限');
+      expect(unavailable.accessibilityText).assertEqual('发布新 Topic，当前账户无可用 Category 创建权限');
     });
   });
 }

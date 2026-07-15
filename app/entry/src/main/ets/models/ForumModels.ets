@@ -405,7 +405,11 @@ export class TopicDetail {
     );
   }
 
-  public withTitleAndPosts(title: string, posts: Array<ForumPost>): TopicDetail {
+  public withTitleAndPosts(
+    title: string,
+    posts: Array<ForumPost>,
+    categoryId: number = this.categoryId
+  ): TopicDetail {
     return new TopicDetail(
       this.id,
       title,
@@ -419,7 +423,7 @@ export class TopicDetail {
       posts,
       this.highestPostNumber,
       new TopicDetailMetadata(
-        this.categoryId,
+        categoryId,
         this.canEdit,
         this.authorUsername,
         this.validReactions,

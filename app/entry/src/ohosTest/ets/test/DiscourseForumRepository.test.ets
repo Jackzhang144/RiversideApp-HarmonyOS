@@ -408,7 +408,7 @@ export default function discourseForumRepositoryTest(): void {
       const client: StubForumHttpClient = new StubForumHttpClient();
       client.jsonPostResults.push(HttpTextResult.success(200, '{"topic_id":19139}'));
       const repository: DiscourseForumRepository = new DiscourseForumRepository(client);
-      const request: CreateTopicRequest | null = CreateTopicRequest.create('课程笔记', '**正文**');
+      const request: CreateTopicRequest | null = CreateTopicRequest.create('课程笔记', '**正文**', 111);
       if (request === null) {
         expect(false).assertTrue();
         done();
@@ -431,7 +431,7 @@ export default function discourseForumRepositoryTest(): void {
         client.formPutResults.push(HttpTextResult.success(200, '{}'));
         client.formPutResults.push(HttpTextResult.success(200, '{}'));
         const repository: DiscourseForumRepository = new DiscourseForumRepository(client);
-        const topicRequest: EditTopicRequest | null = EditTopicRequest.create(19139, '新标题', '旧标题');
+        const topicRequest: EditTopicRequest | null = EditTopicRequest.create(19139, '新标题', '旧标题', 111);
         const postRequest: EditPostRequest | null = EditPostRequest.create(103066, '更新后的正文');
         if (topicRequest === null || postRequest === null) {
           expect(false).assertTrue();
@@ -463,7 +463,7 @@ export default function discourseForumRepositoryTest(): void {
         const repository: DiscourseForumRepository = new DiscourseForumRepository(client);
 
         const drafts: RepositoryResult<Array<ServerDraft>> = await repository.loadDrafts();
-        const write: DraftWriteRequest | null = DraftWriteRequest.newTopic('课程笔记', '正文', 2);
+        const write: DraftWriteRequest | null = DraftWriteRequest.newTopic('课程笔记', '正文', 111, 2);
         if (write === null) {
           expect(false).assertTrue();
           done();

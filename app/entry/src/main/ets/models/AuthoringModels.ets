@@ -1,6 +1,5 @@
 import { ForumPost } from './ForumModels';
 
-export const AUTHORING_CATEGORY_ID: number = 111;
 const AUTO_REPLY_QUOTE_MAX_CHARS: number = 120;
 const SINGLE_POLL_TEMPLATE: string =
   '[poll type=regular results=always public=true chartType=bar]\n' +
@@ -27,19 +26,21 @@ interface DraftDataPayload {
 export class CreateTopicRequest {
   public readonly title: string;
   public readonly raw: string;
-  public readonly categoryId: number = AUTHORING_CATEGORY_ID;
+  public readonly categoryId: number;
 
-  private constructor(title: string, raw: string) {
+  private constructor(title: string, raw: string, categoryId: number) {
     this.title = title;
     this.raw = raw;
+    this.categoryId = categoryId;
   }
 
-  public static create(title: string, raw: string): CreateTopicRequest | null {
+  public static create(title: string, raw: string, categoryId: number): CreateTopicRequest | null {
     const normalizedTitle: string = title.trim();
     const normalizedRaw: string = raw.trim();
-    return normalizedTitle.length === 0 || normalizedRaw.length === 0
+    return normalizedTitle.length === 0 || normalizedRaw.length === 0 ||
+      !Number.isInteger(categoryId) || categoryId <= 0
       ? null
-      : new CreateTopicRequest(normalizedTitle, normalizedRaw);
+      : new CreateTopicRequest(normalizedTitle, normalizedRaw, categoryId);
   }
 
   public toHttpExtraData(): Object {
@@ -73,20 +74,27 @@ export class EditTopicRequest {
   public readonly topicId: number;
   public readonly title: string;
   public readonly originalTitle: string;
-  public readonly categoryId: number = AUTHORING_CATEGORY_ID;
+  public readonly categoryId: number;
 
-  private constructor(topicId: number, title: string, originalTitle: string) {
+  private constructor(topicId: number, title: string, originalTitle: string, categoryId: number) {
     this.topicId = topicId;
     this.title = title;
     this.originalTitle = originalTitle;
+    this.categoryId = categoryId;
   }
 
-  public static create(topicId: number, title: string, originalTitle: string): EditTopicRequest | null {
+  public static create(
+    topicId: number,
+    title: string,
+    originalTitle: string,
+    categoryId: number
+  ): EditTopicRequest | null {
     const normalizedTitle: string = title.trim();
     const normalizedOriginalTitle: string = originalTitle.trim();
-    return !Number.isInteger(topicId) || topicId <= 0 || normalizedTitle.length === 0
+    return !Number.isInteger(topicId) || topicId <= 0 || normalizedTitle.length === 0 ||
+      !Number.isInteger(categoryId) || categoryId <= 0
       ? null
-      : new EditTopicRequest(topicId, normalizedTitle, normalizedOriginalTitle);
+      : new EditTopicRequest(topicId, normalizedTitle, normalizedOriginalTitle, categoryId);
   }
 }
 
@@ -154,6 +162,7 @@ export class DraftWriteRequest {
   public static newTopic(
     title: string,
     raw: string,
+    categoryId: number,
     sequence: number = 0,
     draftKey: string = 'new_topic'
   ): DraftWriteRequest | null {
@@ -161,6 +170,7 @@ export class DraftWriteRequest {
     const normalizedRaw: string = raw.trim();
     const normalizedDraftKey: string = draftKey.trim();
     if ((normalizedTitle.length === 0 && normalizedRaw.length === 0) ||
+      !Number.isInteger(categoryId) || categoryId <= 0 ||
       !normalizedDraftKey.startsWith('new_topic')) {
       return null;
     }
@@ -170,7 +180,7 @@ export class DraftWriteRequest {
       'createTopic',
       normalizedTitle,
       normalizedRaw,
-      AUTHORING_CATEGORY_ID,
+      categoryId,
       null,
       null
     );

@@ -30,7 +30,7 @@ export class HomeHeaderActionPresentation {
       HomeHeaderActionKind.NEW_TOPIC,
       '发布新 Topic',
       available,
-      available ? null : '发布新 Topic，当前账户无 Category #111 创建权限'
+      available ? null : '发布新 Topic，当前账户无可用 Category 创建权限'
     );
   }
 }

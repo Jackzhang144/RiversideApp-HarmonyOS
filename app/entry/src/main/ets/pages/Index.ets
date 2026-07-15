@@ -80,7 +80,7 @@ import {
 import { NotificationBucket, NotificationItem } from '../models/NotificationModels';
 import { HomeChannel, SearchPost, SearchUser } from '../models/DiscoveryModels';
 import { CurrentUser } from '../models/ReplyModels';
-import { AUTHORING_CATEGORY_ID, ServerDraft } from '../models/AuthoringModels';
+import { ServerDraft } from '../models/AuthoringModels';
 import {
   ProfileNotificationLevel,
   ProfileUpdateRequest,
@@ -1316,9 +1316,14 @@ struct Index {
     if (this.authState.kind !== AuthStateKind.AUTHENTICATED) {
       return true;
     }
-    return this.accountProfileState.profile?.canCreatePost === true && this.categoryState.items.some(
-      (category: Category): boolean => category.id === AUTHORING_CATEGORY_ID
+    return this.accountProfileState.profile?.canCreatePost === true && this.categoryState.items.length > 0;
+  }
+
+  private topicComposerCategoryName(): string {
+    const category: Category | undefined = this.categoryState.items.find(
+      (candidate: Category): boolean => candidate.id === this.topicComposerState.categoryId
     );
+    return category?.name ?? '未选择 Category';
   }
 
   private openPostEditor(postId: number): void {
@@ -1364,12 +1369,13 @@ struct Index {
       );
     }
     return ForumComposerPresentation.topic(
-      'Category #111',
+      this.topicComposerCategoryName(),
       this.topicComposerState.title,
       this.topicComposerState.raw,
       this.topicComposerStatus(),
       this.topicComposerState.message,
-      this.composerMediaState
+      this.composerMediaState,
+      this.topicComposerState.categoryId !== null
     );
   }
 
@@ -1450,6 +1456,16 @@ struct Index {
     }
   }
 
+  private updateTopicCategory(categoryId: number): void {
+    const model: AppShellModel | null = this.model;
+    if (model !== null && this.categoryState.items.some(
+      (category: Category): boolean => category.id === categoryId
+    )) {
+      model.updateTopicComposerCategory(categoryId);
+      this.topicComposerState = model.topicComposerState;
+    }
+  }
+
   private async saveTopicDraft(): Promise<void> {
     const model: AppShellModel | null = this.model;
     if (model === null) {
@@ -1480,6 +1496,7 @@ struct Index {
       return;
     }
     const editing: boolean = model.topicEditingTopicId !== null;
+    const categoryName: string = this.topicComposerCategoryName();
     const task: Promise<void> = model.submitTopicComposer();
     this.topicComposerState = model.topicComposerState;
     await task;
@@ -1492,7 +1509,7 @@ struct Index {
         editing
           ? '标题和首个 Post 已更新'
           : (model.topicComposerState.message === 'Topic 已发布'
-            ? '已发布到 Category #111'
+            ? `已发布到 ${categoryName}`
             : model.topicComposerState.message)
       );
       if (!editing) {
@@ -2197,8 +2214,13 @@ struct Index {
       HdsNavDestination() {
         ForumComposer({
           presentation: this.topicComposerPresentation(),
+          categories: this.categoryState.items,
+          selectedCategoryId: this.topicComposerState.categoryId,
           onTitleChange: (title: string): void => {
             this.updateTopicTitle(title);
+          },
+          onCategoryChange: (categoryId: number): void => {
+            this.updateTopicCategory(categoryId);
           },
           onBodyChange: (raw: string): void => {
             this.updateTopicRaw(raw);

@@ -137,11 +137,17 @@ export default function forumComposerPresentationTest(): void {
       expect(complete.contextTitle).assertEqual('发布到 RiverSide');
       expect(complete.contextBadge).assertEqual('水手之家');
       expect(complete.showsTitleInput).assertTrue();
+      expect(complete.showsCategoryInput).assertTrue();
       expect(incomplete.canSubmit()).assertFalse();
       expect(complete.canSubmit()).assertTrue();
       expect(complete.submitLabel()).assertEqual('发布 Topic');
-      expect(complete.contextDescription).assertEqual('仅发布到测试专用 Category #111');
+      expect(complete.contextDescription).assertEqual('发布到 水手之家');
       expect(complete.showsDraftActions).assertTrue();
+
+      const missingCategory: ForumComposerPresentation = ForumComposerPresentation.topic(
+        '未选择 Category', '标题', '正文', ForumComposerStatus.EDITING, '', null, false
+      );
+      expect(missingCategory.canSubmit()).assertFalse();
     });
 
     it('distinguishes Post and Topic editing from creation', 0, () => {
