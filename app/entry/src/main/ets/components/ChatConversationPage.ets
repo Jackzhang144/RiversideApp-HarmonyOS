@@ -35,6 +35,9 @@ export struct ChatConversationPage {
     (_messageId: number, _emoji: string, _action: ChatReactionAction): void => {};
   onDelete: (messageId: number) => void = (_messageId: number): void => {};
   onRestore: (messageId: number) => void = (_messageId: number): void => {};
+  onCopyMessage: (message: string) => void = (_message: string): void => {};
+  onCopyMessageLink: (channelId: number, channelSlug: string, messageId: number) => void =
+    (_channelId: number, _channelSlug: string, _messageId: number): void => {};
   onOpenImage: (url: string) => void = (_url: string): void => {};
   onOpenProfile: (username: string) => void = (_username: string): void => {};
   onLeaveChannel: () => void = (): void => {};
@@ -174,6 +177,16 @@ export struct ChatConversationPage {
       }
 
       Row({ space: 6 }) {
+        Button('复制', { type: ButtonType.Normal }).height(30).fontSize(11)
+          .onClick((): void => this.onCopyMessage(message.message))
+        if (this.state.channel !== null) {
+          Button('复制链接', { type: ButtonType.Normal }).height(30).fontSize(11)
+            .onClick((): void => this.onCopyMessageLink(
+              this.state.channel?.id ?? 0,
+              this.state.channel?.slug ?? '',
+              message.id
+            ))
+        }
         if (!message.deleted && this.canWrite()) {
           Button('回复', { type: ButtonType.Normal }).height(30).fontSize(11)
             .onClick((): void => this.onReply(message.id))

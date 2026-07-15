@@ -84,6 +84,7 @@ import { Category, Topic } from '../models/ForumModels';
 import {
   ChatChannel,
   ChatEmoji,
+  chatMessagePermalink,
   ChatReactionAction,
   ChatSearchResult
 } from '../models/ChatModels';
@@ -1217,6 +1218,33 @@ struct Index {
     }
   }
 
+  private async copyChatMessage(message: string): Promise<void> {
+    try {
+      await pasteboard.getSystemPasteboard().setData(
+        pasteboard.createData(pasteboard.MIMETYPE_TEXT_PLAIN, message)
+      );
+      this.showAuthenticationMessage('已复制', 'Chat 消息已复制到剪贴板');
+    } catch (_) {
+      this.showAuthenticationMessage('复制失败', '无法写入系统剪贴板');
+    }
+  }
+
+  private async copyChatMessageLink(channelId: number, channelSlug: string, messageId: number): Promise<void> {
+    const url: string = chatMessagePermalink(channelId, channelSlug, messageId);
+    if (url.length === 0) {
+      this.showAuthenticationMessage('复制失败', 'Chat 消息链接无效');
+      return;
+    }
+    try {
+      await pasteboard.getSystemPasteboard().setData(
+        pasteboard.createData(pasteboard.MIMETYPE_TEXT_PLAIN, url)
+      );
+      this.showAuthenticationMessage('链接已复制', 'Chat 消息链接已复制到剪贴板');
+    } catch (_) {
+      this.showAuthenticationMessage('复制失败', '无法写入系统剪贴板');
+    }
+  }
+
   private async retryTopic(): Promise<void> {
     const model: AppShellModel | null = this.model;
     if (model === null) {
@@ -2209,6 +2237,10 @@ struct Index {
           },
           onDelete: (messageId: number): void => { this.confirmDeleteChatMessage(messageId); },
           onRestore: (messageId: number): void => { this.restoreChatMessage(messageId); },
+          onCopyMessage: (message: string): void => { this.copyChatMessage(message); },
+          onCopyMessageLink: (channelId: number, channelSlug: string, messageId: number): void => {
+            this.copyChatMessageLink(channelId, channelSlug, messageId);
+          },
           onOpenImage: (url: string): void => { this.openImageViewer(url, 'Chat 图片'); },
           onOpenProfile: (username: string): void => { this.openUserProfile(username); },
           onLeaveChannel: (): void => { this.confirmLeaveChatChannel(); }

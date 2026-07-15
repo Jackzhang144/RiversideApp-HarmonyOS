@@ -4,6 +4,7 @@ import {
   ChatChannel,
   ChatMessage,
   ChatMessagePage,
+  chatMessagePermalink,
   parseChatChannels,
   parseChatMessagePage
 } from '../../../main/ets/models/ChatModels';
@@ -17,6 +18,25 @@ export default function chatModelsTest(): void {
       expect(absoluteChatUrl('upload://abc 123.png')).assertEqual(
         'https://river-side.cc/uploads/short-url/abc123.png'
       );
+    });
+
+    it('builds a Chat message permalink with the server channel slug', 0, () => {
+      expect(chatMessagePermalink(71, 'alumni-square', 18)).assertEqual(
+        'https://river-side.cc/chat/c/alumni-square/71/18'
+      );
+    });
+
+    it('falls back to the channel id when the Chat channel has no slug', 0, () => {
+      expect(chatMessagePermalink(71, '  ', 18)).assertEqual(
+        'https://river-side.cc/chat/c/71/71/18'
+      );
+    });
+
+    it('rejects Chat message permalinks with invalid identifiers', 0, () => {
+      expect(chatMessagePermalink(0, 'alumni-square', 18)).assertEqual('');
+      expect(chatMessagePermalink(71, 'alumni-square', -1)).assertEqual('');
+      expect(chatMessagePermalink(71.5, 'alumni-square', 18)).assertEqual('');
+      expect(chatMessagePermalink(71, 'alumni-square', 9007199254740992)).assertEqual('');
     });
 
     it('sorts channels by unread count and the actual last message timestamp', 0, () => {

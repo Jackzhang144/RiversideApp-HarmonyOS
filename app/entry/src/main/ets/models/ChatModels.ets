@@ -61,6 +61,16 @@ export function absoluteChatUrl(value: string): string {
   return normalized;
 }
 
+export function chatMessagePermalink(channelId: number, channelSlug: string, messageId: number): string {
+  if (!Number.isSafeInteger(channelId) || channelId <= 0 ||
+    !Number.isSafeInteger(messageId) || messageId <= 0) {
+    return '';
+  }
+  const normalizedSlug: string = channelSlug.trim();
+  const routeSlug: string = normalizedSlug.length > 0 ? normalizedSlug : channelId.toString();
+  return `${RIVERSIDE_ORIGIN}/chat/c/${routeSlug}/${channelId}/${messageId}`;
+}
+
 export class ChatChannel {
   public readonly id: number;
   public readonly title: string;
