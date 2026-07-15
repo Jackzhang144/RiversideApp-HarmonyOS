@@ -467,11 +467,34 @@ export class ChatModel {
     await this.markLatestRead(requestVersion, channel.id);
   }
 
-  public closeChannel(): void {
+  public async closeChannel(): Promise<void> {
+    const channel: ChatChannel | null = this.conversationState.channel;
+    const shouldCleanupEmptyDirectMessage: boolean = channel !== null &&
+      channel.isDirectMessage &&
+      channel.lastMessageAt.trim().length === 0 &&
+      !this.conversationState.messages.some((message: ChatMessage): boolean => message.id > 0);
     this.cancelUpload();
     this.conversationRequestVersion += 1;
     this.conversationState = ChatConversationState.initial();
     this.composerState = new ChatComposerState();
+    if (shouldCleanupEmptyDirectMessage && channel !== null) {
+      await this.leaveEmptyDirectMessageBestEffort(channel.id);
+    }
+  }
+
+  private async leaveEmptyDirectMessageBestEffort(channelId: number): Promise<void> {
+    try {
+      const result: RepositoryResult<boolean> = await this.repository.leaveChatChannel(channelId);
+      if (result.isSuccess() && result.data === true) {
+        this.channelState = ChatChannelState.fromChannels(this.channelState.channels.filter(
+          (channel: ChatChannel): boolean => channel.id !== channelId
+        ));
+      } else if (result.isUnauthorized()) {
+        await this.notifyUnauthorized();
+      }
+    } catch (_) {
+      // Closing an unused draft conversation remains best-effort.
+    }
   }
 
   public reset(): void {
@@ -926,7 +949,7 @@ export class ChatModel {
       }
       return false;
     }
-    this.closeChannel();
+    await this.closeChannel();
     await this.loadChannels();
     return true;
   }

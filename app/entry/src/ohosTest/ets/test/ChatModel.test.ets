@@ -47,6 +47,7 @@ class StubChatRepository implements ChatRepository {
   public sentRequests: Array<ChatSendRequest> = [];
   public reactionActions: Array<ChatReactionAction> = [];
   public markReadIds: Array<number> = [];
+  public leaveChannelIds: Array<number> = [];
 
   public async loadChatChannels(): Promise<RepositoryResult<Array<ChatChannel>>> {
     return this.channelResults.shift() ?? RepositoryResult.failure<Array<ChatChannel>>('missing channel result');
@@ -115,7 +116,8 @@ class StubChatRepository implements ChatRepository {
     return this.searchResults.shift() ?? RepositoryResult.success<Array<ChatSearchResult>>([]);
   }
 
-  public async leaveChatChannel(_channelId: number): Promise<RepositoryResult<boolean>> {
+  public async leaveChatChannel(channelId: number): Promise<RepositoryResult<boolean>> {
+    this.leaveChannelIds.push(channelId);
     return this.booleanResults.shift() ?? RepositoryResult.failure<boolean>('missing leave result');
   }
 }
@@ -216,6 +218,10 @@ function silencedChannel(): ChatChannel {
     true,
     false
   );
+}
+
+function directChannel(id: number, lastMessageAt: string = ''): ChatChannel {
+  return new ChatChannel(id, '测试私聊', 'member', '', lastMessageAt, true, 0, 0, '', `dm-${id}`);
 }
 
 function message(
@@ -746,5 +752,35 @@ export default function chatModelTest(): void {
       expect(model.conversationState.message).assertEqual('离开失败');
       done();
     });
+
+    it('best-effort removes only an empty direct message when its conversation closes', 0,
+      async (done: Function) => {
+        const repository: StubChatRepository = new StubChatRepository();
+        repository.directResults.push(
+          RepositoryResult.success<ChatChannel>(directChannel(77)),
+          RepositoryResult.success<ChatChannel>(directChannel(88, '2026-07-15T10:00:00Z')),
+          RepositoryResult.success<ChatChannel>(directChannel(99))
+        );
+        repository.messageResults.push(
+          RepositoryResult.success<ChatMessagePage>(new ChatMessagePage([], false, false)),
+          RepositoryResult.success<ChatMessagePage>(new ChatMessagePage([], false, false)),
+          RepositoryResult.success<ChatMessagePage>(new ChatMessagePage([
+            message(15, '已有消息', '2026-07-15T10:00:00Z')
+          ], false, false))
+        );
+        repository.booleanResults.push(RepositoryResult.success<boolean>(true));
+        const model: ChatModel = new ChatModel(repository);
+
+        expect(await model.openDirectChat('empty')).assertTrue();
+        await model.closeChannel();
+        expect(await model.openDirectChat('existing')).assertTrue();
+        await model.closeChannel();
+        expect(await model.openDirectChat('nonempty')).assertTrue();
+        await model.closeChannel();
+
+        expect(repository.leaveChannelIds.join(',')).assertEqual('77');
+        expect(model.conversationState.channel).assertNull();
+        done();
+      });
   });
 }
