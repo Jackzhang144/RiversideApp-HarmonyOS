@@ -880,22 +880,22 @@ export default function topicInteractionAuthoringTest(): void {
           repository, new MemoryCategoryCache(), CategoryCacheScope.anonymous()
         );
 
-        model.openNewTopic();
-        await model.restoreTopicDraft();
-        expect(model.topicComposerState.title).assertEqual('课程笔记');
-        expect(model.topicComposerState.raw).assertEqual('草稿正文');
-        expect(model.topicComposerState.categoryId).assertEqual(54);
-        expect(model.topicComposerState.draftSequence).assertEqual(2);
+        model.topicAuthoring.openNew();
+        await model.topicAuthoring.restoreDraft();
+        expect(model.topicAuthoring.state.title).assertEqual('课程笔记');
+        expect(model.topicAuthoring.state.raw).assertEqual('草稿正文');
+        expect(model.topicAuthoring.state.categoryId).assertEqual(54);
+        expect(model.topicAuthoring.state.draftSequence).assertEqual(2);
 
-        await model.submitTopicComposer();
-        expect(model.topicComposerState.kind).assertEqual(TopicComposerStateKind.ERROR);
-        expect(model.topicComposerState.title).assertEqual('课程笔记');
-        expect(model.topicComposerState.raw).assertEqual('草稿正文');
+        await model.topicAuthoring.submit();
+        expect(model.topicAuthoring.state.kind).assertEqual(TopicComposerStateKind.ERROR);
+        expect(model.topicAuthoring.state.title).assertEqual('课程笔记');
+        expect(model.topicAuthoring.state.raw).assertEqual('草稿正文');
         expect(repository.submittedTopics[0].categoryId).assertEqual(54);
 
-        await model.submitTopicComposer();
-        expect(model.topicComposerState.kind).assertEqual(TopicComposerStateKind.SUCCESS);
-        expect(model.topicComposerState.createdTopicId).assertEqual(19139);
+        await model.topicAuthoring.submit();
+        expect(model.topicAuthoring.state.kind).assertEqual(TopicComposerStateKind.SUCCESS);
+        expect(model.topicAuthoring.state.createdTopicId).assertEqual(19139);
         expect(repository.submittedTopics.length).assertEqual(2);
         expect(repository.deletedDrafts[0]).assertEqual('new_topic_1720000000:2');
         done();
@@ -910,13 +910,13 @@ export default function topicInteractionAuthoringTest(): void {
         repository, new MemoryCategoryCache(), CategoryCacheScope.anonymous()
       );
 
-      model.openNewTopic();
-      await model.restoreTopicDraft();
+      model.topicAuthoring.openNew();
+      await model.topicAuthoring.restoreDraft();
 
-      expect(model.topicComposerState.title).assertEqual('第一份草稿');
-      expect(model.topicComposerState.raw).assertEqual('尚未同步过的正文');
-      expect(model.topicComposerState.categoryId).assertEqual(54);
-      expect(model.topicComposerState.draftSequence).assertEqual(0);
+      expect(model.topicAuthoring.state.title).assertEqual('第一份草稿');
+      expect(model.topicAuthoring.state.raw).assertEqual('尚未同步过的正文');
+      expect(model.topicAuthoring.state.categoryId).assertEqual(54);
+      expect(model.topicAuthoring.state.draftSequence).assertEqual(0);
       done();
     });
 
@@ -936,17 +936,17 @@ export default function topicInteractionAuthoringTest(): void {
           repository, new MemoryCategoryCache(), CategoryCacheScope.anonymous()
         );
 
-        model.openNewTopic();
-        await model.restoreTopicDraft();
-        await model.submitTopicComposer();
-        expect(model.topicComposerState.kind).assertEqual(TopicComposerStateKind.SUCCESS);
-        expect(model.topicComposerState.message.includes('草稿清理失败')).assertTrue();
+        model.topicAuthoring.openNew();
+        await model.topicAuthoring.restoreDraft();
+        await model.topicAuthoring.submit();
+        expect(model.topicAuthoring.state.kind).assertEqual(TopicComposerStateKind.SUCCESS);
+        expect(model.topicAuthoring.state.message.includes('草稿清理失败')).assertTrue();
 
-        model.dismissTopicComposer();
-        model.openNewTopic();
-        await model.restoreTopicDraft();
-        expect(model.topicComposerState.title).assertEqual('');
-        expect(model.topicComposerState.raw).assertEqual('');
+        model.topicAuthoring.dismiss();
+        model.topicAuthoring.openNew();
+        await model.topicAuthoring.restoreDraft();
+        expect(model.topicAuthoring.state.title).assertEqual('');
+        expect(model.topicAuthoring.state.raw).assertEqual('');
         done();
       });
 

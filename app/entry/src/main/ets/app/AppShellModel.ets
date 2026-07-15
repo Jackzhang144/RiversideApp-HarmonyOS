@@ -13,13 +13,9 @@ import {
 } from '../models/ForumModels';
 import { DiscoverySettingsStore } from '../settings/DiscoverySettingsStore';
 import {
-  CreateTopicRequest,
   DraftWriteRequest,
   EditPostRequest,
-  EditTopicRequest,
   ServerDraft,
-  TopicSubmitKind,
-  TopicSubmitResult,
   autoReplyQuote
 } from '../models/AuthoringModels';
 import {
@@ -53,7 +49,6 @@ import {
   ComposerMediaTarget,
   ReplyComposerState,
   ReplyComposerStateKind,
-  TopicComposerState,
   TopicComposerStateKind
 } from './ComposerModels';
 import {
@@ -72,6 +67,7 @@ import { ComposerMediaCoordinator } from './ComposerMediaCoordinator';
 import { MediaUploadStateListener } from './MediaUploadCoordinator';
 import { DiscoveryCoordinator } from './DiscoveryCoordinator';
 import { CategoryBrowseCoordinator } from './CategoryBrowseCoordinator';
+import { TopicAuthoringCoordinator } from './TopicAuthoringCoordinator';
 
 class TopicNavigationFrame {
   public readonly topic: Topic;
@@ -104,12 +100,10 @@ export class AppShellModel {
   public requiresAuthentication: boolean = false;
   public readonly discovery: DiscoveryCoordinator;
   public readonly categories: CategoryBrowseCoordinator;
+  public readonly topicAuthoring: TopicAuthoringCoordinator;
   public topicState: TopicReadState = TopicReadState.initial();
   public topicReactionUsersState: BrowseState<PostReactionUsers> = BrowseState.initial<PostReactionUsers>();
   public replyState: ReplyComposerState = ReplyComposerState.closed();
-  public topicComposerState: TopicComposerState = TopicComposerState.closed();
-  public topicEditingTopicId: number | null = null;
-  public topicEditingPostId: number | null = null;
 
   private readonly repository: ForumRepository;
   private readonly authenticationLifecycle: AuthenticationLifecycle | null;
@@ -128,10 +122,6 @@ export class AppShellModel {
   private replyDraftKey: string = '';
   private ignoredReplyDraftKey: string = '';
   private ignoredReplyDraftSequence: number = 0;
-  private topicComposerRequestVersion: number = 0;
-  private ignoredTopicDraftSequence: number | null = null;
-  private topicDraftKey: string = 'new_topic';
-  private topicEditingOriginalTitle: string = '';
 
   public constructor(
     repository: ForumRepository,
@@ -172,6 +162,19 @@ export class AppShellModel {
         this.requiresAuthentication = true;
         await this.notifyUnauthorized(true);
       }
+    );
+    this.topicAuthoring = new TopicAuthoringCoordinator(
+      repository,
+      (): TopicReadState => this.topicState,
+      (state: TopicReadState): void => {
+        this.topicState = state;
+      },
+      (): void => this.mediaCoordinator.beginSession(ComposerMediaTarget.TOPIC),
+      (): void => this.mediaCoordinator.endSession(ComposerMediaTarget.TOPIC),
+      (required: boolean): void => {
+        this.requiresAuthentication = required;
+      },
+      async (): Promise<void> => this.notifyUnauthorized(true)
     );
   }
 
@@ -976,11 +979,7 @@ export class AppShellModel {
       if (!detail.canEdit) {
         return false;
       }
-      this.mediaCoordinator.beginSession(ComposerMediaTarget.TOPIC);
-      this.topicEditingTopicId = detail.id;
-      this.topicEditingPostId = post.id;
-      this.topicEditingOriginalTitle = detail.title;
-      this.topicComposerState = TopicComposerState.editing(detail.title, post.raw, detail.categoryId);
+      this.topicAuthoring.openEditor(detail, post);
       return true;
     }
     this.mediaCoordinator.beginSession(ComposerMediaTarget.REPLY);
@@ -1017,8 +1016,8 @@ export class AppShellModel {
       return this.replyState.kind === ReplyComposerStateKind.EDITING ||
         this.replyState.kind === ReplyComposerStateKind.ERROR;
     }
-    return this.topicComposerState.kind === TopicComposerStateKind.EDITING ||
-      this.topicComposerState.kind === TopicComposerStateKind.ERROR;
+    return this.topicAuthoring.state.kind === TopicComposerStateKind.EDITING ||
+      this.topicAuthoring.state.kind === TopicComposerStateKind.ERROR;
   }
 
   private appendComposerMedia(target: ComposerMediaTarget, result: MediaUploadResult): boolean {
@@ -1029,12 +1028,8 @@ export class AppShellModel {
       this.updateReplyDraft(appendUploadedImageMarkdown(this.replyState.draft, result));
       return true;
     }
-    if (target === ComposerMediaTarget.TOPIC && (
-      this.topicComposerState.kind === TopicComposerStateKind.EDITING ||
-      this.topicComposerState.kind === TopicComposerStateKind.ERROR
-    )) {
-      this.updateTopicComposerRaw(appendUploadedImageMarkdown(this.topicComposerState.raw, result));
-      return true;
+    if (target === ComposerMediaTarget.TOPIC) {
+      return this.topicAuthoring.appendMedia(result);
     }
     return false;
   }
@@ -1312,301 +1307,6 @@ export class AppShellModel {
       ));
     }
     this.transitionReplyState(ReplyComposerState.success('Post 已保存'), onStateChange);
-  }
-
-  public openNewTopic(initialCategoryId: number | null = null): void {
-    this.mediaCoordinator.beginSession(ComposerMediaTarget.TOPIC);
-    this.topicComposerRequestVersion += 1;
-    this.topicEditingTopicId = null;
-    this.topicEditingPostId = null;
-    this.topicEditingOriginalTitle = '';
-    this.topicDraftKey = 'new_topic';
-    this.topicComposerState = TopicComposerState.editing('', '', initialCategoryId);
-  }
-
-  public openTopicDraft(draft: ServerDraft): boolean {
-    if (!draft.draftKey.startsWith('new_topic')) {
-      return false;
-    }
-    this.openNewTopic(draft.categoryId);
-    this.topicDraftKey = draft.draftKey;
-    this.topicComposerState = TopicComposerState.editing(
-      draft.title,
-      draft.raw,
-      draft.categoryId,
-      draft.sequence
-    );
-    return true;
-  }
-
-  public updateTopicComposerTitle(title: string): void {
-    if (
-      this.topicComposerState.kind === TopicComposerStateKind.EDITING ||
-      this.topicComposerState.kind === TopicComposerStateKind.ERROR
-    ) {
-      this.topicComposerState = this.topicComposerState.withTitle(title);
-    }
-  }
-
-  public updateTopicComposerRaw(raw: string): void {
-    if (
-      this.topicComposerState.kind === TopicComposerStateKind.EDITING ||
-      this.topicComposerState.kind === TopicComposerStateKind.ERROR
-    ) {
-      this.topicComposerState = this.topicComposerState.withRaw(raw);
-    }
-  }
-
-  public updateTopicComposerCategory(categoryId: number): void {
-    if (
-      (this.topicComposerState.kind === TopicComposerStateKind.EDITING ||
-        this.topicComposerState.kind === TopicComposerStateKind.ERROR) &&
-      Number.isInteger(categoryId) && categoryId > 0
-    ) {
-      this.topicComposerState = this.topicComposerState.withCategoryId(categoryId);
-    }
-  }
-
-  public async restoreTopicDraft(): Promise<void> {
-    if (this.topicEditingTopicId !== null || this.topicComposerState.kind !== TopicComposerStateKind.EDITING) {
-      return;
-    }
-    const requestVersion: number = this.topicComposerRequestVersion;
-    const title: string = this.topicComposerState.title;
-    const raw: string = this.topicComposerState.raw;
-    const categoryId: number | null = this.topicComposerState.categoryId;
-    const result: RepositoryResult<Array<ServerDraft>> = await this.repository.loadDrafts();
-    if (
-      requestVersion !== this.topicComposerRequestVersion ||
-      this.topicComposerState.title !== title ||
-      this.topicComposerState.raw !== raw ||
-      this.topicComposerState.categoryId !== categoryId
-    ) {
-      return;
-    }
-    if (result.isUnauthorized()) {
-      this.requiresAuthentication = true;
-      this.topicComposerState = TopicComposerState.reauthenticate(this.topicComposerState);
-      await this.notifyUnauthorized(true);
-      return;
-    }
-    if (!result.isSuccess() || result.data === null) {
-      this.topicComposerState = TopicComposerState.error(this.topicComposerState, result.message);
-      return;
-    }
-    const draft: ServerDraft | undefined = result.data.find(
-      (candidate: ServerDraft): boolean => candidate.draftKey.startsWith('new_topic') &&
-        (this.ignoredTopicDraftSequence === null || candidate.sequence !== this.ignoredTopicDraftSequence)
-    );
-    if (draft !== undefined) {
-      this.topicDraftKey = draft.draftKey;
-      this.topicComposerState = TopicComposerState.editing(
-        draft.title,
-        draft.raw,
-        draft.categoryId,
-        draft.sequence
-      );
-    }
-  }
-
-  public async saveTopicDraft(): Promise<boolean> {
-    if (this.topicEditingTopicId !== null || this.topicComposerState.isBusy()) {
-      return false;
-    }
-    const request: DraftWriteRequest | null = DraftWriteRequest.newTopic(
-      this.topicComposerState.title,
-      this.topicComposerState.raw,
-      this.topicComposerState.categoryId ?? 0,
-      this.topicComposerState.draftSequence,
-      this.topicDraftKey
-    );
-    if (request === null) {
-      this.topicComposerState = TopicComposerState.error(this.topicComposerState, '草稿内容为空');
-      return false;
-    }
-    const editing: TopicComposerState = this.topicComposerState;
-    this.topicComposerState = TopicComposerState.savingDraft(editing);
-    const result: RepositoryResult<number> = await this.repository.saveDraft(request);
-    if (result.isUnauthorized()) {
-      this.requiresAuthentication = true;
-      this.topicComposerState = TopicComposerState.reauthenticate(editing);
-      await this.notifyUnauthorized(true);
-      return false;
-    }
-    if (!result.isSuccess() || result.data === null) {
-      this.topicComposerState = TopicComposerState.error(editing, result.message);
-      return false;
-    }
-    this.topicComposerState = TopicComposerState.editing(
-      editing.title,
-      editing.raw,
-      editing.categoryId,
-      result.data
-    );
-    this.ignoredTopicDraftSequence = null;
-    return true;
-  }
-
-  public dismissTopicComposer(): void {
-    if (!this.topicComposerState.isBusy()) {
-      this.mediaCoordinator.endSession(ComposerMediaTarget.TOPIC);
-      this.topicComposerRequestVersion += 1;
-      this.topicComposerState = TopicComposerState.closed();
-      this.topicEditingTopicId = null;
-      this.topicEditingPostId = null;
-      this.topicEditingOriginalTitle = '';
-    }
-  }
-
-  public async discardTopicDraft(): Promise<boolean> {
-    if (this.topicComposerState.isBusy()) {
-      return false;
-    }
-    if (this.topicEditingTopicId !== null || this.topicComposerState.draftSequence === 0) {
-      this.dismissTopicComposer();
-      return true;
-    }
-    const editing: TopicComposerState = this.topicComposerState;
-    const result: RepositoryResult<boolean> = await this.repository.deleteDraft(
-      this.topicDraftKey,
-      editing.draftSequence
-    );
-    if (result.isUnauthorized()) {
-      this.requiresAuthentication = true;
-      this.topicComposerState = TopicComposerState.reauthenticate(editing);
-      await this.notifyUnauthorized(true);
-      return false;
-    }
-    if (!result.isSuccess() || result.data !== true) {
-      this.topicComposerState = TopicComposerState.error(editing, result.message);
-      return false;
-    }
-    this.ignoredTopicDraftSequence = null;
-    this.dismissTopicComposer();
-    return true;
-  }
-
-  public resumeTopicAfterAuthentication(): void {
-    if (this.topicComposerState.kind === TopicComposerStateKind.REAUTHENTICATE) {
-      this.requiresAuthentication = false;
-      this.topicComposerState = TopicComposerState.editing(
-        this.topicComposerState.title,
-        this.topicComposerState.raw,
-        this.topicComposerState.categoryId,
-        this.topicComposerState.draftSequence
-      );
-    }
-  }
-
-  public async submitTopicComposer(): Promise<void> {
-    if (this.topicComposerState.isBusy()) {
-      return;
-    }
-    if (this.topicEditingTopicId !== null && this.topicEditingPostId !== null) {
-      await this.submitTopicEdit();
-      return;
-    }
-    const request: CreateTopicRequest | null = CreateTopicRequest.create(
-      this.topicComposerState.title,
-      this.topicComposerState.raw,
-      this.topicComposerState.categoryId ?? 0
-    );
-    if (request === null) {
-      this.topicComposerState = TopicComposerState.error(this.topicComposerState, '请填写标题、Category 和内容');
-      return;
-    }
-    const editing: TopicComposerState = this.topicComposerState;
-    this.topicComposerState = TopicComposerState.submitting(editing);
-    const result: TopicSubmitResult = await this.repository.submitTopic(request);
-    if (result.kind === TopicSubmitKind.UNAUTHORIZED) {
-      this.requiresAuthentication = true;
-      this.topicComposerState = TopicComposerState.reauthenticate(editing);
-      await this.notifyUnauthorized(true);
-      return;
-    }
-    if (result.kind !== TopicSubmitKind.CREATED || result.topicId === null) {
-      this.topicComposerState = TopicComposerState.error(editing, result.message);
-      return;
-    }
-    if (editing.draftSequence > 0) {
-      const cleanupResult: RepositoryResult<boolean> = await this.repository.deleteDraft(
-        this.topicDraftKey,
-        editing.draftSequence
-      );
-      if (!cleanupResult.isSuccess() || cleanupResult.data !== true) {
-        this.ignoredTopicDraftSequence = editing.draftSequence;
-        this.topicComposerState = TopicComposerState.success(
-          result.topicId,
-          `Topic 已发布；服务器草稿清理失败：${cleanupResult.message}`
-        );
-        return;
-      }
-    }
-    this.ignoredTopicDraftSequence = null;
-    this.topicComposerState = TopicComposerState.success(result.topicId);
-  }
-
-  private async submitTopicEdit(): Promise<void> {
-    const topicId: number | null = this.topicEditingTopicId;
-    const postId: number | null = this.topicEditingPostId;
-    const topicRequest: EditTopicRequest | null = topicId === null
-      ? null
-      : EditTopicRequest.create(
-        topicId,
-        this.topicComposerState.title,
-        this.topicEditingOriginalTitle,
-        this.topicComposerState.categoryId ?? 0
-      );
-    const postRequest: EditPostRequest | null = postId === null
-      ? null
-      : EditPostRequest.create(postId, this.topicComposerState.raw);
-    if (topicRequest === null || postRequest === null) {
-      this.topicComposerState = TopicComposerState.error(this.topicComposerState, '请填写标题、Category 和内容');
-      return;
-    }
-    const editing: TopicComposerState = this.topicComposerState;
-    this.topicComposerState = TopicComposerState.submitting(editing);
-    const topicResult: RepositoryResult<boolean> = await this.repository.editTopic(topicRequest);
-    if (!topicResult.isSuccess() || topicResult.data !== true) {
-      await this.handleTopicEditFailure(editing, topicResult);
-      return;
-    }
-    const postResult: RepositoryResult<boolean> = await this.repository.editPost(postRequest);
-    if (!postResult.isSuccess() || postResult.data !== true) {
-      await this.handleTopicEditFailure(editing, postResult);
-      return;
-    }
-    const post: ForumPost | undefined = this.topicState.posts.find(
-      (candidate: ForumPost): boolean => candidate.id === postId
-    );
-    if (post !== undefined) {
-      const posts: Array<ForumPost> = replacePost(
-        this.topicState.posts,
-        post.withRawContent(postRequest.raw)
-      );
-      const detail: TopicDetail | null = this.topicState.detail;
-      this.topicState = detail === null
-        ? TopicReadState.withPosts(this.topicState, posts)
-        : TopicReadState.withDetailAndPosts(
-          this.topicState,
-          detail.withTitleAndPosts(topicRequest.title, posts, topicRequest.categoryId),
-          posts
-        );
-    }
-    this.topicComposerState = TopicComposerState.success(topicRequest.topicId);
-  }
-
-  private async handleTopicEditFailure(
-    editing: TopicComposerState,
-    result: RepositoryResult<boolean>
-  ): Promise<void> {
-    if (result.isUnauthorized()) {
-      this.requiresAuthentication = true;
-      this.topicComposerState = TopicComposerState.reauthenticate(editing);
-      await this.notifyUnauthorized(true);
-      return;
-    }
-    this.topicComposerState = TopicComposerState.error(editing, result.message);
   }
 
   public closeSecondary(): void {

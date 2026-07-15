@@ -412,8 +412,8 @@ struct Index {
     if (repository.state.kind === AuthStateKind.AUTHENTICATED) {
       model.resumeReplyAfterAuthentication();
       this.synchronizeReplyState(model, model.replyState.kind === ReplyComposerStateKind.EDITING);
-      model.resumeTopicAfterAuthentication();
-      this.topicComposerState = model.topicComposerState;
+      model.topicAuthoring.resumeAfterAuthentication();
+      this.topicComposerState = model.topicAuthoring.state;
       this.refreshAccountIdentity();
       if (this.selectedRoot === RootDestination.NOTIFICATIONS) {
         this.loadNotificationCentre();
@@ -1714,12 +1714,12 @@ struct Index {
     if (model === null || !this.canCreateAuthoringTopic()) {
       return;
     }
-    model.openNewTopic();
+    model.topicAuthoring.openNew();
     this.composerMediaState = null;
-    this.topicComposerState = model.topicComposerState;
+    this.topicComposerState = model.topicAuthoring.state;
     this.pathStack.pushPath({ name: TOPIC_COMPOSER_ROUTE });
-    await model.restoreTopicDraft();
-    this.topicComposerState = model.topicComposerState;
+    await model.topicAuthoring.restoreDraft();
+    this.topicComposerState = model.topicAuthoring.state;
   }
 
   private canCreateAuthoringTopic(): boolean {
@@ -1742,9 +1742,9 @@ struct Index {
       return;
     }
     this.synchronizeTopicState(model);
-    if (model.topicEditingTopicId !== null) {
+    if (model.topicAuthoring.editingTopicId !== null) {
       this.composerMediaState = null;
-      this.topicComposerState = model.topicComposerState;
+      this.topicComposerState = model.topicAuthoring.state;
       this.pathStack.pushPath({ name: TOPIC_COMPOSER_ROUTE });
       return;
     }
@@ -1769,7 +1769,7 @@ struct Index {
 
   private topicComposerPresentation(): ForumComposerPresentation {
     const model: AppShellModel | null = this.model;
-    if (model?.topicEditingTopicId !== null && model?.topicEditingTopicId !== undefined) {
+    if (model?.topicAuthoring.editingTopicId !== null && model?.topicAuthoring.editingTopicId !== undefined) {
       return ForumComposerPresentation.editTopic(
         this.topicComposerState.title,
         this.topicComposerState.raw,
@@ -1791,7 +1791,7 @@ struct Index {
 
   private synchronizeComposerDrafts(model: AppShellModel): void {
     this.replyState = model.replyState;
-    this.topicComposerState = model.topicComposerState;
+    this.topicComposerState = model.topicAuthoring.state;
   }
 
   private async selectComposerImages(): Promise<void> {
@@ -1853,16 +1853,16 @@ struct Index {
   private updateTopicTitle(title: string): void {
     const model: AppShellModel | null = this.model;
     if (model !== null) {
-      model.updateTopicComposerTitle(title);
-      this.topicComposerState = model.topicComposerState;
+      model.topicAuthoring.updateTitle(title);
+      this.topicComposerState = model.topicAuthoring.state;
     }
   }
 
   private updateTopicRaw(raw: string): void {
     const model: AppShellModel | null = this.model;
     if (model !== null) {
-      model.updateTopicComposerRaw(raw);
-      this.topicComposerState = model.topicComposerState;
+      model.topicAuthoring.updateRaw(raw);
+      this.topicComposerState = model.topicAuthoring.state;
     }
   }
 
@@ -1871,8 +1871,8 @@ struct Index {
     if (model !== null && this.categoryState.items.some(
       (category: Category): boolean => category.id === categoryId
     )) {
-      model.updateTopicComposerCategory(categoryId);
-      this.topicComposerState = model.topicComposerState;
+      model.topicAuthoring.updateCategory(categoryId);
+      this.topicComposerState = model.topicAuthoring.state;
     }
   }
 
@@ -1881,8 +1881,8 @@ struct Index {
     if (model === null) {
       return;
     }
-    const saved: boolean = await model.saveTopicDraft();
-    this.topicComposerState = model.topicComposerState;
+    const saved: boolean = await model.topicAuthoring.saveDraft();
+    this.topicComposerState = model.topicAuthoring.state;
     if (saved) {
       this.showAuthenticationMessage('草稿已保存', 'Topic 草稿已同步到服务端');
     }
@@ -1893,8 +1893,8 @@ struct Index {
     if (model === null) {
       return;
     }
-    const discarded: boolean = await model.discardTopicDraft();
-    this.topicComposerState = model.topicComposerState;
+    const discarded: boolean = await model.topicAuthoring.discardDraft();
+    this.topicComposerState = model.topicAuthoring.state;
     if (discarded) {
       this.pathStack.pop();
     }
@@ -1905,22 +1905,22 @@ struct Index {
     if (model === null) {
       return;
     }
-    const editing: boolean = model.topicEditingTopicId !== null;
+    const editing: boolean = model.topicAuthoring.editingTopicId !== null;
     const categoryName: string = this.topicComposerCategoryName();
-    const task: Promise<void> = model.submitTopicComposer();
-    this.topicComposerState = model.topicComposerState;
+    const task: Promise<void> = model.topicAuthoring.submit();
+    this.topicComposerState = model.topicAuthoring.state;
     await task;
-    this.topicComposerState = model.topicComposerState;
+    this.topicComposerState = model.topicAuthoring.state;
     this.synchronizeTopicState(model);
-    if (model.topicComposerState.kind === TopicComposerStateKind.SUCCESS) {
+    if (model.topicAuthoring.state.kind === TopicComposerStateKind.SUCCESS) {
       this.pathStack.pop();
       this.showAuthenticationMessage(
         editing ? 'Topic 已保存' : 'Topic 已发布',
         editing
           ? '标题和首个 Post 已更新'
-          : (model.topicComposerState.message === 'Topic 已发布'
+          : (model.topicAuthoring.state.message === 'Topic 已发布'
             ? `已发布到 ${categoryName}`
-            : model.topicComposerState.message)
+            : model.topicAuthoring.state.message)
       );
       if (!editing) {
         this.refreshHome();
@@ -1934,9 +1934,9 @@ struct Index {
 
   private handleTopicComposerBack(): boolean {
     const model: AppShellModel | null = this.model;
-    if (model !== null && !model.topicComposerState.isBusy()) {
-      model.dismissTopicComposer();
-      this.topicComposerState = model.topicComposerState;
+    if (model !== null && !model.topicAuthoring.state.isBusy()) {
+      model.topicAuthoring.dismiss();
+      this.topicComposerState = model.topicAuthoring.state;
     }
     return false;
   }
@@ -2238,11 +2238,11 @@ struct Index {
       return;
     }
     if (draft.topicId === null) {
-      if (!this.canCreateAuthoringTopic() || !model.openTopicDraft(draft)) {
+      if (!this.canCreateAuthoringTopic() || !model.topicAuthoring.openDraft(draft)) {
         return;
       }
       this.composerMediaState = null;
-      this.topicComposerState = model.topicComposerState;
+      this.topicComposerState = model.topicAuthoring.state;
       this.pathStack.pushPath({ name: TOPIC_COMPOSER_ROUTE });
       return;
     }
@@ -2896,7 +2896,7 @@ struct Index {
         enableComponentSafeArea: true,
         content: {
           title: {
-            mainTitle: this.model?.topicEditingTopicId === null ? APP_NEW_TOPIC_TITLE : APP_EDIT_TOPIC_TITLE
+            mainTitle: this.model?.topicAuthoring.editingTopicId === null ? APP_NEW_TOPIC_TITLE : APP_EDIT_TOPIC_TITLE
           },
           backIcon: { label: BACK_LABEL }
         }

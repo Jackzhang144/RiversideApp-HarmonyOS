@@ -290,18 +290,18 @@ export default function appShellModelTest(): void {
         null,
         mediaRepository
       );
-      model.openNewTopic();
-      model.updateTopicComposerTitle('草稿 A');
-      model.updateTopicComposerRaw('仅属于 A');
+      model.topicAuthoring.openNew();
+      model.topicAuthoring.updateTitle('草稿 A');
+      model.topicAuthoring.updateRaw('仅属于 A');
       const upload: Promise<MediaUploadState> = model.uploadComposerMedia(
         cachedComposerImage(),
         ComposerMediaTarget.TOPIC,
         (_state: MediaUploadState): void => {}
       );
 
-      model.openNewTopic();
-      model.updateTopicComposerTitle('草稿 B');
-      model.updateTopicComposerRaw('仅属于 B');
+      model.topicAuthoring.openNew();
+      model.topicAuthoring.updateTitle('草稿 B');
+      model.topicAuthoring.updateRaw('仅属于 B');
       const result: MediaUploadResult | null = MediaUploadResult.create(
         812,
         '/uploads/original/composer-race.png',
@@ -318,8 +318,8 @@ export default function appShellModelTest(): void {
       await upload;
 
       expect(mediaRepository.transportOperation.cancelled).assertTrue();
-      expect(model.topicComposerState.title).assertEqual('草稿 B');
-      expect(model.topicComposerState.raw).assertEqual('仅属于 B');
+      expect(model.topicAuthoring.state.title).assertEqual('草稿 B');
+      expect(model.topicAuthoring.state.raw).assertEqual('仅属于 B');
       done();
     });
 
