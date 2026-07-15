@@ -73,6 +73,42 @@ export class PostReaction {
   }
 }
 
+const POST_FLAG_TYPE_IDS: Array<number> = [3, 4, 6, 7, 8, 10];
+const POST_FLAG_MESSAGE_TYPE_IDS: Array<number> = [6, 7, 10];
+
+export class PostFlagRequest {
+  public readonly postId: number;
+  public readonly typeId: number;
+  public readonly message: string | null;
+
+  private constructor(postId: number, typeId: number, message: string | null) {
+    this.postId = postId;
+    this.typeId = typeId;
+    this.message = message;
+  }
+
+  public static create(postId: number, typeId: number, message: string | null): PostFlagRequest | null {
+    const normalizedMessage: string = message?.trim() ?? '';
+    if (!Number.isSafeInteger(postId) || postId <= 0 || !POST_FLAG_TYPE_IDS.includes(typeId) ||
+      (POST_FLAG_MESSAGE_TYPE_IDS.includes(typeId) && normalizedMessage.length === 0)) {
+      return null;
+    }
+    return new PostFlagRequest(postId, typeId, normalizedMessage.length > 0 ? normalizedMessage : null);
+  }
+
+  public formBody(): string {
+    const parts: Array<string> = [
+      `id=${this.postId}`,
+      `post_action_type_id=${this.typeId}`,
+      'flag_topic=false'
+    ];
+    if (this.message !== null) {
+      parts.push(`message=${encodeURIComponent(this.message)}`);
+    }
+    return parts.join('&');
+  }
+}
+
 function absoluteForumAvatarUrl(value: string): string {
   const normalized: string = value.trim().replace('{size}', '64');
   if (normalized.length === 0 || normalized.startsWith('https://')) {

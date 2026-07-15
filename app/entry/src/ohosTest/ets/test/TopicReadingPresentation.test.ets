@@ -12,6 +12,8 @@ import {
   reactionCount,
   reactionEmojiKey,
   reactionEmojiUrl,
+  PostFlagOption,
+  postFlagOptions,
   selectedBookmarkPostIds,
   shouldShowSuggestedTopics,
   systemActionLabel,
@@ -118,6 +120,19 @@ export default function topicReadingPresentationTest(): void {
       expect(topicPostListIndex(pinpointWindow, 3)).assertEqual(6);
       expect(topicPostListIndex(pinpointWindow, 2)).assertEqual(-1);
       expect(topicPostListIndex(completeWindow, 0)).assertEqual(-1);
+    });
+
+    it('offers the six frozen Flutter flag reasons with explicit message requirements', 0, () => {
+      const options: Array<PostFlagOption> = postFlagOptions('river_user');
+
+      expect(options.length).assertEqual(6);
+      expect(options.map((option: PostFlagOption): number => option.typeId).join(','))
+        .assertEqual('6,3,4,8,10,7');
+      expect(options[0].label).assertEqual('向 @river_user 发送消息');
+      expect(options[0].needsMessage).assertTrue();
+      expect(options[1].needsMessage).assertFalse();
+      expect(options[4].needsMessage).assertTrue();
+      expect(options[5].needsMessage).assertTrue();
     });
   });
 }

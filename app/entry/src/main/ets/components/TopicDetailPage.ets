@@ -31,6 +31,8 @@ import {
   categoryLabel,
   displayedReactions,
   normalizeTopicFloor,
+  PostFlagOption,
+  postFlagOptions,
   reactionAccessibilityLabel,
   reactionEmojiUrl,
   shouldShowSuggestedTopics,
@@ -41,6 +43,7 @@ import {
 @Component
 export struct TopicDetailPage {
   @Prop @Watch('synchronizeFloorFromState') state: TopicReadState = TopicReadState.initial();
+  @Prop authenticated: boolean = false;
   @Prop reactionUsersState: BrowseState<PostReactionUsers> = BrowseState.initial<PostReactionUsers>();
   @Link reactionUsersSheetVisible: boolean;
   @Link bookmarkedPostIds: Array<number>;
@@ -53,6 +56,11 @@ export struct TopicDetailPage {
   @Prop emojis: Array<ChatEmoji> = [];
   @Prop emojiLoading: boolean = false;
   @Link replySheetVisible: boolean;
+  @State flagSheetVisible: boolean = false;
+  @State flagPostId: number = 0;
+  @State flagUsername: string = '';
+  @State selectedFlagTypeId: number = 0;
+  @State flagMessage: string = '';
   onRetry: () => void = (): void => {};
   onRefresh: () => void = (): void => {};
   onLoadMore: () => void = (): void => {};
@@ -66,6 +74,12 @@ export struct TopicDetailPage {
   onOpenReactionUsers: (postId: number) => void = (_postId: number): void => {};
   onToggleBookmark: (postId: number) => void = (_postId: number): void => {};
   onDeletePost: (postId: number) => void = (_postId: number): void => {};
+  onSubmitPostFlag: (postId: number, typeId: number, message: string | null) => void = (
+    _postId: number,
+    _typeId: number,
+    _message: string | null
+  ): void => {};
+  onLoginForPostAction: () => void = (): void => {};
   onToggleAcceptedAnswer: (postId: number) => void = (_postId: number): void => {};
   onCopyPostLink: (topicId: number, postNumber: number) => void = (
     _topicId: number,
@@ -741,6 +755,15 @@ export struct TopicDetailPage {
           .margin({ right: 6, bottom: 6 })
           .onClick((): void => this.onCopyPostLink(this.state.topicId, post.postNumber))
           .accessibilityText(`复制 Post #${post.postNumber} 链接`)
+        Button('举报')
+          .height(34)
+          .fontSize(12)
+          .backgroundColor('#F3F4F6')
+          .fontColor('#52606D')
+          .margin({ right: 6, bottom: 6 })
+          .enabled(!this.state.postActionState.busy)
+          .onClick((): void => this.openPostFlag(post))
+          .accessibilityText(`举报 Post #${post.postNumber}`)
         if (this.canEditPost(post)) {
           Button('编辑')
             .height(34)
@@ -787,6 +810,108 @@ export struct TopicDetailPage {
     .alignItems(HorizontalAlign.Start)
     .width('100%')
     .padding({ left: 8, right: 8 })
+  }
+
+  private openPostFlag(post: ForumPost): void {
+    if (!this.authenticated) {
+      this.onLoginForPostAction();
+      return;
+    }
+    this.flagPostId = post.id;
+    this.flagUsername = post.username;
+    this.selectedFlagTypeId = 0;
+    this.flagMessage = '';
+    this.flagSheetVisible = true;
+  }
+
+  private selectedFlagOption(): PostFlagOption | null {
+    const option: PostFlagOption | undefined = postFlagOptions(this.flagUsername).find(
+      (candidate: PostFlagOption): boolean => candidate.typeId === this.selectedFlagTypeId
+    );
+    return option ?? null;
+  }
+
+  private canSubmitPostFlag(): boolean {
+    const option: PostFlagOption | null = this.selectedFlagOption();
+    return option !== null && (!option.needsMessage || this.flagMessage.trim().length > 0);
+  }
+
+  private submitPostFlag(): void {
+    const option: PostFlagOption | null = this.selectedFlagOption();
+    if (option === null || !this.canSubmitPostFlag()) {
+      return;
+    }
+    this.onSubmitPostFlag(
+      this.flagPostId,
+      option.typeId,
+      option.needsMessage ? this.flagMessage.trim() : null
+    );
+    this.flagSheetVisible = false;
+  }
+
+  @Builder
+  private FlagOption(option: PostFlagOption): void {
+    Row({ space: 10 }) {
+      if (option.typeId === this.selectedFlagTypeId) {
+        SymbolGlyph($r('sys.symbol.checkmark_circle_fill'))
+          .fontSize(22)
+          .fontColor(['#317AF7'])
+      } else {
+        SymbolGlyph($r('sys.symbol.circle'))
+          .fontSize(22)
+          .fontColor([$r('sys.color.font_tertiary')])
+      }
+      Column({ space: 3 }) {
+        Text(option.label)
+          .fontSize(15)
+          .fontWeight(FontWeight.Medium)
+          .fontColor($r('sys.color.font_primary'))
+        Text(option.description)
+          .fontSize(12)
+          .fontColor($r('sys.color.font_secondary'))
+          .lineHeight(17)
+      }
+      .alignItems(HorizontalAlign.Start)
+      .layoutWeight(1)
+    }
+    .width('100%')
+    .padding({ top: 10, bottom: 10 })
+    .onClick((): void => {
+      this.selectedFlagTypeId = option.typeId;
+      this.flagMessage = '';
+    })
+    .accessibilityText(`${option.label}${option.typeId === this.selectedFlagTypeId ? '，已选择' : ''}`)
+  }
+
+  @Builder
+  private PostFlagSheet(): void {
+    Scroll() {
+      Column({ space: 8 }) {
+        Text('感谢您维护社区的文明！版主收到举报后将尽快进行审核。')
+          .fontSize(12)
+          .fontColor($r('sys.color.font_secondary'))
+          .width('100%')
+        ForEach(postFlagOptions(this.flagUsername), (option: PostFlagOption) => {
+          this.FlagOption(option)
+        }, (option: PostFlagOption): string => option.typeId.toString())
+        if (this.selectedFlagOption()?.needsMessage === true) {
+          TextArea({ text: this.flagMessage, placeholder: '请描述具体问题（必填）' })
+            .width('100%')
+            .height(96)
+            .maxLength(1000)
+            .onChange((value: string): void => { this.flagMessage = value; })
+        }
+        Button('提交举报')
+          .width('100%')
+          .height(44)
+          .enabled(this.canSubmitPostFlag())
+          .onClick((): void => this.submitPostFlag())
+      }
+      .width('100%')
+      .padding({ left: 20, right: 20, top: 4, bottom: 28 })
+    }
+    .width('100%')
+    .height('100%')
   }
 
   @Builder
@@ -1049,22 +1174,33 @@ export struct TopicDetailPage {
 
   @Builder
   private ReadingContent(): void {
-    Refresh({ refreshing: this.state.isRefreshing }) {
-      this.ReadingList()
+    Column() {
+      Refresh({ refreshing: this.state.isRefreshing }) {
+        this.ReadingList()
+      }
+      .width('100%')
+      .height('100%')
+      .backgroundColor('#F5F6F8')
+      .refreshOffset(64)
+      .pullToRefresh(true)
+      .pullUpToCancelRefresh(false)
+      .onRefreshing(this.onRefresh)
+      .bindSheet($$this.reactionUsersSheetVisible, this.ReactionUsersSheet(), {
+        detents: [SheetSize.MEDIUM, SheetSize.LARGE],
+        detentSelection: SheetSize.MEDIUM,
+        showClose: true,
+        dragBar: true,
+        title: { title: '回应用户', subtitle: '点击头像查看用户资料' }
+      })
     }
     .width('100%')
     .height('100%')
-    .backgroundColor('#F5F6F8')
-    .refreshOffset(64)
-    .pullToRefresh(true)
-    .pullUpToCancelRefresh(false)
-    .onRefreshing(this.onRefresh)
-    .bindSheet($$this.reactionUsersSheetVisible, this.ReactionUsersSheet(), {
-      detents: [SheetSize.MEDIUM, SheetSize.LARGE],
-      detentSelection: SheetSize.MEDIUM,
+    .bindSheet($$this.flagSheetVisible, this.PostFlagSheet(), {
+      detents: [SheetSize.LARGE],
+      detentSelection: SheetSize.LARGE,
       showClose: true,
       dragBar: true,
-      title: { title: '回应用户', subtitle: '点击头像查看用户资料' }
+      title: { title: '举报帖子', subtitle: `Post by @${this.flagUsername}` }
     })
   }
 

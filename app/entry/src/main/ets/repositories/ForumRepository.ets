@@ -2,6 +2,7 @@ import { RepositoryResult } from '../core/RepositoryResult';
 import {
   Category,
   ForumPost,
+  PostFlagRequest,
   PostReactionUsers,
   Topic,
   TopicDetail,
@@ -52,6 +53,8 @@ export interface ForumRepository {
   deletePostBookmark(bookmarkId: number): Promise<RepositoryResult<boolean>>;
 
   deletePost(postId: number): Promise<RepositoryResult<boolean>>;
+
+  flagPost(request: PostFlagRequest): Promise<RepositoryResult<boolean>>;
 
   setPostAcceptedAnswer(postId: number, accepted: boolean): Promise<RepositoryResult<boolean>>;
 

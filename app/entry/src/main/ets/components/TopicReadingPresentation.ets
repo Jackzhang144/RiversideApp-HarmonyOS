@@ -3,6 +3,37 @@ import { Category, ForumPost, PostReaction } from '../models/ForumModels';
 const REACTION_EMOJI_BASE_URL: string = 'https://river-side.cc/images/emoji/twitter';
 const RIVERSIDE_ORIGIN: string = 'https://river-side.cc';
 
+export class PostFlagOption {
+  public readonly typeId: number;
+  public readonly label: string;
+  public readonly description: string;
+  public readonly needsMessage: boolean;
+
+  public constructor(typeId: number, label: string, description: string, needsMessage: boolean) {
+    this.typeId = typeId;
+    this.label = label;
+    this.description = description;
+    this.needsMessage = needsMessage;
+  }
+}
+
+export function postFlagOptions(username: string): Array<PostFlagOption> {
+  const normalizedUsername: string = username.trim();
+  return [
+    new PostFlagOption(
+      6,
+      `向 @${normalizedUsername} 发送消息`,
+      '我想亲自与此人私下交流关于其帖子的事情。',
+      true
+    ),
+    new PostFlagOption(3, '偏离话题', '此帖子与当前讨论无关，可能应该移到其他地方。', false),
+    new PostFlagOption(4, '不当言论', '该帖子包含冒犯性、侮辱性内容，或违反社区准则。', false),
+    new PostFlagOption(8, '垃圾信息', '此帖子是广告或蓄意破坏讨论，与当前话题无关。', false),
+    new PostFlagOption(10, '非法', '此帖子包含需要工作人员注意的非法内容。', true),
+    new PostFlagOption(7, '其他内容', '由于上面未列出的原因，此帖子需要管理人员注意。', true)
+  ];
+}
+
 export function normalizeTopicFloor(value: string, highestPostNumber: number): number | null {
   const normalized: string = value.trim();
   if (normalized.length === 0 || !Number.isSafeInteger(highestPostNumber) || highestPostNumber <= 0) {

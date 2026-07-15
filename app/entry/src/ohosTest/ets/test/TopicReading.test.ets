@@ -16,6 +16,7 @@ import {
   Category,
   ForumPost,
   ForumPostMetadata,
+  PostFlagRequest,
   PostReaction,
   PostReactionUser,
   PostReactionUsers,
@@ -73,6 +74,7 @@ class TopicReadingRepository implements ForumRepository {
   public createBookmarkResults: Array<RepositoryResult<number>> = [];
   public deleteBookmarkResults: Array<RepositoryResult<boolean>> = [];
   public deletePostResults: Array<RepositoryResult<boolean>> = [];
+  public flagPostResults: Array<RepositoryResult<boolean>> = [];
   public deletePostTasks: Array<Promise<RepositoryResult<boolean>>> = [];
   public acceptedAnswerResults: Array<RepositoryResult<boolean>> = [];
   public acceptedAnswerTasks: Array<Promise<RepositoryResult<boolean>>> = [];
@@ -92,6 +94,7 @@ class TopicReadingRepository implements ForumRepository {
   public requestedBookmarkPostIds: Array<number> = [];
   public requestedDeleteBookmarkIds: Array<number> = [];
   public requestedDeletePostIds: Array<number> = [];
+  public requestedFlags: Array<string> = [];
   public requestedAcceptedAnswers: Array<string> = [];
   public requestedReadTimings: Array<string> = [];
   public requestedNotificationProgress: Array<string> = [];
@@ -197,6 +200,11 @@ class TopicReadingRepository implements ForumRepository {
       return await task;
     }
     return this.deletePostResults.shift() ?? RepositoryResult.failure<boolean>('missing Post delete result');
+  }
+
+  public async flagPost(request: PostFlagRequest): Promise<RepositoryResult<boolean>> {
+    this.requestedFlags.push(`${request.postId}:${request.typeId}:${request.message ?? ''}`);
+    return this.flagPostResults.shift() ?? RepositoryResult.failure<boolean>('missing Post flag result');
   }
 
   public async setPostAcceptedAnswer(postId: number, accepted: boolean): Promise<RepositoryResult<boolean>> {
@@ -1294,6 +1302,26 @@ export default function topicReadingTest(): void {
       expect(model.topicState.detail?.postCount).assertEqual(1);
       expect(model.topicState.detail?.postIds.join(',')).assertEqual('102728');
       expect(model.topicState.detail?.posts.length).assertEqual(1);
+      expect(model.topicState.postActionState.message).assertEqual('');
+      done();
+    });
+
+    it('submits a valid Post flag without mutating the visible Post', 0, async (done: Function) => {
+      const repository: TopicReadingRepository = new TopicReadingRepository();
+      repository.topicDetailResults.push(RepositoryResult.success<TopicDetail>(new TopicDetail(
+        2725, 'Flag Topic', 10, 1, 0, false, false, true, [102728], [firstPost()]
+      )));
+      repository.flagPostResults.push(RepositoryResult.success<boolean>(true));
+      const model: AppShellModel = new AppShellModel(
+        repository, new MemoryCategoryCache(), CategoryCacheScope.anonymous()
+      );
+      await model.openTopic(topic());
+
+      const submitted: boolean = await model.flagPost(102728, 7, '需要管理人员查看');
+
+      expect(submitted).assertTrue();
+      expect(repository.requestedFlags[0]).assertEqual('102728:7:需要管理人员查看');
+      expect(model.topicState.posts.length).assertEqual(1);
       expect(model.topicState.postActionState.message).assertEqual('');
       done();
     });

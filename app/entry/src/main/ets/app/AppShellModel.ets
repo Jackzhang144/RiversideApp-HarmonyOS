@@ -3,6 +3,7 @@ import { RepositoryResult } from '../core/RepositoryResult';
 import {
   Category,
   ForumPost,
+  PostFlagRequest,
   PostReaction,
   PostReactionUsers,
   Topic,
@@ -152,6 +153,7 @@ export enum TopicPostActionKind {
   REACTION = 'reaction',
   BOOKMARK = 'bookmark',
   DELETE = 'delete',
+  FLAG = 'flag',
   SOLUTION = 'solution'
 }
 
@@ -1883,6 +1885,45 @@ export class AppShellModel {
       remainingPosts
     );
     this.topicState = TopicReadState.withPostAction(this.topicState, TopicPostActionState.idle());
+  }
+
+  public async flagPost(postId: number, typeId: number, message: string | null): Promise<boolean> {
+    const detail: TopicDetail | null = this.topicState.detail;
+    const post: ForumPost | undefined = this.topicState.posts.find(
+      (candidate: ForumPost): boolean => candidate.id === postId
+    );
+    if (detail === null || post === undefined || this.topicState.postActionState.busy) {
+      return false;
+    }
+    const request: PostFlagRequest | null = PostFlagRequest.create(postId, typeId, message);
+    if (request === null) {
+      this.topicState = TopicReadState.withPostAction(
+        this.topicState,
+        TopicPostActionState.error(TopicPostActionKind.FLAG, postId, '举报原因无效或缺少具体说明')
+      );
+      return false;
+    }
+
+    const requestVersion: number = this.topicRequestVersion;
+    this.topicState = TopicReadState.withPostAction(
+      this.topicState,
+      TopicPostActionState.loading(TopicPostActionKind.FLAG, postId)
+    );
+    const result: RepositoryResult<boolean> = await this.repository.flagPost(request);
+    if (requestVersion !== this.topicRequestVersion || this.topicState.topicId !== detail.id) {
+      return false;
+    }
+    if (!result.isSuccess() || result.data !== true) {
+      this.requiresAuthentication = result.isUnauthorized();
+      this.topicState = TopicReadState.withPostAction(
+        this.topicState,
+        TopicPostActionState.error(TopicPostActionKind.FLAG, postId, result.message)
+      );
+      await this.notifyUnauthorized(result.isUnauthorized());
+      return false;
+    }
+    this.topicState = TopicReadState.withPostAction(this.topicState, TopicPostActionState.idle());
+    return true;
   }
 
   private async createBookmark(detail: TopicDetail, post: ForumPost): Promise<void> {

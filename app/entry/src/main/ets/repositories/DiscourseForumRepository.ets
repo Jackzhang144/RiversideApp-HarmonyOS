@@ -2,6 +2,7 @@ import { RepositoryResult } from '../core/RepositoryResult';
 import {
   Category,
   ForumPost,
+  PostFlagRequest,
   PostReactionUsers,
   Topic,
   TopicDetail,
@@ -667,6 +668,10 @@ export class DiscourseForumRepository implements
       return RepositoryResult.failure<boolean>(response.message);
     }
     return RepositoryResult.success<boolean>(true);
+  }
+
+  public async flagPost(request: PostFlagRequest): Promise<RepositoryResult<boolean>> {
+    return this.booleanWriteResult(await this.client.postForm('/post_actions', request.formBody()));
   }
 
   public async setPostAcceptedAnswer(postId: number, accepted: boolean): Promise<RepositoryResult<boolean>> {

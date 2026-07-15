@@ -1557,6 +1557,21 @@ struct Index {
     this.synchronizeTopicState(model);
   }
 
+  private async flagPost(postId: number, typeId: number, message: string | null): Promise<void> {
+    const model: AppShellModel | null = this.model;
+    if (model === null || this.authState.kind !== AuthStateKind.AUTHENTICATED) {
+      await this.openLogin();
+      return;
+    }
+    const task: Promise<boolean> = model.flagPost(postId, typeId, message);
+    this.synchronizeTopicState(model);
+    const submitted: boolean = await task;
+    this.synchronizeTopicState(model);
+    if (submitted) {
+      this.showAuthenticationMessage('举报已提交', '感谢你维护社区秩序');
+    }
+  }
+
   private async togglePostAcceptedAnswer(postId: number): Promise<void> {
     const model: AppShellModel | null = this.model;
     if (model === null) {
@@ -2483,6 +2498,7 @@ struct Index {
       HdsNavDestination() {
         TopicDetailPage({
           state: this.topicState,
+          authenticated: this.authState.kind === AuthStateKind.AUTHENTICATED,
           reactionUsersState: this.topicReactionUsersState,
           reactionUsersSheetVisible: this.reactionUsersSheetVisible,
           bookmarkedPostIds: $bookmarkedPostIds,
@@ -2518,6 +2534,12 @@ struct Index {
           },
           onDeletePost: (postId: number): void => {
             this.confirmDeletePost(postId);
+          },
+          onSubmitPostFlag: (postId: number, typeId: number, message: string | null): void => {
+            this.flagPost(postId, typeId, message);
+          },
+          onLoginForPostAction: (): void => {
+            this.openLogin();
           },
           onToggleAcceptedAnswer: (postId: number): void => {
             this.togglePostAcceptedAnswer(postId);

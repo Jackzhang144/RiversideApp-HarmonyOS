@@ -3,6 +3,7 @@ import { ComposerMentionUser } from '../../../main/ets/models/ComposerMentionMod
 import { RepositoryResult, RepositoryResultKind } from '../../../main/ets/core/RepositoryResult';
 import {
   ForumPost,
+  PostFlagRequest,
   PostReactionUsers,
   Topic,
   TopicDetail,
@@ -419,6 +420,30 @@ export default function discourseForumRepositoryTest(): void {
 
       expect(client.deletePaths[0]).assertEqual('/posts/102729');
       expect(deleted.data).assertTrue();
+      done();
+    });
+
+    it('flags a Post through the frozen Flutter form contract', 0, async (done: Function) => {
+      const client: StubForumHttpClient = new StubForumHttpClient();
+      client.formResults.push(HttpTextResult.success(200, '{}'));
+      const repository: DiscourseForumRepository = new DiscourseForumRepository(client);
+      const request: PostFlagRequest | null = PostFlagRequest.create(102729, 7, '需要管理人员查看');
+      if (request === null) {
+        expect(false).assertTrue();
+        done();
+        return;
+      }
+
+      const flagged: RepositoryResult<boolean> = await repository.flagPost(request);
+
+      expect(client.formRequests[0]).assertEqual(
+        '/post_actions|id=102729&post_action_type_id=7&flag_topic=false&' +
+        'message=%E9%9C%80%E8%A6%81%E7%AE%A1%E7%90%86%E4%BA%BA%E5%91%98%E6%9F%A5%E7%9C%8B'
+      );
+      expect(flagged.data).assertTrue();
+      expect(PostFlagRequest.create(102729, 7, null)).assertNull();
+      expect(PostFlagRequest.create(102729, 3, null)?.formBody())
+        .assertEqual('id=102729&post_action_type_id=3&flag_topic=false');
       done();
     });
 

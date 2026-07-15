@@ -16,6 +16,7 @@ import { RepositoryResult } from '../../../main/ets/core/RepositoryResult';
 import {
   Category,
   ForumPost,
+  PostFlagRequest,
   PostReactionUsers,
   Topic,
   TopicDetail,
@@ -144,6 +145,10 @@ class StubForumRepository implements ForumRepository {
 
   public async deletePost(_postId: number): Promise<RepositoryResult<boolean>> {
     return RepositoryResult.failure<boolean>('missing Post delete result');
+  }
+
+  public async flagPost(_request: PostFlagRequest): Promise<RepositoryResult<boolean>> {
+    return RepositoryResult.failure<boolean>('missing Post flag result');
   }
 
   public async setPostAcceptedAnswer(_postId: number, _accepted: boolean): Promise<RepositoryResult<boolean>> {
