@@ -32,6 +32,10 @@ import {
   ChatModel,
   ChatSearchState
 } from '../app/ChatModel';
+import {
+  NotificationCentreModel,
+  NotificationCentreState
+} from '../app/NotificationCentreModel';
 import { ProfileManagementModel, ProfileViewState } from '../app/ProfileManagementModel';
 import { ProfileContentKind, ProfileContentModel, ProfileContentState } from '../app/ProfileContentModel';
 import { AuthenticatedSession } from '../auth/AuthModels';
@@ -47,6 +51,7 @@ import { AccountPage } from '../components/AccountPage';
 import { CategoryBrowsePage } from '../components/CategoryBrowsePage';
 import { ChatConversationPage } from '../components/ChatConversationPage';
 import { ChatRootPage } from '../components/ChatRootPage';
+import { NotificationCentrePage } from '../components/NotificationCentrePage';
 import { CategoryTopicsPage } from '../components/CategoryTopicsPage';
 import { HomeBrowsePage } from '../components/HomeBrowsePage';
 import { ForumComposer } from '../components/ForumComposer';
@@ -72,6 +77,7 @@ import {
   ChatReactionAction,
   ChatSearchResult
 } from '../models/ChatModels';
+import { NotificationBucket, NotificationItem } from '../models/NotificationModels';
 import { HomeChannel, SearchPost, SearchUser } from '../models/DiscoveryModels';
 import { CurrentUser } from '../models/ReplyModels';
 import { AUTHORING_CATEGORY_ID, ServerDraft } from '../models/AuthoringModels';
@@ -143,6 +149,7 @@ struct Index {
   private readonly tabsController: HdsTabsController = new HdsTabsController();
   private model: AppShellModel | null = null;
   private chatModel: ChatModel | null = null;
+  private notificationModel: NotificationCentreModel | null = null;
   private accountProfileModel: ProfileManagementModel | null = null;
   private selectedProfileModel: ProfileManagementModel | null = null;
   private profileContentModel: ProfileContentModel | null = null;
@@ -181,6 +188,7 @@ struct Index {
   @State chatSearchState: ChatSearchState = new ChatSearchState();
   @State chatEmojis: Array<ChatEmoji> = [];
   @State chatUploadState: MediaUploadState | null = null;
+  @State notificationState: NotificationCentreState = new NotificationCentreState();
   @State profileUsername: string = '';
   @State profileState: ProfileViewState = ProfileViewState.initial();
   @State profileMediaState: MediaUploadState | null = null;
@@ -209,6 +217,10 @@ struct Index {
     }
     this.snackBar = new HdsSnackBar(this.getUIContext());
     this.initialize(context);
+  }
+
+  onPageShow(): void {
+    this.refreshForegroundData();
   }
 
   private async initialize(context: common.Context): Promise<void> {
@@ -241,6 +253,7 @@ struct Index {
       new DiscourseMediaTransport(RIVERSIDE_BASE_URL, sessionProvider)
     );
     this.chatModel = new ChatModel(forumRepository, mediaRepository, authenticationLifecycle);
+    this.notificationModel = new NotificationCentreModel(forumRepository, authenticationLifecycle);
     this.accountProfileModel = new ProfileManagementModel(
       forumRepository,
       authenticationLifecycle,
@@ -299,6 +312,9 @@ struct Index {
       model.resumeTopicAfterAuthentication();
       this.topicComposerState = model.topicComposerState;
       this.refreshAccountIdentity();
+      if (this.selectedRoot === RootDestination.NOTIFICATIONS) {
+        this.loadNotificationCentre();
+      }
     } else {
       this.accountIdentityRequestVersion += 1;
       this.accountIdentity = null;
@@ -310,7 +326,9 @@ struct Index {
       this.selectedProfileModel?.reset();
       this.profileContentModel?.reset();
       this.chatModel?.reset();
+      this.notificationModel?.reset();
       this.synchronizeChatState();
+      this.synchronizeNotificationState();
       this.profileContentState = new ProfileContentState();
     }
     this.categoryState = model.categoryState;
@@ -383,6 +401,9 @@ struct Index {
     }
     if (profileModel.state.profile?.canChat === true && this.selectedRoot === RootDestination.CHAT) {
       this.loadChatChannels();
+    }
+    if (this.selectedRoot === RootDestination.NOTIFICATIONS) {
+      this.loadNotificationCentre();
     }
   }
 
@@ -512,6 +533,8 @@ struct Index {
       this.selectedRoot = model.selectedRoot;
       if (this.selectedRoot === RootDestination.CHAT) {
         this.loadChatChannels();
+      } else if (this.selectedRoot === RootDestination.NOTIFICATIONS) {
+        this.loadNotificationCentre();
       }
       return;
     }
@@ -522,6 +545,8 @@ struct Index {
     this.selectedRoot = destination;
     if (this.selectedRoot === RootDestination.CHAT) {
       this.loadChatChannels();
+    } else if (this.selectedRoot === RootDestination.NOTIFICATIONS) {
+      this.loadNotificationCentre();
     }
   }
 
@@ -535,6 +560,84 @@ struct Index {
     this.chatComposerState = model.composerState;
     this.chatSearchState = model.searchState;
     this.chatEmojis = model.emojis;
+  }
+
+  private synchronizeNotificationState(): void {
+    const model: NotificationCentreModel | null = this.notificationModel;
+    if (model !== null) {
+      this.notificationState = model.state;
+    }
+  }
+
+  private notificationUsername(): string {
+    return this.accountProfileState.profile?.username ?? this.accountIdentity?.username ?? '';
+  }
+
+  private async loadNotificationCentre(foreground: boolean = false): Promise<void> {
+    const model: NotificationCentreModel | null = this.notificationModel;
+    const username: string = this.notificationUsername();
+    if (model === null || this.authState.kind !== AuthStateKind.AUTHENTICATED || username.length === 0) {
+      return;
+    }
+    const task: Promise<void> = foreground
+      ? model.refreshForForeground(username)
+      : model.load(username, model.state.bucket);
+    this.synchronizeNotificationState();
+    await task;
+    this.synchronizeNotificationState();
+  }
+
+  private async selectNotificationBucket(bucket: NotificationBucket): Promise<void> {
+    const model: NotificationCentreModel | null = this.notificationModel;
+    if (model === null) return;
+    const task: Promise<void> = model.selectBucket(bucket);
+    this.synchronizeNotificationState();
+    await task;
+    this.synchronizeNotificationState();
+  }
+
+  private async refreshNotificationCentre(): Promise<void> {
+    const model: NotificationCentreModel | null = this.notificationModel;
+    if (model === null) return;
+    const task: Promise<void> = model.refreshForForeground(this.notificationUsername());
+    this.synchronizeNotificationState();
+    await task;
+    this.synchronizeNotificationState();
+    this.refreshAccountIdentity();
+  }
+
+  private async loadMoreNotifications(): Promise<void> {
+    const model: NotificationCentreModel | null = this.notificationModel;
+    if (model === null) return;
+    const task: Promise<void> = model.loadMore();
+    this.synchronizeNotificationState();
+    await task;
+    this.synchronizeNotificationState();
+  }
+
+  private openNotificationItem(item: NotificationItem): void {
+    if (item.topicId <= 0) return;
+    this.openTopic(new Topic(
+      item.topicId,
+      item.title.length > 0 ? item.title : '消息关联 Topic',
+      item.categoryId,
+      item.highestPostNumber,
+      0,
+      0,
+      item.excerpt,
+      item.createdAt,
+      false,
+      item.actorUsername
+    ), item.postNumber > 0 ? item.postNumber : null);
+  }
+
+  private refreshForegroundData(): void {
+    if (this.authState.kind !== AuthStateKind.AUTHENTICATED) return;
+    this.loadNotificationCentre(true);
+    if (this.canUseChat()) {
+      this.loadChatChannels();
+    }
+    this.refreshAccountIdentity();
   }
 
   private canUseChat(): boolean {
@@ -823,6 +926,12 @@ struct Index {
         font: { size: 11 }
       })
       .padding({ left: 4, right: 4, top: 4, bottom: 4 });
+  }
+
+  private notificationTabLabel(): string {
+    const unreadCount: number = this.accountIdentity?.unreadNotifications ?? 0;
+    if (unreadCount <= 0) return '消息';
+    return `消息 ${unreadCount > 99 ? '99+' : unreadCount.toString()}`;
   }
 
   private async openCategory(category: Category): Promise<void> {
@@ -2319,12 +2428,18 @@ struct Index {
         .tabBar(this.rootTabStyle('聊天', $r('sys.symbol.message')))
 
         TabContent() {
-          Column()
-            .width('100%')
-            .height('100%')
+          NotificationCentrePage({
+            authenticated: this.authState.kind === AuthStateKind.AUTHENTICATED,
+            unreadCount: this.accountIdentity?.unreadNotifications ?? 0,
+            state: this.notificationState,
+            onLogin: (): void => { this.openLogin(); },
+            onRefresh: (): void => { this.refreshNotificationCentre(); },
+            onSelectBucket: (bucket: NotificationBucket): void => { this.selectNotificationBucket(bucket); },
+            onLoadMore: (): void => { this.loadMoreNotifications(); },
+            onOpenItem: (item: NotificationItem): void => { this.openNotificationItem(item); }
+          })
         }
-        .tabBar(this.rootTabStyle('消息', $r('sys.symbol.bell'), false))
-        .accessibilityText('消息，未实现')
+        .tabBar(this.rootTabStyle(this.notificationTabLabel(), $r('sys.symbol.bell')))
 
         TabContent() {
           AccountPage({

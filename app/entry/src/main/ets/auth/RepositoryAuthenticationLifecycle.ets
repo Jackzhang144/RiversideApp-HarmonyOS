@@ -1,12 +1,14 @@
 import { AuthenticationLifecycle } from '../app/AppShellModel';
 import { ChatAuthenticationLifecycle } from '../app/ChatModel';
+import { NotificationAuthenticationLifecycle } from '../app/NotificationCentreModel';
 import { ProfileSessionLifecycle } from '../app/ProfileManagementModel';
 import { AuthRepository, AuthStateKind } from './AuthRepository';
 
 export class RepositoryAuthenticationLifecycle implements
   AuthenticationLifecycle,
   ProfileSessionLifecycle,
-  ChatAuthenticationLifecycle {
+  ChatAuthenticationLifecycle,
+  NotificationAuthenticationLifecycle {
   private readonly repository: AuthRepository;
   private readonly onChanged: () => void;
   private activeTask: Promise<void> | null = null;

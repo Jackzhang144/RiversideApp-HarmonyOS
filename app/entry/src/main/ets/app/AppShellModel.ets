@@ -64,6 +64,7 @@ export enum RootDestination {
   HOME = 0,
   CATEGORY = 1,
   CHAT = 2,
+  NOTIFICATIONS = 3,
   ACCOUNT = 4
 }
 
@@ -97,6 +98,9 @@ export function rootDestinationForTabIndex(index: number): RootDestination | nul
   }
   if (index === RootTabIndex.CHAT) {
     return RootDestination.CHAT;
+  }
+  if (index === RootTabIndex.NOTIFICATIONS) {
+    return RootDestination.NOTIFICATIONS;
   }
   if (index === RootTabIndex.ACCOUNT) {
     return RootDestination.ACCOUNT;

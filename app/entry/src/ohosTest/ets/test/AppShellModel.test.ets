@@ -281,7 +281,7 @@ function searchResult(
 
 export default function appShellModelTest(): void {
   describe('AppShell browse composition', () => {
-    it('owns the Home and Category root selection', 0, () => {
+    it('owns every implemented root selection', 0, () => {
       const repository: StubForumRepository = new StubForumRepository();
       const cache: MemoryCategoryCache = new MemoryCategoryCache();
       const model: AppShellModel = new AppShellModel(repository, cache, CategoryCacheScope.anonymous());
@@ -289,6 +289,8 @@ export default function appShellModelTest(): void {
       expect(model.selectedRoot).assertEqual(RootDestination.HOME);
       model.selectRoot(RootDestination.CATEGORY);
       expect(model.selectedRoot).assertEqual(RootDestination.CATEGORY);
+      model.selectRoot(RootDestination.NOTIFICATIONS);
+      expect(model.selectedRoot).assertEqual(RootDestination.NOTIFICATIONS);
       model.selectRoot(RootDestination.ACCOUNT);
       expect(model.selectedRoot).assertEqual(RootDestination.ACCOUNT);
     });
@@ -348,8 +350,8 @@ export default function appShellModelTest(): void {
 
       expect(model.selectRootTab(RootTabIndex.CHAT)).assertTrue();
       expect(model.selectedRoot).assertEqual(RootDestination.CHAT);
-      expect(model.selectRootTab(RootTabIndex.NOTIFICATIONS)).assertFalse();
-      expect(model.selectedRoot).assertEqual(RootDestination.CHAT);
+      expect(model.selectRootTab(RootTabIndex.NOTIFICATIONS)).assertTrue();
+      expect(model.selectedRoot).assertEqual(RootDestination.NOTIFICATIONS);
 
       expect(model.selectRootTab(RootTabIndex.ACCOUNT)).assertTrue();
       expect(model.selectedRoot).assertEqual(RootDestination.ACCOUNT);
