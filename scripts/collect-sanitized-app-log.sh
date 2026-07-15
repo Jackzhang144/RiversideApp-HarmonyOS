@@ -20,7 +20,7 @@ fi
 
 LOG_ARGUMENTS=(
   --device "$DEVICE_SERIAL"
-  --bundle-name cc.river_side.app
+  --bundle-name cc.river_side_hm.app
   --from "$FROM_OFFSET"
   --tail 200
 )

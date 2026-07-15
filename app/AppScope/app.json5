@@ -1,6 +1,6 @@
 {
   "app": {
-    "bundleName": "cc.river_side.app",
+    "bundleName": "cc.river_side_hm.app",
     "vendor": "RiverSide",
     "versionCode": 1000000,
     "versionName": "1.0.0",
