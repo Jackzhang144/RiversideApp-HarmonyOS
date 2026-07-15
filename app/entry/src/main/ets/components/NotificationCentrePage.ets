@@ -28,53 +28,73 @@ export struct NotificationCentrePage {
   onLoadMore: () => void = (): void => {};
   onOpenItem: (item: NotificationItem) => void = (_item: NotificationItem): void => {};
 
-  private unreadLabel(): string {
-    if (this.unreadCount <= 0) return '';
-    return this.unreadCount > 99 ? '99+' : this.unreadCount.toString();
+  private bucketIcon(bucket: NotificationBucket): Resource {
+    if (bucket === NotificationBucket.PRIVATE_MESSAGES) return $r('sys.symbol.envelope');
+    if (bucket === NotificationBucket.REPLIES) return $r('sys.symbol.message');
+    if (bucket === NotificationBucket.REACTIONS) return $r('sys.symbol.heart');
+    return $r('sys.symbol.at');
   }
 
   @Builder
   private Header(): void {
-    Column({ space: 12 }) {
-      Row({ space: 8 }) {
-        Text('消息').fontSize(24).fontWeight(FontWeight.Bold)
-        if (this.unreadCount > 0) {
-          Text(this.unreadLabel())
-            .fontSize(11).fontColor('#FFFFFF').fontWeight(FontWeight.Bold)
-            .padding({ left: 7, right: 7, top: 3, bottom: 3 })
-            .backgroundColor('#D32F2F').borderRadius(10)
-            .accessibilityText(`${this.unreadCount} 条未读通知`)
-        }
-        Blank()
-        Button() {
-          SymbolGlyph($r('sys.symbol.arrow_clockwise')).fontSize(20)
-        }
-        .width(40).height(40).backgroundColor(Color.Transparent)
-        .enabled(!this.state.refreshing && this.state.kind !== NotificationCentreStateKind.LOADING)
-        .onClick(this.onRefresh)
-        .accessibilityText('刷新消息与活动')
+    Row({ space: 8 }) {
+      Text('消息')
+        .fontSize(20)
+        .fontWeight(FontWeight.Bold)
+        .layoutWeight(1)
+      Button() {
+        SymbolGlyph($r('sys.symbol.arrow_clockwise'))
+          .fontSize(20)
+          .fontColor([$r('sys.color.font_primary')])
+          .hitTestBehavior(HitTestMode.None)
       }
-      .width('100%')
-
-      Row({ space: 8 }) {
-        ForEach(NOTIFICATION_BUCKETS, (bucket: NotificationBucket): void => {
-          Button(notificationBucketLabel(bucket), { type: ButtonType.Normal })
-            .layoutWeight(1).height(36).fontSize(13)
-            .fontColor(this.state.bucket === bucket ? '#FFFFFF' : $r('sys.color.font_secondary'))
-            .backgroundColor(this.state.bucket === bucket
-              ? '#317AF7'
-              : $r('sys.color.background_secondary'))
-            .onClick((): void => this.onSelectBucket(bucket))
-            .accessibilityText(
-              `${notificationBucketLabel(bucket)}${this.state.bucket === bucket ? '，已选择' : ''}`
-            )
-        }, (bucket: NotificationBucket): string => bucket)
-      }
-      .width('100%')
+      .width(40)
+      .height(40)
+      .backgroundColor(Color.Transparent)
+      .enabled(!this.state.refreshing && this.state.kind !== NotificationCentreStateKind.LOADING)
+      .onClick(this.onRefresh)
+      .accessibilityText('刷新消息与活动')
     }
     .width('100%')
-    .padding({ left: 16, right: 16, top: 12, bottom: 10 })
+    .height(56)
+    .padding({ left: 12, right: 10 })
     .backgroundColor($r('sys.color.comp_background_primary'))
+    .border({ width: { bottom: 1 }, color: $r('sys.color.comp_divider') })
+  }
+
+  @Builder
+  private FilterButton(bucket: NotificationBucket): void {
+    Button() {
+      Row({ space: 5 }) {
+        SymbolGlyph(this.bucketIcon(bucket))
+          .fontSize(16)
+          .fontColor([this.state.bucket === bucket ? '#245D86' : $r('sys.color.font_secondary')])
+        Text(notificationBucketLabel(bucket))
+          .fontSize(12)
+          .fontColor(this.state.bucket === bucket ? '#245D86' : $r('sys.color.font_primary'))
+      }
+      .justifyContent(FlexAlign.Center)
+    }
+    .height(40)
+    .layoutWeight(1)
+    .backgroundColor(this.state.bucket === bucket ? '#DCEBFA' : $r('sys.color.comp_background_primary'))
+    .borderRadius(10)
+    .onClick((): void => this.onSelectBucket(bucket))
+    .accessibilityText(
+      `${notificationBucketLabel(bucket)}${this.state.bucket === bucket ? '，已选择' : ''}`
+    )
+  }
+
+  @Builder
+  private Filters(): void {
+    Row({ space: 6 }) {
+      ForEach(NOTIFICATION_BUCKETS, (bucket: NotificationBucket): void => {
+        this.FilterButton(bucket)
+      }, (bucket: NotificationBucket): string => bucket)
+    }
+    .width('100%')
+    .padding({ left: 12, right: 12, top: 12, bottom: 8 })
+    .backgroundColor($r('sys.color.background_secondary'))
   }
 
   @Builder
@@ -91,23 +111,68 @@ export struct NotificationCentrePage {
 
   @Builder
   private ItemCard(item: NotificationItem): void {
-    Column({ space: 6 }) {
-      Row({ space: 8 }) {
-        Text(notificationActionText(this.state.bucket, item))
-          .fontSize(13).fontColor($r('sys.color.font_secondary')).layoutWeight(1).maxLines(1)
-        if (item.createdAt.length > 0) {
-          Text(notificationTimeText(item.createdAt))
-            .fontSize(10).fontColor($r('sys.color.font_tertiary')).maxLines(1)
+    Row({ space: 10 }) {
+      Stack() {
+        Text(item.actorDisplayName().substring(0, 1))
+          .fontSize(13)
+          .fontWeight(FontWeight.Bold)
+          .fontColor('#317AF7')
+          .width(36)
+          .height(36)
+          .textAlign(TextAlign.Center)
+          .backgroundColor('#EAF2FF')
+          .borderRadius(18)
+        if (item.avatarUrl.length > 0) {
+          Image(item.avatarUrl)
+            .width(36)
+            .height(36)
+            .objectFit(ImageFit.Cover)
+            .borderRadius(18)
         }
       }
-      if (item.title.length > 0) {
-        Text(item.title).fontSize(16).fontWeight(FontWeight.Bold).width('100%').maxLines(2)
+      .width(36)
+      .height(36)
+      Column({ space: 5 }) {
+        Row({ space: 8 }) {
+          Text(notificationActionText(this.state.bucket, item))
+            .fontSize(13)
+            .fontColor($r('sys.color.font_secondary'))
+            .layoutWeight(1)
+            .maxLines(1)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
+          if (item.createdAt.length > 0) {
+            Text(notificationTimeText(item.createdAt))
+              .fontSize(11)
+              .fontColor($r('sys.color.font_tertiary'))
+              .maxLines(1)
+          }
+        }
+        .width('100%')
+        if (item.title.length > 0) {
+          Text(item.title)
+            .fontSize(15)
+            .fontWeight(FontWeight.Bold)
+            .width('100%')
+            .maxLines(1)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
+        }
+        if (item.excerpt.length > 0) {
+          Text(item.excerpt)
+            .fontSize(13)
+            .fontColor($r('sys.color.font_secondary'))
+            .width('100%')
+            .maxLines(2)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
+        }
       }
-      if (item.excerpt.length > 0) {
-        Text(item.excerpt).fontSize(13).fontColor($r('sys.color.font_secondary')).width('100%').maxLines(3)
-      }
+      .alignItems(HorizontalAlign.Start)
+      .layoutWeight(1)
     }
-    .width('100%').padding(14).backgroundColor($r('sys.color.comp_background_primary')).borderRadius(12)
+    .width('100%')
+    .padding(14)
+    .backgroundColor($r('sys.color.comp_background_primary'))
+    .borderRadius(12)
+    .border({ width: 1, color: $r('sys.color.comp_divider') })
     .enabled(item.topicId > 0)
     .onClick((): void => this.onOpenItem(item))
     .accessibilityText(
@@ -166,7 +231,7 @@ export struct NotificationCentrePage {
         ListItem() { this.PaginationFooter() }
       }
       .width('100%').height('100%')
-      .padding({ left: 12, right: 12, top: 10, bottom: 124 })
+      .padding({ left: 12, right: 12, top: 8, bottom: 124 })
       .backgroundColor($r('sys.color.background_secondary')).edgeEffect(EdgeEffect.Spring)
       .onReachEnd(this.onLoadMore)
     }
@@ -178,6 +243,7 @@ export struct NotificationCentrePage {
     } else {
       Column() {
         this.Header()
+        this.Filters()
         this.MessageList()
       }
       .width('100%').height('100%').backgroundColor($r('sys.color.background_secondary'))
