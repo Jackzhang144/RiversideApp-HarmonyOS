@@ -104,7 +104,7 @@ export class DiscourseForumRepository implements
       return this.loadPrivateMessageItems(encodedUsername, page);
     }
     if (bucket === NotificationBucket.REACTIONS) {
-      return this.loadReactionItems(encodedUsername, page, offset);
+      return this.loadReactionItems(encodedUsername, page, page * 20);
     }
     const filter: string | null = notificationUserActionFilter(bucket);
     if (filter === null) {

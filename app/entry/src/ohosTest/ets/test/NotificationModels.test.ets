@@ -8,6 +8,13 @@ import {
   parseUserActivityItems
 } from '../../../main/ets/models/NotificationModels';
 
+function firstItem(items: Array<NotificationItem> | null): NotificationItem {
+  if (items === null || items.length === 0) {
+    throw new Error('测试消息响应缺少首项');
+  }
+  return items[0];
+}
+
 export default function notificationModelsTest(): void {
   describe('Notification models', () => {
     it('parses reply and mention activity through the frozen user action shape', 0, () => {
@@ -30,9 +37,10 @@ export default function notificationModelsTest(): void {
       expect(items?.[0].avatarUrl).assertEqual(
         'https://river-side.cc/user_avatar/river-side.cc/river_admin/96/1.png'
       );
-      expect(notificationActionText(NotificationBucket.REPLIES, items?.[0] as NotificationItem))
+      const item: NotificationItem = firstItem(items);
+      expect(notificationActionText(NotificationBucket.REPLIES, item))
         .assertEqual('river_admin 回复了');
-      expect(notificationActionText(NotificationBucket.MENTIONS, items?.[0] as NotificationItem))
+      expect(notificationActionText(NotificationBucket.MENTIONS, item))
         .assertEqual('river_admin 提及了');
     });
 
@@ -51,7 +59,7 @@ export default function notificationModelsTest(): void {
       expect(items?.[0].reaction).assertEqual('heart');
       expect(items?.[0].postId).assertEqual(102729);
       expect(items?.[0].postNumber).assertEqual(9);
-      expect(notificationActionText(NotificationBucket.REACTIONS, items?.[0] as NotificationItem))
+      expect(notificationActionText(NotificationBucket.REACTIONS, firstItem(items)))
         .assertEqual('alice 回应了 heart');
     });
 
