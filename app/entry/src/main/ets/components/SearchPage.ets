@@ -1,4 +1,9 @@
-import { SearchState, SearchStateKind } from '../app/AppShellModel';
+import {
+  SearchState,
+  SearchStateKind,
+  SearchSuggestionState,
+  SearchSuggestionStateKind
+} from '../app/AppShellModel';
 import { SearchGroup, SearchPost, SearchTag, SearchUser } from '../models/DiscoveryModels';
 import { Category, Topic } from '../models/ForumModels';
 import { ForumCardPresentation } from './ForumCardPresentation';
@@ -7,43 +12,139 @@ import { ForumContentCard } from './ForumContentCard';
 @Component
 export struct SearchPage {
   @Prop state: SearchState = SearchState.initial();
+  @Prop suggestionState: SearchSuggestionState = SearchSuggestionState.initial();
   @Prop knownCategories: Array<Category> = [];
   @State queryInput: string = '';
   onSearch: (query: string) => void = (_query: string): void => {};
+  onLoadSuggestions: (term: string) => void = (_term: string): void => {};
   onRetry: () => void = (): void => {};
   onLoadMore: () => void = (): void => {};
   onOpenTopic: (topic: Topic) => void = (_topic: Topic): void => {};
   onOpenPost: (post: SearchPost) => void = (_post: SearchPost): void => {};
   onOpenUser: (user: SearchUser) => void = (_user: SearchUser): void => {};
   onOpenCategory: (category: Category) => void = (_category: Category): void => {};
+  private suggestionTimer: number = -1;
+
+  aboutToDisappear(): void {
+    if (this.suggestionTimer >= 0) {
+      clearTimeout(this.suggestionTimer);
+      this.suggestionTimer = -1;
+    }
+  }
+
+  private scheduleSuggestions(value: string): void {
+    if (this.suggestionTimer >= 0) {
+      clearTimeout(this.suggestionTimer);
+    }
+    const normalizedValue: string = value.trim();
+    if (normalizedValue.length === 0) {
+      this.suggestionTimer = -1;
+      this.onLoadSuggestions('');
+      return;
+    }
+    this.suggestionTimer = setTimeout((): void => {
+      this.suggestionTimer = -1;
+      this.onLoadSuggestions(normalizedValue);
+    }, 300);
+  }
 
   private submit(): void {
     const query: string = this.queryInput.trim();
     if (query.length > 0) {
+      this.onLoadSuggestions('');
       this.onSearch(query);
+    }
+  }
+
+  private selectSuggestion(suggestion: string): void {
+    this.queryInput = suggestion;
+    this.onLoadSuggestions('');
+    this.onSearch(suggestion);
+  }
+
+  @Builder
+  private Suggestions(): void {
+    if (this.suggestionState.kind === SearchSuggestionStateKind.LOADING) {
+      Row({ space: 8 }) {
+        LoadingProgress().width(18).height(18)
+        Text('正在加载搜索建议').fontSize(12).fontColor($r('sys.color.font_secondary'))
+      }
+      .width('100%')
+      .padding({ left: 14, right: 14, top: 8, bottom: 10 })
+    } else if (this.suggestionState.kind === SearchSuggestionStateKind.CONTENT) {
+      Column() {
+        ForEach(this.suggestionState.items, (suggestion: string) => {
+          Row({ space: 10 }) {
+            SymbolGlyph($r('sys.symbol.magnifyingglass'))
+              .fontSize(16)
+              .fontColor([$r('sys.color.font_tertiary')])
+            Text(suggestion)
+              .fontSize(14)
+              .fontColor('#24262B')
+              .layoutWeight(1)
+              .maxLines(1)
+              .textOverflow({ overflow: TextOverflow.Ellipsis })
+          }
+          .width('100%')
+          .height(42)
+          .padding({ left: 14, right: 14 })
+          .onClick((): void => this.selectSuggestion(suggestion))
+          .accessibilityText(`搜索建议 ${suggestion}`)
+        }, (suggestion: string): string => suggestion)
+      }
+      .width('100%')
+      .backgroundColor('#FFFFFF')
+      .border({ width: 1, color: '#E8EBF0' })
+      .borderRadius(10)
+      .margin({ left: 12, right: 12, bottom: 10 })
+    } else if (this.suggestionState.kind === SearchSuggestionStateKind.EMPTY) {
+      Text('暂无搜索建议，仍可直接搜索当前关键词')
+        .fontSize(12)
+        .fontColor($r('sys.color.font_secondary'))
+        .width('100%')
+        .padding({ left: 14, right: 14, top: 8, bottom: 10 })
+    } else if (this.suggestionState.kind === SearchSuggestionStateKind.ERROR) {
+      Row({ space: 8 }) {
+        Text(this.suggestionState.message)
+          .fontSize(12)
+          .fontColor('#C62828')
+          .layoutWeight(1)
+        Button('重试')
+          .height(30)
+          .fontSize(12)
+          .onClick((): void => this.onLoadSuggestions(this.queryInput))
+      }
+      .width('100%')
+      .padding({ left: 14, right: 14, top: 6, bottom: 10 })
     }
   }
 
   @Builder
   private SearchInput(): void {
-    Row({ space: 8 }) {
-      TextInput({ text: this.queryInput, placeholder: '搜索 Topic、Post、用户、Category、标签或群组' })
-        .height(44)
-        .layoutWeight(1)
-        .backgroundColor('#F5F6F8')
-        .enterKeyType(EnterKeyType.Search)
-        .onChange((value: string): void => {
-          this.queryInput = value;
-        })
-        .accessibilityText('论坛搜索关键词')
-      Button('搜索')
-        .height(44)
-        .enabled(this.queryInput.trim().length > 0 && this.state.kind !== SearchStateKind.LOADING)
-        .onClick((): void => this.submit())
-        .accessibilityText('搜索论坛')
+    Column() {
+      Row({ space: 8 }) {
+        TextInput({ text: this.queryInput, placeholder: '搜索 Topic、Post、用户、Category、标签或群组' })
+          .height(44)
+          .layoutWeight(1)
+          .backgroundColor('#F5F6F8')
+          .enterKeyType(EnterKeyType.Search)
+          .onChange((value: string): void => {
+            this.queryInput = value;
+            this.scheduleSuggestions(value);
+          })
+          .onSubmit((): void => this.submit())
+          .accessibilityText('论坛搜索关键词')
+        Button('搜索')
+          .height(44)
+          .enabled(this.queryInput.trim().length > 0 && this.state.kind !== SearchStateKind.LOADING)
+          .onClick((): void => this.submit())
+          .accessibilityText('搜索论坛')
+      }
+      .width('100%')
+      .padding({ left: 12, right: 12, top: 12, bottom: 10 })
+      this.Suggestions()
     }
     .width('100%')
-    .padding({ left: 12, right: 12, top: 12, bottom: 10 })
     .backgroundColor('#FFFFFF')
   }
 

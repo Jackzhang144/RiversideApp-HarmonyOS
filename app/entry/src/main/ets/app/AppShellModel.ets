@@ -123,6 +123,14 @@ export enum SearchStateKind {
   ERROR = 'error'
 }
 
+export enum SearchSuggestionStateKind {
+  INITIAL = 'initial',
+  LOADING = 'loading',
+  CONTENT = 'content',
+  EMPTY = 'empty',
+  ERROR = 'error'
+}
+
 export enum SecondaryDestination {
   NONE = 'none',
   CATEGORY_TOPICS = 'category-topics',
@@ -850,6 +858,45 @@ export class SearchState {
   }
 }
 
+export class SearchSuggestionState {
+  public readonly kind: SearchSuggestionStateKind;
+  public readonly term: string;
+  public readonly items: Array<string>;
+  public readonly message: string;
+
+  private constructor(
+    kind: SearchSuggestionStateKind,
+    term: string,
+    items: Array<string>,
+    message: string = ''
+  ) {
+    this.kind = kind;
+    this.term = term;
+    this.items = items;
+    this.message = message;
+  }
+
+  public static initial(): SearchSuggestionState {
+    return new SearchSuggestionState(SearchSuggestionStateKind.INITIAL, '', []);
+  }
+
+  public static loading(term: string): SearchSuggestionState {
+    return new SearchSuggestionState(SearchSuggestionStateKind.LOADING, term, []);
+  }
+
+  public static content(term: string, items: Array<string>): SearchSuggestionState {
+    return new SearchSuggestionState(SearchSuggestionStateKind.CONTENT, term, items.slice());
+  }
+
+  public static empty(term: string): SearchSuggestionState {
+    return new SearchSuggestionState(SearchSuggestionStateKind.EMPTY, term, []);
+  }
+
+  public static error(term: string, message: string): SearchSuggestionState {
+    return new SearchSuggestionState(SearchSuggestionStateKind.ERROR, term, [], message);
+  }
+}
+
 function uniqueTopics(existing: Array<Topic>, incoming: Array<Topic>): Array<Topic> {
   const ids: Set<number> = new Set<number>();
   const merged: Array<Topic> = [];
@@ -923,6 +970,7 @@ export class AppShellModel {
   public topicEditingTopicId: number | null = null;
   public topicEditingPostId: number | null = null;
   public searchState: SearchState = SearchState.initial();
+  public searchSuggestionState: SearchSuggestionState = SearchSuggestionState.initial();
 
   private readonly repository: ForumRepository;
   private readonly categoryCache: CategoryCache;
@@ -945,6 +993,7 @@ export class AppShellModel {
   private categoryRequestVersion: number = 0;
   private homeRequestVersion: number = 0;
   private searchRequestVersion: number = 0;
+  private searchSuggestionRequestVersion: number = 0;
   private homePage: number = 0;
   private categoryTopicsPage: number = 0;
   private searchNextPage: number = 1;
@@ -2568,13 +2617,30 @@ export class AppShellModel {
     this.searchState = SearchState.content(state.query, mergeSearchResults(state.result, result.data));
   }
 
-  public async loadSearchSuggestions(term: string): Promise<RepositoryResult<Array<string>>> {
-    const result: RepositoryResult<Array<string>> = await this.repository.searchSuggestions(term);
+  public async loadSearchSuggestions(term: string): Promise<void> {
+    const normalizedTerm: string = term.trim();
+    this.searchSuggestionRequestVersion += 1;
+    const requestVersion: number = this.searchSuggestionRequestVersion;
+    if (normalizedTerm.length === 0) {
+      this.searchSuggestionState = SearchSuggestionState.initial();
+      return;
+    }
+    this.searchSuggestionState = SearchSuggestionState.loading(normalizedTerm);
+    const result: RepositoryResult<Array<string>> = await this.repository.searchSuggestions(normalizedTerm);
+    if (requestVersion !== this.searchSuggestionRequestVersion) {
+      return;
+    }
     if (result.isUnauthorized()) {
       this.requiresAuthentication = true;
       await this.notifyUnauthorized(true);
     }
-    return result;
+    if (!result.isSuccess() || result.data === null) {
+      this.searchSuggestionState = SearchSuggestionState.error(normalizedTerm, result.message);
+      return;
+    }
+    this.searchSuggestionState = result.data.length === 0
+      ? SearchSuggestionState.empty(normalizedTerm)
+      : SearchSuggestionState.content(normalizedTerm, result.data);
   }
 
   public async loadCategories(): Promise<void> {

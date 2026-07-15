@@ -21,6 +21,7 @@ import {
   rootDestinationForTabIndex,
   RootDestination,
   SearchState,
+  SearchSuggestionState,
   TopicComposerState,
   TopicComposerStateKind,
   TopicReadState
@@ -182,6 +183,7 @@ struct Index {
   @State accountIdentityError: string = '';
   @State accountProfileState: ProfileViewState = ProfileViewState.initial();
   @State searchState: SearchState = SearchState.initial();
+  @State searchSuggestionState: SearchSuggestionState = SearchSuggestionState.initial();
   @State chatChannelState: ChatChannelState = ChatChannelState.initial();
   @State chatConversationState: ChatConversationState = ChatConversationState.initial();
   @State chatComposerState: ChatComposerState = new ChatComposerState();
@@ -465,6 +467,8 @@ struct Index {
     if (model !== null) {
       model.searchState = SearchState.initial();
       this.searchState = model.searchState;
+      model.searchSuggestionState = SearchSuggestionState.initial();
+      this.searchSuggestionState = model.searchSuggestionState;
     }
     this.pathStack.pushPath({ name: SEARCH_ROUTE });
   }
@@ -474,10 +478,23 @@ struct Index {
     if (model === null) {
       return;
     }
+    await model.loadSearchSuggestions('');
+    this.searchSuggestionState = model.searchSuggestionState;
     const task: Promise<void> = model.searchForum(query);
     this.searchState = model.searchState;
     await task;
     this.searchState = model.searchState;
+  }
+
+  private async loadSearchSuggestions(term: string): Promise<void> {
+    const model: AppShellModel | null = this.model;
+    if (model === null) {
+      return;
+    }
+    const task: Promise<void> = model.loadSearchSuggestions(term);
+    this.searchSuggestionState = model.searchSuggestionState;
+    await task;
+    this.searchSuggestionState = model.searchSuggestionState;
   }
 
   private async retrySearch(): Promise<void> {
@@ -1928,7 +1945,11 @@ struct Index {
       HdsNavDestination() {
         SearchPage({
           state: this.searchState,
+          suggestionState: this.searchSuggestionState,
           knownCategories: this.categoryState.items,
+          onLoadSuggestions: (term: string): void => {
+            this.loadSearchSuggestions(term);
+          },
           onSearch: (query: string): void => {
             this.searchForum(query);
           },

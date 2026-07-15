@@ -7,6 +7,7 @@ import {
   RootDestination,
   RootTabIndex,
   SearchStateKind,
+  SearchSuggestionStateKind,
   SecondaryDestination,
   ComposerMediaTarget
 } from '../../../main/ets/app/AppShellModel';
@@ -60,6 +61,7 @@ class StubForumRepository implements ForumRepository {
   public categoryResults: Array<RepositoryResult<Array<Category>>> = [];
   public categoryTopicResults: Array<RepositoryResult<Array<Topic>>> = [];
   public searchResults: Array<RepositoryResult<ForumSearchResult>> = [];
+  public suggestionResults: Array<RepositoryResult<Array<string>>> = [];
   public currentUserResults: Array<RepositoryResult<CurrentUser>> = [];
   public userProfileResults: Array<RepositoryResult<CurrentUser>> = [];
   public latestCallCount: number = 0;
@@ -68,6 +70,7 @@ class StubForumRepository implements ForumRepository {
   public requestedHomePages: Array<number> = [];
   public requestedCategoryPages: Array<number> = [];
   public requestedSearchPages: Array<number> = [];
+  public requestedSuggestionTerms: Array<string> = [];
 
   public async loadLatestTopics(): Promise<RepositoryResult<Array<Topic>>> {
     this.latestCallCount += 1;
@@ -87,8 +90,9 @@ class StubForumRepository implements ForumRepository {
     return result ?? RepositoryResult.failure<ForumSearchResult>('missing search result');
   }
 
-  public async searchSuggestions(_term: string): Promise<RepositoryResult<Array<string>>> {
-    return RepositoryResult.success<Array<string>>([]);
+  public async searchSuggestions(term: string): Promise<RepositoryResult<Array<string>>> {
+    this.requestedSuggestionTerms.push(term);
+    return this.suggestionResults.shift() ?? RepositoryResult.success<Array<string>>([]);
   }
 
   public async loadCategories(): Promise<RepositoryResult<Array<Category>>> {
@@ -503,6 +507,33 @@ export default function appShellModelTest(): void {
 
       await model.retrySearch();
       expect(model.searchState.kind).assertEqual(SearchStateKind.EMPTY);
+      done();
+    });
+
+    it('models search suggestion loading, content, error and blank reset', 0, async (done: Function) => {
+      const repository: StubForumRepository = new StubForumRepository();
+      repository.suggestionResults.push(
+        RepositoryResult.success<Array<string>>(['河畔开发日志', '河畔使用指南']),
+        RepositoryResult.failure<Array<string>>('建议加载失败')
+      );
+      const model: AppShellModel = new AppShellModel(
+        repository,
+        new MemoryCategoryCache(),
+        CategoryCacheScope.anonymous()
+      );
+
+      await model.loadSearchSuggestions(' 河畔 ');
+      expect(model.searchSuggestionState.kind).assertEqual(SearchSuggestionStateKind.CONTENT);
+      expect(model.searchSuggestionState.items.length).assertEqual(2);
+      expect(repository.requestedSuggestionTerms[0]).assertEqual('河畔');
+
+      await model.loadSearchSuggestions('失败');
+      expect(model.searchSuggestionState.kind).assertEqual(SearchSuggestionStateKind.ERROR);
+      expect(model.searchSuggestionState.message).assertEqual('建议加载失败');
+
+      await model.loadSearchSuggestions('   ');
+      expect(model.searchSuggestionState.kind).assertEqual(SearchSuggestionStateKind.INITIAL);
+      expect(repository.requestedSuggestionTerms.length).assertEqual(2);
       done();
     });
 
