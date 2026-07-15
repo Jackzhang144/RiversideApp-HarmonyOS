@@ -526,7 +526,7 @@ export struct ChatConversationPage {
   }
 
   @Builder
-  private MessageBubble(message: ChatMessage, groupStart: boolean): void {
+  private MessageBubbleSurface(message: ChatMessage, groupStart: boolean): void {
     Column({ space: 7 }) {
       if (groupStart) {
         Row({ space: 8 }) {
@@ -584,7 +584,7 @@ export struct ChatConversationPage {
         .width('100%')
       }
     }
-    .width('82%')
+    .width('100%')
     .padding({ left: 11, right: 11, top: 9, bottom: 9 })
     .backgroundColor(message.username === this.currentUsername
       ? $r('app.color.brand_tint_surface')
@@ -594,44 +594,70 @@ export struct ChatConversationPage {
       width: message.username === this.currentUsername ? 0 : 1,
       color: $r('sys.color.comp_divider')
     })
-    .bindContextMenu(
-      this.MessageContextMenu(message, this.messageContextCapabilities(message)),
-      ResponseType.LongPress,
-      {
-        preview: MenuPreviewMode.IMAGE,
-        previewBorderRadius: 14,
-        previewScaleMode: PreviewScaleMode.MAINTAIN,
-        previewAnimationOptions: {
-          scale: [0.98, 1.0],
-          hoverScale: [1.0, 1.02],
-          hoverScaleInterruption: true
-        },
-        placement: message.username === this.currentUsername ? Placement.TopRight : Placement.TopLeft,
-        layoutRegionMargin: { left: 12, right: 12, top: 16, bottom: 16 },
-        backgroundColor: Color.Transparent,
-        backgroundBlurStyle: BlurStyle.NONE,
-        borderRadius: 0,
-        mask: true,
-        hapticFeedbackMode: HapticFeedbackMode.ENABLED
-      }
-    )
+  }
+
+  @Builder
+  private MessageBubble(message: ChatMessage, groupStart: boolean): void {
+    Column() {
+      this.MessageBubbleSurface(message, groupStart)
+    }
+    .layoutWeight(1)
     .accessibilityText(`${this.displayUsername(message)}：${message.displayText()}，长按显示消息操作`)
   }
 
   @Builder
-  private MessageRow(message: ChatMessage, groupStart: boolean): void {
+  private MessageContextPreview(message: ChatMessage): void {
     Row({ space: 8 }) {
       if (message.username !== this.currentUsername) {
-        this.AuthorAvatar(message, groupStart)
+        this.AuthorAvatar(message, true)
       }
-      this.MessageBubble(message, groupStart)
+      this.MessageBubble(message, true)
       if (message.username === this.currentUsername) {
-        this.AuthorAvatar(message, groupStart)
+        this.AuthorAvatar(message, true)
       }
     }
     .width('100%')
-    .justifyContent(message.username === this.currentUsername ? FlexAlign.End : FlexAlign.Start)
     .alignItems(VerticalAlign.Top)
+  }
+
+  @Builder
+  private MessageRow(message: ChatMessage, groupStart: boolean): void {
+    Row() {
+      Row({ space: 8 }) {
+        if (message.username !== this.currentUsername) {
+          this.AuthorAvatar(message, groupStart)
+        }
+        this.MessageBubble(message, groupStart)
+        if (message.username === this.currentUsername) {
+          this.AuthorAvatar(message, groupStart)
+        }
+      }
+      .width('91%')
+      .alignItems(VerticalAlign.Top)
+      .bindContextMenu(
+        this.MessageContextMenu(message, this.messageContextCapabilities(message)),
+        ResponseType.LongPress,
+        {
+          preview: this.MessageContextPreview(message),
+          previewBorderRadius: 14,
+          previewScaleMode: PreviewScaleMode.MAINTAIN,
+          previewAnimationOptions: {
+            scale: [0.98, 1.0],
+            hoverScale: [1.0, 1.02],
+            hoverScaleInterruption: true
+          },
+          placement: message.username === this.currentUsername ? Placement.TopRight : Placement.TopLeft,
+          layoutRegionMargin: { left: 12, right: 12, top: 16, bottom: 16 },
+          backgroundColor: Color.Transparent,
+          backgroundBlurStyle: BlurStyle.NONE,
+          borderRadius: 0,
+          mask: true,
+          hapticFeedbackMode: HapticFeedbackMode.ENABLED
+        }
+      )
+    }
+    .width('100%')
+    .justifyContent(message.username === this.currentUsername ? FlexAlign.End : FlexAlign.Start)
     .margin({ top: groupStart ? 10 : 3 })
   }
 
