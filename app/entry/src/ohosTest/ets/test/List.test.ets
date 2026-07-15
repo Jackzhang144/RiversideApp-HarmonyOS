@@ -24,8 +24,14 @@ import topicReadingPresentationTest from './TopicReadingPresentation.test';
 import chatModelsTest from './ChatModels.test';
 import chatRepositoryTest from './ChatRepository.test';
 import chatModelTest from './ChatModel.test';
+import notificationModelsTest from './NotificationModels.test';
+import notificationRepositoryTest from './NotificationRepository.test';
+import notificationCentreModelTest from './NotificationCentreModel.test';
 
 export default function tests(): void {
+  notificationCentreModelTest();
+  notificationRepositoryTest();
+  notificationModelsTest();
   chatModelsTest();
   chatRepositoryTest();
   chatModelTest();
