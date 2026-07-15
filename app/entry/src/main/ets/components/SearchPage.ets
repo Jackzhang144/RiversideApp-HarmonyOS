@@ -36,10 +36,10 @@ export struct SearchPage {
     if (this.suggestionTimer >= 0) {
       clearTimeout(this.suggestionTimer);
     }
+    this.onLoadSuggestions('');
     const normalizedValue: string = value.trim();
     if (normalizedValue.length === 0) {
       this.suggestionTimer = -1;
-      this.onLoadSuggestions('');
       return;
     }
     this.suggestionTimer = setTimeout((): void => {
