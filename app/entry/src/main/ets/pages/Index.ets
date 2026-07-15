@@ -247,6 +247,7 @@ struct Index {
   @State chatComposerState: ChatComposerState = new ChatComposerState();
   @State chatSearchState: ChatSearchState = new ChatSearchState();
   @State chatEmojis: Array<ChatEmoji> = [];
+  @State chatConversationFocusMessageId: number | null = null;
   @State composerEmojiLoading: boolean = false;
   @State chatUploadState: MediaUploadState | null = null;
   @State notificationState: NotificationCentreState = new NotificationCentreState();
@@ -916,6 +917,7 @@ struct Index {
     if (model === null || !this.canUseChat()) {
       return;
     }
+    this.chatConversationFocusMessageId = null;
     const task: Promise<void> = model.openChannel(channel);
     this.chatUploadState = null;
     this.synchronizeChatState();
@@ -929,6 +931,7 @@ struct Index {
     if (model === null || !this.canUseChat()) {
       return;
     }
+    this.chatConversationFocusMessageId = result.message.id;
     const task: Promise<void> = model.openChannelAt(result.channel, result.message.id);
     this.chatUploadState = null;
     this.synchronizeChatState();
@@ -952,6 +955,7 @@ struct Index {
     this.chatConversationVisible = false;
     this.chatModel?.closeChannel();
     this.chatUploadState = null;
+    this.chatConversationFocusMessageId = null;
     this.synchronizeChatState();
     return false;
   }
@@ -970,6 +974,14 @@ struct Index {
     if (model === null) return;
     const task: Promise<void> = model.loadNewer();
     this.synchronizeChatState();
+    await task;
+    this.synchronizeChatState();
+  }
+
+  private async reportChatReadProgress(messageId: number): Promise<void> {
+    const model: ChatModel | null = this.chatModel;
+    if (model === null) return;
+    const task: Promise<void> = model.markReadThrough(messageId);
     await task;
     this.synchronizeChatState();
   }
@@ -1125,6 +1137,7 @@ struct Index {
   private async openDirectChat(username: string): Promise<void> {
     const model: ChatModel | null = this.chatModel;
     if (model === null || !this.canUseChat()) return;
+    this.chatConversationFocusMessageId = null;
     const task: Promise<boolean> = model.openDirectChat(username.trim());
     this.chatUploadState = null;
     this.synchronizeChatState();
@@ -2656,9 +2669,11 @@ struct Index {
           emojis: this.chatEmojis,
           uploadState: this.chatUploadState,
           currentUsername: this.currentChatUsername(),
+          initialFocusMessageId: this.chatConversationFocusMessageId,
           onRetry: (): void => { this.retryChatConversation(); },
           onLoadOlder: (): void => { this.loadOlderChatMessages(); },
           onLoadNewer: (): void => { this.loadNewerChatMessages(); },
+          onReadProgress: (messageId: number): void => { this.reportChatReadProgress(messageId); },
           onDraftChange: (value: string): void => { this.updateChatDraft(value); },
           onSend: (): void => { this.sendChatMessage(); },
           onSelectImages: (): void => { this.selectChatImages(); },

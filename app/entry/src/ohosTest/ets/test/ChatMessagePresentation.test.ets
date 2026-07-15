@@ -6,10 +6,12 @@ import {
   chatEmojiGroups,
   filterChatReactionEmojis,
   formatChatMessageTimestamp,
+  initialChatMessageIndex,
   isChatMessageGroupStart,
   presentChatMessageBody,
   resolveChatMessageContextCapabilities,
-  selectQuickChatEmojis
+  selectQuickChatEmojis,
+  visibleChatMessageId
 } from '../../../main/ets/components/ChatMessagePresentation';
 import { ChatChannel, ChatEmoji, ChatMessage } from '../../../main/ets/models/ChatModels';
 
@@ -149,6 +151,21 @@ export default function chatMessagePresentationTest(): void {
       expect(filterChatReactionEmojis(emojis, 'people', ' WA ')[0].name).assertEqual('wave');
       expect(filterChatReactionEmojis(emojis, '', 'love')[0].name).assertEqual('RiverSide_Love');
       expect(filterChatReactionEmojis(emojis, 'symbols', 'wave').length).assertEqual(0);
+    });
+
+    it('selects the latest or focused initial Chat message and validates visible indices', 0, () => {
+      const messages: Array<ChatMessage> = [
+        conversationMessage(7, 'member', '2026-07-12T07:00:00Z'),
+        conversationMessage(8, 'member', '2026-07-12T08:00:00Z'),
+        conversationMessage(9, 'member', '2026-07-12T09:00:00Z')
+      ];
+
+      expect(initialChatMessageIndex(messages, null)).assertEqual(2);
+      expect(initialChatMessageIndex(messages, 8)).assertEqual(1);
+      expect(initialChatMessageIndex(messages, 99)).assertEqual(2);
+      expect(visibleChatMessageId(messages, 1)).assertEqual(8);
+      expect(visibleChatMessageId(messages, -1)).assertNull();
+      expect(visibleChatMessageId(messages, 3)).assertNull();
     });
   });
 }

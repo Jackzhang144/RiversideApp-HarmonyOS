@@ -126,6 +126,28 @@ export function filterChatReactionEmojis(
   });
 }
 
+export function initialChatMessageIndex(messages: Array<ChatMessage>, focusedMessageId: number | null): number {
+  if (messages.length === 0) {
+    return -1;
+  }
+  if (focusedMessageId !== null) {
+    const focusedIndex: number = messages.findIndex(
+      (message: ChatMessage): boolean => message.id === focusedMessageId
+    );
+    if (focusedIndex >= 0) {
+      return focusedIndex;
+    }
+  }
+  return messages.length - 1;
+}
+
+export function visibleChatMessageId(messages: Array<ChatMessage>, visibleIndex: number): number | null {
+  if (!Number.isInteger(visibleIndex) || visibleIndex < 0 || visibleIndex >= messages.length) {
+    return null;
+  }
+  return messages[visibleIndex].id;
+}
+
 function emojiForName(emojis: Array<ChatEmoji>, name: string): ChatEmoji | null {
   return emojis.find((emoji: ChatEmoji): boolean => emoji.name === name) ?? null;
 }

@@ -84,6 +84,10 @@ export class ChatModel {
   private conversationRequestVersion: number = 0;
   private activeConversationRefresh: Promise<void> | null = null;
   private activeConversationRefreshVersion: number | null = null;
+  private readProgressChannelId: number = 0;
+  private confirmedReadMessageId: number = 0;
+  private pendingReadMessageId: number = 0;
+  private readProgressTask: Promise<void> | null = null;
 
   public constructor(
     repository: ChatRepository,
@@ -198,11 +202,10 @@ export class ChatModel {
         this.conversationState.canLoadMorePast,
         result.data.canLoadMoreFuture
       );
-    await this.markLatestRead(requestVersion, channel.id);
   }
 
   public async openChannel(channel: ChatChannel): Promise<void> {
-    await this.openChannelWithQuery(channel, ChatMessageQuery.initial());
+    await this.openChannelWithQuery(channel, ChatMessageQuery.latest());
   }
 
   public async openChannelAt(channel: ChatChannel, messageId: number): Promise<void> {
@@ -223,6 +226,7 @@ export class ChatModel {
     this.cancelUpload();
     this.conversationRequestVersion += 1;
     const requestVersion: number = this.conversationRequestVersion;
+    this.resetReadProgress(channel.id);
     this.conversationState = ChatConversationState.loading(channel);
     this.composerState = new ChatComposerState();
     const result: RepositoryResult<ChatMessagePage> = await this.repository.loadChatMessages(
@@ -242,7 +246,6 @@ export class ChatModel {
       return;
     }
     this.conversationState = ChatConversationState.fromPage(channel, result.data);
-    await this.markLatestRead(requestVersion, channel.id);
   }
 
   public async closeChannel(): Promise<void> {
@@ -253,6 +256,7 @@ export class ChatModel {
       !this.conversationState.messages.some((message: ChatMessage): boolean => message.id > 0);
     this.cancelUpload();
     this.conversationRequestVersion += 1;
+    this.resetReadProgress(0);
     this.conversationState = ChatConversationState.initial();
     this.composerState = new ChatComposerState();
     if (shouldCleanupEmptyDirectMessage && channel !== null) {
@@ -279,6 +283,7 @@ export class ChatModel {
     this.cancelUpload();
     this.channelRequestVersion += 1;
     this.conversationRequestVersion += 1;
+    this.resetReadProgress(0);
     this.channelState = ChatChannelState.initial();
     this.conversationState = ChatConversationState.initial();
     this.composerState = new ChatComposerState();
@@ -356,7 +361,6 @@ export class ChatModel {
       this.conversationState.canLoadMorePast,
       result.data.canLoadMoreFuture
     );
-    await this.markLatestRead(requestVersion, channel.id);
   }
 
   public updateDraft(draft: string): void {
@@ -499,7 +503,6 @@ export class ChatModel {
         '消息已发送，等待服务端同步'
       );
     }
-    await this.markLatestRead(this.conversationRequestVersion, channel.id);
     return true;
   }
 
@@ -644,44 +647,92 @@ export class ChatModel {
       return false;
     }
     this.conversationState = ChatConversationState.fromPage(channel, result.data);
-    await this.markLatestRead(requestVersion, channel.id);
     return true;
   }
 
-  private async markLatestRead(requestVersion: number, channelId: number): Promise<void> {
-    if (!this.isCurrentConversation(requestVersion, channelId) || this.conversationState.messages.length === 0) {
+  public async markReadThrough(messageId: number): Promise<void> {
+    const channel: ChatChannel | null = this.conversationState.channel;
+    if (
+      channel === null ||
+      !Number.isSafeInteger(messageId) ||
+      messageId <= 0 ||
+      !this.conversationState.messages.some((message: ChatMessage): boolean => message.id === messageId)
+    ) {
       return;
     }
-    const latestId: number = this.conversationState.messages[this.conversationState.messages.length - 1].id;
-    const result: RepositoryResult<boolean> = await this.repository.markChatRead(channelId, latestId);
-    if (!this.isCurrentConversation(requestVersion, channelId)) {
+    if (this.readProgressChannelId !== channel.id) {
+      this.resetReadProgress(channel.id);
+    }
+    if (messageId <= this.confirmedReadMessageId || messageId <= this.pendingReadMessageId) {
       return;
     }
-    if (result.isUnauthorized()) {
-      await this.notifyUnauthorized();
+    this.pendingReadMessageId = messageId;
+    const existingTask: Promise<void> | null = this.readProgressTask;
+    if (existingTask !== null) {
+      await existingTask;
       return;
     }
-    if (result.isSuccess() && result.data === true) {
-      this.channelState = ChatChannelState.fromChannels(this.channelState.channels.map(
-        (channel: ChatChannel): ChatChannel => channel.id === channelId
-          ? new ChatChannel(
-            channel.id,
-            channel.title,
-            channel.subtitle,
-            channel.preview,
-            channel.lastMessageAt,
-            channel.isDirectMessage,
-            0,
-            channel.lastMessageId,
-            channel.lastMessageUsername,
-            channel.slug,
-            channel.userSilenced,
-            channel.canDeleteSelf,
-            channel.canDeleteOthers
-          )
-          : channel
-      ));
+    const requestVersion: number = this.conversationRequestVersion;
+    const task: Promise<void> = this.flushReadProgress(requestVersion, channel.id);
+    this.readProgressTask = task;
+    try {
+      await task;
+    } finally {
+      if (this.readProgressTask === task) {
+        this.readProgressTask = null;
+      }
     }
+  }
+
+  private async flushReadProgress(requestVersion: number, channelId: number): Promise<void> {
+    while (
+      this.isCurrentConversation(requestVersion, channelId) &&
+      this.pendingReadMessageId > this.confirmedReadMessageId
+    ) {
+      const targetMessageId: number = this.pendingReadMessageId;
+      const result: RepositoryResult<boolean> = await this.repository.markChatRead(channelId, targetMessageId);
+      if (!this.isCurrentConversation(requestVersion, channelId)) {
+        return;
+      }
+      if (!result.isSuccess() || result.data !== true) {
+        this.pendingReadMessageId = this.confirmedReadMessageId;
+        if (result.isUnauthorized()) {
+          await this.notifyUnauthorized();
+        }
+        return;
+      }
+      this.confirmedReadMessageId = targetMessageId;
+      this.clearChannelUnreadCount(channelId);
+    }
+  }
+
+  private clearChannelUnreadCount(channelId: number): void {
+    this.channelState = ChatChannelState.fromChannels(this.channelState.channels.map(
+      (channel: ChatChannel): ChatChannel => channel.id === channelId
+        ? new ChatChannel(
+          channel.id,
+          channel.title,
+          channel.subtitle,
+          channel.preview,
+          channel.lastMessageAt,
+          channel.isDirectMessage,
+          0,
+          channel.lastMessageId,
+          channel.lastMessageUsername,
+          channel.slug,
+          channel.userSilenced,
+          channel.canDeleteSelf,
+          channel.canDeleteOthers
+        )
+        : channel
+    ));
+  }
+
+  private resetReadProgress(channelId: number): void {
+    this.readProgressChannelId = channelId;
+    this.confirmedReadMessageId = 0;
+    this.pendingReadMessageId = 0;
+    this.readProgressTask = null;
   }
 
   private isCurrentConversation(requestVersion: number, channelId: number): boolean {

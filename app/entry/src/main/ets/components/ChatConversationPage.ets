@@ -25,11 +25,13 @@ import {
   chatEmojiGroups,
   filterChatReactionEmojis,
   formatChatMessageTimestamp,
+  initialChatMessageIndex,
   isChatMessageGroupStart,
   presentChatMessageBody,
   presentChatText,
   resolveChatMessageContextCapabilities,
-  selectQuickChatEmojis
+  selectQuickChatEmojis,
+  visibleChatMessageId
 } from './ChatMessagePresentation';
 
 const CHAT_QUICK_REACTION_LIMIT: number = 5;
@@ -44,11 +46,12 @@ const CHAT_QUICK_REACTION_PREFERRED_NAMES: Array<string> = [
 
 @Component
 export struct ChatConversationPage {
-  @Prop state: ChatConversationState = ChatConversationState.initial();
+  @Prop @Watch('synchronizeMessageViewport') state: ChatConversationState = ChatConversationState.initial();
   @Prop composer: ChatComposerState = new ChatComposerState();
   @Prop emojis: Array<ChatEmoji> = [];
   @Prop uploadState: MediaUploadState | null = null;
   @Prop currentUsername: string = '';
+  @Prop initialFocusMessageId: number | null = null;
   @State emojiQuery: string = '';
   @State emojiPickerVisible: boolean = false;
   @State reactionSheetVisible: boolean = false;
@@ -61,6 +64,7 @@ export struct ChatConversationPage {
   onRetry: () => void = (): void => {};
   onLoadOlder: () => void = (): void => {};
   onLoadNewer: () => void = (): void => {};
+  onReadProgress: (messageId: number) => void = (_messageId: number): void => {};
   onDraftChange: (value: string) => void = (_value: string): void => {};
   onSend: () => void = (): void => {};
   onSelectImages: () => void = (): void => {};
@@ -88,14 +92,35 @@ export struct ChatConversationPage {
   onLeaveChannel: () => void = (): void => {};
   private readonly composerController: TextAreaController = new TextAreaController();
   private readonly mentionRequestGate: ComposerMentionRequestGate = new ComposerMentionRequestGate();
+  private readonly messageScroller: Scroller = new Scroller();
   private mentionTimer: number = -1;
   private reactionSheetTimer: number = -1;
+  private readProgressTimer: number = -1;
+  private pendingReadMessageId: number = 0;
+  private viewportChannelId: number = 0;
+  private viewportMessageCount: number = 0;
+  private viewportFirstMessageId: number = 0;
+  private viewportLastMessageId: number = 0;
+  private visibleStartIndex: number = 0;
+  private visibleEndIndex: number = -1;
+  private viewportReady: boolean = false;
+  private pastBoundaryArmed: boolean = false;
+  private futureBoundaryArmed: boolean = false;
+  private pastLoadRequested: boolean = false;
+  private futureLoadRequested: boolean = false;
+  private historyAnchorMessageId: number = 0;
   private composerSelectionStart: number = 0;
   private composerSelectionEnd: number = 0;
+
+  aboutToAppear(): void {
+    this.synchronizeMessageViewport();
+  }
 
   aboutToDisappear(): void {
     this.cancelMentionTimer();
     this.cancelReactionSheetTimer();
+    this.cancelReadProgressTimer();
+    this.flushReadProgress();
     this.mentionRequestGate.invalidate();
   }
 
@@ -110,6 +135,162 @@ export struct ChatConversationPage {
     if (this.reactionSheetTimer >= 0) {
       clearTimeout(this.reactionSheetTimer);
       this.reactionSheetTimer = -1;
+    }
+  }
+
+  private cancelReadProgressTimer(): void {
+    if (this.readProgressTimer >= 0) {
+      clearTimeout(this.readProgressTimer);
+      this.readProgressTimer = -1;
+    }
+  }
+
+  private scheduleReadProgress(visibleIndex: number): void {
+    if (!this.viewportReady) {
+      return;
+    }
+    const messageId: number | null = visibleChatMessageId(this.state.messages, visibleIndex);
+    if (messageId === null) {
+      return;
+    }
+    this.pendingReadMessageId = Math.max(this.pendingReadMessageId, messageId);
+    this.cancelReadProgressTimer();
+    this.readProgressTimer = setTimeout((): void => {
+      this.readProgressTimer = -1;
+      this.flushReadProgress();
+    }, 1000);
+  }
+
+  private flushReadProgress(): void {
+    const messageId: number = this.pendingReadMessageId;
+    this.pendingReadMessageId = 0;
+    if (messageId > 0) {
+      this.onReadProgress(messageId);
+    }
+  }
+
+  private synchronizeMessageViewport(): void {
+    const channelId: number = this.state.channel?.id ?? 0;
+    const messages: Array<ChatMessage> = this.state.messages;
+    if (channelId <= 0 || messages.length === 0) {
+      if (channelId !== this.viewportChannelId) {
+        this.viewportReady = false;
+        this.viewportChannelId = channelId;
+        this.viewportMessageCount = 0;
+        this.viewportFirstMessageId = 0;
+        this.viewportLastMessageId = 0;
+        this.visibleStartIndex = 0;
+        this.visibleEndIndex = -1;
+      }
+      return;
+    }
+
+    const previousCount: number = this.viewportMessageCount;
+    const previousFirstMessageId: number = this.viewportFirstMessageId;
+    const previousLastMessageId: number = this.viewportLastMessageId;
+    const channelChanged: boolean = channelId !== this.viewportChannelId;
+    const initialViewport: boolean = channelChanged || previousCount === 0;
+    const wasAtLatest: boolean = previousCount > 0 && this.visibleEndIndex >= previousCount - 1;
+    const firstMessageId: number = messages[0].id;
+    const lastMessageId: number = messages[messages.length - 1].id;
+    const appendedMessages: boolean = !initialViewport && firstMessageId === previousFirstMessageId &&
+      lastMessageId !== previousLastMessageId && messages.length > previousCount;
+    const futurePaginationAppend: boolean = this.futureLoadRequested;
+
+    this.viewportChannelId = channelId;
+    this.viewportMessageCount = messages.length;
+    this.viewportFirstMessageId = firstMessageId;
+    this.viewportLastMessageId = lastMessageId;
+
+    if (initialViewport) {
+      this.viewportReady = false;
+      this.pastLoadRequested = false;
+      this.futureLoadRequested = false;
+      this.historyAnchorMessageId = 0;
+      setTimeout((): void => {
+        if (this.state.channel?.id !== channelId || this.state.messages.length === 0) {
+          return;
+        }
+        const targetIndex: number = initialChatMessageIndex(this.state.messages, this.initialFocusMessageId);
+        if (targetIndex >= 0) {
+          const alignment: ScrollAlign = this.initialFocusMessageId === null ? ScrollAlign.END : ScrollAlign.CENTER;
+          this.messageScroller.scrollToIndex(targetIndex, false, alignment);
+          this.visibleStartIndex = targetIndex;
+          this.visibleEndIndex = targetIndex;
+          this.viewportReady = true;
+          this.scheduleReadProgress(targetIndex);
+        }
+      }, 50);
+      return;
+    }
+
+    if (this.pastLoadRequested && !this.state.loadingPast) {
+      const anchorIndex: number = messages.findIndex(
+        (message: ChatMessage): boolean => message.id === this.historyAnchorMessageId
+      );
+      this.pastLoadRequested = false;
+      this.historyAnchorMessageId = 0;
+      if (anchorIndex >= 0 && firstMessageId !== previousFirstMessageId) {
+        setTimeout((): void => this.messageScroller.scrollToIndex(anchorIndex, false, ScrollAlign.START), 50);
+      }
+    }
+    if (this.futureLoadRequested && !this.state.loadingFuture) {
+      this.futureLoadRequested = false;
+    }
+    if (appendedMessages && wasAtLatest && !futurePaginationAppend) {
+      setTimeout((): void => {
+        this.messageScroller.scrollToIndex(this.state.messages.length - 1, false, ScrollAlign.END);
+      }, 50);
+    }
+  }
+
+  private requestOlderMessages(): void {
+    if (
+      !this.pastBoundaryArmed ||
+      this.pastLoadRequested ||
+      this.state.loadingPast ||
+      !this.state.canLoadMorePast ||
+      this.state.messages.length === 0
+    ) {
+      return;
+    }
+    const anchorMessageId: number | null = visibleChatMessageId(this.state.messages, this.visibleStartIndex);
+    if (anchorMessageId === null) {
+      return;
+    }
+    this.pastBoundaryArmed = false;
+    this.pastLoadRequested = true;
+    this.historyAnchorMessageId = anchorMessageId;
+    this.onLoadOlder();
+  }
+
+  private requestNewerMessages(): void {
+    if (
+      !this.futureBoundaryArmed ||
+      this.futureLoadRequested ||
+      this.state.loadingFuture ||
+      !this.state.canLoadMoreFuture ||
+      this.state.messages.length === 0
+    ) {
+      return;
+    }
+    this.futureBoundaryArmed = false;
+    this.futureLoadRequested = true;
+    this.onLoadNewer();
+  }
+
+  private handleVisibleMessageRange(startIndex: number, endIndex: number): void {
+    if (this.state.messages.length === 0) {
+      return;
+    }
+    this.visibleStartIndex = Math.max(0, Math.min(startIndex, this.state.messages.length - 1));
+    this.visibleEndIndex = Math.max(this.visibleStartIndex, Math.min(endIndex, this.state.messages.length - 1));
+    this.scheduleReadProgress(this.visibleEndIndex);
+    if (this.visibleStartIndex <= 2) {
+      this.requestOlderMessages();
+    }
+    if (this.visibleEndIndex >= this.state.messages.length - 3) {
+      this.requestNewerMessages();
     }
   }
 
@@ -834,50 +1015,72 @@ export struct ChatConversationPage {
 
   @Builder
   private MessageList(): void {
-    List({ space: 0 }) {
-      if (this.state.canLoadMorePast || this.state.loadingPast || this.state.message.length > 0) {
-        ListItem() {
-          Column({ space: 5 }) {
-            if (this.state.message.length > 0) {
-              Text(this.state.message).fontSize(11).fontColor($r('app.color.status_error')).textAlign(TextAlign.Center)
-            }
-            if (this.state.canLoadMorePast || this.state.loadingPast) {
-              Button(this.state.loadingPast
-                ? $r('app.string.chat_message_loading_more')
-                : $r('app.string.chat_message_load_older'), { type: ButtonType.Normal })
-                .enabled(!this.state.loadingPast)
-                .height(32)
-                .fontSize(12)
-                .fontColor($r('app.color.text_link'))
-                .backgroundColor(Color.Transparent)
-                .onClick(this.onLoadOlder)
-            }
-          }.width('100%').padding({ top: 4, bottom: 4 })
-        }
+    Stack({ alignContent: Alignment.Top }) {
+      List({ space: 0, scroller: this.messageScroller }) {
+        ForEach(this.state.messages, (message: ChatMessage, index: number): void => {
+          ListItem() {
+            this.MessageRow(message, isChatMessageGroupStart(this.state.messages, index))
+          }
+        }, (message: ChatMessage): string => message.id.toString())
       }
-      ForEach(this.state.messages, (message: ChatMessage, index: number): void => {
-        ListItem() {
-          this.MessageRow(message, isChatMessageGroupStart(this.state.messages, index))
+      .width('100%')
+      .height('100%')
+      .padding({ left: 12, right: 12, top: 10, bottom: 10 })
+      .backgroundColor($r('sys.color.background_secondary'))
+      .edgeEffect(EdgeEffect.Spring)
+      .stackFromEnd(true)
+      .onScrollStart((): void => {
+        this.pastBoundaryArmed = true;
+        this.futureBoundaryArmed = true;
+      })
+      .onScrollIndex((startIndex: number, endIndex: number): void => {
+        this.handleVisibleMessageRange(startIndex, endIndex);
+      })
+      .onReachStart((): void => this.requestOlderMessages())
+      .onReachEnd((): void => this.requestNewerMessages())
+
+      if (this.state.loadingPast) {
+        Row({ space: 6 }) {
+          LoadingProgress().width(16).height(16)
+          Text($r('app.string.chat_message_loading_more'))
+            .fontSize(11)
+            .fontColor($r('sys.color.font_secondary'))
         }
-      }, (message: ChatMessage): string => message.id.toString())
-      if (this.state.canLoadMoreFuture || this.state.loadingFuture) {
-        ListItem() {
-          Button(this.state.loadingFuture
-            ? $r('app.string.chat_message_loading_more')
-            : $r('app.string.chat_message_load_newer'), { type: ButtonType.Normal })
-            .width('100%')
-            .height(32)
-            .fontSize(12)
-            .fontColor($r('app.color.text_link'))
-            .backgroundColor(Color.Transparent)
-            .enabled(!this.state.loadingFuture)
-            .onClick(this.onLoadNewer)
+        .height(28)
+        .padding({ left: 10, right: 10 })
+        .backgroundColor($r('sys.color.comp_background_primary'))
+        .borderRadius(14)
+        .position({ top: 6 })
+        .hitTestBehavior(HitTestMode.None)
+      } else if (this.state.message.length > 0) {
+        Text(this.state.message)
+          .fontSize(11)
+          .fontColor($r('app.color.status_error'))
+          .padding({ left: 10, right: 10, top: 6, bottom: 6 })
+          .backgroundColor($r('sys.color.comp_background_primary'))
+          .borderRadius(14)
+          .position({ top: 6 })
+          .hitTestBehavior(HitTestMode.None)
+      }
+
+      if (this.state.loadingFuture) {
+        Row({ space: 6 }) {
+          LoadingProgress().width(16).height(16)
+          Text($r('app.string.chat_message_loading_more'))
+            .fontSize(11)
+            .fontColor($r('sys.color.font_secondary'))
         }
+        .height(28)
+        .padding({ left: 10, right: 10 })
+        .backgroundColor($r('sys.color.comp_background_primary'))
+        .borderRadius(14)
+        .position({ bottom: 6 })
+        .hitTestBehavior(HitTestMode.None)
       }
     }
-    .layoutWeight(1).width('100%').padding({ left: 12, right: 12, top: 10, bottom: 10 })
-    .backgroundColor($r('sys.color.background_secondary')).edgeEffect(EdgeEffect.Spring)
-    .onReachEnd(this.onLoadNewer)
+    .layoutWeight(1)
+    .width('100%')
+    .backgroundColor($r('sys.color.background_secondary'))
   }
 
   @Builder

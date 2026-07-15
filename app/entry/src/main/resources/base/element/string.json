@@ -449,14 +449,6 @@
       "value": "正在加载"
     },
     {
-      "name": "chat_message_load_older",
-      "value": "加载更早消息"
-    },
-    {
-      "name": "chat_message_load_newer",
-      "value": "加载更新消息"
-    },
-    {
       "name": "chat_reaction_more_accessibility",
       "value": "查看更多 Reaction"
     },

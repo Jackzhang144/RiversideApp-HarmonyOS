@@ -68,7 +68,7 @@ export default function chatModelTest(): void {
       expect(unicode?.selectionEnd).assertEqual(9);
     });
 
-    it('loads from last read, keeps server order, paginates and marks the real latest id read', 0,
+    it('opens at the latest page, paginates older messages and marks only visible progress as read', 0,
       async (done: Function) => {
         const repository: StubChatRepository = new StubChatRepository();
         repository.channelResults.push(RepositoryResult.success<Array<ChatChannel>>([channel()]));
@@ -91,10 +91,16 @@ export default function chatModelTest(): void {
         expect(model.channelState.kind).assertEqual(ChatStateKind.CONTENT);
         expect(model.conversationState.messages.map((item: ChatMessage): number => item.id).join(','))
           .assertEqual('7,8,9');
-        expect(repository.messageQueries[0].fetchFromLastRead).assertTrue();
+        expect(repository.messageQueries[0].fetchFromLastRead).assertFalse();
         expect(repository.messageQueries[1].targetMessageId).assertEqual(8);
         expect(repository.messageQueries[1].direction).assertEqual('past');
-        expect(repository.markReadIds[0]).assertEqual(9);
+        expect(repository.markReadIds.length).assertEqual(0);
+
+        await model.markReadThrough(8);
+        await model.markReadThrough(7);
+        await model.markReadThrough(9);
+
+        expect(repository.markReadIds.join(',')).assertEqual('8,9');
         done();
       });
 
