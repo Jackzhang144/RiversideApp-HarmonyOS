@@ -91,7 +91,7 @@ import {
 import { NotificationBucket, NotificationItem } from '../models/NotificationModels';
 import { HomeChannel, OnlineUser, OnlineUsers, SearchPost, SearchUser } from '../models/DiscoveryModels';
 import { CurrentUser } from '../models/ReplyModels';
-import { ServerDraft } from '../models/AuthoringModels';
+import { ComposerEdit, ServerDraft } from '../models/AuthoringModels';
 import {
   ProfileNotificationLevel,
   ProfileUpdateRequest,
@@ -812,9 +812,10 @@ struct Index {
     this.synchronizeChatState();
   }
 
-  private insertChatEmoji(name: string): void {
-    this.chatModel?.insertEmoji(name);
+  private insertChatEmoji(name: string, selectionStart: number, selectionEnd: number): ComposerEdit | null {
+    const edit: ComposerEdit | null = this.chatModel?.insertEmoji(name, selectionStart, selectionEnd) ?? null;
     this.synchronizeChatState();
+    return edit;
   }
 
   private removeChatUpload(uploadId: number): void {
@@ -2231,7 +2232,11 @@ struct Index {
           onReply: (messageId: number): void => { this.replyToChatMessage(messageId); },
           onCancelReply: (): void => { this.replyToChatMessage(null); },
           onMention: (username: string): void => { this.mentionChatUser(username); },
-          onInsertEmoji: (name: string): void => { this.insertChatEmoji(name); },
+          onInsertEmoji: (
+            name: string,
+            selectionStart: number,
+            selectionEnd: number
+          ): ComposerEdit | null => this.insertChatEmoji(name, selectionStart, selectionEnd),
           onReact: (messageId: number, emoji: string, action: ChatReactionAction): void => {
             this.reactToChatMessage(messageId, emoji, action);
           },

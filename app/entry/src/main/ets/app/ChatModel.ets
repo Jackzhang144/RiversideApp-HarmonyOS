@@ -1,4 +1,6 @@
 import { RepositoryResult } from '../core/RepositoryResult';
+import { ComposerEdit } from '../models/AuthoringModels';
+import { insertChatEmojiText } from '../models/ChatComposerEditing';
 import {
   ChatChannel,
   ChatEmoji,
@@ -519,11 +521,20 @@ export class ChatModel {
     }
   }
 
-  public insertEmoji(name: string): void {
-    const normalized: string = name.trim().replace(/:/g, '');
-    if (normalized.length > 0) {
-      this.updateDraft(`${this.composerState.draft}:${normalized}:`);
+  public insertEmoji(name: string, selectionStart: number, selectionEnd: number): ComposerEdit | null {
+    if (this.composerState.sending) {
+      return null;
     }
+    const edit: ComposerEdit | null = insertChatEmojiText(
+      this.composerState.draft,
+      selectionStart,
+      selectionEnd,
+      name
+    );
+    if (edit !== null) {
+      this.updateDraft(edit.text);
+    }
+    return edit;
   }
 
   public removeUpload(uploadId: number): void {

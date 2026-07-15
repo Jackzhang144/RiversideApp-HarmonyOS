@@ -6,6 +6,7 @@ import {
   ChatStateKind
 } from '../../../main/ets/app/ChatModel';
 import { RepositoryResult } from '../../../main/ets/core/RepositoryResult';
+import { ComposerEdit } from '../../../main/ets/models/AuthoringModels';
 import {
   ChatChannel,
   ChatEmoji,
@@ -251,6 +252,26 @@ function uploadedImage(): MediaUploadResult {
 
 export default function chatModelTest(): void {
   describe('ChatModel public behavior', () => {
+    it('inserts Emoji at a cursor, replaces a selection, and preserves Unicode offsets', 0, () => {
+      const model: ChatModel = new ChatModel(new StubChatRepository());
+      model.updateDraft('前缀后缀');
+
+      const middle: ComposerEdit | null = model.insertEmoji('wave', 2, 2);
+      expect(middle?.text).assertEqual('前缀:wave:后缀');
+      expect(middle?.selectionStart).assertEqual(8);
+
+      model.updateDraft('Hello选中World');
+      const replacement: ComposerEdit | null = model.insertEmoji('heart', 5, 7);
+      expect(replacement?.text).assertEqual('Hello:heart:World');
+      expect(replacement?.selectionStart).assertEqual(12);
+
+      model.updateDraft('甲😀乙');
+      const unicode: ComposerEdit | null = model.insertEmoji('庆祝🎉', 3, 3);
+      expect(unicode?.text).assertEqual('甲😀:庆祝🎉:乙');
+      expect(unicode?.selectionStart).assertEqual(9);
+      expect(unicode?.selectionEnd).assertEqual(9);
+    });
+
     it('loads from last read, keeps server order, paginates and marks the real latest id read', 0,
       async (done: Function) => {
         const repository: StubChatRepository = new StubChatRepository();

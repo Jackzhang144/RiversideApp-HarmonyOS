@@ -1,4 +1,5 @@
 import { ChatComposerState, ChatConversationState, ChatStateKind } from '../app/ChatModel';
+import { ComposerEdit } from '../models/AuthoringModels';
 import {
   absoluteChatUrl,
   ChatChannel,
@@ -30,7 +31,8 @@ export struct ChatConversationPage {
   onReply: (messageId: number) => void = (_messageId: number): void => {};
   onCancelReply: () => void = (): void => {};
   onMention: (username: string) => void = (_username: string): void => {};
-  onInsertEmoji: (name: string) => void = (_name: string): void => {};
+  onInsertEmoji: (name: string, selectionStart: number, selectionEnd: number) => ComposerEdit | null =
+    (_name: string, _selectionStart: number, _selectionEnd: number): ComposerEdit | null => null;
   onReact: (messageId: number, emoji: string, action: ChatReactionAction) => void =
     (_messageId: number, _emoji: string, _action: ChatReactionAction): void => {};
   onDelete: (messageId: number) => void = (_messageId: number): void => {};
@@ -41,6 +43,25 @@ export struct ChatConversationPage {
   onOpenImage: (url: string) => void = (_url: string): void => {};
   onOpenProfile: (username: string) => void = (_username: string): void => {};
   onLeaveChannel: () => void = (): void => {};
+  private readonly composerController: TextAreaController = new TextAreaController();
+  private composerSelectionStart: number = 0;
+  private composerSelectionEnd: number = 0;
+
+  private insertEmoji(name: string): void {
+    const edit: ComposerEdit | null = this.onInsertEmoji(
+      name,
+      this.composerSelectionStart,
+      this.composerSelectionEnd
+    );
+    if (edit === null) {
+      return;
+    }
+    this.composerSelectionStart = edit.selectionStart;
+    this.composerSelectionEnd = edit.selectionEnd;
+    setTimeout((): void => {
+      this.composerController.setTextSelection(edit.selectionStart, edit.selectionEnd);
+    }, 0);
+  }
 
   private messageForId(messageId: number | null): ChatMessage | null {
     if (messageId === null) {
@@ -268,7 +289,7 @@ export struct ChatConversationPage {
                 Image(emoji.imageUrl()).width(22).height(22).objectFit(ImageFit.Contain)
               }
               .width(34).height(34).backgroundColor('#EEF1F5').enabled(this.canWrite())
-              .onClick((): void => this.onInsertEmoji(emoji.name))
+              .onClick((): void => this.insertEmoji(emoji.name))
               .accessibilityText(`插入 Emoji ${emoji.name}`)
             }
           }, (emoji: ChatEmoji): string => emoji.name)
@@ -323,9 +344,17 @@ export struct ChatConversationPage {
           .width(40).height(40).backgroundColor('#EEF1F5')
           .enabled(!this.composer.sending && this.canWrite())
           .onClick(this.onSelectImages).accessibilityText('选择并上传 Chat 图片')
-        TextArea({ text: this.composer.draft, placeholder: '输入消息，支持 @ 与 Emoji' })
+        TextArea({
+          text: this.composer.draft,
+          placeholder: '输入消息，支持 @ 与 Emoji',
+          controller: this.composerController
+        })
           .layoutWeight(1).constraintSize({ minHeight: 42, maxHeight: 100 })
           .backgroundColor('#F1F3F5').enabled(this.canWrite()).onChange(this.onDraftChange)
+          .onTextSelectionChange((selectionStart: number, selectionEnd: number): void => {
+            this.composerSelectionStart = selectionStart;
+            this.composerSelectionEnd = selectionEnd;
+          })
         Button() { SymbolGlyph($r('sys.symbol.paperplane')).fontSize(20) }
           .width(44).height(44).enabled(this.canWrite() && !this.composer.sending &&
             (this.composer.draft.trim().length > 0 || this.composer.uploads.length > 0))
