@@ -1,9 +1,9 @@
 import { describe, expect, it } from '@ohos/hypium';
 import {
-  parseRichPostContent,
   RichContentBlock,
   RichContentBlockKind
-} from '../../../main/ets/models/RichContentModels';
+} from '../../../main/ets/models/RichContentBlocks';
+import { parseRichPostContent } from '../../../main/ets/models/RichContentParser';
 import {
   BILIBILI_URL_TRUST_LIST,
   classifyRichNavigation,

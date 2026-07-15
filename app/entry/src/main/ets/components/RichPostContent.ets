@@ -1,10 +1,10 @@
 import {
-  parseRichPostContent,
   RichContentBlock,
   RichContentBlockKind,
   RichContentLink,
   RichContentListItem
-} from '../models/RichContentModels';
+} from '../models/RichContentBlocks';
+import { parseRichPostContent } from '../models/RichContentParser';
 import { RichEmbedProvider } from '../models/RichNavigationPolicy';
 
 @Component
