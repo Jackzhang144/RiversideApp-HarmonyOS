@@ -440,6 +440,9 @@ struct Index {
     this.onlineUsersState = BrowseState.loading<OnlineUser>();
     const result: RepositoryResult<OnlineUsers> = await repository.loadOnlineUsers();
     if (!result.isSuccess() || result.data === null) {
+      if (result.isUnauthorized()) {
+        await this.authenticationLifecycle?.handleUnauthorized();
+      }
       this.onlineUsersState = BrowseState.error<OnlineUser>(result.message);
       this.onlineUserCount = 0;
       return;
