@@ -1,6 +1,8 @@
 import {
   RichContentBlock,
   RichContentBlockKind,
+  RichContentInlineFragment,
+  RichContentInlineFragmentKind,
   RichContentLink,
   RichContentListItem
 } from '../models/RichContentBlocks';
@@ -54,7 +56,23 @@ export struct RichPostContent {
   @Builder
   private TextBlock(block: RichContentBlock): void {
     Column({ space: 4 }) {
-      Text(block.text)
+      Text() {
+        if (block.inlineFragments.length > 0) {
+          ForEach(block.inlineFragments, (fragment: RichContentInlineFragment) => {
+            if (fragment.kind === RichContentInlineFragmentKind.EMOJI) {
+              ImageSpan(fragment.imageUrl)
+                .width(18)
+                .height(18)
+                .objectFit(ImageFit.Contain)
+                .verticalAlign(ImageSpanAlignment.CENTER)
+            } else {
+              Span(fragment.text)
+            }
+          }, (fragment: RichContentInlineFragment, index: number): string => `${index}-${fragment.text}`)
+        } else {
+          Span(block.text)
+        }
+      }
         .fontSize(14)
         .lineHeight(22)
         .fontColor($r('sys.color.font_primary'))

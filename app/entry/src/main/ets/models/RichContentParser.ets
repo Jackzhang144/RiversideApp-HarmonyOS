@@ -7,7 +7,16 @@ import {
   RichEmbedProvider,
   RichNavigationKind
 } from './RichNavigationPolicy';
-import { RichContentBlock, RichContentLink, RichContentListItem } from './RichContentBlocks';
+import {
+  RichContentBlock,
+  RichContentInlineFragment,
+  RichContentLink,
+  RichContentListItem
+} from './RichContentBlocks';
+
+const EMOJI_TOKEN_PATTERN: RegExp = /^:[A-Za-z0-9_+\-]+:$/;
+const INLINE_EMOJI_MARKER_START: string = '\uE000';
+const INLINE_EMOJI_MARKER_END: string = '\uE001';
 
 function firstCapture(text: string, pattern: RegExp, group: number = 1): string {
   const match: RegExpExecArray | null = pattern.exec(text);
@@ -182,11 +191,24 @@ function extractLinks(html: string): Array<RichContentLink> {
   return links;
 }
 
+function inlineEmoji(tag: string): RichContentInlineFragment | null {
+  const className: string = decodeEntities(firstCapture(tag, /class=["']([^"']*)["']/i));
+  const token: string = decodeEntities(firstCapture(tag, /alt=["']([^"']*)["']/i));
+  const url: string = absoluteUrl(firstCapture(tag, /src=["']([^"']+)["']/i));
+  if (!/(^|\s)emoji(?:\s|$)/i.test(className) || !EMOJI_TOKEN_PATTERN.test(token) || !/^https:\/\//i.test(url)) {
+    return null;
+  }
+  return RichContentInlineFragment.emoji(token, url);
+}
+
 function extractImages(html: string): Array<RichContentBlock> {
   const tags: Array<string> = html.match(/<img\b[^>]*>/gi) ?? [];
   const blocks: Array<RichContentBlock> = [];
   for (const tag of tags) {
     if (/youtube-thumbnail/i.test(tag)) {
+      continue;
+    }
+    if (inlineEmoji(tag) !== null) {
       continue;
     }
     const url: string = absoluteUrl(firstCapture(tag, /src=["']([^"']+)["']/i));
@@ -196,6 +218,79 @@ function extractImages(html: string): Array<RichContentBlock> {
     }
   }
   return blocks;
+}
+
+class InlineEmojiExtraction {
+  public readonly html: string;
+  public readonly emojis: Array<RichContentInlineFragment>;
+
+  public constructor(html: string, emojis: Array<RichContentInlineFragment>) {
+    this.html = html;
+    this.emojis = emojis;
+  }
+}
+
+function extractInlineEmojis(html: string): InlineEmojiExtraction {
+  const emojis: Array<RichContentInlineFragment> = [];
+  const transformed: string = html.replace(/<img\b[^>]*>/gi, (tag: string): string => {
+    const emoji: RichContentInlineFragment | null = inlineEmoji(tag);
+    if (emoji === null) {
+      return tag;
+    }
+    const index: number = emojis.length;
+    emojis.push(emoji);
+    return `${INLINE_EMOJI_MARKER_START}${index}${INLINE_EMOJI_MARKER_END}`;
+  });
+  return new InlineEmojiExtraction(transformed, emojis);
+}
+
+function textWithInlineEmojis(
+  text: string,
+  emojis: Array<RichContentInlineFragment>
+): Array<RichContentInlineFragment> {
+  if (emojis.length === 0) {
+    return [];
+  }
+  const fragments: Array<RichContentInlineFragment> = [];
+  let cursor: number = 0;
+  while (cursor < text.length) {
+    const markerStart: number = text.indexOf(INLINE_EMOJI_MARKER_START, cursor);
+    if (markerStart < 0) {
+      break;
+    }
+    const markerEnd: number = text.indexOf(INLINE_EMOJI_MARKER_END, markerStart + INLINE_EMOJI_MARKER_START.length);
+    if (markerEnd < 0) {
+      break;
+    }
+    const indexText: string = text.slice(markerStart + INLINE_EMOJI_MARKER_START.length, markerEnd);
+    const emojiIndex: number = Number.parseInt(indexText, 10);
+    const emoji: RichContentInlineFragment | null = Number.isInteger(emojiIndex) && emojiIndex >= 0
+      ? emojis[emojiIndex] ?? null
+      : null;
+    if (emoji === null) {
+      cursor = markerEnd + INLINE_EMOJI_MARKER_END.length;
+      continue;
+    }
+    if (markerStart > cursor) {
+      fragments.push(RichContentInlineFragment.textFragment(text.slice(cursor, markerStart)));
+    }
+    fragments.push(emoji);
+    cursor = markerEnd + INLINE_EMOJI_MARKER_END.length;
+  }
+  if (cursor < text.length) {
+    fragments.push(RichContentInlineFragment.textFragment(text.slice(cursor)));
+  }
+  return fragments;
+}
+
+function displayInlineEmojiText(text: string, emojis: Array<RichContentInlineFragment>): string {
+  return text.replace(/\uE000(\d+)\uE001/g, (_marker: string, indexText: string): string => {
+    const emojiIndex: number = Number.parseInt(indexText, 10);
+    const emoji: RichContentInlineFragment | null = Number.isInteger(emojiIndex) && emojiIndex >= 0
+      ? emojis[emojiIndex] ?? null
+      : null;
+    return emoji === null ? '' : emoji.text;
+  });
 }
 
 function directListItemTags(html: string): Array<string> {
@@ -281,18 +376,24 @@ function appendInlineBlocks(html: string, blocks: Array<RichContentBlock>): void
   const spoilerTags: Array<string> = html.match(
     /<(?:span|div)\b[^>]*class=["'][^"']*\b(?:spoiler|spoiled)\b[^"']*["'][^>]*>[\s\S]*?<\/(?:span|div)>/gi
   ) ?? [];
-  let visibleHtml: string = html;
+  const inlineEmojiExtraction: InlineEmojiExtraction = extractInlineEmojis(html);
+  let visibleHtml: string = inlineEmojiExtraction.html;
   for (const spoilerTag of spoilerTags) {
     visibleHtml = visibleHtml.replace(spoilerTag, '');
   }
   visibleHtml = visibleHtml.replace(/<iframe\b[^>]*>[\s\S]*?<\/iframe>/gi, '');
   visibleHtml = visibleHtml.replace(/<img\b[^>]*>/gi, '');
-  const text: string = stripHtml(visibleHtml);
+  const textWithMarkers: string = stripHtml(visibleHtml);
+  const inlineFragments: Array<RichContentInlineFragment> = textWithInlineEmojis(
+    textWithMarkers,
+    inlineEmojiExtraction.emojis
+  );
+  const text: string = displayInlineEmojiText(textWithMarkers, inlineEmojiExtraction.emojis);
   const bareVideo: RichContentBlock | null = /^https?:\/\/\S+$/i.test(text) ? videoBlock(text) : null;
   if (bareVideo !== null) {
     blocks.push(bareVideo);
   } else if (text.length > 0) {
-    blocks.push(RichContentBlock.textBlock(text, extractLinks(visibleHtml)));
+    blocks.push(RichContentBlock.textBlock(text, extractLinks(visibleHtml), inlineFragments));
   }
   for (const spoilerTag of spoilerTags) {
     const spoilerText: string = stripHtml(spoilerTag);

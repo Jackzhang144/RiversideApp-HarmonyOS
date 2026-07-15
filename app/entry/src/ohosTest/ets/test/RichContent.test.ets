@@ -1,7 +1,8 @@
 import { describe, expect, it } from '@ohos/hypium';
 import {
   RichContentBlock,
-  RichContentBlockKind
+  RichContentBlockKind,
+  RichContentInlineFragmentKind
 } from '../../../main/ets/models/RichContentBlocks';
 import { parseRichPostContent } from '../../../main/ets/models/RichContentParser';
 import {
@@ -64,6 +65,24 @@ export default function richContentTest(): void {
         .assertEqual('https://river-side.cc/uploads/example.png');
       expect(blocksOfKind(blocks, RichContentBlockKind.TEXT)[0].links[0].url)
         .assertEqual('https://river-side.cc/t/42');
+    });
+
+    it('keeps cooked Discourse Emoji images inline with surrounding text', 0, () => {
+      const blocks: Array<RichContentBlock> = parseRichPostContent(
+        '<p>第一次免费吧，1RSC都没有了' +
+        '<img class="emoji" src="/images/emoji/twitter/melting_face.png" alt=":melting_face:" title=":melting_face:">继续努力</p>' +
+        '<p><img src="/uploads/default/original/1X/example.png" alt="普通图片"></p>',
+        ''
+      );
+      const text: RichContentBlock = blocksOfKind(blocks, RichContentBlockKind.TEXT)[0];
+
+      expect(text.text).assertEqual('第一次免费吧，1RSC都没有了:melting_face:继续努力');
+      expect(text.inlineFragments.length).assertEqual(3);
+      expect(text.inlineFragments[1].kind).assertEqual(RichContentInlineFragmentKind.EMOJI);
+      expect(text.inlineFragments[1].text).assertEqual(':melting_face:');
+      expect(text.inlineFragments[1].imageUrl)
+        .assertEqual('https://river-side.cc/images/emoji/twitter/melting_face.png');
+      expect(blocksOfKind(blocks, RichContentBlockKind.IMAGE).length).assertEqual(1);
     });
 
     it('recognizes Bilibili and YouTube links without exposing arbitrary iframes', 0, () => {

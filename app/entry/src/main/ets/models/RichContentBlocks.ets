@@ -14,6 +14,31 @@ export enum RichContentBlockKind {
   VIDEO = 'video'
 }
 
+export enum RichContentInlineFragmentKind {
+  TEXT = 'text',
+  EMOJI = 'emoji'
+}
+
+export class RichContentInlineFragment {
+  public readonly kind: RichContentInlineFragmentKind;
+  public readonly text: string;
+  public readonly imageUrl: string;
+
+  private constructor(kind: RichContentInlineFragmentKind, text: string, imageUrl: string) {
+    this.kind = kind;
+    this.text = text;
+    this.imageUrl = imageUrl;
+  }
+
+  public static textFragment(text: string): RichContentInlineFragment {
+    return new RichContentInlineFragment(RichContentInlineFragmentKind.TEXT, text, '');
+  }
+
+  public static emoji(token: string, imageUrl: string): RichContentInlineFragment {
+    return new RichContentInlineFragment(RichContentInlineFragmentKind.EMOJI, token, imageUrl);
+  }
+}
+
 export class RichContentLink {
   public readonly label: string;
   public readonly url: string;
@@ -45,6 +70,7 @@ export class RichContentBlock {
   public readonly rows: Array<Array<string>>;
   public readonly links: Array<RichContentLink>;
   public readonly embedProvider: RichEmbedProvider;
+  public readonly inlineFragments: Array<RichContentInlineFragment>;
 
   private constructor(
     kind: RichContentBlockKind,
@@ -56,7 +82,8 @@ export class RichContentBlock {
     listItems: Array<RichContentListItem> = [],
     rows: Array<Array<string>> = [],
     links: Array<RichContentLink> = [],
-    embedProvider: RichEmbedProvider = RichEmbedProvider.NONE
+    embedProvider: RichEmbedProvider = RichEmbedProvider.NONE,
+    inlineFragments: Array<RichContentInlineFragment> = []
   ) {
     this.kind = kind;
     this.text = text;
@@ -68,10 +95,16 @@ export class RichContentBlock {
     this.rows = rows;
     this.links = links;
     this.embedProvider = embedProvider;
+    this.inlineFragments = inlineFragments;
   }
 
-  public static textBlock(text: string, links: Array<RichContentLink> = []): RichContentBlock {
-    return new RichContentBlock(RichContentBlockKind.TEXT, text, '', '', 0, false, [], [], links);
+  public static textBlock(
+    text: string,
+    links: Array<RichContentLink> = [],
+    inlineFragments: Array<RichContentInlineFragment> = []
+  ): RichContentBlock {
+    return new RichContentBlock(RichContentBlockKind.TEXT, text, '', '', 0, false, [], [], links,
+      RichEmbedProvider.NONE, inlineFragments);
   }
 
   public static heading(text: string, level: number): RichContentBlock {
