@@ -275,6 +275,33 @@ export default function chatModelTest(): void {
       done();
     });
 
+    it('refreshes channels and the active conversation on foreground without clearing the draft', 0,
+      async (done: Function) => {
+        const repository: StubChatRepository = new StubChatRepository();
+        repository.messageResults.push(
+          RepositoryResult.success<ChatMessagePage>(new ChatMessagePage([
+            message(9, '前台前消息', '2026-07-12T09:00:00Z')
+          ], false, false)),
+          RepositoryResult.success<ChatMessagePage>(new ChatMessagePage([
+            message(10, '前台新消息', '2026-07-12T10:00:00Z')
+          ], false, false))
+        );
+        repository.channelResults.push(RepositoryResult.success<Array<ChatChannel>>([channel()]));
+        const model: ChatModel = new ChatModel(repository);
+        await model.openChannel(channel());
+        model.updateDraft('保留中的草稿');
+
+        await model.refreshForForeground();
+
+        expect(repository.messageQueries[1].targetMessageId).assertEqual(9);
+        expect(repository.messageQueries[1].direction).assertEqual('future');
+        expect(model.conversationState.messages.map((item: ChatMessage): number => item.id).join(','))
+          .assertEqual('9,10');
+        expect(model.composerState.draft).assertEqual('保留中的草稿');
+        expect(model.channelState.kind).assertEqual(ChatStateKind.CONTENT);
+        done();
+      });
+
     it('clears protected Chat state when the authenticated session resets', 0, async (done: Function) => {
       const repository: StubChatRepository = new StubChatRepository();
       repository.channelResults.push(RepositoryResult.success<Array<ChatChannel>>([channel()]));

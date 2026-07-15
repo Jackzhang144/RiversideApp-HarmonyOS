@@ -635,7 +635,7 @@ struct Index {
     if (this.authState.kind !== AuthStateKind.AUTHENTICATED) return;
     this.loadNotificationCentre(true);
     if (this.canUseChat()) {
-      this.loadChatChannels();
+      this.refreshChatForForeground();
     }
     this.refreshAccountIdentity();
   }
@@ -655,6 +655,15 @@ struct Index {
       return;
     }
     const task: Promise<void> = model.loadChannels();
+    this.synchronizeChatState();
+    await task;
+    this.synchronizeChatState();
+  }
+
+  private async refreshChatForForeground(): Promise<void> {
+    const model: ChatModel | null = this.chatModel;
+    if (model === null || !this.canUseChat()) return;
+    const task: Promise<void> = model.refreshForForeground();
     this.synchronizeChatState();
     await task;
     this.synchronizeChatState();

@@ -324,6 +324,40 @@ export class ChatModel {
     this.channelState = ChatChannelState.fromChannels(result.data);
   }
 
+  public async refreshForForeground(): Promise<void> {
+    await Promise.all([
+      this.loadChannels(),
+      this.refreshActiveConversationForForeground()
+    ]);
+  }
+
+  private async refreshActiveConversationForForeground(): Promise<void> {
+    const channel: ChatChannel | null = this.conversationState.channel;
+    if (channel === null) return;
+    const existing: Array<ChatMessage> = this.conversationState.messages;
+    const query: ChatMessageQuery | null = existing.length === 0
+      ? ChatMessageQuery.latest()
+      : ChatMessageQuery.around(existing[existing.length - 1].id, 'future');
+    if (query === null) return;
+    const requestVersion: number = this.conversationRequestVersion;
+    this.conversationState = this.conversationState.withPagination(false, true);
+    const result: RepositoryResult<ChatMessagePage> = await this.repository.loadChatMessages(channel.id, query);
+    if (!this.isCurrentConversation(requestVersion, channel.id)) return;
+    if (!result.isSuccess() || result.data === null) {
+      this.conversationState = this.conversationState.withPagination(false, false, result.message);
+      if (result.isUnauthorized()) await this.notifyUnauthorized();
+      return;
+    }
+    this.conversationState = existing.length === 0
+      ? ChatConversationState.fromPage(channel, result.data)
+      : this.conversationState.withMessages(
+        mergeChatMessages(existing, result.data.messages),
+        this.conversationState.canLoadMorePast,
+        result.data.canLoadMoreFuture
+      );
+    await this.markLatestRead(requestVersion, channel.id);
+  }
+
   public async openChannel(channel: ChatChannel): Promise<void> {
     await this.openChannelWithQuery(channel, ChatMessageQuery.initial());
   }
