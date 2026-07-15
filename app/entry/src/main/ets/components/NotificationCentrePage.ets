@@ -38,7 +38,7 @@ export struct NotificationCentrePage {
   @Builder
   private Header(): void {
     Row({ space: 8 }) {
-      Text('消息')
+      Text($r('app.string.notification_title'))
         .fontSize(20)
         .fontWeight(FontWeight.Bold)
         .layoutWeight(1)
@@ -53,7 +53,7 @@ export struct NotificationCentrePage {
       .backgroundColor(Color.Transparent)
       .enabled(!this.state.refreshing && this.state.kind !== NotificationCentreStateKind.LOADING)
       .onClick(this.onRefresh)
-      .accessibilityText('刷新消息与活动')
+      .accessibilityText($r('app.string.notification_refresh_accessibility'))
     }
     .width('100%')
     .height($r('app.float.page_header_height'))
@@ -101,10 +101,10 @@ export struct NotificationCentrePage {
   private AuthenticationState(): void {
     Column({ space: 14 }) {
       SymbolGlyph($r('sys.symbol.bell')).fontSize(46).fontColor([$r('sys.color.font_tertiary')])
-      Text('登录后查看消息与活动').fontSize(18).fontWeight(FontWeight.Bold)
-      Text('私信、回复、回应和提及都需要 Authenticated Session。')
+      Text($r('app.string.notification_login_title')).fontSize(18).fontWeight(FontWeight.Bold)
+      Text($r('app.string.notification_login_message'))
         .fontSize(13).fontColor($r('sys.color.font_secondary')).textAlign(TextAlign.Center)
-      Button('登录并授权').onClick(this.onLogin)
+      Button($r('app.string.notification_login_action')).onClick(this.onLogin)
     }
     .width('100%').height('100%').padding(32).justifyContent(FlexAlign.Center)
   }
@@ -187,12 +187,12 @@ export struct NotificationCentrePage {
     Column({ space: 8 }) {
       if (this.state.loadingMore) {
         LoadingProgress().width(28).height(28)
-        Text('正在加载更多').fontSize(12).fontColor($r('sys.color.font_secondary'))
+        Text($r('app.string.common_loading_more')).fontSize(12).fontColor($r('sys.color.font_secondary'))
       } else if (this.state.message.length > 0 && this.state.items.length > 0) {
         Text(this.state.message).fontSize(12).fontColor($r('app.color.status_error')).textAlign(TextAlign.Center)
-        Button('重试加载更多').height(34).onClick(this.onLoadMore)
+        Button($r('app.string.common_retry_load_more')).height(34).onClick(this.onLoadMore)
       } else if (!this.state.hasMore) {
-        Text('已经显示全部消息').fontSize(12).fontColor($r('sys.color.font_tertiary'))
+        Text($r('app.string.notification_all_shown')).fontSize(12).fontColor($r('sys.color.font_tertiary'))
       }
     }
     .width('100%').height(82).justifyContent(FlexAlign.Center)
@@ -203,24 +203,24 @@ export struct NotificationCentrePage {
     if (this.state.kind === NotificationCentreStateKind.LOADING && this.state.items.length === 0) {
       Column({ space: 12 }) {
         LoadingProgress().width(36).height(36)
-        Text('正在读取服务器消息').fontSize(13).fontColor($r('sys.color.font_secondary'))
+        Text($r('app.string.notification_loading')).fontSize(13).fontColor($r('sys.color.font_secondary'))
       }.width('100%').height('100%').justifyContent(FlexAlign.Center)
     } else if (this.state.kind === NotificationCentreStateKind.ERROR && this.state.items.length === 0) {
       Column({ space: 12 }) {
-        Text('消息加载失败').fontSize(18).fontWeight(FontWeight.Bold)
+        Text($r('app.string.notification_load_failed')).fontSize(18).fontWeight(FontWeight.Bold)
         Text(this.state.message).fontSize(13).fontColor($r('app.color.status_error')).textAlign(TextAlign.Center)
-        Button('重试').onClick(this.onRefresh)
+        Button($r('app.string.common_retry')).onClick(this.onRefresh)
       }.width('100%').height('100%').padding(32).justifyContent(FlexAlign.Center)
     } else if (this.state.kind === NotificationCentreStateKind.EMPTY) {
       Column({ space: 8 }) {
         Text(`暂无${notificationBucketLabel(this.state.bucket)}消息`)
           .fontSize(17).fontWeight(FontWeight.Bold)
-        Text('点击右上角刷新可重新检查前台状态。')
+        Text($r('app.string.notification_empty_message'))
           .fontSize(13).fontColor($r('sys.color.font_secondary'))
       }.width('100%').height('100%').justifyContent(FlexAlign.Center)
     } else if (this.state.kind === NotificationCentreStateKind.INITIAL) {
       Column() {
-        Text('打开消息页后将从服务器刷新。').fontSize(13).fontColor($r('sys.color.font_secondary'))
+        Text($r('app.string.notification_initial_message')).fontSize(13).fontColor($r('sys.color.font_secondary'))
       }
         .width('100%').height('100%').justifyContent(FlexAlign.Center)
     } else {

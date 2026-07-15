@@ -695,6 +695,46 @@
     {
       "name": "embed_no_native_bridge",
       "value": "无原生 bridge"
+    },
+    {
+      "name": "notification_title",
+      "value": "消息"
+    },
+    {
+      "name": "notification_refresh_accessibility",
+      "value": "刷新消息与活动"
+    },
+    {
+      "name": "notification_login_title",
+      "value": "登录后查看消息与活动"
+    },
+    {
+      "name": "notification_login_message",
+      "value": "私信、回复、回应和提及都需要 Authenticated Session。"
+    },
+    {
+      "name": "notification_login_action",
+      "value": "登录并授权"
+    },
+    {
+      "name": "notification_all_shown",
+      "value": "已经显示全部消息"
+    },
+    {
+      "name": "notification_loading",
+      "value": "正在读取服务器消息"
+    },
+    {
+      "name": "notification_load_failed",
+      "value": "消息加载失败"
+    },
+    {
+      "name": "notification_empty_message",
+      "value": "点击右上角刷新可重新检查前台状态。"
+    },
+    {
+      "name": "notification_initial_message",
+      "value": "打开消息页后将从服务器刷新。"
     }
   ]
 }
