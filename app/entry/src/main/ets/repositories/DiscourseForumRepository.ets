@@ -27,7 +27,8 @@ import {
 import { ForumHttpClient, HttpTextResult, HttpTextResultKind } from '../network/DiscourseHttpClient';
 import { ForumRepository } from './ForumRepository';
 import { DiscoveryResponseParser } from './DiscoveryResponseParser';
-import { ForumResponseParser } from './ForumResponseParser';
+import { ForumListingResponseParser } from './ForumListingResponseParser';
+import { TopicResponseParser } from './TopicResponseParser';
 import { ProfileResponseParser } from './ProfileResponseParser';
 import { ComposerMentionUser } from '../models/ComposerMentionModels';
 
@@ -39,18 +40,21 @@ interface DraftSavePayload {
 
 export class DiscourseForumRepository implements ForumRepository {
   private readonly client: ForumHttpClient;
-  private readonly parser: ForumResponseParser;
+  private readonly listingParser: ForumListingResponseParser;
+  private readonly topicParser: TopicResponseParser;
   private readonly discoveryParser: DiscoveryResponseParser;
   private readonly profileParser: ProfileResponseParser;
 
   public constructor(
     client: ForumHttpClient,
-    parser: ForumResponseParser = new ForumResponseParser(),
+    listingParser: ForumListingResponseParser = new ForumListingResponseParser(),
+    topicParser: TopicResponseParser = new TopicResponseParser(),
     discoveryParser: DiscoveryResponseParser = new DiscoveryResponseParser(),
     profileParser: ProfileResponseParser = new ProfileResponseParser()
   ) {
     this.client = client;
-    this.parser = parser;
+    this.listingParser = listingParser;
+    this.topicParser = topicParser;
     this.discoveryParser = discoveryParser;
     this.profileParser = profileParser;
   }
@@ -70,7 +74,7 @@ export class DiscourseForumRepository implements ForumRepository {
     if (!response.isSuccess()) {
       return response.asRepositoryFailure<Array<Topic>>();
     }
-    return this.parser.parseLatestTopics(response.body);
+    return this.listingParser.parseLatestTopics(response.body);
   }
 
   public async loadCategories(): Promise<RepositoryResult<Array<Category>>> {
@@ -92,7 +96,7 @@ export class DiscourseForumRepository implements ForumRepository {
     if (!directoryResponse.isSuccess()) {
       return directoryResponse.asRepositoryFailure<Array<Category>>();
     }
-    return this.parser.parseCategories(siteResponse.body, directoryResponse.body);
+    return this.listingParser.parseCategories(siteResponse.body, directoryResponse.body);
   }
 
   public async loadCategoryTopics(categoryId: number, page: number = 0): Promise<RepositoryResult<Array<Topic>>> {
@@ -110,7 +114,7 @@ export class DiscourseForumRepository implements ForumRepository {
     if (!response.isSuccess()) {
       return response.asRepositoryFailure<Array<Topic>>();
     }
-    return this.parser.parseLatestTopics(response.body);
+    return this.listingParser.parseLatestTopics(response.body);
   }
 
   public async searchForum(query: string, page: number): Promise<RepositoryResult<ForumSearchResult>> {
@@ -196,7 +200,7 @@ export class DiscourseForumRepository implements ForumRepository {
     if (!response.isSuccess()) {
       return response.asRepositoryFailure<TopicDetail>();
     }
-    return this.parser.parseTopicDetail(response.body);
+    return this.topicParser.parseTopicDetail(response.body);
   }
 
   public async loadTopicPosts(topicId: number, postIds: Array<number>): Promise<RepositoryResult<TopicPostBatch>> {
@@ -221,7 +225,7 @@ export class DiscourseForumRepository implements ForumRepository {
     if (!response.isSuccess()) {
       return response.asRepositoryFailure<TopicPostBatch>();
     }
-    return this.parser.parseTopicPostBatch(response.body);
+    return this.topicParser.parseTopicPostBatch(response.body);
   }
 
   public async loadTopicSuggestions(topicId: number): Promise<RepositoryResult<Array<Topic>>> {
@@ -235,7 +239,7 @@ export class DiscourseForumRepository implements ForumRepository {
     if (!response.isSuccess()) {
       return response.asRepositoryFailure<Array<Topic>>();
     }
-    return this.parser.parseTopicSuggestions(response.body);
+    return this.topicParser.parseTopicSuggestions(response.body);
   }
 
   public async togglePostReaction(postId: number, reaction: string): Promise<RepositoryResult<ForumPost>> {
@@ -252,7 +256,7 @@ export class DiscourseForumRepository implements ForumRepository {
     if (!response.isSuccess()) {
       return response.asRepositoryFailure<ForumPost>();
     }
-    return this.parser.parseCreatedReply(response.body);
+    return this.topicParser.parseCreatedReply(response.body);
   }
 
   public async loadPostReactionUsers(postId: number): Promise<RepositoryResult<Array<PostReactionUsers>>> {
@@ -268,7 +272,7 @@ export class DiscourseForumRepository implements ForumRepository {
     if (!response.isSuccess()) {
       return response.asRepositoryFailure<Array<PostReactionUsers>>();
     }
-    return this.parser.parsePostReactionUsers(response.body);
+    return this.topicParser.parsePostReactionUsers(response.body);
   }
 
   public async createPostBookmark(postId: number): Promise<RepositoryResult<number>> {
@@ -285,7 +289,7 @@ export class DiscourseForumRepository implements ForumRepository {
     if (!response.isSuccess()) {
       return response.asRepositoryFailure<number>();
     }
-    return this.parser.parseBookmarkId(response.body);
+    return this.topicParser.parseBookmarkId(response.body);
   }
 
   public async deletePostBookmark(bookmarkId: number): Promise<RepositoryResult<boolean>> {
@@ -380,7 +384,7 @@ export class DiscourseForumRepository implements ForumRepository {
     if (!listResponse.isSuccess()) {
       return listResponse.asRepositoryFailure<number>();
     }
-    const parsed: RepositoryResult<Array<number>> = this.parser.parseNotificationIdsForTopic(
+    const parsed: RepositoryResult<Array<number>> = this.topicParser.parseNotificationIdsForTopic(
       listResponse.body,
       topicId,
       upToPostNumber
@@ -415,7 +419,7 @@ export class DiscourseForumRepository implements ForumRepository {
         ? ReplySubmitResult.uncertain(response.message)
         : ReplySubmitResult.rejected(response.message);
     }
-    const parsed: RepositoryResult<ForumPost> = this.parser.parseCreatedReply(response.body);
+    const parsed: RepositoryResult<ForumPost> = this.topicParser.parseCreatedReply(response.body);
     if (!parsed.isSuccess() || parsed.data === null) {
       return ReplySubmitResult.uncertain(parsed.message);
     }
@@ -458,7 +462,7 @@ export class DiscourseForumRepository implements ForumRepository {
     if (!response.isSuccess()) {
       return ReplyRecoveryResult.failed(`无法确认 Reply 是否已创建：${response.message}`);
     }
-    const parsed: RepositoryResult<TopicDetail> = this.parser.parseTopicDetail(response.body);
+    const parsed: RepositoryResult<TopicDetail> = this.topicParser.parseTopicDetail(response.body);
     if (!parsed.isSuccess() || parsed.data === null) {
       return ReplyRecoveryResult.failed(`无法确认 Reply 是否已创建：${parsed.message}`);
     }
@@ -482,7 +486,7 @@ export class DiscourseForumRepository implements ForumRepository {
       const uncertain: boolean = response.statusCode === 0 || response.statusCode === 408 || response.statusCode >= 500;
       return uncertain ? TopicSubmitResult.uncertain(response.message) : TopicSubmitResult.rejected(response.message);
     }
-    const parsed: RepositoryResult<number> = this.parser.parseCreatedTopicId(response.body);
+    const parsed: RepositoryResult<number> = this.topicParser.parseCreatedTopicId(response.body);
     return parsed.data === null || !parsed.isSuccess()
       ? TopicSubmitResult.uncertain(parsed.message)
       : TopicSubmitResult.created(parsed.data);
@@ -514,7 +518,7 @@ export class DiscourseForumRepository implements ForumRepository {
     if (!response.isSuccess()) {
       return response.asRepositoryFailure<Array<ServerDraft>>();
     }
-    return this.parser.parseServerDrafts(response.body);
+    return this.topicParser.parseServerDrafts(response.body);
   }
 
   public async saveDraft(request: DraftWriteRequest): Promise<RepositoryResult<number>> {
@@ -530,7 +534,7 @@ export class DiscourseForumRepository implements ForumRepository {
     if (!response.isSuccess()) {
       return response.asRepositoryFailure<number>();
     }
-    return this.parser.parseDraftSequence(response.body);
+    return this.topicParser.parseDraftSequence(response.body);
   }
 
   public async deleteDraft(draftKey: string, sequence: number): Promise<RepositoryResult<boolean>> {

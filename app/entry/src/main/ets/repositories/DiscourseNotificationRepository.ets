@@ -10,13 +10,16 @@ import {
 } from '../models/NotificationModels';
 import { ForumHttpClient, HttpTextResult, HttpTextResultKind } from '../network/DiscourseHttpClient';
 import { NotificationRepository } from './NotificationRepository';
-import { ForumResponseParser } from './ForumResponseParser';
+import { ForumListingResponseParser } from './ForumListingResponseParser';
 
 export class DiscourseNotificationRepository implements NotificationRepository {
   private readonly client: ForumHttpClient;
-  private readonly parser: ForumResponseParser;
+  private readonly parser: ForumListingResponseParser;
 
-  public constructor(client: ForumHttpClient, parser: ForumResponseParser = new ForumResponseParser()) {
+  public constructor(
+    client: ForumHttpClient,
+    parser: ForumListingResponseParser = new ForumListingResponseParser()
+  ) {
     this.client = client;
     this.parser = parser;
   }

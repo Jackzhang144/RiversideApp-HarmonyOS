@@ -12,7 +12,8 @@ import {
   Topic,
   TopicDetail
 } from '../../../main/ets/models/ForumModels';
-import { ForumResponseParser } from '../../../main/ets/repositories/ForumResponseParser';
+import { ForumListingResponseParser } from '../../../main/ets/repositories/ForumListingResponseParser';
+import { TopicResponseParser } from '../../../main/ets/repositories/TopicResponseParser';
 
 export default function jsonBoundaryTest(): void {
   describe('JSON boundary decoding', () => {
@@ -32,7 +33,7 @@ export default function jsonBoundaryTest(): void {
     });
 
     it('rejects a non-object Topic entry', 0, () => {
-      const parser: ForumResponseParser = new ForumResponseParser();
+      const parser: ForumListingResponseParser = new ForumListingResponseParser();
       const result: RepositoryResult<Array<Topic>> = parser.parseLatestTopics(
         '{"users":[],"topic_list":{"topics":[42]}}'
       );
@@ -43,7 +44,7 @@ export default function jsonBoundaryTest(): void {
     });
 
     it('removes duplicate Topic ids at the response boundary', 0, () => {
-      const parser: ForumResponseParser = new ForumResponseParser();
+      const parser: ForumListingResponseParser = new ForumListingResponseParser();
       const result: RepositoryResult<Array<Topic>> = parser.parseLatestTopics(
         '{"users":[],"topic_list":{"topics":[' +
         '{"id":2725,"title":"站务管理区重要主题导航"},' +
@@ -57,7 +58,7 @@ export default function jsonBoundaryTest(): void {
     });
 
     it('uses the original poster as the Topic author when later repliers are present', 0, () => {
-      const parser: ForumResponseParser = new ForumResponseParser();
+      const parser: ForumListingResponseParser = new ForumListingResponseParser();
       const result: RepositoryResult<Array<Topic>> = parser.parseLatestTopics(
         '{"users":[' +
         '{"id":24,"username":"topic-author"},' +
@@ -73,7 +74,7 @@ export default function jsonBoundaryTest(): void {
     });
 
     it('rejects a non-object Category entry', 0, () => {
-      const parser: ForumResponseParser = new ForumResponseParser();
+      const parser: ForumListingResponseParser = new ForumListingResponseParser();
       const result: RepositoryResult<Array<Category>> = parser.parseCategories(
         '{"categories":[]}',
         '{"category_list":{"categories":["invalid"]}}'
@@ -85,7 +86,7 @@ export default function jsonBoundaryTest(): void {
     });
 
     it('orders the real Category tree by root position and server child order', 0, () => {
-      const parser: ForumResponseParser = new ForumResponseParser();
+      const parser: ForumListingResponseParser = new ForumListingResponseParser();
       const result: RepositoryResult<Array<Category>> = parser.parseCategories(
         '{"categories":[{' +
         '"id":60,"name":"站务管理","position":2,"subcategory_ids":[62,61]' +
@@ -104,7 +105,7 @@ export default function jsonBoundaryTest(): void {
     });
 
     it('decodes Topic detail and applies closed Reply restrictions', 0, () => {
-      const parser: ForumResponseParser = new ForumResponseParser();
+      const parser: TopicResponseParser = new TopicResponseParser();
       const result: RepositoryResult<TopicDetail> = parser.parseTopicDetail(
         '{"id":2725,"title":"站务管理区重要主题导航","views":1959,"posts_count":1,' +
         '"highest_post_number":7,"like_count":4,' +
@@ -128,7 +129,7 @@ export default function jsonBoundaryTest(): void {
     });
 
     it('decodes a Post window and removes duplicate Post ids', 0, () => {
-      const parser: ForumResponseParser = new ForumResponseParser();
+      const parser: TopicResponseParser = new TopicResponseParser();
       const result: RepositoryResult<Array<ForumPost>> = parser.parseTopicPosts(
         '{"post_stream":{"posts":[' +
         '{"id":102729,"user_id":1,"username":"admin","cooked":"<p>第一条 Reply</p>",' +
@@ -144,7 +145,7 @@ export default function jsonBoundaryTest(): void {
     });
 
     it('keeps Reply creation aliases out of ordinary Post windows', 0, () => {
-      const parser: ForumResponseParser = new ForumResponseParser();
+      const parser: TopicResponseParser = new TopicResponseParser();
       const result: RepositoryResult<Array<ForumPost>> = parser.parseTopicPosts(
         '{"post_stream":{"posts":[{' +
         '"post_id":102729,"user_id":1,"username":"admin","raw":"Reply",' +
@@ -157,7 +158,7 @@ export default function jsonBoundaryTest(): void {
     });
 
     it('provides readable Post text when the response only contains cooked HTML', 0, () => {
-      const parser: ForumResponseParser = new ForumResponseParser();
+      const parser: TopicResponseParser = new TopicResponseParser();
       const result: RepositoryResult<Array<ForumPost>> = parser.parseTopicPosts(
         '{"post_stream":{"posts":[{' +
         '"id":102729,"user_id":1,"username":"admin",' +
@@ -172,7 +173,7 @@ export default function jsonBoundaryTest(): void {
     });
 
     it('keeps Reaction users with canonical usernames and normalized avatars', 0, () => {
-      const parser: ForumResponseParser = new ForumResponseParser();
+      const parser: TopicResponseParser = new TopicResponseParser();
 
       const result: RepositoryResult<Array<PostReactionUsers>> = parser.parsePostReactionUsers(
         '{"reaction_users":[' +
