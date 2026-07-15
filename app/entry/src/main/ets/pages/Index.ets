@@ -36,6 +36,10 @@ import {
   ChatSearchState
 } from '../app/ChatModel';
 import {
+  ChatConversationPollingController,
+  SystemChatPollingTimer
+} from '../app/ChatConversationPollingController';
+import {
   NotificationCentreModel,
   NotificationCentreState
 } from '../app/NotificationCentreModel';
@@ -172,6 +176,7 @@ struct Index {
   private readonly tabsController: HdsTabsController = new HdsTabsController();
   private model: AppShellModel | null = null;
   private chatModel: ChatModel | null = null;
+  private chatPollingController: ChatConversationPollingController | null = null;
   private notificationModel: NotificationCentreModel | null = null;
   private accountProfileModel: ProfileManagementModel | null = null;
   private selectedProfileModel: ProfileManagementModel | null = null;
@@ -231,6 +236,8 @@ struct Index {
   @State imageViewerState: ImageViewerState = ImageViewerState.preparing('', '');
   @State appVersion: AppVersionInfo = AppVersionInfo.current();
   private accountIdentityRequestVersion: number = 0;
+  private appForeground: boolean = false;
+  private chatConversationVisible: boolean = false;
 
   private topAvoidHeight(): number {
     const statusBarBottom: number =
@@ -254,17 +261,23 @@ struct Index {
   onPageShow(): void {
     this.foregroundVisible = true;
     this.synchronizePresenceHeartbeat();
+    this.appForeground = true;
+    this.synchronizeChatPolling();
     this.refreshForegroundData();
   }
 
   onPageHide(): void {
     this.foregroundVisible = false;
     this.synchronizePresenceHeartbeat();
+    this.appForeground = false;
+    this.synchronizeChatPolling();
   }
 
   aboutToDisappear(): void {
     this.foregroundVisible = false;
     this.presenceHeartbeat?.dispose();
+    this.chatPollingController?.destroy();
+    this.chatPollingController = null;
   }
 
   private async initialize(context: common.Context): Promise<void> {
@@ -304,6 +317,22 @@ struct Index {
       new DiscourseMediaTransport(RIVERSIDE_BASE_URL, sessionProvider)
     );
     this.chatModel = new ChatModel(forumRepository, mediaRepository, authenticationLifecycle);
+    this.chatPollingController = new ChatConversationPollingController(
+      new SystemChatPollingTimer(),
+      async (): Promise<void> => {
+        const chatModel: ChatModel | null = this.chatModel;
+        if (chatModel === null || !this.canUseChat()) {
+          return;
+        }
+        const task: Promise<void> = chatModel.refreshActiveConversationIncrementally();
+        this.synchronizeChatState();
+        await task;
+        if (this.chatModel === chatModel) {
+          this.synchronizeChatState();
+        }
+      }
+    );
+    this.synchronizeChatPolling();
     this.notificationModel = new NotificationCentreModel(forumRepository, authenticationLifecycle);
     this.accountProfileModel = new ProfileManagementModel(
       forumRepository,
@@ -387,6 +416,7 @@ struct Index {
       this.profileContentUsername = '';
       this.profileContentOwn = true;
     }
+    this.synchronizeChatPolling();
     this.categoryState = model.categoryState;
     if (reloadCategories) {
       this.loadCategories();
@@ -467,6 +497,7 @@ struct Index {
     if (profileModel.state.profile === null && profileModel.state.message.length > 0) {
       this.accountIdentityError = profileModel.state.message;
     }
+    this.synchronizeChatPolling();
     if (profileModel.state.profile?.canChat === true && this.selectedRoot === RootDestination.CHAT) {
       this.loadChatChannels();
     }
@@ -678,6 +709,19 @@ struct Index {
     this.chatComposerState = model.composerState;
     this.chatSearchState = model.searchState;
     this.chatEmojis = model.emojis;
+    this.synchronizeChatPolling();
+  }
+
+  private synchronizeChatPolling(): void {
+    const controller: ChatConversationPollingController | null = this.chatPollingController;
+    if (controller === null) {
+      return;
+    }
+    controller.setForeground(this.appForeground);
+    controller.setAuthenticated(this.canUseChat());
+    controller.setActiveConversation(
+      this.chatConversationVisible && (this.chatModel?.conversationState.channel ?? null) !== null
+    );
   }
 
   private synchronizeNotificationState(): void {
@@ -825,6 +869,7 @@ struct Index {
   }
 
   private closeChatConversation(): boolean {
+    this.chatConversationVisible = false;
     this.chatModel?.closeChannel();
     this.chatUploadState = null;
     this.synchronizeChatState();
@@ -1030,6 +1075,8 @@ struct Index {
     const left: boolean = await model.leaveCurrentChannel();
     this.synchronizeChatState();
     if (left) {
+      this.chatConversationVisible = false;
+      this.synchronizeChatPolling();
       this.chatUploadState = null;
       this.pathStack.pop();
     }
@@ -2391,6 +2438,14 @@ struct Index {
           title: { mainTitle: this.chatConversationState.channel?.title ?? 'Chat' },
           backIcon: { label: '返回聊天列表' }
         }
+      })
+      .onShown((): void => {
+        this.chatConversationVisible = true;
+        this.synchronizeChatPolling();
+      })
+      .onHidden((): void => {
+        this.chatConversationVisible = false;
+        this.synchronizeChatPolling();
       })
       .onBackPressed((): boolean => this.closeChatConversation())
     } else if (name === USER_PROFILE_ROUTE) {

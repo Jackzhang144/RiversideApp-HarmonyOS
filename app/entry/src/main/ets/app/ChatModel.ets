@@ -1,3 +1,4 @@
+import { hilog } from '@kit.PerformanceAnalysisKit';
 import { RepositoryResult } from '../core/RepositoryResult';
 import { ComposerEdit } from '../models/AuthoringModels';
 import { insertChatEmojiText } from '../models/ChatComposerEditing';
@@ -27,6 +28,24 @@ export enum ChatStateKind {
   CONTENT = 'content',
   EMPTY = 'empty',
   ERROR = 'error'
+}
+
+const CHAT_MODEL_LOG_DOMAIN: number = 0x0000;
+const CHAT_MODEL_LOG_TAG: string = 'ChatModel';
+
+function chatRefreshErrorName(error: Object): string {
+  return error instanceof Error ? error.name : 'UnknownError';
+}
+
+function chatRefreshErrorMessage(error: Object): string {
+  if (error instanceof Error) {
+    return error.message.slice(0, 256);
+  }
+  try {
+    return JSON.stringify(error).slice(0, 256);
+  } catch (_) {
+    return 'unserializable error';
+  }
 }
 
 export interface ChatAuthenticationLifecycle {
@@ -289,6 +308,8 @@ export class ChatModel {
   private channelRequestVersion: number = 0;
   private conversationRequestVersion: number = 0;
   private searchRequestVersion: number = 0;
+  private activeConversationRefresh: Promise<void> | null = null;
+  private activeConversationRefreshVersion: number | null = null;
   private activeUpload: MediaUploadOperation | null = null;
   private activeUploadState: MediaUploadState | null = null;
   private activeUploadListener: ((state: MediaUploadState) => void) | null = null;
@@ -329,21 +350,62 @@ export class ChatModel {
   public async refreshForForeground(): Promise<void> {
     await Promise.all([
       this.loadChannels(),
-      this.refreshActiveConversationForForeground()
+      this.refreshActiveConversationIncrementally()
     ]);
   }
 
-  private async refreshActiveConversationForForeground(): Promise<void> {
+  public async refreshActiveConversationIncrementally(): Promise<void> {
+    const requestVersion: number = this.conversationRequestVersion;
+    const existingRefresh: Promise<void> | null = this.activeConversationRefresh;
+    if (existingRefresh !== null && this.activeConversationRefreshVersion === requestVersion) {
+      await existingRefresh;
+      return;
+    }
+    const refresh: Promise<void> = this.performActiveConversationIncrementalRefresh(requestVersion);
+    this.activeConversationRefresh = refresh;
+    this.activeConversationRefreshVersion = requestVersion;
+    try {
+      await refresh;
+    } finally {
+      if (this.activeConversationRefresh === refresh) {
+        this.activeConversationRefresh = null;
+        this.activeConversationRefreshVersion = null;
+      }
+    }
+  }
+
+  private async performActiveConversationIncrementalRefresh(requestVersion: number): Promise<void> {
     const channel: ChatChannel | null = this.conversationState.channel;
-    if (channel === null) return;
+    if (channel === null || this.conversationState.kind === ChatStateKind.LOADING ||
+      this.conversationState.loadingPast || this.conversationState.loadingFuture) {
+      return;
+    }
     const existing: Array<ChatMessage> = this.conversationState.messages;
     const query: ChatMessageQuery | null = existing.length === 0
       ? ChatMessageQuery.latest()
       : ChatMessageQuery.around(existing[existing.length - 1].id, 'future');
     if (query === null) return;
-    const requestVersion: number = this.conversationRequestVersion;
     this.conversationState = this.conversationState.withPagination(false, true);
-    const result: RepositoryResult<ChatMessagePage> = await this.repository.loadChatMessages(channel.id, query);
+    let result: RepositoryResult<ChatMessagePage>;
+    try {
+      result = await this.repository.loadChatMessages(channel.id, query);
+    } catch (error) {
+      hilog.error(
+        CHAT_MODEL_LOG_DOMAIN,
+        CHAT_MODEL_LOG_TAG,
+        'Unexpected active Chat refresh failure: %{public}s: %{private}s',
+        chatRefreshErrorName(error),
+        chatRefreshErrorMessage(error)
+      );
+      if (this.isCurrentConversation(requestVersion, channel.id)) {
+        this.conversationState = this.conversationState.withPagination(
+          false,
+          false,
+          '刷新 Chat 会话失败，请稍后重试'
+        );
+      }
+      return;
+    }
     if (!this.isCurrentConversation(requestVersion, channel.id)) return;
     if (!result.isSuccess() || result.data === null) {
       this.conversationState = this.conversationState.withPagination(false, false, result.message);

@@ -35,12 +35,14 @@ class StubChatRepository implements ChatRepository {
   public channelResults: Array<RepositoryResult<Array<ChatChannel>>> = [];
   public messageResults: Array<RepositoryResult<ChatMessagePage>> = [];
   public messageTasks: Array<Promise<RepositoryResult<ChatMessagePage>>> = [];
+  public messageErrors: Array<string> = [];
   public directResults: Array<RepositoryResult<ChatChannel>> = [];
   public sendResults: Array<RepositoryResult<ChatSendConfirmation>> = [];
   public sendTasks: Array<Promise<RepositoryResult<ChatSendConfirmation>>> = [];
   public booleanResults: Array<RepositoryResult<boolean>> = [];
   public emojiResults: Array<RepositoryResult<Array<ChatEmoji>>> = [];
   public searchResults: Array<RepositoryResult<Array<ChatSearchResult>>> = [];
+  public messageChannelIds: Array<number> = [];
   public messageQueries: Array<ChatMessageQuery> = [];
   public sentRequests: Array<ChatSendRequest> = [];
   public reactionActions: Array<ChatReactionAction> = [];
@@ -51,10 +53,15 @@ class StubChatRepository implements ChatRepository {
   }
 
   public async loadChatMessages(
-    _channelId: number,
+    channelId: number,
     query: ChatMessageQuery
   ): Promise<RepositoryResult<ChatMessagePage>> {
+    this.messageChannelIds.push(channelId);
     this.messageQueries.push(query);
+    const messageError: string | undefined = this.messageErrors.shift();
+    if (messageError !== undefined) {
+      throw new Error(messageError);
+    }
     const task: Promise<RepositoryResult<ChatMessagePage>> | undefined = this.messageTasks.shift();
     if (task !== undefined) return task;
     return this.messageResults.shift() ?? RepositoryResult.failure<ChatMessagePage>('missing message result');
@@ -341,6 +348,137 @@ export default function chatModelTest(): void {
           .assertEqual('9,10');
         expect(model.composerState.draft).assertEqual('保留中的草稿');
         expect(model.channelState.kind).assertEqual(ChatStateKind.CONTENT);
+        done();
+      });
+
+    it('publicly refreshes only the active conversation incrementally', 0, async (done: Function) => {
+      const repository: StubChatRepository = new StubChatRepository();
+      repository.messageResults.push(
+        RepositoryResult.success<ChatMessagePage>(new ChatMessagePage([
+          message(41, '轮询前消息', '2026-07-12T09:00:00Z')
+        ], false, false)),
+        RepositoryResult.success<ChatMessagePage>(new ChatMessagePage([
+          message(42, '轮询新增消息', '2026-07-12T10:00:00Z')
+        ], false, false))
+      );
+      const model: ChatModel = new ChatModel(repository);
+      await model.openChannel(channel());
+      model.updateDraft('轮询期间保留草稿');
+
+      await model.refreshActiveConversationIncrementally();
+
+      expect(repository.messageQueries[1].targetMessageId).assertEqual(41);
+      expect(repository.messageQueries[1].direction).assertEqual('future');
+      expect(model.conversationState.messages.map((item: ChatMessage): number => item.id).join(','))
+        .assertEqual('41,42');
+      expect(model.composerState.draft).assertEqual('轮询期间保留草稿');
+      done();
+    });
+
+    it('shares one in-flight incremental conversation refresh across callers', 0, async (done: Function) => {
+      const repository: StubChatRepository = new StubChatRepository();
+      const delayed: DeferredChatPageResult = new DeferredChatPageResult();
+      repository.messageResults.push(RepositoryResult.success<ChatMessagePage>(new ChatMessagePage([
+        message(51, '并发刷新前消息', '2026-07-12T09:00:00Z')
+      ], false, false)));
+      const model: ChatModel = new ChatModel(repository);
+      await model.openChannel(channel());
+      repository.messageTasks.push(delayed.promise);
+
+      const first: Promise<void> = model.refreshActiveConversationIncrementally();
+      const duplicate: Promise<void> = model.refreshActiveConversationIncrementally();
+
+      expect(repository.messageQueries.length).assertEqual(2);
+      delayed.resolve(RepositoryResult.success<ChatMessagePage>(new ChatMessagePage([
+        message(52, '并发刷新结果', '2026-07-12T10:00:00Z')
+      ], false, false)));
+      await Promise.all([first, duplicate]);
+      expect(model.conversationState.messages.map((item: ChatMessage): number => item.id).join(','))
+        .assertEqual('51,52');
+      done();
+    });
+
+    it('shares the active conversation refresh between foreground and timer callers', 0,
+      async (done: Function) => {
+        const repository: StubChatRepository = new StubChatRepository();
+        const delayed: DeferredChatPageResult = new DeferredChatPageResult();
+        repository.messageResults.push(RepositoryResult.success<ChatMessagePage>(new ChatMessagePage([
+          message(61, '统一互斥前消息', '2026-07-12T09:00:00Z')
+        ], false, false)));
+        repository.channelResults.push(RepositoryResult.success<Array<ChatChannel>>([channel()]));
+        const model: ChatModel = new ChatModel(repository);
+        await model.openChannel(channel());
+        repository.messageTasks.push(delayed.promise);
+
+        const timerRefresh: Promise<void> = model.refreshActiveConversationIncrementally();
+        const foregroundRefresh: Promise<void> = model.refreshForForeground();
+
+        expect(repository.messageQueries.length).assertEqual(2);
+        delayed.resolve(RepositoryResult.success<ChatMessagePage>(new ChatMessagePage([
+          message(62, '统一互斥结果', '2026-07-12T10:00:00Z')
+        ], false, false)));
+        await Promise.all([timerRefresh, foregroundRefresh]);
+        expect(model.conversationState.messages.map((item: ChatMessage): number => item.id).join(','))
+          .assertEqual('61,62');
+        done();
+      });
+
+    it('recovers polling state after an unexpected repository exception', 0, async (done: Function) => {
+      const repository: StubChatRepository = new StubChatRepository();
+      repository.messageResults.push(RepositoryResult.success<ChatMessagePage>(new ChatMessagePage([
+        message(71, '异常前消息', '2026-07-12T09:00:00Z')
+      ], false, false)));
+      const model: ChatModel = new ChatModel(repository);
+      await model.openChannel(channel());
+      repository.messageErrors.push('controlled repository failure');
+
+      await model.refreshActiveConversationIncrementally();
+
+      expect(model.conversationState.loadingFuture).assertFalse();
+      expect(model.conversationState.message.length > 0).assertTrue();
+      repository.messageResults.push(RepositoryResult.success<ChatMessagePage>(new ChatMessagePage([
+        message(72, '异常恢复消息', '2026-07-12T10:00:00Z')
+      ], false, false)));
+      await model.refreshActiveConversationIncrementally();
+      expect(model.conversationState.messages.map((item: ChatMessage): number => item.id).join(','))
+        .assertEqual('71,72');
+      done();
+    });
+
+    it('does not let a stale conversation refresh block the newly opened conversation', 0,
+      async (done: Function) => {
+        const repository: StubChatRepository = new StubChatRepository();
+        const staleRefresh: DeferredChatPageResult = new DeferredChatPageResult();
+        repository.messageResults.push(RepositoryResult.success<ChatMessagePage>(new ChatMessagePage([
+          message(81, '旧会话消息', '2026-07-12T09:00:00Z')
+        ], false, false)));
+        const model: ChatModel = new ChatModel(repository);
+        await model.openChannel(channel(55));
+        repository.messageTasks.push(staleRefresh.promise);
+        const staleTask: Promise<void> = model.refreshActiveConversationIncrementally();
+
+        model.closeChannel();
+        repository.messageResults.push(
+          RepositoryResult.success<ChatMessagePage>(new ChatMessagePage([
+            message(91, '新会话首屏', '2026-07-12T10:00:00Z')
+          ], false, false)),
+          RepositoryResult.success<ChatMessagePage>(new ChatMessagePage([
+            message(92, '新会话轮询', '2026-07-12T11:00:00Z')
+          ], false, false))
+        );
+        await model.openChannel(channel(56));
+
+        await model.refreshActiveConversationIncrementally();
+
+        expect(repository.messageChannelIds.join(',')).assertEqual('55,55,56,56');
+        expect(model.conversationState.messages.map((item: ChatMessage): number => item.id).join(','))
+          .assertEqual('91,92');
+        staleRefresh.resolve(RepositoryResult.success<ChatMessagePage>(new ChatMessagePage([
+          message(82, '过期结果', '2026-07-12T12:00:00Z')
+        ], false, false)));
+        await staleTask;
+        expect(model.conversationState.messages.map((item: ChatMessage): number => item.id).join(','))
+          .assertEqual('91,92');
         done();
       });
 
