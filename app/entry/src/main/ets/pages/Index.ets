@@ -1079,11 +1079,11 @@ struct Index {
 
   private confirmDeleteChatMessage(messageId: number): void {
     this.getUIContext().showAlertDialog({
-      title: '删除这条消息？',
-      message: '服务端将保留可恢复的删除状态。',
-      primaryButton: { value: '取消', action: (): void => {} },
+      title: $r('app.string.chat_delete_message_title'),
+      message: $r('app.string.chat_delete_message_message'),
+      primaryButton: { value: $r('app.string.common_cancel'), action: (): void => {} },
       secondaryButton: {
-        value: '删除',
+        value: $r('app.string.common_delete'),
         action: (): void => { this.deleteChatMessage(messageId); }
       },
       cancel: (): void => {}
@@ -1135,16 +1135,22 @@ struct Index {
       await model.loadEmojis();
       this.synchronizeChatState();
     } else {
-      this.showAuthenticationMessage('无法发起私聊', '请检查用户名与服务端 Chat 权限');
+      this.showAuthenticationMessage(
+        $r('app.string.chat_direct_failed_title'),
+        $r('app.string.chat_direct_failed_message')
+      );
     }
   }
 
   private confirmLeaveChatChannel(): void {
     this.getUIContext().showAlertDialog({
-      title: '离开这个频道？',
-      message: '离开后频道将从当前账号的 Chat 列表移除。',
-      primaryButton: { value: '取消', action: (): void => {} },
-      secondaryButton: { value: '离开', action: (): void => { this.leaveChatChannel(); } },
+      title: $r('app.string.chat_leave_title'),
+      message: $r('app.string.chat_leave_message'),
+      primaryButton: { value: $r('app.string.common_cancel'), action: (): void => {} },
+      secondaryButton: {
+        value: $r('app.string.chat_leave_action'),
+        action: (): void => { this.leaveChatChannel(); }
+      },
       cancel: (): void => {}
     });
   }
@@ -1311,14 +1317,14 @@ struct Index {
 
   private confirmExternalNavigation(url: string): void {
     this.getUIContext().showAlertDialog({
-      title: '打开外部链接？',
+      title: $r('app.string.external_open_title'),
       message: url,
       primaryButton: {
-        value: '取消',
+        value: $r('app.string.common_cancel'),
         action: (): void => {}
       },
       secondaryButton: {
-        value: '继续打开',
+        value: $r('app.string.external_open_action'),
         action: (): void => this.openExternalLink(url)
       },
       cancel: (): void => {}
@@ -1328,11 +1334,14 @@ struct Index {
   private openExternalLink(url: string): void {
     const abilityContext: common.UIAbilityContext | null = AbilityContextRegistry.current();
     if (abilityContext === null) {
-      this.showAuthenticationMessage('链接未打开', '无法获取应用运行环境');
+      this.showAuthenticationMessage(
+        $r('app.string.external_open_failed_title'),
+        $r('app.string.external_open_runtime_unavailable')
+      );
       return;
     }
     abilityContext.openLink(url).catch((error: BusinessError): void => {
-      this.showAuthenticationMessage('链接未打开', error.message);
+      this.showAuthenticationMessage($r('app.string.external_open_failed_title'), error.message);
     });
   }
 
@@ -1545,11 +1554,11 @@ struct Index {
 
   private confirmDeletePost(postId: number): void {
     this.getUIContext().showAlertDialog({
-      title: '删除帖子',
-      message: '确定要删除这条帖子吗？',
-      primaryButton: { value: '取消', action: (): void => {} },
+      title: $r('app.string.topic_delete_title'),
+      message: $r('app.string.topic_delete_message'),
+      primaryButton: { value: $r('app.string.common_cancel'), action: (): void => {} },
       secondaryButton: {
-        value: '删除',
+        value: $r('app.string.common_delete'),
         action: (): void => { this.deletePost(postId); }
       },
       cancel: (): void => {}
@@ -2070,23 +2079,23 @@ struct Index {
   private async changeProfileNotificationLevel(level: ProfileNotificationLevel): Promise<void> {
     if (level === ProfileNotificationLevel.IGNORED) {
       this.getUIContext().showActionSheet({
-        title: '选择忽略时长',
-        message: '到期后将自动恢复该用户的通知级别。',
+        title: $r('app.string.profile_ignore_duration_title'),
+        message: $r('app.string.profile_ignore_duration_message'),
         sheets: [
           {
-            title: '忽略 1 天',
+            title: $r('app.string.profile_ignore_one_day'),
             action: (): void => { this.applyProfileNotificationLevel(level, profileIgnoreExpiry(1)); }
           },
           {
-            title: '忽略 1 周',
+            title: $r('app.string.profile_ignore_one_week'),
             action: (): void => { this.applyProfileNotificationLevel(level, profileIgnoreExpiry(7)); }
           },
           {
-            title: '忽略 1 个月',
+            title: $r('app.string.profile_ignore_one_month'),
             action: (): void => { this.applyProfileNotificationLevel(level, profileIgnoreExpiry(30)); }
           },
           {
-            title: '永久忽略',
+            title: $r('app.string.profile_ignore_forever'),
             action: (): void => { this.applyProfileNotificationLevel(level, profileIgnoreExpiry(null)); }
           }
         ],
@@ -2176,11 +2185,11 @@ struct Index {
       return;
     }
     this.getUIContext().showAlertDialog({
-      title: '清除个人页背景？',
-      message: '当前背景图将从个人页移除。',
-      primaryButton: { value: '取消', action: (): void => {} },
+      title: $r('app.string.profile_clear_background_title'),
+      message: $r('app.string.profile_clear_background_message'),
+      primaryButton: { value: $r('app.string.common_cancel'), action: (): void => {} },
       secondaryButton: {
-        value: '清除',
+        value: $r('app.string.profile_clear_background_action'),
         action: (): void => { this.clearProfileBackground(); }
       },
       cancel: (): void => {}
@@ -2197,7 +2206,10 @@ struct Index {
     const cleared: boolean = await task;
     this.profileState = model.state;
     if (cleared) {
-      this.showAuthenticationMessage('背景已清除', '完整 Profile 已从服务端刷新');
+      this.showAuthenticationMessage(
+        $r('app.string.profile_background_cleared_title'),
+        $r('app.string.profile_background_cleared_message')
+      );
       this.refreshAccountIdentity();
     }
   }
@@ -2325,14 +2337,14 @@ struct Index {
 
   private confirmLogout(): void {
     this.getUIContext().showAlertDialog({
-      title: '退出登录',
-      message: '退出后需要重新登录才能同步账号、聊天和社区状态。',
+      title: $r('app.string.logout_title'),
+      message: $r('app.string.logout_message'),
       primaryButton: {
-        value: '取消',
+        value: $r('app.string.common_cancel'),
         action: (): void => {}
       },
       secondaryButton: {
-        value: '退出',
+        value: $r('app.string.logout_action'),
         action: (): void => {
           this.logout();
         }
@@ -2955,10 +2967,10 @@ struct Index {
     }
     this.snackBar.show(
       { icon: $r('sys.symbol.exclamationmark_circle') },
-      { title: '暂时无法刷新', content: this.categoryState.message },
+      { title: $r('app.string.common_refresh_unavailable'), content: this.categoryState.message },
       {
         operationType: SnackBarOperationType.CLOSE_BUTTON_ONLY,
-        closeButtonAccessibilityText: '关闭提示'
+        closeButtonAccessibilityText: $r('app.string.common_close_hint')
       },
       { duration: 5000 }
     );
@@ -2974,16 +2986,16 @@ struct Index {
     }
     this.snackBar.show(
       { icon: $r('sys.symbol.exclamationmark_circle') },
-      { title: '暂时无法刷新', content: this.homeState.message },
+      { title: $r('app.string.common_refresh_unavailable'), content: this.homeState.message },
       {
         operationType: SnackBarOperationType.CLOSE_BUTTON_ONLY,
-        closeButtonAccessibilityText: '关闭提示'
+        closeButtonAccessibilityText: $r('app.string.common_close_hint')
       },
       { duration: 5000 }
     );
   }
 
-  private showAuthenticationMessage(title: string, content: string): void {
+  private showAuthenticationMessage(title: ResourceStr, content: ResourceStr): void {
     if (this.snackBar === null) {
       return;
     }

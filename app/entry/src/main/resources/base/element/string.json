@@ -735,6 +735,130 @@
     {
       "name": "notification_initial_message",
       "value": "打开消息页后将从服务器刷新。"
+    },
+    {
+      "name": "common_cancel",
+      "value": "取消"
+    },
+    {
+      "name": "common_delete",
+      "value": "删除"
+    },
+    {
+      "name": "common_close_hint",
+      "value": "关闭提示"
+    },
+    {
+      "name": "common_refresh_unavailable",
+      "value": "暂时无法刷新"
+    },
+    {
+      "name": "chat_delete_message_title",
+      "value": "删除这条消息？"
+    },
+    {
+      "name": "chat_delete_message_message",
+      "value": "服务端将保留可恢复的删除状态。"
+    },
+    {
+      "name": "chat_direct_failed_title",
+      "value": "无法发起私聊"
+    },
+    {
+      "name": "chat_direct_failed_message",
+      "value": "请检查用户名与服务端 Chat 权限"
+    },
+    {
+      "name": "chat_leave_title",
+      "value": "离开这个频道？"
+    },
+    {
+      "name": "chat_leave_message",
+      "value": "离开后频道将从当前账号的 Chat 列表移除。"
+    },
+    {
+      "name": "chat_leave_action",
+      "value": "离开"
+    },
+    {
+      "name": "external_open_title",
+      "value": "打开外部链接？"
+    },
+    {
+      "name": "external_open_action",
+      "value": "继续打开"
+    },
+    {
+      "name": "external_open_failed_title",
+      "value": "链接未打开"
+    },
+    {
+      "name": "external_open_runtime_unavailable",
+      "value": "无法获取应用运行环境"
+    },
+    {
+      "name": "topic_delete_title",
+      "value": "删除帖子"
+    },
+    {
+      "name": "topic_delete_message",
+      "value": "确定要删除这条帖子吗？"
+    },
+    {
+      "name": "profile_ignore_duration_title",
+      "value": "选择忽略时长"
+    },
+    {
+      "name": "profile_ignore_duration_message",
+      "value": "到期后将自动恢复该用户的通知级别。"
+    },
+    {
+      "name": "profile_ignore_one_day",
+      "value": "忽略 1 天"
+    },
+    {
+      "name": "profile_ignore_one_week",
+      "value": "忽略 1 周"
+    },
+    {
+      "name": "profile_ignore_one_month",
+      "value": "忽略 1 个月"
+    },
+    {
+      "name": "profile_ignore_forever",
+      "value": "永久忽略"
+    },
+    {
+      "name": "profile_clear_background_title",
+      "value": "清除个人页背景？"
+    },
+    {
+      "name": "profile_clear_background_message",
+      "value": "当前背景图将从个人页移除。"
+    },
+    {
+      "name": "profile_clear_background_action",
+      "value": "清除"
+    },
+    {
+      "name": "profile_background_cleared_title",
+      "value": "背景已清除"
+    },
+    {
+      "name": "profile_background_cleared_message",
+      "value": "完整 Profile 已从服务端刷新"
+    },
+    {
+      "name": "logout_title",
+      "value": "退出登录"
+    },
+    {
+      "name": "logout_message",
+      "value": "退出后需要重新登录才能同步账号、聊天和社区状态。"
+    },
+    {
+      "name": "logout_action",
+      "value": "退出"
     }
   ]
 }
