@@ -3,7 +3,7 @@ import {
   HttpTextResultKind,
   PresenceHttpClient
 } from '../network/DiscourseHttpClient';
-import { AuthenticationLifecycle } from './AppShellModel';
+import { AuthenticationLifecycle } from './AuthenticationLifecycle';
 
 const PRESENCE_INTERVAL_MS: number = 28000;
 const PRESENCE_UPDATE_PATH: string = '/presence/update.json';

@@ -1,16 +1,18 @@
 import { describe, expect, it } from '@ohos/hypium';
 import {
   AppShellModel,
-  AuthenticationLifecycle,
   BrowseStateKind,
+  SearchStateKind,
+  SearchSuggestionStateKind,
+  ComposerMediaTarget
+} from '../../../main/ets/app/AppShellModel';
+import { AuthenticationLifecycle } from '../../../main/ets/app/AuthenticationLifecycle';
+import {
   HomeSortTabIndex,
   RootDestination,
   RootTabIndex,
-  SearchStateKind,
-  SearchSuggestionStateKind,
-  SecondaryDestination,
-  ComposerMediaTarget
-} from '../../../main/ets/app/AppShellModel';
+  SecondaryDestination
+} from '../../../main/ets/app/ShellNavigationModels';
 import { CategoryCacheScope } from '../../../main/ets/cache/CategoryCache';
 import { RepositoryResult } from '../../../main/ets/core/RepositoryResult';
 import {

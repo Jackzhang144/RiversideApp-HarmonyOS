@@ -1,15 +1,17 @@
 import { describe, expect, it } from '@ohos/hypium';
 import {
   AppShellModel,
-  AuthenticationLifecycle,
   BrowseStateKind,
   ReplyComposerState,
   ReplyComposerStateKind,
-  RootDestination,
-  SecondaryDestination,
   TopicComposerStateKind,
   TopicReadStateKind
 } from '../../../main/ets/app/AppShellModel';
+import { AuthenticationLifecycle } from '../../../main/ets/app/AuthenticationLifecycle';
+import {
+  RootDestination,
+  SecondaryDestination
+} from '../../../main/ets/app/ShellNavigationModels';
 import { CategoryCacheScope } from '../../../main/ets/cache/CategoryCache';
 import { RepositoryResult } from '../../../main/ets/core/RepositoryResult';
 import {

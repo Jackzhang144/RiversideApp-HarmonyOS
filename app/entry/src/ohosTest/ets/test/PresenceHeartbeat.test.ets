@@ -1,6 +1,6 @@
 import { describe, expect, it } from '@ohos/hypium';
 import { HttpTextResult, PresenceHttpClient } from '../../../main/ets/network/DiscourseHttpClient';
-import { AuthenticationLifecycle } from '../../../main/ets/app/AppShellModel';
+import { AuthenticationLifecycle } from '../../../main/ets/app/AuthenticationLifecycle';
 import {
   DiscoursePresenceUpdater,
   PresenceHeartbeat,

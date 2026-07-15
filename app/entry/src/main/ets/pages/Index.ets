@@ -18,15 +18,17 @@ import {
   ComposerMediaTarget,
   ReplyComposerState,
   ReplyComposerStateKind,
-  rootDestinationForTabIndex,
-  RootDestination,
-  SecondaryDestination,
   SearchState,
   SearchSuggestionState,
   TopicComposerState,
   TopicComposerStateKind,
   TopicReadState
 } from '../app/AppShellModel';
+import {
+  rootDestinationForTabIndex,
+  RootDestination,
+  SecondaryDestination
+} from '../app/ShellNavigationModels';
 import { DiscoursePresenceUpdater, PresenceHeartbeat } from '../app/PresenceHeartbeat';
 import {
   ChatChannelState,

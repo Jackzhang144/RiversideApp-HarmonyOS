@@ -1,4 +1,4 @@
-import { AuthenticationLifecycle } from '../app/AppShellModel';
+import { AuthenticationLifecycle } from '../app/AuthenticationLifecycle';
 import { ChatAuthenticationLifecycle } from '../app/ChatModel';
 import { NotificationAuthenticationLifecycle } from '../app/NotificationCentreModel';
 import { ProfileSessionLifecycle } from '../app/ProfileManagementModel';
