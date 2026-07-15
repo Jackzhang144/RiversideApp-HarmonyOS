@@ -1866,6 +1866,24 @@ struct Index {
     return false;
   }
 
+  private confirmLogout(): void {
+    this.getUIContext().showAlertDialog({
+      title: '退出登录',
+      message: '退出后需要重新登录才能同步账号、聊天和社区状态。',
+      primaryButton: {
+        value: '取消',
+        action: (): void => {}
+      },
+      secondaryButton: {
+        value: '退出',
+        action: (): void => {
+          this.logout();
+        }
+      },
+      cancel: (): void => {}
+    });
+  }
+
   private async logout(): Promise<void> {
     const repository: AuthRepository | null = this.authRepository;
     if (repository === null) {
@@ -2482,7 +2500,7 @@ struct Index {
               this.openLogin();
             },
             onLogout: (): void => {
-              this.logout();
+              this.confirmLogout();
             },
             onRetryIdentity: (): void => {
               this.refreshAccountIdentity();
