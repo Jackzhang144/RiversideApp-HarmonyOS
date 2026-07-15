@@ -30,7 +30,7 @@ export struct AboutPage {
     Column({ space: 16 }) {
       SymbolGlyph($r('sys.symbol.info_circle'))
         .fontSize(54)
-        .fontColor(['#317AF7'])
+        .fontColor([$r('app.color.brand_primary')])
       Text('RiverSide')
         .fontSize(26)
         .fontWeight(FontWeight.Bold)

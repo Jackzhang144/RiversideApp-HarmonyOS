@@ -18,7 +18,11 @@ import { hilog } from '@kit.PerformanceAnalysisKit';
 import { window } from '@kit.ArkUI';
 import { AbilityContextRegistry } from '../core/AbilityContextRegistry';
 import { SystemNotificationService } from '../core/SystemNotificationService';
-import { AppThemeMode, appThemePlatformColorMode } from '../settings/AppThemeSettings';
+import {
+  AppSystemBarPalette,
+  AppThemeMode,
+  appThemePlatformColorMode
+} from '../settings/AppThemeSettings';
 import { PreferencesAppThemeSettingsStore } from '../settings/PreferencesAppThemeSettingsStore';
 
 const DOMAIN = 0x0000;
@@ -67,10 +71,14 @@ export default class EntryAbility extends UIAbility {
         const mainWindow: window.Window = windowStage.getMainWindowSync();
         await mainWindow.setWindowLayoutFullScreen(true);
         const systemBarProperties: window.SystemBarProperties = {
-          statusBarColor: '#00000000',
-          navigationBarColor: '#00000000',
-          statusBarContentColor: this.restoredThemeMode === AppThemeMode.DARK ? '#F5F5F5' : '#1F1F1F',
-          navigationBarContentColor: this.restoredThemeMode === AppThemeMode.DARK ? '#F5F5F5' : '#606060'
+          statusBarColor: AppSystemBarPalette.transparent,
+          navigationBarColor: AppSystemBarPalette.transparent,
+          statusBarContentColor: this.restoredThemeMode === AppThemeMode.DARK
+            ? AppSystemBarPalette.darkContent
+            : AppSystemBarPalette.lightStatusContent,
+          navigationBarContentColor: this.restoredThemeMode === AppThemeMode.DARK
+            ? AppSystemBarPalette.darkContent
+            : AppSystemBarPalette.lightNavigationContent
         };
         await mainWindow.setWindowSystemBarProperties(systemBarProperties);
         hilog.info(DOMAIN, 'testTag', 'Succeeded in enabling immersive main-window layout.');

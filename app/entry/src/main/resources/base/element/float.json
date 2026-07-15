@@ -1,8 +1,16 @@
 {
   "float": [
     {
-      "name": "page_text_font_size",
-      "value": "50fp"
+      "name": "page_header_height",
+      "value": "56vp"
+    },
+    {
+      "name": "card_content_padding",
+      "value": "14vp"
+    },
+    {
+      "name": "card_corner_radius",
+      "value": "12vp"
     }
   ]
 }

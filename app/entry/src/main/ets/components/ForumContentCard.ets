@@ -33,7 +33,7 @@ export struct ForumContentCard {
     Text(badge.label)
       .fontSize(11)
       .fontWeight(FontWeight.Medium)
-      .fontColor(badge.kind === ForumCardBadgeKind.PINNED ? '#C62828' : '#2068C9')
+      .fontColor(badge.kind === ForumCardBadgeKind.PINNED ? $r('app.color.status_error') : $r('app.color.text_link'))
       .padding({ left: 8, right: 8, top: 4, bottom: 4 })
       .backgroundColor($r('sys.color.background_secondary'))
       .borderRadius(10)
@@ -47,11 +47,11 @@ export struct ForumContentCard {
       Text(author.initial)
         .fontSize(13)
         .fontWeight(FontWeight.Bold)
-        .fontColor('#317AF7')
+        .fontColor($r('app.color.brand_primary'))
         .width(36)
         .height(36)
         .textAlign(TextAlign.Center)
-        .backgroundColor('#EAF2FF')
+        .backgroundColor($r('app.color.brand_tint_surface'))
         .borderRadius(18)
       Column({ space: 2 }) {
         Text(author.name)
@@ -152,10 +152,10 @@ export struct ForumContentCard {
       Row({ space: 4 }) {
         SymbolGlyph($r('sys.symbol.message'))
           .fontSize(14)
-          .fontColor(['#317AF7'])
+          .fontColor([$r('app.color.brand_primary')])
         Text(action.label)
           .fontSize(12)
-          .fontColor('#317AF7')
+          .fontColor($r('app.color.brand_primary'))
       }
     }
     .height(36)
@@ -194,7 +194,7 @@ export struct ForumContentCard {
       Text(this.presentation.restrictionText)
         .fontSize(13)
         .fontWeight(FontWeight.Medium)
-        .fontColor('#C62828')
+        .fontColor($r('app.color.status_error'))
         .padding({ left: 10, right: 10, top: 7, bottom: 7 })
         .backgroundColor($r('sys.color.background_secondary'))
         .borderRadius(8)
@@ -216,9 +216,9 @@ export struct ForumContentCard {
     }
     .alignItems(HorizontalAlign.Start)
     .width('100%')
-    .padding(14)
+    .padding($r('app.float.card_content_padding'))
     .backgroundColor($r('sys.color.comp_background_primary'))
-    .borderRadius(12)
+    .borderRadius($r('app.float.card_corner_radius'))
     .border({ width: 1, color: $r('sys.color.comp_divider') })
     .onClick((): void => {
       if (this.presentation.mode === ForumCardMode.TOPIC_PREVIEW) {

@@ -63,7 +63,7 @@ export struct ChatRootPage {
       .accessibilityText('刷新聊天频道与未读状态')
     }
     .width('100%')
-    .height(56)
+    .height($r('app.float.page_header_height'))
     .padding({ left: 12, right: 10 })
     .backgroundColor($r('sys.color.comp_background_primary'))
     .border({ width: { bottom: 1 }, color: $r('sys.color.comp_divider') })
@@ -75,17 +75,17 @@ export struct ChatRootPage {
       Row({ space: 6 }) {
         SymbolGlyph(icon)
           .fontSize(17)
-          .fontColor([this.section === section ? '#245D86' : $r('sys.color.font_secondary')])
+          .fontColor([this.section === section ? $r('app.color.brand_selected_text') : $r('sys.color.font_secondary')])
         Text(label)
           .fontSize(13)
-          .fontColor(this.section === section ? '#245D86' : $r('sys.color.font_primary'))
+          .fontColor(this.section === section ? $r('app.color.brand_selected_text') : $r('sys.color.font_primary'))
       }
       .justifyContent(FlexAlign.Center)
     }
       .layoutWeight(1)
       .height(42)
       .borderRadius(0)
-      .backgroundColor(this.section === section ? '#DCEBFA' : $r('sys.color.comp_background_primary'))
+      .backgroundColor(this.section === section ? $r('app.color.brand_selected_surface') : $r('sys.color.comp_background_primary'))
       .onClick((): void => {
         this.section = section;
       })
@@ -134,7 +134,7 @@ export struct ChatRootPage {
   @Builder
   private CapabilityErrorState(): void {
     Column({ space: 14 }) {
-      SymbolGlyph($r('sys.symbol.exclamationmark_circle')).fontSize(42).fontColor(['#C62828'])
+      SymbolGlyph($r('sys.symbol.exclamationmark_circle')).fontSize(42).fontColor([$r('app.color.status_error')])
       Text('无法确认 Chat 权限').fontSize(18).fontWeight(FontWeight.Bold)
       Text(this.capabilityError).fontSize(13).fontColor($r('sys.color.font_secondary')).textAlign(TextAlign.Center)
       Button('重试账号能力检查').onClick(this.onRetryCapability)
@@ -147,11 +147,11 @@ export struct ChatRootPage {
     Row({ space: 12 }) {
       SymbolGlyph(channel.isDirectMessage ? $r('sys.symbol.envelope') : $r('sys.symbol.message'))
         .fontSize(26)
-        .fontColor(['#317AF7'])
+        .fontColor([$r('app.color.brand_primary')])
         .width(44)
         .height(44)
         .padding(9)
-        .backgroundColor('#EAF2FF')
+        .backgroundColor($r('app.color.brand_tint_surface'))
         .borderRadius(22)
       Column({ space: 5 }) {
         Row({ space: 8 }) {
@@ -164,7 +164,7 @@ export struct ChatRootPage {
             Circle()
               .width(8)
               .height(8)
-              .fill('#D52B32')
+              .fill($r('app.color.unread_indicator'))
           }
         }
         .width('100%')
@@ -192,9 +192,9 @@ export struct ChatRootPage {
       .layoutWeight(1)
     }
     .width('100%')
-    .padding(14)
+    .padding($r('app.float.card_content_padding'))
     .backgroundColor($r('sys.color.comp_background_primary'))
-    .borderRadius(12)
+    .borderRadius($r('app.float.card_corner_radius'))
     .border({ width: 1, color: $r('sys.color.comp_divider') })
     .onClick((): void => this.onOpenChannel(channel))
     .accessibilityText(`${channel.title}${channel.unreadCount > 0 ? `，${channel.unreadCount} 条未读` : ''}`)
@@ -210,7 +210,7 @@ export struct ChatRootPage {
     } else if (this.state.kind === ChatStateKind.ERROR && this.state.channels.length === 0) {
       Column({ space: 12 }) {
         Text('聊天频道加载失败').fontSize(18).fontWeight(FontWeight.Bold)
-        Text(this.state.message).fontSize(13).fontColor('#C62828').textAlign(TextAlign.Center)
+        Text(this.state.message).fontSize(13).fontColor($r('app.color.status_error')).textAlign(TextAlign.Center)
         Button('重试').onClick(this.onRefresh)
       }.width('100%').height('100%').padding(32).justifyContent(FlexAlign.Center)
     } else if (this.channels(directMessages).length === 0) {
@@ -245,7 +245,7 @@ export struct ChatRootPage {
         Button() {
           SymbolGlyph($r('sys.symbol.arrow_right'))
             .fontSize(17)
-            .fontColor(['#317AF7'])
+            .fontColor([$r('app.color.brand_primary')])
         }
         .width(36)
         .height(36)
@@ -257,7 +257,7 @@ export struct ChatRootPage {
       .height(48)
       .padding({ left: 14, right: 8 })
       .backgroundColor($r('sys.color.comp_background_primary'))
-      .borderRadius(12)
+      .borderRadius($r('app.float.card_corner_radius'))
       .border({ width: 1, color: $r('sys.color.comp_divider') })
 
       if (this.canStartDirectChat) {
@@ -273,7 +273,7 @@ export struct ChatRootPage {
           Button() {
             SymbolGlyph($r('sys.symbol.plus'))
               .fontSize(17)
-              .fontColor(['#317AF7'])
+              .fontColor([$r('app.color.brand_primary')])
           }
             .width(36)
             .height(36)
@@ -286,7 +286,7 @@ export struct ChatRootPage {
         .height(48)
         .padding({ left: 14, right: 8 })
         .backgroundColor($r('sys.color.comp_background_primary'))
-        .borderRadius(12)
+        .borderRadius($r('app.float.card_corner_radius'))
         .border({ width: 1, color: $r('sys.color.comp_divider') })
       }
 
@@ -301,7 +301,7 @@ export struct ChatRootPage {
           .layoutWeight(1).width('100%').justifyContent(FlexAlign.Center)
       } else if (this.searchState.kind === ChatStateKind.ERROR) {
         Column({ space: 8 }) {
-          Text(this.searchState.message).fontSize(13).fontColor('#C62828').textAlign(TextAlign.Center)
+          Text(this.searchState.message).fontSize(13).fontColor($r('app.color.status_error')).textAlign(TextAlign.Center)
           Button('重试').onClick((): void => this.onSearch(this.searchText))
         }.layoutWeight(1).width('100%').justifyContent(FlexAlign.Center)
       } else if (this.searchState.kind === ChatStateKind.EMPTY) {
@@ -316,7 +316,7 @@ export struct ChatRootPage {
                 Text(`${result.message.username}：${result.message.displayText()}`)
                   .fontSize(13).fontColor($r('sys.color.font_secondary')).maxLines(3).width('100%')
               }
-              .width('100%').padding(14).backgroundColor($r('sys.color.comp_background_primary')).borderRadius(12)
+              .width('100%').padding($r('app.float.card_content_padding')).backgroundColor($r('sys.color.comp_background_primary')).borderRadius($r('app.float.card_corner_radius'))
               .border({ width: 1, color: $r('sys.color.comp_divider') })
               .onClick((): void => this.onOpenSearchResult(result))
             }

@@ -107,7 +107,7 @@ export struct SearchPage {
       Row({ space: 8 }) {
         Text(this.suggestionState.message)
           .fontSize(12)
-          .fontColor('#C62828')
+          .fontColor($r('app.color.status_error'))
           .layoutWeight(1)
         Button('重试')
           .height(30)
@@ -213,9 +213,9 @@ export struct SearchPage {
     }
     .alignItems(HorizontalAlign.Start)
     .width('100%')
-    .padding(14)
+    .padding($r('app.float.card_content_padding'))
     .backgroundColor($r('sys.color.comp_background_primary'))
-    .borderRadius(12)
+    .borderRadius($r('app.float.card_corner_radius'))
     .border({ width: 1, color: $r('sys.color.comp_divider') })
     .onClick((): void => this.onOpenPost(post))
     .accessibilityText(`${post.topic.title}，第 ${post.postNumber} 条 Post`)
@@ -229,9 +229,9 @@ export struct SearchPage {
         .height(38)
         .fontSize(15)
         .fontWeight(FontWeight.Bold)
-        .fontColor('#317AF7')
+        .fontColor($r('app.color.brand_primary'))
         .textAlign(TextAlign.Center)
-        .backgroundColor('#EAF2FF')
+        .backgroundColor($r('app.color.brand_tint_surface'))
         .borderRadius(19)
       Column({ space: 2 }) {
         Text(user.displayName)
@@ -245,9 +245,9 @@ export struct SearchPage {
       .layoutWeight(1)
     }
     .width('100%')
-    .padding(14)
+    .padding($r('app.float.card_content_padding'))
     .backgroundColor($r('sys.color.comp_background_primary'))
-    .borderRadius(12)
+    .borderRadius($r('app.float.card_corner_radius'))
     .border({ width: 1, color: $r('sys.color.comp_divider') })
     .onClick((): void => this.onOpenUser(user))
     .accessibilityText(`用户 ${user.displayName}，${user.username}`)
@@ -258,7 +258,7 @@ export struct SearchPage {
     Row({ space: 10 }) {
       SymbolGlyph($r('sys.symbol.folder'))
         .fontSize(21)
-        .fontColor(['#317AF7'])
+        .fontColor([$r('app.color.brand_primary')])
       Text(category.name)
         .fontSize(15)
         .fontWeight(FontWeight.Bold)
@@ -268,9 +268,9 @@ export struct SearchPage {
         .fontColor([$r('sys.color.font_tertiary')])
     }
     .width('100%')
-    .padding(14)
+    .padding($r('app.float.card_content_padding'))
     .backgroundColor($r('sys.color.comp_background_primary'))
-    .borderRadius(12)
+    .borderRadius($r('app.float.card_corner_radius'))
     .border({ width: 1, color: $r('sys.color.comp_divider') })
     .onClick((): void => this.onOpenCategory(category))
     .accessibilityText(`Category ${category.name}`)
@@ -282,7 +282,7 @@ export struct SearchPage {
       Text('#')
         .fontSize(18)
         .fontWeight(FontWeight.Bold)
-        .fontColor('#317AF7')
+        .fontColor($r('app.color.brand_primary'))
       Text(tag.name)
         .fontSize(15)
         .fontWeight(FontWeight.Bold)
@@ -292,9 +292,9 @@ export struct SearchPage {
         .fontColor($r('sys.color.font_secondary'))
     }
     .width('100%')
-    .padding(14)
+    .padding($r('app.float.card_content_padding'))
     .backgroundColor($r('sys.color.comp_background_primary'))
-    .borderRadius(12)
+    .borderRadius($r('app.float.card_corner_radius'))
     .border({ width: 1, color: $r('sys.color.comp_divider') })
     .accessibilityText(`标签 ${tag.name}`)
   }
@@ -304,7 +304,7 @@ export struct SearchPage {
     Row({ space: 10 }) {
       SymbolGlyph($r('sys.symbol.person_2'))
         .fontSize(21)
-        .fontColor(['#317AF7'])
+        .fontColor([$r('app.color.brand_primary')])
       Column({ space: 2 }) {
         Text(group.fullName.length > 0 ? group.fullName : group.name)
           .fontSize(15)
@@ -317,9 +317,9 @@ export struct SearchPage {
       .layoutWeight(1)
     }
     .width('100%')
-    .padding(14)
+    .padding($r('app.float.card_content_padding'))
     .backgroundColor($r('sys.color.comp_background_primary'))
-    .borderRadius(12)
+    .borderRadius($r('app.float.card_corner_radius'))
     .border({ width: 1, color: $r('sys.color.comp_divider') })
     .accessibilityText(`群组 ${group.fullName.length > 0 ? group.fullName : group.name}`)
   }
@@ -337,7 +337,7 @@ export struct SearchPage {
       } else if (this.state.paginationMessage.length > 0) {
         Text(this.state.paginationMessage)
           .fontSize(12)
-          .fontColor('#C62828')
+          .fontColor($r('app.color.status_error'))
         Button('重试加载更多')
           .height(34)
           .onClick(this.onLoadMore)

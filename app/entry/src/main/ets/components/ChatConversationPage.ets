@@ -277,7 +277,7 @@ export struct ChatConversationPage {
   private ErrorState(): void {
     Column({ space: 12 }) {
       Text('消息加载失败').fontSize(20).fontWeight(FontWeight.Bold)
-      Text(this.state.message).fontSize(13).fontColor('#C62828').textAlign(TextAlign.Center)
+      Text(this.state.message).fontSize(13).fontColor($r('app.color.status_error')).textAlign(TextAlign.Center)
       Button('重试').onClick(this.onRetry)
     }.width('100%').height('100%').padding(32).justifyContent(FlexAlign.Center)
   }
@@ -311,7 +311,7 @@ export struct ChatConversationPage {
     Column({ space: 8 }) {
       Row({ space: 8 }) {
         Text(message.username.length > 0 ? message.username : '未知用户')
-          .fontSize(12).fontWeight(FontWeight.Bold).fontColor('#317AF7')
+          .fontSize(12).fontWeight(FontWeight.Bold).fontColor($r('app.color.brand_primary'))
           .onClick((): void => this.onOpenProfile(message.username))
         Text(message.createdAt.replace('T', ' ').replace('Z', ''))
           .fontSize(10).fontColor($r('sys.color.font_tertiary')).layoutWeight(1)
@@ -320,11 +320,11 @@ export struct ChatConversationPage {
 
       if (message.replyTo !== null) {
         Column({ space: 3 }) {
-          Text(`回复 ${message.replyTo.username}`).fontSize(11).fontWeight(FontWeight.Bold).fontColor('#317AF7')
+          Text(`回复 ${message.replyTo.username}`).fontSize(11).fontWeight(FontWeight.Bold).fontColor($r('app.color.brand_primary'))
           this.ReplyPreviewText(message.replyTo.excerpt)
         }
         .width('100%').padding(8).backgroundColor($r('sys.color.background_secondary'))
-        .border({ width: { left: 3 }, color: '#317AF7' })
+        .border({ width: { left: 3 }, color: $r('app.color.brand_primary') })
       }
 
       this.MessageBody(message)
@@ -376,7 +376,7 @@ export struct ChatConversationPage {
           }
         }
         if (this.canDelete(message) && !message.deleted) {
-          Button('删除', { type: ButtonType.Normal }).height(30).fontSize(11).fontColor('#C62828')
+          Button('删除', { type: ButtonType.Normal }).height(30).fontSize(11).fontColor($r('app.color.status_error'))
             .onClick((): void => this.onDelete(message.id))
         } else if (this.canDelete(message) && message.deleted) {
           Button('恢复', { type: ButtonType.Normal }).height(30).fontSize(11)
@@ -389,7 +389,7 @@ export struct ChatConversationPage {
     .backgroundColor(message.username === this.currentUsername
       ? $r('sys.color.background_secondary')
       : $r('sys.color.comp_background_primary'))
-    .borderRadius(12).border({ width: 1, color: $r('sys.color.comp_divider') })
+    .borderRadius($r('app.float.card_corner_radius')).border({ width: 1, color: $r('sys.color.comp_divider') })
   }
 
   @Builder
@@ -399,7 +399,7 @@ export struct ChatConversationPage {
         ListItem() {
           Column({ space: 5 }) {
             if (this.state.message.length > 0) {
-              Text(this.state.message).fontSize(11).fontColor('#C62828').textAlign(TextAlign.Center)
+              Text(this.state.message).fontSize(11).fontColor($r('app.color.status_error')).textAlign(TextAlign.Center)
             }
             if (this.state.canLoadMorePast || this.state.loadingPast) {
               Button(this.state.loadingPast ? '正在加载' : '加载更早消息')
@@ -504,7 +504,7 @@ export struct ChatConversationPage {
     if (reply !== null) {
       Row({ space: 8 }) {
         Column({ space: 2 }) {
-          Text(`回复 ${reply.username}`).fontSize(11).fontWeight(FontWeight.Bold).fontColor('#317AF7')
+          Text(`回复 ${reply.username}`).fontSize(11).fontWeight(FontWeight.Bold).fontColor($r('app.color.brand_primary'))
           this.ReplyPreviewText(reply.displayText())
         }
         .layoutWeight(1)
@@ -532,7 +532,7 @@ export struct ChatConversationPage {
             ? this.uploadState.message
             : `图片上传 ${this.uploadState.progressPercent}%`)
             .fontSize(11).fontColor(this.uploadState.kind === MediaUploadStateKind.FAILED
-              ? '#C62828'
+              ? $r('app.color.status_error')
               : $r('sys.color.font_secondary'))
             .layoutWeight(1)
           if (this.uploadState.canCancel()) {
@@ -571,7 +571,7 @@ export struct ChatConversationPage {
       .width('100%')
       if (this.composer.message.length > 0) {
         Text(this.composer.message).fontSize(11)
-          .fontColor(this.composer.sending ? $r('sys.color.font_secondary') : '#C62828').width('100%')
+          .fontColor(this.composer.sending ? $r('sys.color.font_secondary') : $r('app.color.status_error')).width('100%')
       }
     }
     .width('100%').padding({ left: 12, right: 12, top: 8, bottom: 12 })
@@ -584,14 +584,14 @@ export struct ChatConversationPage {
       if (this.state.channel !== null && !this.state.channel.isDirectMessage) {
         Row() {
           Text(this.state.channel.subtitle).fontSize(11).fontColor($r('sys.color.font_secondary')).layoutWeight(1)
-          Button('离开频道', { type: ButtonType.Normal }).height(30).fontSize(10).fontColor('#C62828')
+          Button('离开频道', { type: ButtonType.Normal }).height(30).fontSize(10).fontColor($r('app.color.status_error'))
             .onClick(this.onLeaveChannel)
         }.width('100%').padding({ left: 12, right: 12, top: 5, bottom: 5 })
           .backgroundColor($r('sys.color.comp_background_primary'))
       }
       if (this.state.channel?.userSilenced === true) {
         Text('当前账号不能在此频道发言；历史消息仍可阅读。')
-          .fontSize(11).fontColor('#C62828').width('100%')
+          .fontSize(11).fontColor($r('app.color.status_error')).width('100%')
           .padding({ left: 12, right: 12, top: 6, bottom: 6 })
           .backgroundColor($r('sys.color.background_secondary'))
       }

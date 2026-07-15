@@ -369,10 +369,10 @@ export struct TopicDetailPage {
     Row({ space: 8 }) {
       Text(categoryLabel(detail.categoryId, this.categories))
         .fontSize(12)
-        .fontColor('#2068C9')
+        .fontColor($r('app.color.text_link'))
         .padding({ left: 9, right: 9, top: 5, bottom: 5 })
         .backgroundColor($r('sys.color.background_secondary'))
-        .borderRadius(12)
+        .borderRadius($r('app.float.card_corner_radius'))
       if (detail.authorUsername.length > 0) {
         Text(`作者 ${detail.authorUsername}`)
           .fontSize(12)
@@ -447,7 +447,7 @@ export struct TopicDetailPage {
         Row({ space: 8 }) {
           Text(this.state.postJumpState.message)
             .fontSize(12)
-            .fontColor('#C62828')
+            .fontColor($r('app.color.status_error'))
             .layoutWeight(1)
           Button('重试')
             .height(32)
@@ -460,14 +460,14 @@ export struct TopicDetailPage {
       } else if (this.floorInputMessage.length > 0) {
         Text(this.floorInputMessage)
           .fontSize(12)
-          .fontColor('#C62828')
+          .fontColor($r('app.color.status_error'))
           .width('100%')
       }
     }
     .width('100%')
     .padding(12)
     .backgroundColor($r('sys.color.comp_background_primary'))
-    .borderRadius(12)
+    .borderRadius($r('app.float.card_corner_radius'))
     .border({ width: 1, color: $r('sys.color.comp_divider') })
   }
 
@@ -482,7 +482,7 @@ export struct TopicDetailPage {
     } else if (this.readProgressMessage.length > 0) {
       Text(this.readProgressMessage)
         .fontSize(12)
-        .fontColor('#C62828')
+        .fontColor($r('app.color.status_error'))
         .width('100%')
         .textAlign(TextAlign.Center)
     }
@@ -496,7 +496,7 @@ export struct TopicDetailPage {
           ? `回复 #${post.replyToPostNumber}`
           : `回复 @${post.replyToUsername} · #${post.replyToPostNumber}`)
           .fontSize(12)
-          .fontColor('#2068C9')
+          .fontColor($r('app.color.text_link'))
           .width('100%')
           .padding({ left: 8 })
       }
@@ -549,7 +549,7 @@ export struct TopicDetailPage {
       Text(reaction.count.toString())
         .fontSize(12)
         .fontWeight(FontWeight.Medium)
-        .fontColor('#2068C9')
+        .fontColor($r('app.color.text_link'))
     }
     .height(34)
     .padding({ left: 10, right: 10 })
@@ -569,8 +569,8 @@ export struct TopicDetailPage {
         .textAlign(TextAlign.Center)
         .fontSize(13)
         .fontWeight(FontWeight.Bold)
-        .fontColor('#317AF7')
-        .backgroundColor('#EAF2FF')
+        .fontColor($r('app.color.brand_primary'))
+        .backgroundColor($r('app.color.brand_tint_surface'))
         .borderRadius(18)
       if (user.avatarUrl.length > 0) {
         Image(user.avatarUrl)
@@ -594,14 +594,14 @@ export struct TopicDetailPage {
         Text(this.reactionUsersState.message.length > 0
           ? this.reactionUsersState.message : '回应用户加载失败')
           .fontSize(14)
-          .fontColor('#C62828')
+          .fontColor($r('app.color.status_error'))
       } else if (this.reactionUsersState.items.length === 0) {
         Text('暂无可展示的回应用户').fontSize(14).fontColor($r('sys.color.font_secondary'))
       } else {
         if (this.reactionUsersState.message.length > 0) {
           Text(this.reactionUsersState.message)
             .fontSize(12)
-            .fontColor('#B85C00')
+            .fontColor($r('app.color.status_warning'))
             .width('100%')
         }
         List({ space: 14 }) {
@@ -625,7 +625,7 @@ export struct TopicDetailPage {
                         this.ReactionUserAvatar(user)
                         Text(user.username)
                           .fontSize(11)
-                          .fontColor('#2068C9')
+                          .fontColor($r('app.color.text_link'))
                           .maxLines(1)
                           .textOverflow({ overflow: TextOverflow.Ellipsis })
                       }
@@ -685,7 +685,7 @@ export struct TopicDetailPage {
     .width(42)
     .height(34)
     .backgroundColor(post.currentUserReaction === '+1'
-      ? '#317AF7'
+      ? $r('app.color.brand_primary')
       : $r('sys.color.background_secondary'))
     .margin({ right: 6, bottom: 6 })
     .enabled(!this.state.postActionState.busy)
@@ -710,7 +710,7 @@ export struct TopicDetailPage {
             .height(34)
             .fontSize(12)
             .fontWeight(FontWeight.Medium)
-            .fontColor('#1B5E20')
+            .fontColor($r('app.color.status_success'))
             .padding({ left: 10, right: 10 })
             .backgroundColor($r('sys.color.background_secondary'))
             .borderRadius(17)
@@ -725,17 +725,17 @@ export struct TopicDetailPage {
           if (this.isPostBookmarked(post.id)) {
             SymbolGlyph($r('sys.symbol.bookmark_fill'))
               .fontSize(18)
-              .fontColor(['#FFFFFF'])
+              .fontColor([$r('app.color.on_accent')])
           } else {
             SymbolGlyph($r('sys.symbol.bookmark'))
               .fontSize(18)
-              .fontColor(['#2068C9'])
+              .fontColor([$r('app.color.text_link')])
           }
         }
         .width(42)
         .height(34)
         .backgroundColor(this.isPostBookmarked(post.id)
-          ? '#317AF7'
+          ? $r('app.color.brand_primary')
           : $r('sys.color.background_secondary'))
         .margin({ right: 6, bottom: 6 })
         .enabled(!this.state.postActionState.busy)
@@ -746,7 +746,7 @@ export struct TopicDetailPage {
             .height(34)
             .fontSize(12)
             .backgroundColor($r('sys.color.background_secondary'))
-            .fontColor(post.acceptedAnswer ? '#B85C00' : '#1B5E20')
+            .fontColor(post.acceptedAnswer ? $r('app.color.status_warning') : $r('app.color.status_success'))
             .margin({ right: 6, bottom: 6 })
             .enabled(!this.state.postActionState.busy)
             .onClick((): void => this.onToggleAcceptedAnswer(post.id))
@@ -756,7 +756,7 @@ export struct TopicDetailPage {
           .height(34)
           .fontSize(12)
           .backgroundColor($r('sys.color.background_secondary'))
-          .fontColor('#2068C9')
+          .fontColor($r('app.color.text_link'))
           .margin({ right: 6, bottom: 6 })
           .onClick((): void => this.onCopyPostLink(this.state.topicId, post.postNumber))
           .accessibilityText(`复制 Post #${post.postNumber} 链接`)
@@ -774,7 +774,7 @@ export struct TopicDetailPage {
             .height(34)
             .fontSize(12)
             .backgroundColor($r('sys.color.background_secondary'))
-            .fontColor('#2068C9')
+            .fontColor($r('app.color.text_link'))
             .margin({ right: 6, bottom: 6 })
             .enabled(!this.state.postActionState.busy)
             .onClick((): void => this.onOpenEdit(post.id))
@@ -785,7 +785,7 @@ export struct TopicDetailPage {
             .height(34)
             .fontSize(12)
             .backgroundColor($r('sys.color.background_secondary'))
-            .fontColor('#C62828')
+            .fontColor($r('app.color.status_error'))
             .margin({ right: 6, bottom: 6 })
             .enabled(!this.state.postActionState.busy)
             .onClick((): void => this.onDeletePost(post.id))
@@ -808,7 +808,7 @@ export struct TopicDetailPage {
       ) {
         Text(this.state.postActionState.message)
           .fontSize(12)
-          .fontColor('#C62828')
+          .fontColor($r('app.color.status_error'))
           .width('100%')
       }
     }
@@ -860,7 +860,7 @@ export struct TopicDetailPage {
       if (option.typeId === this.selectedFlagTypeId) {
         SymbolGlyph($r('sys.symbol.checkmark_circle_fill'))
           .fontSize(22)
-          .fontColor(['#317AF7'])
+          .fontColor([$r('app.color.brand_primary')])
       } else {
         SymbolGlyph($r('sys.symbol.circle'))
           .fontSize(22)
@@ -952,7 +952,7 @@ export struct TopicDetailPage {
     .width('100%')
     .padding(28)
     .backgroundColor($r('sys.color.comp_background_primary'))
-    .borderRadius(12)
+    .borderRadius($r('app.float.card_corner_radius'))
     .border({ width: 1, color: $r('sys.color.comp_divider') })
   }
 
@@ -992,7 +992,7 @@ export struct TopicDetailPage {
       } else if (this.state.paginationMessage.length > 0) {
         Text(this.state.paginationMessage)
           .fontSize(14)
-          .fontColor('#C62828')
+          .fontColor($r('app.color.status_error'))
           .textAlign(TextAlign.Center)
         Button('重试加载更多')
           .height(40)
@@ -1023,7 +1023,7 @@ export struct TopicDetailPage {
       } else if (this.state.previousPaginationMessage.length > 0) {
         Text(this.state.previousPaginationMessage)
           .fontSize(13)
-          .fontColor('#C62828')
+          .fontColor($r('app.color.status_error'))
         Button('重试加载更早 Post')
           .height(38)
           .fontSize(13)
@@ -1068,7 +1068,7 @@ export struct TopicDetailPage {
           Text(this.state.refreshMessage)
             .width('100%')
             .fontSize(13)
-            .fontColor('#C62828')
+            .fontColor($r('app.color.status_error'))
             .textAlign(TextAlign.Center)
             .padding({ top: 6, bottom: 6 })
         }

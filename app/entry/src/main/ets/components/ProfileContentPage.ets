@@ -48,7 +48,7 @@ export struct ProfileContentPage {
     .width('100%')
     .padding(15)
     .backgroundColor($r('sys.color.comp_background_primary'))
-    .borderRadius(12)
+    .borderRadius($r('app.float.card_corner_radius'))
     .onClick(onClick)
   }
 
@@ -59,7 +59,7 @@ export struct ProfileContentPage {
         LoadingProgress().width(28).height(28)
         Text('正在加载更多').fontSize(12).fontColor($r('sys.color.font_secondary'))
       } else if (this.message.length > 0) {
-        Text(this.message).fontSize(12).fontColor('#C62828').textAlign(TextAlign.Center)
+        Text(this.message).fontSize(12).fontColor($r('app.color.status_error')).textAlign(TextAlign.Center)
         Button('重试加载更多').height(34).onClick(this.onLoadMore)
       } else if (!this.hasMore && this.kind !== ProfileContentKind.DRAFTS) {
         Text('已经显示全部内容').fontSize(12).fontColor($r('sys.color.font_tertiary'))
@@ -79,7 +79,7 @@ export struct ProfileContentPage {
       .width('100%').height('100%').justifyContent(FlexAlign.Center)
     } else if (this.message.length > 0 && this.empty()) {
       Column({ space: 12 }) {
-        Text(this.message).fontSize(14).fontColor('#C62828').textAlign(TextAlign.Center)
+        Text(this.message).fontSize(14).fontColor($r('app.color.status_error')).textAlign(TextAlign.Center)
         Button('重试').onClick(this.onRetry)
       }
       .width('100%').height('100%').padding(28).justifyContent(FlexAlign.Center)

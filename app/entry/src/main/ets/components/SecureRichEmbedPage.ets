@@ -31,7 +31,7 @@ export struct SecureRichEmbedPage {
     Column({ space: 14 }) {
       SymbolGlyph($r('sys.symbol.exclamationmark_circle'))
         .fontSize(36)
-        .fontColor(['#C62828'])
+        .fontColor([$r('app.color.status_error')])
       Text('嵌入内容未加载')
         .fontSize(20)
         .fontWeight(FontWeight.Bold)
@@ -54,7 +54,7 @@ export struct SecureRichEmbedPage {
       Row({ space: 8 }) {
         SymbolGlyph($r('sys.symbol.info_circle'))
           .fontSize(15)
-          .fontColor(['#2068C9'])
+          .fontColor([$r('app.color.text_link')])
         Text(`${this.title} · 隔离 ArkWeb`)
           .fontSize(12)
           .fontColor($r('sys.color.font_secondary'))

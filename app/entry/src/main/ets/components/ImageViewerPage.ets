@@ -33,8 +33,8 @@ export struct ImageViewerPage {
       }
       .layoutWeight(1)
       .width('100%')
-      .backgroundColor('#111418')
-      .borderRadius(12)
+      .backgroundColor($r('app.color.image_viewer_surface'))
+      .borderRadius($r('app.float.card_corner_radius'))
 
       if (this.presentation().statusText().length > 0) {
         Row({ space: 8 }) {
@@ -49,7 +49,7 @@ export struct ImageViewerPage {
           Text(this.presentation().statusText())
             .fontSize(13)
             .fontColor(this.state.kind === ImageViewerStateKind.ERROR
-              ? '#C62828'
+              ? $r('app.color.status_error')
               : $r('sys.color.font_secondary'))
             .layoutWeight(1)
         }

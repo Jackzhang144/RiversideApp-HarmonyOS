@@ -56,7 +56,7 @@ export struct HomeBrowsePage {
           Column({ space: 5 }) {
             SymbolGlyph(this.featureIcon(site.provider))
               .fontSize(22)
-              .fontColor(['#317AF7'])
+              .fontColor([$r('app.color.brand_primary')])
             Text(site.title)
               .fontSize(11)
               .fontWeight(FontWeight.Bold)
@@ -91,9 +91,9 @@ export struct HomeBrowsePage {
         .height(28)
         .fontSize(10)
         .fontWeight(FontWeight.Bold)
-        .fontColor('#317AF7')
+        .fontColor($r('app.color.brand_primary'))
         .textAlign(TextAlign.Center)
-        .backgroundColor('#EAF2FF')
+        .backgroundColor($r('app.color.brand_tint_surface'))
         .borderRadius(14)
       if (user.avatarUrl.length > 0) {
         Image(user.avatarUrl)
@@ -203,7 +203,7 @@ export struct HomeBrowsePage {
       )
     }
     .width('100%')
-    .height(56)
+    .height($r('app.float.page_header_height'))
     .padding({ left: 16, right: 10 })
     .backgroundColor($r('sys.color.comp_background_primary'))
     .border({ width: { bottom: 1 }, color: $r('sys.color.comp_divider') })
@@ -215,7 +215,7 @@ export struct HomeBrowsePage {
         maxLines: 1,
         overflow: TextOverflow.Clip,
         unselectedColor: $r('sys.color.font_primary'),
-        selectedColor: '#317AF7',
+        selectedColor: $r('app.color.brand_primary'),
         font: { size: 14 }
       })
       .padding({ left: 8, right: 8, top: 0, bottom: 0 });
@@ -282,7 +282,7 @@ export struct HomeBrowsePage {
       Row({ space: 10 }) {
         SymbolGlyph($r('sys.symbol.calendar'))
           .fontSize(22)
-          .fontColor(['#317AF7'])
+          .fontColor([$r('app.color.brand_primary')])
         Column({ space: 2 }) {
           Text('世界杯赛程入口')
             .fontSize(15)
@@ -305,10 +305,10 @@ export struct HomeBrowsePage {
       }
     }
     .width('100%')
-    .padding(14)
-    .backgroundColor('#FFFFFF')
-    .borderRadius(12)
-    .border({ width: 1, color: '#E8EBF0' })
+    .padding($r('app.float.card_content_padding'))
+    .backgroundColor($r('sys.color.comp_background_primary'))
+    .borderRadius($r('app.float.card_corner_radius'))
+    .border({ width: 1, color: $r('sys.color.comp_divider') })
   }
 
   @Builder
@@ -324,7 +324,7 @@ export struct HomeBrowsePage {
       } else if (this.state.paginationMessage.length > 0) {
         Text(this.state.paginationMessage)
           .fontSize(12)
-          .fontColor('#C62828')
+          .fontColor($r('app.color.status_error'))
           .textAlign(TextAlign.Center)
         Button('重试加载更多')
           .height(34)

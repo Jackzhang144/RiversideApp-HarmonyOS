@@ -36,7 +36,7 @@ export struct AppSettingsPage {
       if (option.selected) {
         SymbolGlyph($r('sys.symbol.checkmark_circle_fill'))
           .fontSize(22)
-          .fontColor(['#317AF7'])
+          .fontColor([$r('app.color.brand_primary')])
       } else {
         SymbolGlyph($r('sys.symbol.circle'))
           .fontSize(22)
@@ -68,7 +68,7 @@ export struct AppSettingsPage {
       .layoutWeight(1)
 
       if (option.selected) {
-        SymbolGlyph($r('sys.symbol.checkmark_circle_fill')).fontSize(22).fontColor(['#317AF7'])
+        SymbolGlyph($r('sys.symbol.checkmark_circle_fill')).fontSize(22).fontColor([$r('app.color.brand_primary')])
       } else {
         SymbolGlyph($r('sys.symbol.circle')).fontSize(22).fontColor([$r('sys.color.font_tertiary')])
       }

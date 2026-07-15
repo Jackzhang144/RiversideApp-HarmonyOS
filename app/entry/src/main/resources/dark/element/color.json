@@ -3,6 +3,70 @@
     {
       "name": "start_window_background",
       "value": "#000000"
+    },
+    {
+      "name": "brand_primary",
+      "value": "#78A9FF"
+    },
+    {
+      "name": "brand_selected_text",
+      "value": "#A9D4F5"
+    },
+    {
+      "name": "brand_selected_surface",
+      "value": "#1B3A52"
+    },
+    {
+      "name": "brand_tint_surface",
+      "value": "#17334D"
+    },
+    {
+      "name": "text_link",
+      "value": "#82B4FF"
+    },
+    {
+      "name": "status_error",
+      "value": "#FF858C"
+    },
+    {
+      "name": "status_warning",
+      "value": "#FFB967"
+    },
+    {
+      "name": "status_success",
+      "value": "#7DCE84"
+    },
+    {
+      "name": "verified_identity",
+      "value": "#8DD493"
+    },
+    {
+      "name": "unread_indicator",
+      "value": "#FF7179"
+    },
+    {
+      "name": "quote_border",
+      "value": "#86AFE0"
+    },
+    {
+      "name": "code_text",
+      "value": "#D7E3F4"
+    },
+    {
+      "name": "code_surface",
+      "value": "#202A36"
+    },
+    {
+      "name": "image_viewer_surface",
+      "value": "#111418"
+    },
+    {
+      "name": "on_accent",
+      "value": "#FFFFFF"
+    },
+    {
+      "name": "prototype_entry_surface",
+      "value": "#24262B"
     }
   ]
 }

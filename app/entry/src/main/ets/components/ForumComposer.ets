@@ -162,7 +162,7 @@ export struct ForumComposer {
         ? $r('sys.symbol.message')
         : $r('sys.symbol.square_and_pencil'))
         .fontSize(18)
-        .fontColor(['#317AF7'])
+        .fontColor([$r('app.color.brand_primary')])
       Column({ space: 2 }) {
         Text(this.presentation.contextTitle)
           .fontSize(13)
@@ -177,15 +177,15 @@ export struct ForumComposer {
       .layoutWeight(1)
       Text(this.presentation.contextBadge)
         .fontSize(11)
-        .fontColor('#2068C9')
+        .fontColor($r('app.color.text_link'))
         .padding({ left: 8, right: 8, top: 5, bottom: 5 })
         .backgroundColor($r('sys.color.background_secondary'))
-        .borderRadius(12)
+        .borderRadius($r('app.float.card_corner_radius'))
     }
     .width('100%')
     .padding(12)
     .backgroundColor($r('sys.color.background_secondary'))
-    .borderRadius(12)
+    .borderRadius($r('app.float.card_corner_radius'))
   }
 
   private applyTool(tool: ComposerTool): void {
@@ -291,7 +291,7 @@ export struct ForumComposer {
       .fontSize(12)
       .enabled(this.presentation.canEdit())
       .backgroundColor($r('sys.color.background_secondary'))
-      .fontColor('#2068C9')
+      .fontColor($r('app.color.text_link'))
       .margin({ right: 7, bottom: 7 })
       .onClick((): void => this.applyTool(tool))
       .accessibilityText(accessibilityText)
@@ -385,7 +385,7 @@ export struct ForumComposer {
     .width('100%')
     .padding(12)
     .backgroundColor($r('sys.color.background_secondary'))
-    .borderRadius(12)
+    .borderRadius($r('app.float.card_corner_radius'))
   }
 
   @Builder
@@ -459,7 +459,7 @@ export struct ForumComposer {
               .height(34)
               .fontSize(12)
               .backgroundColor($r('sys.color.background_secondary'))
-              .fontColor('#C62828')
+              .fontColor($r('app.color.status_error'))
               .onClick(this.onCancelMedia)
           }
           if (this.presentation.canRetryMedia()) {
@@ -467,7 +467,7 @@ export struct ForumComposer {
               .height(34)
               .fontSize(12)
               .backgroundColor($r('sys.color.background_secondary'))
-              .fontColor('#2068C9')
+              .fontColor($r('app.color.text_link'))
               .onClick(this.onRetryMedia)
           }
           if (this.presentation.canRemoveMedia()) {
@@ -531,7 +531,7 @@ export struct ForumComposer {
           .height(42)
           .enabled(this.presentation.canEdit())
           .backgroundColor($r('sys.color.background_secondary'))
-          .fontColor('#2068C9')
+          .fontColor($r('app.color.text_link'))
           .onClick(this.onSaveDraft)
           .accessibilityText('保存服务端草稿')
         Button('舍弃')
@@ -539,7 +539,7 @@ export struct ForumComposer {
           .height(42)
           .enabled(!this.presentation.isBusy())
           .backgroundColor($r('sys.color.background_secondary'))
-          .fontColor('#C62828')
+          .fontColor($r('app.color.status_error'))
           .onClick(this.onDiscard)
           .accessibilityText('舍弃草稿并关闭编辑器')
       }

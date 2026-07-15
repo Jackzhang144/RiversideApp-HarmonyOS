@@ -58,7 +58,7 @@ export struct ProfileEditorPage {
           Button('清除背景图', { type: ButtonType.Normal })
             .width('100%')
             .enabled(!this.busy)
-            .fontColor('#C62828')
+            .fontColor($r('app.color.status_error'))
             .onClick(this.onClearBackground)
             .accessibilityText('清除当前个人页背景')
         }
@@ -68,7 +68,7 @@ export struct ProfileEditorPage {
             : this.mediaState.message)
             .fontSize(12)
             .fontColor(this.mediaState.kind === MediaUploadStateKind.FAILED
-              ? '#C62828'
+              ? $r('app.color.status_error')
               : $r('sys.color.font_secondary'))
             .width('100%')
         }
@@ -88,12 +88,12 @@ export struct ProfileEditorPage {
               .width('100%')
           }
           .width('100%')
-          .padding(14)
+          .padding($r('app.float.card_content_padding'))
           .backgroundColor($r('sys.color.background_secondary'))
-          .borderRadius(12)
+          .borderRadius($r('app.float.card_corner_radius'))
         }
         if (this.message.length > 0) {
-          Text(this.message).fontSize(12).fontColor('#C62828').width('100%')
+          Text(this.message).fontSize(12).fontColor($r('app.color.status_error')).width('100%')
         }
         Button('保存资料', { type: ButtonType.Normal })
           .width('100%')

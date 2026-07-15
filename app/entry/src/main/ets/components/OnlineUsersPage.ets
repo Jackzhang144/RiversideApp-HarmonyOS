@@ -15,8 +15,8 @@ export struct OnlineUsersPage {
         .textAlign(TextAlign.Center)
         .fontSize(Math.max(10, size * 0.36))
         .fontWeight(FontWeight.Bold)
-        .fontColor('#317AF7')
-        .backgroundColor('#EAF2FF')
+        .fontColor($r('app.color.brand_primary'))
+        .backgroundColor($r('app.color.brand_tint_surface'))
         .borderRadius(size / 2)
       if (user.avatarUrl.length > 0) {
         Image(user.avatarUrl)

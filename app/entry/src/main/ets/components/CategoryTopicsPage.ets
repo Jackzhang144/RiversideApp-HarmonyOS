@@ -110,7 +110,7 @@ export struct CategoryTopicsPage {
             } else if (this.state.paginationMessage.length > 0) {
               Text(this.state.paginationMessage)
                 .fontSize(12)
-                .fontColor('#C62828')
+                .fontColor($r('app.color.status_error'))
                 .textAlign(TextAlign.Center)
               Button('重试加载更多')
                 .height(34)

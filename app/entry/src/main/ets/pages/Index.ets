@@ -140,6 +140,7 @@ import {
 import { MediaGalleryService } from '../media/MediaGalleryService';
 import { PreferencesDiscoverySettingsStore } from '../settings/PreferencesDiscoverySettingsStore';
 import {
+  AppSystemBarPalette,
   AppThemeMode,
   appThemePlatformColorMode,
   AppThemeSettingsStore
@@ -162,7 +163,7 @@ const IMAGE_VIEWER_ROUTE: string = 'image-viewer';
 const UI_PROTOTYPE_ROUTE: string = 'ui-prototype';
 const CHAT_CONVERSATION_ROUTE: string = 'chat-conversation';
 const RIVERSIDE_BASE_URL: string = 'https://river-side.cc';
-const ROOT_TAB_SELECTED_COLOR: string = '#317AF7';
+const ROOT_TAB_SELECTED_COLOR: ResourceColor = $r('app.color.brand_primary');
 
 class RepositorySessionProvider implements AuthenticatedSessionProvider {
   private readonly repository: AuthRepository;
@@ -614,10 +615,12 @@ struct Index {
     try {
       const mainWindow: window.Window = await window.getLastWindow(abilityContext);
       await mainWindow.setWindowSystemBarProperties({
-        statusBarColor: '#00000000',
-        navigationBarColor: '#00000000',
-        statusBarContentColor: dark ? '#F5F5F5' : '#1F1F1F',
-        navigationBarContentColor: dark ? '#F5F5F5' : '#606060'
+        statusBarColor: AppSystemBarPalette.transparent,
+        navigationBarColor: AppSystemBarPalette.transparent,
+        statusBarContentColor: dark ? AppSystemBarPalette.darkContent : AppSystemBarPalette.lightStatusContent,
+        navigationBarContentColor: dark
+          ? AppSystemBarPalette.darkContent
+          : AppSystemBarPalette.lightNavigationContent
       });
     } catch (_) {
       // Theme selection remains valid even when system-bar styling is temporarily unavailable.

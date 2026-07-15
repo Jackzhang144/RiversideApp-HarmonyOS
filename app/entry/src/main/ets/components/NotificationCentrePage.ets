@@ -56,7 +56,7 @@ export struct NotificationCentrePage {
       .accessibilityText('刷新消息与活动')
     }
     .width('100%')
-    .height(56)
+    .height($r('app.float.page_header_height'))
     .padding({ left: 12, right: 10 })
     .backgroundColor($r('sys.color.comp_background_primary'))
     .border({ width: { bottom: 1 }, color: $r('sys.color.comp_divider') })
@@ -68,16 +68,16 @@ export struct NotificationCentrePage {
       Row({ space: 5 }) {
         SymbolGlyph(this.bucketIcon(bucket))
           .fontSize(16)
-          .fontColor([this.state.bucket === bucket ? '#245D86' : $r('sys.color.font_secondary')])
+          .fontColor([this.state.bucket === bucket ? $r('app.color.brand_selected_text') : $r('sys.color.font_secondary')])
         Text(notificationBucketLabel(bucket))
           .fontSize(12)
-          .fontColor(this.state.bucket === bucket ? '#245D86' : $r('sys.color.font_primary'))
+          .fontColor(this.state.bucket === bucket ? $r('app.color.brand_selected_text') : $r('sys.color.font_primary'))
       }
       .justifyContent(FlexAlign.Center)
     }
     .height(40)
     .layoutWeight(1)
-    .backgroundColor(this.state.bucket === bucket ? '#DCEBFA' : $r('sys.color.comp_background_primary'))
+    .backgroundColor(this.state.bucket === bucket ? $r('app.color.brand_selected_surface') : $r('sys.color.comp_background_primary'))
     .borderRadius(10)
     .onClick((): void => this.onSelectBucket(bucket))
     .accessibilityText(
@@ -116,11 +116,11 @@ export struct NotificationCentrePage {
         Text(item.actorDisplayName().substring(0, 1))
           .fontSize(13)
           .fontWeight(FontWeight.Bold)
-          .fontColor('#317AF7')
+          .fontColor($r('app.color.brand_primary'))
           .width(36)
           .height(36)
           .textAlign(TextAlign.Center)
-          .backgroundColor('#EAF2FF')
+          .backgroundColor($r('app.color.brand_tint_surface'))
           .borderRadius(18)
         if (item.avatarUrl.length > 0) {
           Image(item.avatarUrl)
@@ -169,9 +169,9 @@ export struct NotificationCentrePage {
       .layoutWeight(1)
     }
     .width('100%')
-    .padding(14)
+    .padding($r('app.float.card_content_padding'))
     .backgroundColor($r('sys.color.comp_background_primary'))
-    .borderRadius(12)
+    .borderRadius($r('app.float.card_corner_radius'))
     .border({ width: 1, color: $r('sys.color.comp_divider') })
     .enabled(item.topicId > 0)
     .onClick((): void => this.onOpenItem(item))
@@ -189,7 +189,7 @@ export struct NotificationCentrePage {
         LoadingProgress().width(28).height(28)
         Text('正在加载更多').fontSize(12).fontColor($r('sys.color.font_secondary'))
       } else if (this.state.message.length > 0 && this.state.items.length > 0) {
-        Text(this.state.message).fontSize(12).fontColor('#C62828').textAlign(TextAlign.Center)
+        Text(this.state.message).fontSize(12).fontColor($r('app.color.status_error')).textAlign(TextAlign.Center)
         Button('重试加载更多').height(34).onClick(this.onLoadMore)
       } else if (!this.state.hasMore) {
         Text('已经显示全部消息').fontSize(12).fontColor($r('sys.color.font_tertiary'))
@@ -208,7 +208,7 @@ export struct NotificationCentrePage {
     } else if (this.state.kind === NotificationCentreStateKind.ERROR && this.state.items.length === 0) {
       Column({ space: 12 }) {
         Text('消息加载失败').fontSize(18).fontWeight(FontWeight.Bold)
-        Text(this.state.message).fontSize(13).fontColor('#C62828').textAlign(TextAlign.Center)
+        Text(this.state.message).fontSize(13).fontColor($r('app.color.status_error')).textAlign(TextAlign.Center)
         Button('重试').onClick(this.onRefresh)
       }.width('100%').height('100%').padding(32).justifyContent(FlexAlign.Center)
     } else if (this.state.kind === NotificationCentreStateKind.EMPTY) {

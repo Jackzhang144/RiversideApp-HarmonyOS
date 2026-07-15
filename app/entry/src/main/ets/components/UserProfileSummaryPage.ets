@@ -41,7 +41,7 @@ export struct UserProfileSummaryPage {
       Text('Profile 加载失败').fontSize(21).fontWeight(FontWeight.Bold)
       Text(this.state.message)
         .fontSize(13)
-        .fontColor('#C62828')
+        .fontColor($r('app.color.status_error'))
         .textAlign(TextAlign.Center)
       Button('重试').onClick(this.onRetry)
     }
@@ -64,11 +64,11 @@ export struct UserProfileSummaryPage {
             ForEach(presentation.badges, (badge: string): void => {
               Text(badge)
                 .fontSize(12)
-                .fontColor('#2068C9')
+                .fontColor($r('app.color.text_link'))
                 .padding({ left: 10, right: 10, top: 5, bottom: 5 })
                 .margin({ right: 8, bottom: 8 })
-                .backgroundColor('#EAF2FF')
-                .borderRadius(12)
+                .backgroundColor($r('app.color.brand_tint_surface'))
+                .borderRadius($r('app.float.card_corner_radius'))
             }, (badge: string, index: number): string => `${index}-${badge}`)
           }
           .width('100%')
@@ -109,7 +109,7 @@ export struct UserProfileSummaryPage {
             Image(profile.profileBackgroundUrl)
               .width('100%')
               .height(132)
-              .borderRadius(12)
+              .borderRadius($r('app.float.card_corner_radius'))
               .objectFit(ImageFit.Cover)
               .accessibilityText(`${profile.displayName} 的个人页背景`)
           }
@@ -122,7 +122,7 @@ export struct UserProfileSummaryPage {
           } else {
             SymbolGlyph($r('sys.symbol.person_crop_circle_fill_1'))
               .fontSize(68)
-              .fontColor(['#317AF7'])
+              .fontColor([$r('app.color.brand_primary')])
           }
           Text(profile.displayName).fontSize(22).fontWeight(FontWeight.Bold)
           Text(`@${profile.username}`).fontSize(13).fontColor($r('sys.color.font_secondary'))
@@ -133,9 +133,9 @@ export struct UserProfileSummaryPage {
             Text(profile.roleLabel)
               .fontSize(12)
               .fontWeight(FontWeight.Bold)
-              .fontColor('#2068C9')
+              .fontColor($r('app.color.text_link'))
             if (profile.isVerified) {
-              Text('认证校友').fontSize(12).fontWeight(FontWeight.Bold).fontColor('#2E7D32')
+              Text('认证校友').fontSize(12).fontWeight(FontWeight.Bold).fontColor($r('app.color.verified_identity'))
             }
             Text(`TL ${profile.trustLevel}`).fontSize(12).fontColor($r('sys.color.font_secondary'))
           }
@@ -198,7 +198,7 @@ export struct UserProfileSummaryPage {
                 .fontColor($r('sys.color.font_secondary')).width('100%')
             }
             if (profile.website.length > 0) {
-              Text(profile.website).fontSize(13).fontColor('#317AF7').width('100%')
+              Text(profile.website).fontSize(13).fontColor($r('app.color.brand_primary')).width('100%')
             }
           }
           .width('100%')
@@ -231,7 +231,7 @@ export struct UserProfileSummaryPage {
           .borderRadius(14)
         }
         if (this.state.message.length > 0) {
-          Text(this.state.message).fontSize(12).fontColor('#C62828').width('100%')
+          Text(this.state.message).fontSize(12).fontColor($r('app.color.status_error')).width('100%')
         }
       }
       .width('100%')

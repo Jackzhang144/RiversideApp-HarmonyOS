@@ -53,7 +53,7 @@ export struct AccountPage {
         Stack() {
           SymbolGlyph($r('sys.symbol.person_crop_circle_fill_1'))
             .fontSize(42)
-            .fontColor(['#317AF7'])
+            .fontColor([$r('app.color.brand_primary')])
           if (presentation.avatarUrl.length > 0) {
             Image(presentation.avatarUrl)
               .width(64)
@@ -64,7 +64,7 @@ export struct AccountPage {
         }
         .width(64)
         .height(64)
-        .backgroundColor('#EAF2FF')
+        .backgroundColor($r('app.color.brand_tint_surface'))
         .borderRadius(32)
 
         Column({ space: 6 }) {
@@ -77,12 +77,12 @@ export struct AccountPage {
               LoadingProgress()
                 .width(18)
                 .height(18)
-                .color('#317AF7')
+                .color($r('app.color.brand_primary'))
             }
           }
           Text(presentation.detail)
             .fontSize(13)
-            .fontColor(presentation.error ? '#C62828' : $r('sys.color.font_secondary'))
+            .fontColor(presentation.error ? $r('app.color.status_error') : $r('sys.color.font_secondary'))
             .lineHeight(19)
           if (presentation.capabilityDetail.length > 0) {
             Text(presentation.capabilityDetail)
@@ -95,7 +95,7 @@ export struct AccountPage {
               .height(32)
               .fontSize(12)
               .backgroundColor($r('sys.color.background_secondary'))
-              .fontColor('#317AF7')
+              .fontColor($r('app.color.brand_primary'))
               .onClick(this.onRetryIdentity)
               .accessibilityText('重新加载 RiverSide 身份')
           }
@@ -109,17 +109,17 @@ export struct AccountPage {
         Button('登录并授权 RiverSide', { type: ButtonType.Normal })
           .width('100%')
           .height(44)
-          .borderRadius(12)
+          .borderRadius($r('app.float.card_corner_radius'))
           .onClick(this.onLogin)
           .accessibilityText('登录并授权 RiverSide 账户')
       } else if (presentation.primaryAction === AccountPrimaryAction.LOGOUT) {
         Button('退出登录', { type: ButtonType.Normal })
           .width('100%')
           .height(44)
-          .fontColor('#C62828')
+          .fontColor($r('app.color.status_error'))
           .backgroundColor($r('sys.color.comp_background_primary'))
           .border({ width: 1, color: $r('sys.color.comp_divider') })
-          .borderRadius(12)
+          .borderRadius($r('app.float.card_corner_radius'))
           .onClick(this.onLogout)
           .accessibilityText('退出 RiverSide 账户')
       }
@@ -190,8 +190,8 @@ export struct AccountPage {
     Button('UI 原型', { type: ButtonType.Normal })
       .fontSize(12)
       .fontWeight(FontWeight.Medium)
-      .fontColor('#FFFFFF')
-      .backgroundColor('#24262B')
+      .fontColor($r('app.color.on_accent'))
+      .backgroundColor($r('app.color.prototype_entry_surface'))
       .borderRadius(16)
       .height(32)
       .padding({ left: 16, right: 16 })

@@ -46,7 +46,7 @@ export struct CategoryBrowsePage {
     if (color.length === 7 && color.startsWith('#')) {
       return color;
     }
-    return '#317AF7';
+    return $r('app.color.brand_primary');
   }
 
   @Builder
@@ -58,7 +58,7 @@ export struct CategoryBrowsePage {
         .layoutWeight(1)
     }
     .width('100%')
-    .height(56)
+    .height($r('app.float.page_header_height'))
     .padding({ left: 16, right: 10 })
     .backgroundColor($r('sys.color.comp_background_primary'))
     .border({ width: { bottom: 1 }, color: $r('sys.color.comp_divider') })
