@@ -25,6 +25,8 @@ import {
 import { RichEmbedProvider } from '../models/RichContentModels';
 import { MediaUploadState } from '../models/MediaModels';
 import { ChatEmoji } from '../models/ChatModels';
+import { RepositoryResult } from '../core/RepositoryResult';
+import { ComposerMentionUser } from '../models/ComposerMentionModels';
 import {
   categoryLabel,
   displayedReactions,
@@ -96,6 +98,10 @@ export struct TopicDetailPage {
   onRetryMedia: () => void = (): void => {};
   onRemoveMedia: () => void = (): void => {};
   onLoadEmojis: () => void = (): void => {};
+  onLoadMentionUsers: (term: string) => Promise<RepositoryResult<Array<ComposerMentionUser>>> =
+    async (_term: string): Promise<RepositoryResult<Array<ComposerMentionUser>>> => {
+      return RepositoryResult.success<Array<ComposerMentionUser>>([]);
+    };
   private readProgressTimer: number = -1;
   private pendingReadPostNumber: number = 0;
   private readonly readingScroller: Scroller = new Scroller();
@@ -836,7 +842,10 @@ export struct TopicDetailPage {
       onCancelMedia: (): void => this.onCancelMedia(),
       onRetryMedia: (): void => this.onRetryMedia(),
       onRemoveMedia: (): void => this.onRemoveMedia(),
-      onLoadEmojis: (): void => this.onLoadEmojis()
+      onLoadEmojis: (): void => this.onLoadEmojis(),
+      onLoadMentionUsers: (term: string): Promise<RepositoryResult<Array<ComposerMentionUser>>> => {
+        return this.onLoadMentionUsers(term);
+      }
     })
   }
 

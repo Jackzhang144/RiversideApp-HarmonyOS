@@ -34,8 +34,8 @@ export class ForumComposerPresentation {
   public readonly showsDraftActions: boolean;
   public readonly imageActionAvailable: boolean;
   public readonly imageActionAccessibilityText: string = '选择并上传图片';
-  public readonly mentionActionAvailable: boolean = false;
-  public readonly mentionActionAccessibilityText: string = '@ 提及，未实现';
+  public readonly mentionActionAvailable: boolean;
+  public readonly mentionActionAccessibilityText: string = '插入用户提及';
   public readonly mediaState: MediaUploadState | null;
 
   private constructor(
@@ -61,6 +61,7 @@ export class ForumComposerPresentation {
     this.status = status;
     this.message = message;
     this.mediaState = mediaState;
+    this.mentionActionAvailable = this.canEdit();
     this.showsTitleInput = this.isTopicMode();
     this.showsCategoryInput = this.isTopicMode();
     this.categorySelected = categorySelected;

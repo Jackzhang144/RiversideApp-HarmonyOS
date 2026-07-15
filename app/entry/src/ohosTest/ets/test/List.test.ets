@@ -25,6 +25,7 @@ import topicReadingTest from './TopicReading.test';
 import topicReadingPresentationTest from './TopicReadingPresentation.test';
 import chatModelsTest from './ChatModels.test';
 import composerEmojiModelsTest from './ComposerEmojiModels.test';
+import composerMentionTest from './ComposerMention.test';
 import chatRepositoryTest from './ChatRepository.test';
 import chatModelTest from './ChatModel.test';
 import chatComposerEditingTest from './ChatComposerEditing.test';
@@ -36,6 +37,7 @@ import presenceHeartbeatTest from './PresenceHeartbeat.test';
 
 export default function tests(): void {
   composerEmojiModelsTest();
+  composerMentionTest();
   chatComposerEditingTest();
   presenceHeartbeatTest();
   notificationCentreModelTest();

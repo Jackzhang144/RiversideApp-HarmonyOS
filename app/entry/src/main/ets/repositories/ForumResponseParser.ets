@@ -23,6 +23,7 @@ import {
   SearchUser
 } from '../models/DiscoveryModels';
 import { CurrentUser } from '../models/ReplyModels';
+import { ComposerMentionUser } from '../models/ComposerMentionModels';
 import { ServerDraft } from '../models/AuthoringModels';
 import {
   ProfileGroup,
@@ -1061,6 +1062,27 @@ export class ForumResponseParser {
       }
     }
     return RepositoryResult.success<Array<string>>(suggestions);
+  }
+
+  public parseComposerMentionUsers(text: string): RepositoryResult<Array<ComposerMentionUser>> {
+    const envelope: JsonObjectReader | null = JsonObjectReader.parse(text);
+    const userValues: Array<Object | null> | null = envelope?.array('users') ?? null;
+    if (envelope === null || userValues === null) {
+      return RepositoryResult.failure<Array<ComposerMentionUser>>('用户提及联想格式无效');
+    }
+    const users: Array<ComposerMentionUser> = [];
+    for (const value of userValues) {
+      const user: JsonObjectReader | null = JsonObjectReader.fromValue(value);
+      const username: string | null = user?.string('username') ?? null;
+      if (username !== null && username.trim().length > 0 && users.length < 6) {
+        users.push(new ComposerMentionUser(
+          username,
+          user?.string('name') ?? '',
+          user?.string('avatar_template') ?? ''
+        ));
+      }
+    }
+    return RepositoryResult.success<Array<ComposerMentionUser>>(users);
   }
 
   public parseOnlineUsers(text: string): RepositoryResult<OnlineUsers> {

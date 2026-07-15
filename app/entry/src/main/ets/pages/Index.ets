@@ -105,6 +105,7 @@ import {
 } from '../models/DiscoveryModels';
 import { CurrentUser } from '../models/ReplyModels';
 import { ComposerEdit, ServerDraft } from '../models/AuthoringModels';
+import { ComposerMentionUser } from '../models/ComposerMentionModels';
 import {
   ProfileNotificationLevel,
   ProfileUpdateRequest,
@@ -728,6 +729,14 @@ struct Index {
     await model.loadEmojis();
     this.synchronizeChatState();
     this.composerEmojiLoading = false;
+  }
+
+  private loadComposerMentionUsers(term: string): Promise<RepositoryResult<Array<ComposerMentionUser>>> {
+    const repository: DiscourseForumRepository | null = this.forumRepository;
+    if (repository === null) {
+      return Promise.resolve(RepositoryResult.failure<Array<ComposerMentionUser>>('论坛服务未初始化'));
+    }
+    return repository.searchMentionUsers(term);
   }
 
   private synchronizeChatPolling(): void {
@@ -2473,6 +2482,9 @@ struct Index {
           },
           onLoadEmojis: (): void => {
             this.loadComposerEmojis();
+          },
+          onLoadMentionUsers: (term: string): Promise<RepositoryResult<Array<ComposerMentionUser>>> => {
+            return this.loadComposerMentionUsers(term);
           }
         })
       }
@@ -2729,6 +2741,9 @@ struct Index {
           },
           onLoadEmojis: (): void => {
             this.loadComposerEmojis();
+          },
+          onLoadMentionUsers: (term: string): Promise<RepositoryResult<Array<ComposerMentionUser>>> => {
+            return this.loadComposerMentionUsers(term);
           }
         })
       }

@@ -29,6 +29,7 @@ import { ProfileRepository } from './ProfileRepository';
 import { ChatRepository } from './ChatRepository';
 import { NotificationRepository } from './NotificationRepository';
 import { ForumResponseParser } from './ForumResponseParser';
+import { ComposerMentionUser } from '../models/ComposerMentionModels';
 import {
   ProfileNotificationLevel,
   ProfileUpdateRequest,
@@ -500,6 +501,23 @@ export class DiscourseForumRepository implements
       return RepositoryResult.failure<Array<string>>(response.message);
     }
     return this.parser.parseSearchSuggestions(response.body);
+  }
+
+  public async searchMentionUsers(term: string): Promise<RepositoryResult<Array<ComposerMentionUser>>> {
+    const normalizedTerm: string = term.trim();
+    if (normalizedTerm.length === 0) {
+      return RepositoryResult.success<Array<ComposerMentionUser>>([]);
+    }
+    const response: HttpTextResult = await this.client.get(
+      `/u/search/users.json?term=${encodeURIComponent(normalizedTerm)}&limit=6`
+    );
+    if (response.kind === HttpTextResultKind.UNAUTHORIZED) {
+      return RepositoryResult.unauthorized<Array<ComposerMentionUser>>();
+    }
+    if (!response.isSuccess()) {
+      return RepositoryResult.failure<Array<ComposerMentionUser>>(response.message);
+    }
+    return this.parser.parseComposerMentionUsers(response.body);
   }
 
   public async loadOnlineUsers(): Promise<RepositoryResult<OnlineUsers>> {

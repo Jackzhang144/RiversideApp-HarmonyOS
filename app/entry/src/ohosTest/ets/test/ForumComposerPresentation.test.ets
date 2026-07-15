@@ -40,8 +40,8 @@ export default function forumComposerPresentationTest(): void {
       expect(presentation.showsTitleInput).assertFalse();
       expect(presentation.imageActionAvailable).assertTrue();
       expect(presentation.imageActionAccessibilityText).assertEqual('选择并上传图片');
-      expect(presentation.mentionActionAvailable).assertFalse();
-      expect(presentation.mentionActionAccessibilityText).assertEqual('@ 提及，未实现');
+      expect(presentation.mentionActionAvailable).assertTrue();
+      expect(presentation.mentionActionAccessibilityText).assertEqual('插入用户提及');
       expect(presentation.showsDraftActions).assertTrue();
       expect(presentation.canSubmit()).assertTrue();
       expect(presentation.submitLabel()).assertEqual('发布 Reply');

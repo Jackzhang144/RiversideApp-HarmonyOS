@@ -6,9 +6,18 @@ import {
 import {
   applyComposerTool,
   ComposerEdit,
-  ComposerTool
+  ComposerTool,
+  insertComposerText
 } from '../models/AuthoringModels';
 import { filterComposerEmojis, insertComposerEmoji } from '../models/ComposerEmojiModels';
+import { RepositoryResult, RepositoryResultKind } from '../core/RepositoryResult';
+import {
+  applyComposerMention,
+  ComposerMentionQuery,
+  ComposerMentionRequestGate,
+  ComposerMentionUser,
+  findComposerMentionQuery
+} from '../models/ComposerMentionModels';
 import { ChatEmoji } from '../models/ChatModels';
 import { Category } from '../models/ForumModels';
 
@@ -40,9 +49,90 @@ export struct ForumComposer {
   onRetryMedia: () => void = (): void => {};
   onRemoveMedia: () => void = (): void => {};
   onLoadEmojis: () => void = (): void => {};
+  onLoadMentionUsers: (term: string) => Promise<RepositoryResult<Array<ComposerMentionUser>>> =
+    async (_term: string): Promise<RepositoryResult<Array<ComposerMentionUser>>> => {
+      return RepositoryResult.success<Array<ComposerMentionUser>>([]);
+    };
+  @State private mentionUsers: Array<ComposerMentionUser> = [];
+  @State private mentionLoading: boolean = false;
+  @State private mentionMessage: string = '';
   private readonly bodyController: TextAreaController = new TextAreaController();
+  private readonly mentionRequestGate: ComposerMentionRequestGate = new ComposerMentionRequestGate();
+  private mentionTimer: number = -1;
   private selectionStart: number = 0;
   private selectionEnd: number = 0;
+
+  aboutToDisappear(): void {
+    this.cancelMentionTimer();
+    this.mentionRequestGate.invalidate();
+  }
+
+  private cancelMentionTimer(): void {
+    if (this.mentionTimer >= 0) {
+      clearTimeout(this.mentionTimer);
+      this.mentionTimer = -1;
+    }
+  }
+
+  private resetMentionSuggestions(): void {
+    this.mentionUsers = [];
+    this.mentionLoading = false;
+    this.mentionMessage = '';
+  }
+
+  private scheduleMentionSearch(source: string, cursor: number): void {
+    this.cancelMentionTimer();
+    this.mentionRequestGate.invalidate();
+    const query: ComposerMentionQuery | null = findComposerMentionQuery(source, cursor);
+    if (query === null) {
+      this.resetMentionSuggestions();
+      return;
+    }
+    this.resetMentionSuggestions();
+    this.mentionTimer = setTimeout((): void => {
+      this.mentionTimer = -1;
+      this.loadMentionUsers(query.term);
+    }, 300);
+  }
+
+  private async loadMentionUsers(term: string): Promise<void> {
+    const generation: number = this.mentionRequestGate.issue();
+    this.mentionLoading = true;
+    const result: RepositoryResult<Array<ComposerMentionUser>> = await this.onLoadMentionUsers(term);
+    if (!this.mentionRequestGate.isCurrent(generation)) {
+      return;
+    }
+    this.mentionLoading = false;
+    if (result.kind === RepositoryResultKind.SUCCESS && result.data !== null) {
+      this.mentionUsers = result.data;
+      this.mentionMessage = result.data.length === 0 ? '没有匹配的用户' : '';
+      return;
+    }
+    this.mentionUsers = [];
+    this.mentionMessage = result.kind === RepositoryResultKind.UNAUTHORIZED
+      ? '登录后可搜索用户'
+      : result.message;
+  }
+
+  private handleBodyChange(value: string): void {
+    this.onBodyChange(value);
+    this.scheduleMentionSearch(value, Math.min(this.selectionEnd, value.length));
+  }
+
+  private selectMention(user: ComposerMentionUser): void {
+    const edit: ComposerEdit | null = applyComposerMention(
+      this.presentation.bodyDraft,
+      this.selectionEnd,
+      user.username
+    );
+    if (edit === null) {
+      this.resetMentionSuggestions();
+      return;
+    }
+    this.applyEdit(edit);
+    this.resetMentionSuggestions();
+    this.mentionRequestGate.invalidate();
+  }
 
   private categoryOptions(): Array<SelectOption> {
     const options: Array<SelectOption> = [];
@@ -108,6 +198,15 @@ export struct ForumComposer {
     this.applyEdit(edit);
   }
 
+  private insertText(text: string): void {
+    this.applyEdit(insertComposerText(
+      this.presentation.bodyDraft,
+      this.selectionStart,
+      this.selectionEnd,
+      text
+    ));
+  }
+
   private insertEmoji(name: string): void {
     const edit: ComposerEdit | null = insertComposerEmoji(
       this.presentation.bodyDraft,
@@ -140,6 +239,49 @@ export struct ForumComposer {
     setTimeout((): void => {
       this.bodyController.setTextSelection(edit.selectionStart, edit.selectionEnd);
     }, 0);
+  }
+
+  @Builder
+  private MentionSuggestions(): void {
+    if (this.mentionLoading || this.mentionUsers.length > 0 || this.mentionMessage.length > 0) {
+      Column({ space: 4 }) {
+        if (this.mentionLoading) {
+          Row({ space: 8 }) {
+            LoadingProgress().width(18).height(18)
+            Text('正在搜索用户').fontSize(12).fontColor($r('sys.color.font_secondary'))
+          }
+          .width('100%')
+          .padding(8)
+        } else if (this.mentionUsers.length > 0) {
+          ForEach(this.mentionUsers, (user: ComposerMentionUser) => {
+            Row({ space: 8 }) {
+              Text(`@${user.username}`).fontSize(14).fontWeight(FontWeight.Medium)
+              if (user.name.length > 0) {
+                Text(user.name)
+                  .fontSize(12)
+                  .fontColor($r('sys.color.font_secondary'))
+                  .maxLines(1)
+                  .textOverflow({ overflow: TextOverflow.Ellipsis })
+              }
+            }
+            .width('100%')
+            .padding({ left: 10, right: 10, top: 8, bottom: 8 })
+            .onClick((): void => this.selectMention(user))
+            .accessibilityText(`提及用户 ${user.username}`)
+          }, (user: ComposerMentionUser): string => user.username)
+        } else {
+          Text(this.mentionMessage)
+            .fontSize(12)
+            .fontColor($r('sys.color.font_secondary'))
+            .width('100%')
+            .padding(8)
+        }
+      }
+      .width('100%')
+      .backgroundColor('#FFFFFF')
+      .border({ width: 1, color: '#E4E7ED' })
+      .borderRadius(10)
+    }
   }
 
   @Builder
@@ -297,6 +439,7 @@ export struct ForumComposer {
         .backgroundColor('#F5F6F8')
         .fontColor($r('sys.color.font_tertiary'))
         .margin({ right: 7, bottom: 7 })
+        .onClick((): void => this.insertText('@'))
         .accessibilityText(this.presentation.mentionActionAccessibilityText)
     }
     .width('100%')
@@ -449,10 +592,11 @@ export struct ForumComposer {
           .enabled(this.presentation.canEdit())
           .backgroundColor('#F5F6F8')
           .borderRadius(10)
-          .onChange((value: string): void => this.onBodyChange(value))
+          .onChange((value: string): void => this.handleBodyChange(value))
           .onTextSelectionChange((selectionStart: number, selectionEnd: number): void => {
             this.selectionStart = selectionStart;
             this.selectionEnd = selectionEnd;
+            this.scheduleMentionSearch(this.presentation.bodyDraft, selectionEnd);
           })
           .accessibilityText(
             this.presentation.mode === ForumComposerMode.REPLY ||
@@ -460,6 +604,7 @@ export struct ForumComposer {
               ? 'Reply 内容'
               : 'Topic 正文'
           )
+        this.MentionSuggestions()
         Text(`${this.presentation.characterCount()} 字符 · 支持 Markdown 与服务端草稿`)
           .fontSize(11)
           .fontColor($r('sys.color.font_tertiary'))

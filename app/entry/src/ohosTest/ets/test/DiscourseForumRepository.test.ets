@@ -1,4 +1,5 @@
 import { describe, expect, it } from '@ohos/hypium';
+import { ComposerMentionUser } from '../../../main/ets/models/ComposerMentionModels';
 import { RepositoryResult, RepositoryResultKind } from '../../../main/ets/core/RepositoryResult';
 import {
   ForumPost,
@@ -218,6 +219,24 @@ export default function discourseForumRepositoryTest(): void {
       expect(blank.kind).assertEqual(RepositoryResultKind.FAILURE);
       done();
     });
+
+    it('loads at most six composer mention users through the Discourse user search endpoint', 0,
+      async (done: Function) => {
+        const client: StubForumHttpClient = new StubForumHttpClient();
+        client.results.push(HttpTextResult.success(200,
+          '{"users":[{"username":"river","name":"River User",' +
+          '"avatar_template":"/user_avatar/river/{size}/1.png"}]}'
+        ));
+        const repository: DiscourseForumRepository = new DiscourseForumRepository(client);
+
+        const result: RepositoryResult<Array<ComposerMentionUser>> = await repository.searchMentionUsers(' river ');
+
+        expect(client.paths[0]).assertEqual('/u/search/users.json?term=river&limit=6');
+        expect(result.data?.length).assertEqual(1);
+        expect(result.data?.[0].username).assertEqual('river');
+        expect(result.data?.[0].name).assertEqual('River User');
+        done();
+      });
 
     it('loads Topic detail with visit tracking enabled', 0, async (done: Function) => {
       const client: StubForumHttpClient = new StubForumHttpClient();
