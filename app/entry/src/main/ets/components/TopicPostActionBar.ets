@@ -96,11 +96,11 @@ export struct TopicPostActionBar {
   @Builder
   private MoreActionsTrigger(): void {
     Button() {
-      Text('•••')
+      SymbolGlyph($r('sys.symbol.line_3_horizontal'))
         .fontSize(20)
-        .fontColor(this.moreActionsExpanded
+        .fontColor([this.moreActionsExpanded
           ? $r('app.color.brand_primary')
-          : $r('sys.color.font_secondary'))
+          : $r('sys.color.font_secondary')])
     }
     .width(42)
     .height(34)
