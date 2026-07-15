@@ -20,7 +20,7 @@ import {
   MediaUploadState
 } from '../models/MediaModels';
 import { ChatRepository } from '../repositories/ChatRepository';
-import { MediaRepository, MediaUploadOperation } from '../repositories/MediaRepository';
+import { MediaRepository } from '../repositories/MediaRepository';
 import {
   ChatChannelState,
   ChatComposerState,
@@ -28,6 +28,7 @@ import {
   ChatSearchState,
   ChatStateKind
 } from './ChatStateModels';
+import { MediaUploadCoordinator } from './MediaUploadCoordinator';
 
 const CHAT_MODEL_LOG_DOMAIN: number = 0x0000;
 const CHAT_MODEL_LOG_TAG: string = 'ChatModel';
@@ -77,7 +78,7 @@ export class ChatModel {
   public emojis: Array<ChatEmoji> = [];
 
   private readonly repository: ChatRepository;
-  private readonly mediaRepository: MediaRepository | null;
+  private readonly mediaCoordinator: MediaUploadCoordinator;
   private readonly authenticationLifecycle: ChatAuthenticationLifecycle | null;
   private readonly metadataProvider: ChatMetadataProvider;
   private channelRequestVersion: number = 0;
@@ -85,9 +86,6 @@ export class ChatModel {
   private searchRequestVersion: number = 0;
   private activeConversationRefresh: Promise<void> | null = null;
   private activeConversationRefreshVersion: number | null = null;
-  private activeUpload: MediaUploadOperation | null = null;
-  private activeUploadState: MediaUploadState | null = null;
-  private activeUploadListener: ((state: MediaUploadState) => void) | null = null;
 
   public constructor(
     repository: ChatRepository,
@@ -96,9 +94,12 @@ export class ChatModel {
     metadataProvider: ChatMetadataProvider = new DefaultChatMetadataProvider()
   ) {
     this.repository = repository;
-    this.mediaRepository = mediaRepository;
     this.authenticationLifecycle = authenticationLifecycle;
     this.metadataProvider = metadataProvider;
+    this.mediaCoordinator = new MediaUploadCoordinator(
+      mediaRepository,
+      async (): Promise<void> => this.notifyUnauthorized()
+    );
   }
 
   public async loadChannels(): Promise<void> {
@@ -407,62 +408,20 @@ export class ChatModel {
     media: CachedMedia,
     onStateChange: (state: MediaUploadState) => void
   ): Promise<MediaUploadState> {
-    let state: MediaUploadState = MediaUploadState.selected(media);
-    onStateChange(state);
-    if (this.mediaRepository === null) {
-      state = state.failed('图片上传服务不可用');
-      onStateChange(state);
-      return state;
-    }
-    if (this.activeUpload !== null) {
-      state = state.failed('已有图片正在上传');
-      onStateChange(state);
-      return state;
-    }
-    state = state.uploading(0, media.sizeBytes);
-    this.activeUploadState = state;
-    this.activeUploadListener = onStateChange;
-    onStateChange(state);
-    const operation: MediaUploadOperation = this.mediaRepository.upload(
+    return this.mediaCoordinator.upload(
+      media,
       MediaUploadRequest.chat(media),
-      (uploadedBytes: number, totalBytes: number): void => {
-        if (this.activeUploadState !== null) {
-          state = state.uploading(uploadedBytes, totalBytes);
-          this.activeUploadState = state;
-          onStateChange(state);
-        }
-      }
+      onStateChange,
+      (result: MediaUploadResult): boolean => {
+        this.composerState = this.composerState.withUpload(result);
+        return true;
+      },
+      '图片上传结果未插入消息草稿'
     );
-    this.activeUpload = operation;
-    const result: RepositoryResult<MediaUploadResult> = await operation.completion;
-    if (this.activeUpload !== operation) {
-      return state.cancelled();
-    }
-    this.clearActiveUpload();
-    if (!result.isSuccess() || result.data === null) {
-      if (result.isUnauthorized()) {
-        await this.notifyUnauthorized();
-      }
-      state = state.failed(result.message);
-      onStateChange(state);
-      return state;
-    }
-    this.composerState = this.composerState.withUpload(result.data);
-    state = state.succeeded(result.data);
-    onStateChange(state);
-    return state;
   }
 
   public cancelUpload(): void {
-    const operation: MediaUploadOperation | null = this.activeUpload;
-    const state: MediaUploadState | null = this.activeUploadState;
-    const listener: ((state: MediaUploadState) => void) | null = this.activeUploadListener;
-    if (operation === null || state === null || listener === null) {
-      return;
-    }
-    operation.cancel();
-    listener(state.cancelled());
-    this.clearActiveUpload();
+    this.mediaCoordinator.cancelUpload();
   }
 
   public async send(): Promise<boolean> {
@@ -798,12 +757,6 @@ export class ChatModel {
   private isCurrentConversation(requestVersion: number, channelId: number): boolean {
     return requestVersion === this.conversationRequestVersion &&
       this.conversationState.channel?.id === channelId;
-  }
-
-  private clearActiveUpload(): void {
-    this.activeUpload = null;
-    this.activeUploadState = null;
-    this.activeUploadListener = null;
   }
 
   private async notifyUnauthorized(): Promise<void> {

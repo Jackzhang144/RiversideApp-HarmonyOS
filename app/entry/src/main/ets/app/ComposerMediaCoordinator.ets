@@ -1,27 +1,21 @@
-import { RepositoryResult } from '../core/RepositoryResult';
 import {
   CachedMedia,
   MediaUploadRequest,
   MediaUploadResult,
-  MediaUploadState,
-  MediaUploadStateKind
+  MediaUploadState
 } from '../models/MediaModels';
-import { MediaRepository, MediaUploadOperation } from '../repositories/MediaRepository';
+import { MediaRepository } from '../repositories/MediaRepository';
 import { ComposerMediaTarget } from './ComposerModels';
+import { MediaUploadCoordinator, MediaUploadStateListener } from './MediaUploadCoordinator';
 
-export type MediaUploadStateListener = (state: MediaUploadState) => void;
 export type ComposerEditableProbe = (target: ComposerMediaTarget) => boolean;
 export type ComposerMediaAppender = (target: ComposerMediaTarget, result: MediaUploadResult) => boolean;
 export type ComposerMediaUnauthorizedHandler = () => Promise<void>;
 
 export class ComposerMediaCoordinator {
-  private readonly repository: MediaRepository | null;
   private readonly isComposerEditable: ComposerEditableProbe;
   private readonly appendMedia: ComposerMediaAppender;
-  private readonly handleUnauthorized: ComposerMediaUnauthorizedHandler;
-  private activeUpload: MediaUploadOperation | null = null;
-  private activeState: MediaUploadState | null = null;
-  private activeStateListener: MediaUploadStateListener | null = null;
+  private readonly uploadCoordinator: MediaUploadCoordinator;
   private activeTarget: ComposerMediaTarget | null = null;
   private replySession: number = 0;
   private topicSession: number = 0;
@@ -32,14 +26,13 @@ export class ComposerMediaCoordinator {
     appendMedia: ComposerMediaAppender,
     handleUnauthorized: ComposerMediaUnauthorizedHandler
   ) {
-    this.repository = repository;
     this.isComposerEditable = isComposerEditable;
     this.appendMedia = appendMedia;
-    this.handleUnauthorized = handleUnauthorized;
+    this.uploadCoordinator = new MediaUploadCoordinator(repository, handleUnauthorized);
   }
 
   public beginSession(target: ComposerMediaTarget): void {
-    if (this.activeUpload !== null) {
+    if (this.uploadCoordinator.hasActiveUpload()) {
       this.cancelUpload();
     }
     this.incrementSession(target);
@@ -57,87 +50,33 @@ export class ComposerMediaCoordinator {
     target: ComposerMediaTarget,
     onStateChange: MediaUploadStateListener
   ): Promise<MediaUploadState> {
-    let state: MediaUploadState = MediaUploadState.selected(media);
-    onStateChange(state);
     if (!this.isComposerEditable(target)) {
-      state = state.failed('编辑器已关闭，未开始图片上传');
-      onStateChange(state);
-      return state;
-    }
-    if (this.repository === null) {
-      state = state.failed('图片上传服务不可用');
-      onStateChange(state);
-      return state;
-    }
-    if (this.activeUpload !== null) {
-      state = state.failed('已有图片正在上传');
+      const state: MediaUploadState = MediaUploadState.selected(media).failed('编辑器已关闭，未开始图片上传');
       onStateChange(state);
       return state;
     }
     const targetSession: number = this.session(target);
-
-    state = state.uploading(0, media.sizeBytes);
-    onStateChange(state);
-    const operation: MediaUploadOperation = this.repository.upload(
+    const ownsUpload: boolean = !this.uploadCoordinator.hasActiveUpload();
+    if (ownsUpload) {
+      this.activeTarget = target;
+    }
+    const state: MediaUploadState = await this.uploadCoordinator.upload(
+      media,
       MediaUploadRequest.composer(media),
-      (uploadedBytes: number, totalBytes: number): void => {
-        if (this.activeState?.kind !== MediaUploadStateKind.CANCELLED) {
-          state = state.uploading(uploadedBytes, totalBytes);
-          this.activeState = state;
-          onStateChange(state);
-        }
-      }
+      onStateChange,
+      (result: MediaUploadResult): boolean => {
+        return this.session(target) === targetSession && this.appendMedia(target, result);
+      },
+      '编辑器已关闭或切换，上传结果未插入草稿'
     );
-    this.activeUpload = operation;
-    this.activeState = state;
-    this.activeStateListener = onStateChange;
-    this.activeTarget = target;
-    const result: RepositoryResult<MediaUploadResult> = await operation.completion;
-    if (this.activeState?.kind === MediaUploadStateKind.CANCELLED) {
-      const cancelled: MediaUploadState = this.activeState;
-      this.clearActiveUpload(operation);
-      return cancelled;
+    if (ownsUpload && this.activeTarget === target) {
+      this.activeTarget = null;
     }
-    this.clearActiveUpload(operation);
-    if (!result.isSuccess() || result.data === null) {
-      if (result.isUnauthorized()) {
-        await this.handleUnauthorized();
-      }
-      state = state.failed(result.message);
-      onStateChange(state);
-      return state;
-    }
-    if (this.session(target) !== targetSession || !this.appendMedia(target, result.data)) {
-      state = state.failed('编辑器已关闭或切换，上传结果未插入草稿');
-      onStateChange(state);
-      return state;
-    }
-    state = state.succeeded(result.data);
-    onStateChange(state);
     return state;
   }
 
   public cancelUpload(): void {
-    const operation: MediaUploadOperation | null = this.activeUpload;
-    const state: MediaUploadState | null = this.activeState;
-    const listener: MediaUploadStateListener | null = this.activeStateListener;
-    if (operation === null || state === null || listener === null || !state.canCancel()) {
-      return;
-    }
-    const cancelled: MediaUploadState = state.cancelled();
-    this.activeState = cancelled;
-    listener(cancelled);
-    operation.cancel();
-  }
-
-  private clearActiveUpload(operation: MediaUploadOperation): void {
-    if (this.activeUpload !== operation) {
-      return;
-    }
-    this.activeUpload = null;
-    this.activeState = null;
-    this.activeStateListener = null;
-    this.activeTarget = null;
+    this.uploadCoordinator.cancelUpload();
   }
 
   private incrementSession(target: ComposerMediaTarget): void {

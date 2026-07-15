@@ -68,7 +68,8 @@ import {
   uniquePosts
 } from './TopicReadingModels';
 import { TopicPostWindow } from './TopicPostWindow';
-import { ComposerMediaCoordinator, MediaUploadStateListener } from './ComposerMediaCoordinator';
+import { ComposerMediaCoordinator } from './ComposerMediaCoordinator';
+import { MediaUploadStateListener } from './MediaUploadCoordinator';
 import { DiscoveryCoordinator } from './DiscoveryCoordinator';
 import { CategoryBrowseCoordinator } from './CategoryBrowseCoordinator';
 
