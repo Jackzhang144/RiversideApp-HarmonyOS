@@ -3,7 +3,7 @@ import {
   embedTrustList,
   isAllowedEmbedNavigation,
   RichEmbedProvider
-} from '../models/RichContentModels';
+} from '../models/RichNavigationPolicy';
 
 @Component
 export struct SecureRichEmbedPage {

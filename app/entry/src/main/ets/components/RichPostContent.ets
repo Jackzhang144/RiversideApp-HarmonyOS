@@ -3,9 +3,9 @@ import {
   RichContentBlock,
   RichContentBlockKind,
   RichContentLink,
-  RichContentListItem,
-  RichEmbedProvider
+  RichContentListItem
 } from '../models/RichContentModels';
+import { RichEmbedProvider } from '../models/RichNavigationPolicy';
 
 @Component
 export struct RichPostContent {

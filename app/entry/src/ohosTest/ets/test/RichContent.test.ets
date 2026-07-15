@@ -1,15 +1,17 @@
 import { describe, expect, it } from '@ohos/hypium';
 import {
+  parseRichPostContent,
+  RichContentBlock,
+  RichContentBlockKind
+} from '../../../main/ets/models/RichContentModels';
+import {
   BILIBILI_URL_TRUST_LIST,
   classifyRichNavigation,
   isAllowedEmbedNavigation,
-  parseRichPostContent,
-  RichContentBlock,
-  RichContentBlockKind,
   RichEmbedProvider,
   RichNavigationKind,
   YOUTUBE_URL_TRUST_LIST
-} from '../../../main/ets/models/RichContentModels';
+} from '../../../main/ets/models/RichNavigationPolicy';
 
 function blocksOfKind(blocks: Array<RichContentBlock>, kind: RichContentBlockKind): Array<RichContentBlock> {
   return blocks.filter((block: RichContentBlock): boolean => block.kind === kind);

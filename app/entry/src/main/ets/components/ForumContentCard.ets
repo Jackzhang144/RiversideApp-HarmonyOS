@@ -8,7 +8,7 @@ import {
   ForumCardStatistic,
   ForumCardStatisticKind
 } from './ForumCardPresentation';
-import { RichEmbedProvider } from '../models/RichContentModels';
+import { RichEmbedProvider } from '../models/RichNavigationPolicy';
 import { RichPostContent } from './RichPostContent';
 
 @Component

@@ -9,7 +9,7 @@ import {
   HomeHeaderActionPresentation,
   featureSitePresentations
 } from './HomePresentation';
-import { RichEmbedProvider } from '../models/RichContentModels';
+import { RichEmbedProvider } from '../models/RichNavigationPolicy';
 
 @Component
 export struct HomeBrowsePage {

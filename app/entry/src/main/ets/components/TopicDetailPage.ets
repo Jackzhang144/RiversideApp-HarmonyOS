@@ -17,7 +17,7 @@ import {
   Topic,
   TopicDetail
 } from '../models/ForumModels';
-import { RichEmbedProvider } from '../models/RichContentModels';
+import { RichEmbedProvider } from '../models/RichNavigationPolicy';
 import { MediaUploadState } from '../models/MediaModels';
 import { ChatEmoji } from '../models/ChatModels';
 import { RepositoryResult } from '../core/RepositoryResult';

@@ -1,4 +1,4 @@
-import { RichEmbedProvider } from '../models/RichContentModels';
+import { RichEmbedProvider } from '../models/RichNavigationPolicy';
 import {
   RIVERSIDE_FOOD_ENTRY_URL,
   RIVERSIDE_FOOD_HOME_URL,

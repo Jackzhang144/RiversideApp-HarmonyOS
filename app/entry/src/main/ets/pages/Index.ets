@@ -169,7 +169,7 @@ import {
   RichEmbedProvider,
   RichNavigationKind,
   RichNavigationTarget
-} from '../models/RichContentModels';
+} from '../models/RichNavigationPolicy';
 import { DiscourseForumRepository } from '../repositories/DiscourseForumRepository';
 import {
   MediaSelectionResult,
