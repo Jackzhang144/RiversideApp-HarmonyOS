@@ -7,7 +7,7 @@ import {
 import { ProfileUpdateRequest } from '../../../main/ets/models/ProfileModels';
 import { MediaUploadStateKind } from '../../../main/ets/models/MediaModels';
 import { HttpTextResult } from '../../../main/ets/network/DiscourseHttpClient';
-import { DiscourseForumRepository } from '../../../main/ets/repositories/DiscourseForumRepository';
+import { DiscourseProfileRepository } from '../../../main/ets/repositories/DiscourseProfileRepository';
 import { DiscourseMediaRepository } from '../../../main/ets/repositories/MediaRepository';
 import { StubForumHttpClient } from './DiscourseForumRepository.test';
 import { cachedPng, StubMediaTransport } from './MediaRepository.test';
@@ -42,7 +42,7 @@ export default function profileManagementModelTest(): void {
         client.results.push(HttpTextResult.success(200, '{}'));
         const lifecycle: StubProfileSessionLifecycle = new StubProfileSessionLifecycle();
         const model: ProfileManagementModel = new ProfileManagementModel(
-          new DiscourseForumRepository(client),
+          new DiscourseProfileRepository(client),
           lifecycle
         );
 
@@ -62,7 +62,7 @@ export default function profileManagementModelTest(): void {
         client.results.push(HttpTextResult.unauthorized());
         const lifecycle: StubProfileSessionLifecycle = new StubProfileSessionLifecycle();
         const model: ProfileManagementModel = new ProfileManagementModel(
-          new DiscourseForumRepository(client),
+          new DiscourseProfileRepository(client),
           lifecycle
         );
 
@@ -80,7 +80,7 @@ export default function profileManagementModelTest(): void {
         const client: StubForumHttpClient = new StubForumHttpClient();
         client.results.push(HttpTextResult.success(200, profileJson('旧会话成员')));
         const model: ProfileManagementModel = new ProfileManagementModel(
-          new DiscourseForumRepository(client),
+          new DiscourseProfileRepository(client),
           new StubProfileSessionLifecycle()
         );
 
@@ -101,7 +101,7 @@ export default function profileManagementModelTest(): void {
         client.results.push(HttpTextResult.success(200, '{"user_summary":{"topic_count":1}}'));
         client.formPutResults.push(HttpTextResult.failure(500, '保存失败'));
         const model: ProfileManagementModel = new ProfileManagementModel(
-          new DiscourseForumRepository(client),
+          new DiscourseProfileRepository(client),
           new StubProfileSessionLifecycle()
         );
         await model.loadProfile('member');
@@ -136,7 +136,7 @@ export default function profileManagementModelTest(): void {
         client.putResults.push(HttpTextResult.success(200, '{}'));
         client.results.push(HttpTextResult.success(200, profileJson('成员', true)));
         const model: ProfileManagementModel = new ProfileManagementModel(
-          new DiscourseForumRepository(client),
+          new DiscourseProfileRepository(client),
           new StubProfileSessionLifecycle()
         );
         await model.loadProfile('member');
@@ -160,7 +160,7 @@ export default function profileManagementModelTest(): void {
         client.formPutResults.push(HttpTextResult.success(200, '{}'));
         client.results.push(HttpTextResult.success(200, profileJson('成员', false, true)));
         const model: ProfileManagementModel = new ProfileManagementModel(
-          new DiscourseForumRepository(client),
+          new DiscourseProfileRepository(client),
           new StubProfileSessionLifecycle()
         );
         await model.loadProfile('member');
@@ -184,7 +184,7 @@ export default function profileManagementModelTest(): void {
           '{"id":813,"url":"/uploads/default/original/avatar.png","original_filename":"avatar.png"}'
         ));
         const model: ProfileManagementModel = new ProfileManagementModel(
-          new DiscourseForumRepository(client),
+          new DiscourseProfileRepository(client),
           new StubProfileSessionLifecycle(),
           new DiscourseMediaRepository(mediaTransport)
         );
@@ -216,7 +216,7 @@ export default function profileManagementModelTest(): void {
           '"original_filename":"background.png"}'
         ));
         const model: ProfileManagementModel = new ProfileManagementModel(
-          new DiscourseForumRepository(client),
+          new DiscourseProfileRepository(client),
           new StubProfileSessionLifecycle(),
           new DiscourseMediaRepository(mediaTransport)
         );
@@ -245,7 +245,7 @@ export default function profileManagementModelTest(): void {
           '{"id":815,"markdown":"![background](upload://background)"}'
         ));
         const model: ProfileManagementModel = new ProfileManagementModel(
-          new DiscourseForumRepository(client),
+          new DiscourseProfileRepository(client),
           new StubProfileSessionLifecycle(),
           new DiscourseMediaRepository(mediaTransport)
         );
@@ -268,7 +268,7 @@ export default function profileManagementModelTest(): void {
         client.formPutResults.push(HttpTextResult.success(200, '{}'));
         client.results.push(HttpTextResult.success(200, profileBackgroundJson(true, '')));
         const model: ProfileManagementModel = new ProfileManagementModel(
-          new DiscourseForumRepository(client),
+          new DiscourseProfileRepository(client),
           new StubProfileSessionLifecycle()
         );
         await model.loadProfile('member');

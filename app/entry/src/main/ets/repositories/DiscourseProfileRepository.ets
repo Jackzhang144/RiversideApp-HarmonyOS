@@ -13,14 +13,21 @@ import {
 import { ForumHttpClient, HttpTextResult, HttpTextResultKind } from '../network/DiscourseHttpClient';
 import { ProfileRepository } from './ProfileRepository';
 import { ForumResponseParser } from './ForumResponseParser';
+import { ProfileResponseParser } from './ProfileResponseParser';
 
 export class DiscourseProfileRepository implements ProfileRepository {
   private readonly client: ForumHttpClient;
-  private readonly parser: ForumResponseParser;
+  private readonly parser: ProfileResponseParser;
+  private readonly forumParser: ForumResponseParser;
 
-  public constructor(client: ForumHttpClient, parser: ForumResponseParser = new ForumResponseParser()) {
+  public constructor(
+    client: ForumHttpClient,
+    parser: ProfileResponseParser = new ProfileResponseParser(),
+    forumParser: ForumResponseParser = new ForumResponseParser()
+  ) {
     this.client = client;
     this.parser = parser;
+    this.forumParser = forumParser;
   }
 
   public async loadFullUserProfile(username: string): Promise<RepositoryResult<UserProfile>> {
@@ -89,7 +96,7 @@ export class DiscourseProfileRepository implements ProfileRepository {
     if (!response.isSuccess()) {
       return RepositoryResult.failure<Array<Topic>>(response.message);
     }
-    return this.parser.parseLatestTopics(response.body);
+    return this.forumParser.parseLatestTopics(response.body);
   }
 
   public async loadUserReplies(username: string, offset: number): Promise<RepositoryResult<Array<UserReplyItem>>> {
@@ -138,7 +145,7 @@ export class DiscourseProfileRepository implements ProfileRepository {
     if (!response.isSuccess()) {
       return RepositoryResult.failure<Array<ServerDraft>>(response.message);
     }
-    return this.parser.parseServerDrafts(response.body);
+    return this.forumParser.parseServerDrafts(response.body);
   }
 
   public async updateUserProfile(request: ProfileUpdateRequest): Promise<RepositoryResult<boolean>> {

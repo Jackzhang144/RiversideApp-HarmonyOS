@@ -26,34 +26,9 @@ import {
 } from '../models/ReplyModels';
 import { ForumHttpClient, HttpTextResult, HttpTextResultKind } from '../network/DiscourseHttpClient';
 import { ForumRepository } from './ForumRepository';
-import { ProfileRepository } from './ProfileRepository';
-import { ChatRepository } from './ChatRepository';
-import { NotificationRepository } from './NotificationRepository';
 import { ForumResponseParser } from './ForumResponseParser';
+import { ProfileResponseParser } from './ProfileResponseParser';
 import { ComposerMentionUser } from '../models/ComposerMentionModels';
-import {
-  ProfileNotificationLevel,
-  ProfileUpdateRequest,
-  UserBookmarkItem,
-  UserEmailInfo,
-  UserProfile,
-  UserProfileSummary,
-  UserReplyItem
-} from '../models/ProfileModels';
-import {
-  ChatChannel,
-  ChatEmoji,
-  ChatMessagePage,
-  ChatMessageQuery,
-  ChatReactionAction,
-  ChatSearchResult,
-  ChatSendConfirmation,
-  ChatSendRequest
-} from '../models/ChatModels';
-import { NotificationBucket, NotificationItem } from '../models/NotificationModels';
-import { DiscourseChatRepository } from './DiscourseChatRepository';
-import { DiscourseNotificationRepository } from './DiscourseNotificationRepository';
-import { DiscourseProfileRepository } from './DiscourseProfileRepository';
 
 interface DraftSavePayload {
   draft_key: string;
@@ -61,92 +36,23 @@ interface DraftSavePayload {
   sequence: number;
 }
 
-export class DiscourseForumRepository implements
-  ForumRepository,
-  ProfileRepository,
-  ChatRepository,
-  NotificationRepository {
+export class DiscourseForumRepository implements ForumRepository {
   private readonly client: ForumHttpClient;
   private readonly parser: ForumResponseParser;
-  private readonly chatRepository: DiscourseChatRepository;
-  private readonly notificationRepository: DiscourseNotificationRepository;
-  private readonly profileRepository: DiscourseProfileRepository;
+  private readonly profileParser: ProfileResponseParser;
 
-  public constructor(client: ForumHttpClient, parser: ForumResponseParser = new ForumResponseParser()) {
+  public constructor(
+    client: ForumHttpClient,
+    parser: ForumResponseParser = new ForumResponseParser(),
+    profileParser: ProfileResponseParser = new ProfileResponseParser()
+  ) {
     this.client = client;
     this.parser = parser;
-    this.chatRepository = new DiscourseChatRepository(client);
-    this.notificationRepository = new DiscourseNotificationRepository(client, parser);
-    this.profileRepository = new DiscourseProfileRepository(client, parser);
+    this.profileParser = profileParser;
   }
 
   public async loadLatestTopics(): Promise<RepositoryResult<Array<Topic>>> {
     return this.loadHomeTopics(HomeChannel.LATEST_REPLIES, 0);
-  }
-
-  public async loadNotificationItems(
-    username: string,
-    bucket: NotificationBucket,
-    page: number,
-    offset: number
-  ): Promise<RepositoryResult<Array<NotificationItem>>> {
-    return this.notificationRepository.loadNotificationItems(username, bucket, page, offset);
-  }
-
-  public async loadChatChannels(): Promise<RepositoryResult<Array<ChatChannel>>> {
-    return this.chatRepository.loadChatChannels();
-  }
-
-  public async loadChatMessages(
-    channelId: number,
-    query: ChatMessageQuery
-  ): Promise<RepositoryResult<ChatMessagePage>> {
-    return this.chatRepository.loadChatMessages(channelId, query);
-  }
-
-  public async openDirectChat(username: string): Promise<RepositoryResult<ChatChannel>> {
-    return this.chatRepository.openDirectChat(username);
-  }
-
-  public async markChatRead(channelId: number, messageId: number): Promise<RepositoryResult<boolean>> {
-    return this.chatRepository.markChatRead(channelId, messageId);
-  }
-
-  public async sendChatMessage(request: ChatSendRequest): Promise<RepositoryResult<ChatSendConfirmation>> {
-    return this.chatRepository.sendChatMessage(request);
-  }
-
-  public async reactToChatMessage(
-    channelId: number,
-    messageId: number,
-    emoji: string,
-    action: ChatReactionAction
-  ): Promise<RepositoryResult<boolean>> {
-    return this.chatRepository.reactToChatMessage(channelId, messageId, emoji, action);
-  }
-
-  public async deleteChatMessage(channelId: number, messageId: number): Promise<RepositoryResult<boolean>> {
-    return this.chatRepository.deleteChatMessage(channelId, messageId);
-  }
-
-  public async restoreChatMessage(channelId: number, messageId: number): Promise<RepositoryResult<boolean>> {
-    return this.chatRepository.restoreChatMessage(channelId, messageId);
-  }
-
-  public async loadChatEmojis(): Promise<RepositoryResult<Array<ChatEmoji>>> {
-    return this.chatRepository.loadChatEmojis();
-  }
-
-  public async searchChat(
-    query: string,
-    offset: number,
-    limit: number
-  ): Promise<RepositoryResult<Array<ChatSearchResult>>> {
-    return this.chatRepository.searchChat(query, offset, limit);
-  }
-
-  public async leaveChatChannel(channelId: number): Promise<RepositoryResult<boolean>> {
-    return this.chatRepository.leaveChatChannel(channelId);
   }
 
   public async loadHomeTopics(channel: HomeChannel, page: number): Promise<RepositoryResult<Array<Topic>>> {
@@ -161,21 +67,6 @@ export class DiscourseForumRepository implements
       return RepositoryResult.failure<Array<Topic>>(response.message);
     }
     return this.parser.parseLatestTopics(response.body);
-  }
-
-  public async loadUserTopics(username: string, page: number): Promise<RepositoryResult<Array<Topic>>> {
-    return this.profileRepository.loadUserTopics(username, page);
-  }
-
-  public async loadUserReplies(username: string, offset: number): Promise<RepositoryResult<Array<UserReplyItem>>> {
-    return this.profileRepository.loadUserReplies(username, offset);
-  }
-
-  public async loadUserBookmarks(
-    username: string,
-    page: number
-  ): Promise<RepositoryResult<Array<UserBookmarkItem>>> {
-    return this.profileRepository.loadUserBookmarks(username, page);
   }
 
   public async loadCategories(): Promise<RepositoryResult<Array<Category>>> {
@@ -535,7 +426,7 @@ export class DiscourseForumRepository implements
     if (!response.isSuccess()) {
       return RepositoryResult.failure<CurrentUser>(response.message);
     }
-    return this.parser.parseCurrentUser(response.body);
+    return this.profileParser.parseCurrentUser(response.body);
   }
 
   public async loadUserProfile(username: string): Promise<RepositoryResult<CurrentUser>> {
@@ -550,40 +441,7 @@ export class DiscourseForumRepository implements
     if (!response.isSuccess()) {
       return RepositoryResult.failure<CurrentUser>(response.message);
     }
-    return this.parser.parseUserProfile(response.body);
-  }
-
-  public async loadFullUserProfile(username: string): Promise<RepositoryResult<UserProfile>> {
-    return this.profileRepository.loadFullUserProfile(username);
-  }
-
-  public async loadUserSummary(username: string): Promise<RepositoryResult<UserProfileSummary>> {
-    return this.profileRepository.loadUserSummary(username);
-  }
-
-  public async loadUserEmails(username: string): Promise<RepositoryResult<UserEmailInfo>> {
-    return this.profileRepository.loadUserEmails(username);
-  }
-
-  public async updateUserProfile(request: ProfileUpdateRequest): Promise<RepositoryResult<boolean>> {
-    return this.profileRepository.updateUserProfile(request);
-  }
-
-  public async pickUploadedAvatar(username: string, uploadId: number): Promise<RepositoryResult<boolean>> {
-    return this.profileRepository.pickUploadedAvatar(username, uploadId);
-  }
-
-  public async setUserFollowing(username: string, following: boolean): Promise<RepositoryResult<boolean>> {
-    return this.profileRepository.setUserFollowing(username, following);
-  }
-
-  public async setUserNotificationLevel(
-    username: string,
-    level: ProfileNotificationLevel,
-    actingUserId: number,
-    expiringAt: string = ''
-  ): Promise<RepositoryResult<boolean>> {
-    return this.profileRepository.setUserNotificationLevel(username, level, actingUserId, expiringAt);
+    return this.profileParser.parseUserProfile(response.body);
   }
 
   public async recoverReply(request: ReplyRecoveryRequest): Promise<ReplyRecoveryResult> {
@@ -645,7 +503,14 @@ export class DiscourseForumRepository implements
   }
 
   public async loadDrafts(): Promise<RepositoryResult<Array<ServerDraft>>> {
-    return this.profileRepository.loadDrafts();
+    const response: HttpTextResult = await this.client.get('/drafts.json');
+    if (response.kind === HttpTextResultKind.UNAUTHORIZED) {
+      return RepositoryResult.unauthorized<Array<ServerDraft>>();
+    }
+    if (!response.isSuccess()) {
+      return RepositoryResult.failure<Array<ServerDraft>>(response.message);
+    }
+    return this.parser.parseServerDrafts(response.body);
   }
 
   public async saveDraft(request: DraftWriteRequest): Promise<RepositoryResult<number>> {

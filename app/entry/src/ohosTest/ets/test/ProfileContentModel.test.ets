@@ -7,7 +7,7 @@ import {
 } from '../../../main/ets/app/ProfileContentModel';
 import { ProfileSessionLifecycle } from '../../../main/ets/app/ProfileManagementModel';
 import { HttpTextResult } from '../../../main/ets/network/DiscourseHttpClient';
-import { DiscourseForumRepository } from '../../../main/ets/repositories/DiscourseForumRepository';
+import { DiscourseProfileRepository } from '../../../main/ets/repositories/DiscourseProfileRepository';
 import { StubForumHttpClient } from './DiscourseForumRepository.test';
 
 class StubContentSessionLifecycle implements ProfileSessionLifecycle {
@@ -47,7 +47,7 @@ export default function profileContentModelTest(): void {
         client.results.push(HttpTextResult.success(200, topicListJson(302, '第二页')));
         client.results.push(HttpTextResult.success(200, '{"topic_list":{"topics":[]}}'));
         const model: ProfileContentModel = new ProfileContentModel(
-          new DiscourseForumRepository(client),
+          new DiscourseProfileRepository(client),
           new StubContentSessionLifecycle()
         );
 
@@ -70,7 +70,7 @@ export default function profileContentModelTest(): void {
         client.results.push(HttpTextResult.unauthorized());
         const lifecycle: StubContentSessionLifecycle = new StubContentSessionLifecycle();
         const model: ProfileContentModel = new ProfileContentModel(
-          new DiscourseForumRepository(client),
+          new DiscourseProfileRepository(client),
           lifecycle
         );
 
@@ -88,7 +88,7 @@ export default function profileContentModelTest(): void {
         client.results.push(HttpTextResult.success(200, topicListJson(301, '已加载')));
         client.results.push(HttpTextResult.failure(503, '下一页暂时不可用'));
         const model: ProfileContentModel = new ProfileContentModel(
-          new DiscourseForumRepository(client),
+          new DiscourseProfileRepository(client),
           new StubContentSessionLifecycle()
         );
 
