@@ -2,6 +2,7 @@ import { OnlineUser } from '../models/DiscoveryModels';
 
 @Component
 export struct OnlineUsersPage {
+  scroller: Scroller = new Scroller();
   @Prop count: number = 0;
   @Prop users: Array<OnlineUser> = [];
   onOpenUser: (user: OnlineUser) => void = (_user: OnlineUser): void => {};
@@ -31,7 +32,7 @@ export struct OnlineUsersPage {
   }
 
   build() {
-    List() {
+    List({ scroller: this.scroller }) {
       ForEach(this.users, (user: OnlineUser) => {
         ListItem() {
           Row({ space: 12 }) {
@@ -74,6 +75,9 @@ export struct OnlineUsersPage {
     }
     .width('100%')
     .height('100%')
+    .contentStartOffset(10)
+    .clip(false)
+    .cachedCount(3, true)
     .backgroundColor($r('sys.color.background_secondary'))
     .divider({ strokeWidth: 1, color: $r('sys.color.comp_divider'), startMargin: 70 })
   }

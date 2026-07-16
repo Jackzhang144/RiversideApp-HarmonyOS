@@ -5,6 +5,7 @@ import { ForumContentCard } from './ForumContentCard';
 
 @Component
 export struct CategoryTopicsPage {
+  scroller: Scroller = new Scroller();
   @Prop state: BrowseState<Topic> = BrowseState.initial<Topic>();
   @Prop categories: Array<Category> = [];
   onRefresh: () => void = (): void => {};
@@ -84,7 +85,7 @@ export struct CategoryTopicsPage {
   @Builder
   private TopicList(): void {
     Refresh({ refreshing: this.state.isRefreshing }) {
-      List({ space: 10 }) {
+      List({ space: 10, scroller: this.scroller }) {
         ListItem() {
           this.ListHeader()
         }
@@ -129,12 +130,16 @@ export struct CategoryTopicsPage {
       .width('100%')
       .height('100%')
       .padding({ left: 12, right: 12 })
+      .contentStartOffset(10)
+      .clip(false)
+      .cachedCount(3, true)
       .backgroundColor($r('sys.color.background_secondary'))
       .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
       .onReachEnd(this.onLoadMore)
     }
     .width('100%')
     .height('100%')
+    .clip(false)
     .backgroundColor($r('sys.color.background_secondary'))
     .refreshOffset(64)
     .pullToRefresh(true)

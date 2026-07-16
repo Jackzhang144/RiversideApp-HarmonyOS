@@ -111,7 +111,7 @@ export struct TopicDetailPage {
     };
   private readProgressTimer: number = -1;
   private pendingReadPostNumber: number = 0;
-  private readonly readingScroller: Scroller = new Scroller();
+  readingScroller: Scroller = new Scroller();
   @State private currentPostNumber: number = 1;
   @State private currentTopicId: number = 0;
   @State private selectedFloor: number = 1;
@@ -982,6 +982,8 @@ export struct TopicDetailPage {
           .height(32)
       }
     }
+    .clip(false)
+    .cachedCount(3, true)
     .width('100%')
     .height('100%')
     .padding({ left: 12, right: 12, top: 10 })
@@ -1016,6 +1018,7 @@ export struct TopicDetailPage {
       }
       .width('100%')
       .height('100%')
+      .clip(false)
       .backgroundColor($r('sys.color.background_secondary'))
       .refreshOffset(64)
       .pullToRefresh(true)
@@ -1031,6 +1034,7 @@ export struct TopicDetailPage {
     }
     .width('100%')
     .height('100%')
+    .clip(false)
     .bindSheet($$this.flagSheetVisible, this.PostFlagSheet(), {
       detents: [SheetSize.LARGE],
       detentSelection: SheetSize.LARGE,

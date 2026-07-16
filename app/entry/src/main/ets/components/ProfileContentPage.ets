@@ -5,6 +5,7 @@ import { ProfileContentKind } from '../app/ProfileContentModel';
 
 @Component
 export struct ProfileContentPage {
+  scroller: Scroller = new Scroller();
   @Prop kind: ProfileContentKind = ProfileContentKind.TOPICS;
   @Prop loading: boolean = false;
   @Prop loadingMore: boolean = false;
@@ -87,7 +88,7 @@ export struct ProfileContentPage {
       Column() { Text($r('app.string.common_no_content')).fontSize(15).fontColor($r('sys.color.font_secondary')) }
         .width('100%').height('100%').justifyContent(FlexAlign.Center)
     } else {
-      List({ space: 10 }) {
+      List({ space: 10, scroller: this.scroller }) {
         if (this.kind === ProfileContentKind.TOPICS) {
           ForEach(this.topics, (topic: Topic): void => {
             ListItem() { this.RowCard(topic.title, topic.excerpt, (): void => this.onOpenTopic(topic)) }
@@ -108,7 +109,9 @@ export struct ProfileContentPage {
         }
         ListItem() { this.PaginationFooter() }
       }
-      .width('100%').height('100%').padding(12).backgroundColor($r('sys.color.background_secondary'))
+      .width('100%').height('100%').padding(12)
+      .clip(false).cachedCount(3, true)
+      .backgroundColor($r('sys.color.background_secondary'))
       .onReachEnd(this.onLoadMore)
     }
   }

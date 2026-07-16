@@ -22,6 +22,7 @@ export struct NotificationCentrePage {
   @Prop authenticated: boolean = false;
   @Prop unreadCount: number = 0;
   @Prop state: NotificationCentreState = new NotificationCentreState();
+  scroller: Scroller = new Scroller();
   onLogin: () => void = (): void => {};
   onRefresh: () => void = (): void => {};
   onSelectBucket: (bucket: NotificationBucket) => void = (_bucket: NotificationBucket): void => {};
@@ -33,33 +34,6 @@ export struct NotificationCentrePage {
     if (bucket === NotificationBucket.REPLIES) return $r('sys.symbol.message');
     if (bucket === NotificationBucket.REACTIONS) return $r('sys.symbol.heart');
     return $r('sys.symbol.at');
-  }
-
-  @Builder
-  private Header(): void {
-    Row({ space: 8 }) {
-      Text($r('app.string.notification_title'))
-        .fontSize(20)
-        .fontWeight(FontWeight.Bold)
-        .layoutWeight(1)
-      Button() {
-        SymbolGlyph($r('sys.symbol.arrow_clockwise'))
-          .fontSize(20)
-          .fontColor([$r('sys.color.font_primary')])
-          .hitTestBehavior(HitTestMode.None)
-      }
-      .width(40)
-      .height(40)
-      .backgroundColor(Color.Transparent)
-      .enabled(!this.state.refreshing && this.state.kind !== NotificationCentreStateKind.LOADING)
-      .onClick(this.onRefresh)
-      .accessibilityText($r('app.string.notification_refresh_accessibility'))
-    }
-    .width('100%')
-    .height($r('app.float.page_header_height'))
-    .padding({ left: 12, right: 10 })
-    .backgroundColor($r('sys.color.comp_background_primary'))
-    .border({ width: { bottom: 1 }, color: $r('sys.color.comp_divider') })
   }
 
   @Builder
@@ -224,7 +198,7 @@ export struct NotificationCentrePage {
       }
         .width('100%').height('100%').justifyContent(FlexAlign.Center)
     } else {
-      List({ space: 10 }) {
+      List({ space: 10, scroller: this.scroller }) {
         ForEach(this.state.items, (item: NotificationItem): void => {
           ListItem() { this.ItemCard(item) }
         }, (item: NotificationItem): string => `${item.kind}-${item.id}-${item.topicId}-${item.postNumber}`)
@@ -232,6 +206,7 @@ export struct NotificationCentrePage {
       }
       .width('100%').height('100%')
       .padding({ left: 12, right: 12, top: 8, bottom: 124 })
+      .clip(false).cachedCount(3, true)
       .backgroundColor($r('sys.color.background_secondary')).edgeEffect(EdgeEffect.Spring)
       .onReachEnd(this.onLoadMore)
     }
@@ -242,11 +217,11 @@ export struct NotificationCentrePage {
       this.AuthenticationState()
     } else {
       Column() {
-        this.Header()
         this.Filters()
         this.MessageList()
       }
-      .width('100%').height('100%').backgroundColor($r('sys.color.background_secondary'))
+      .width('100%').height('100%').clip(false)
+      .backgroundColor($r('sys.color.background_secondary'))
     }
   }
 }

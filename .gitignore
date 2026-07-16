@@ -12,6 +12,9 @@ build/
 oh_modules/
 **/oh_modules/
 
+# DevEco Studio preview artifacts
+**/.preview/
+
 # Local environment and signing material
 local.properties
 *.p12

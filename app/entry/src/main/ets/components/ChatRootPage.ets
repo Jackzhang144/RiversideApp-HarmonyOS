@@ -16,6 +16,7 @@ export struct ChatRootPage {
   @Prop canStartDirectChat: boolean = false;
   @Prop state: ChatChannelState = ChatChannelState.initial();
   @Prop searchState: ChatSearchState = new ChatSearchState();
+  scroller: Scroller = new Scroller();
   @State section: ChatRootSection = ChatRootSection.CHANNELS;
   @State searchText: string = '';
   @State directUsername: string = '';
@@ -40,33 +41,6 @@ export struct ChatRootPage {
       return normalized.slice(5, 16).replace('T', ' ');
     }
     return normalized;
-  }
-
-  @Builder
-  private Header(): void {
-    Row({ space: 8 }) {
-      Text($r('app.string.chat_title'))
-        .fontSize(20)
-        .fontWeight(FontWeight.Bold)
-        .layoutWeight(1)
-      Button() {
-        SymbolGlyph($r('sys.symbol.arrow_clockwise'))
-          .fontSize(20)
-          .fontColor([$r('sys.color.font_primary')])
-          .hitTestBehavior(HitTestMode.None)
-      }
-      .width(40)
-      .height(40)
-      .backgroundColor(Color.Transparent)
-      .enabled(!this.state.refreshing)
-      .onClick(this.onRefresh)
-      .accessibilityText($r('app.string.chat_refresh_accessibility'))
-    }
-    .width('100%')
-    .height($r('app.float.page_header_height'))
-    .padding({ left: 12, right: 10 })
-    .backgroundColor($r('sys.color.comp_background_primary'))
-    .border({ width: { bottom: 1 }, color: $r('sys.color.comp_divider') })
   }
 
   @Builder
@@ -220,12 +194,13 @@ export struct ChatRootPage {
           .fontColor($r('sys.color.font_secondary'))
       }.width('100%').height('100%').justifyContent(FlexAlign.Center)
     } else {
-      List({ space: 10 }) {
+      List({ space: 10, scroller: this.scroller }) {
         ForEach(this.channels(directMessages), (channel: ChatChannel): void => {
           ListItem() { this.ChannelCard(channel) }
         }, (channel: ChatChannel): string => channel.id.toString())
       }
       .width('100%').height('100%').padding({ left: 12, right: 12, top: 8, bottom: 124 })
+      .clip(false).cachedCount(3, true)
       .backgroundColor($r('sys.color.background_secondary')).edgeEffect(EdgeEffect.Spring)
     }
   }
@@ -310,7 +285,7 @@ export struct ChatRootPage {
           .fontColor($r('sys.color.font_secondary')) }
           .layoutWeight(1).width('100%').justifyContent(FlexAlign.Center)
       } else {
-        List({ space: 9 }) {
+        List({ space: 9, scroller: this.scroller }) {
           ForEach(this.searchState.results, (result: ChatSearchResult): void => {
             ListItem() {
               Column({ space: 5 }) {
@@ -331,6 +306,7 @@ export struct ChatRootPage {
           }
         }
         .layoutWeight(1).width('100%').padding({ bottom: 112 })
+        .clip(false).cachedCount(3, true)
         .backgroundColor($r('sys.color.background_secondary'))
         .onReachEnd(this.onLoadMoreSearch)
       }
@@ -351,7 +327,6 @@ export struct ChatRootPage {
       this.AuthenticationState()
     } else {
       Column() {
-        this.Header()
         this.SectionSwitcher()
         if (this.section === ChatRootSection.CHANNELS) {
           this.ChannelList(false)
@@ -361,7 +336,8 @@ export struct ChatRootPage {
           this.SearchPanel()
         }
       }
-      .width('100%').height('100%').backgroundColor($r('sys.color.background_secondary'))
+      .width('100%').height('100%').clip(false)
+      .backgroundColor($r('sys.color.background_secondary'))
     }
   }
 }

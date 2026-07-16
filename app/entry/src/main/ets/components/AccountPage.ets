@@ -15,6 +15,7 @@ export struct AccountPage {
   @Prop identity: UserProfile | null = null;
   @Prop identityLoading: boolean = false;
   @Prop identityError: string = '';
+  scroller: Scroller = new Scroller();
   onLogin: () => void = (): void => {};
   onLogout: () => void = (): void => {};
   onRetryIdentity: () => void = (): void => {};
@@ -203,13 +204,8 @@ export struct AccountPage {
   @Builder
   private AccountContent(presentation: AccountPresentation): void {
     Stack({ alignContent: Alignment.BottomEnd }) {
-      Scroll() {
+      Scroll(this.scroller) {
         Column({ space: 12 }) {
-          Text($r('app.string.account_title'))
-            .fontSize(24)
-            .fontWeight(FontWeight.Bold)
-            .fontColor($r('sys.color.font_primary'))
-            .width('100%')
           this.AccountHeader(presentation)
           ForEach(presentation.placeholderSections, (section: AccountPlaceholderSection) => {
             this.PlaceholderGroup(section)
@@ -225,6 +221,7 @@ export struct AccountPage {
       }
       .width('100%')
       .height('100%')
+      .clip(false)
       .edgeEffect(EdgeEffect.Spring)
 
       if (presentation.prototypeEntryVisible) {
@@ -233,6 +230,7 @@ export struct AccountPage {
     }
     .width('100%')
     .height('100%')
+    .clip(false)
     .backgroundColor($r('sys.color.background_secondary'))
   }
 

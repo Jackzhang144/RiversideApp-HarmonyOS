@@ -92,7 +92,7 @@ export struct ChatConversationPage {
   onLeaveChannel: () => void = (): void => {};
   private readonly composerController: TextAreaController = new TextAreaController();
   private readonly mentionRequestGate: ComposerMentionRequestGate = new ComposerMentionRequestGate();
-  private readonly messageScroller: Scroller = new Scroller();
+  messageScroller: Scroller = new Scroller();
   private mentionTimer: number = -1;
   private reactionSheetTimer: number = -1;
   private readProgressTimer: number = -1;
@@ -1026,6 +1026,8 @@ export struct ChatConversationPage {
       .width('100%')
       .height('100%')
       .padding({ left: 12, right: 12, top: 10, bottom: 10 })
+      .clip(false)
+      .cachedCount(3, true)
       .backgroundColor($r('sys.color.background_secondary'))
       .edgeEffect(EdgeEffect.Spring)
       .stackFromEnd(true)
@@ -1080,6 +1082,7 @@ export struct ChatConversationPage {
     }
     .layoutWeight(1)
     .width('100%')
+    .clip(false)
     .backgroundColor($r('sys.color.background_secondary'))
   }
 
@@ -1351,7 +1354,8 @@ export struct ChatConversationPage {
         this.Composer()
       }
     }
-    .width('100%').height('100%').backgroundColor($r('sys.color.background_secondary'))
+    .width('100%').height('100%').clip(false)
+    .backgroundColor($r('sys.color.background_secondary'))
     .bindSheet($$this.reactionSheetVisible, this.ReactionPickerSheet(), {
       detents: [SheetSize.MEDIUM, SheetSize.LARGE],
       detentSelection: SheetSize.MEDIUM,

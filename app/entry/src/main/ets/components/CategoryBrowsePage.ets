@@ -4,6 +4,7 @@ import { Category } from '../models/ForumModels';
 @Component
 export struct CategoryBrowsePage {
   @Prop state: BrowseState<Category> = BrowseState.initial<Category>();
+  scroller: Scroller = new Scroller();
   onRefresh: () => void = (): void => {};
   onOpenCategory: (category: Category) => void = (_category: Category): void => {};
 
@@ -47,21 +48,6 @@ export struct CategoryBrowsePage {
       return color;
     }
     return $r('app.color.brand_primary');
-  }
-
-  @Builder
-  private Header(): void {
-    Row({ space: 8 }) {
-      Text($r('app.string.category_all'))
-        .fontSize(20)
-        .fontWeight(FontWeight.Bold)
-        .layoutWeight(1)
-    }
-    .width('100%')
-    .height($r('app.float.page_header_height'))
-    .padding({ left: 16, right: 10 })
-    .backgroundColor($r('sys.color.comp_background_primary'))
-    .border({ width: { bottom: 1 }, color: $r('sys.color.comp_divider') })
   }
 
   @Builder
@@ -190,7 +176,7 @@ export struct CategoryBrowsePage {
   @Builder
   private CategoryList(): void {
     Refresh({ refreshing: this.state.isRefreshing }) {
-      List() {
+      List({ scroller: this.scroller }) {
         ForEach(this.state.items, (category: Category) => {
           ListItem() {
             this.CategoryRow(category)
@@ -204,11 +190,15 @@ export struct CategoryBrowsePage {
       }
       .width('100%')
       .height('100%')
+      .contentStartOffset(10)
+      .clip(false)
+      .cachedCount(3, true)
       .backgroundColor($r('sys.color.comp_background_primary'))
       .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
     }
     .width('100%')
     .layoutWeight(1)
+    .clip(false)
     .backgroundColor($r('sys.color.comp_background_primary'))
     .refreshOffset(64)
     .pullToRefresh(true)
@@ -220,7 +210,6 @@ export struct CategoryBrowsePage {
 
   build() {
     Column() {
-      this.Header()
       if (this.state.kind === BrowseStateKind.LOADING || this.state.kind === BrowseStateKind.INITIAL) {
         this.LoadingState()
       } else if (this.state.kind === BrowseStateKind.ERROR) {
@@ -233,6 +222,7 @@ export struct CategoryBrowsePage {
     }
     .width('100%')
     .height('100%')
+    .clip(false)
     .backgroundColor($r('sys.color.comp_background_primary'))
   }
 }

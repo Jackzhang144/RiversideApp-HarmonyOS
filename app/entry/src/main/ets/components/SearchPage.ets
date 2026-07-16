@@ -11,6 +11,7 @@ import { ForumContentCard } from './ForumContentCard';
 
 @Component
 export struct SearchPage {
+  scroller: Scroller = new Scroller();
   @Prop state: SearchState = SearchState.initial();
   @Prop suggestionState: SearchSuggestionState = SearchSuggestionState.initial();
   @Prop knownCategories: Array<Category> = [];
@@ -354,7 +355,7 @@ export struct SearchPage {
 
   @Builder
   private Results(): void {
-    List({ space: 9 }) {
+    List({ space: 9, scroller: this.scroller }) {
       if (this.state.result.users.length > 0) {
         ListItem() { this.SectionHeader($r('app.string.search_section_user'), this.state.result.users.length) }
         ForEach(this.state.result.users, (user: SearchUser) => {
@@ -401,6 +402,8 @@ export struct SearchPage {
     .width('100%')
     .layoutWeight(1)
     .padding({ left: 12, right: 12, bottom: 18 })
+    .clip(false)
+    .cachedCount(3, true)
     .backgroundColor($r('sys.color.background_secondary'))
     .edgeEffect(EdgeEffect.Spring)
     .onReachEnd(this.onLoadMore)
@@ -441,6 +444,7 @@ export struct SearchPage {
     }
     .width('100%')
     .height('100%')
+    .clip(false)
     .backgroundColor($r('sys.color.background_secondary'))
   }
 }

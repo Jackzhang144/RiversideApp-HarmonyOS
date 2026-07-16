@@ -4,6 +4,7 @@ import { canClearProfileBackground } from './ProfileEditorPresentation';
 
 @Component
 export struct ProfileEditorPage {
+  scroller: Scroller = new Scroller();
   @Prop profile: UserProfile | null = null;
   @Prop emails: UserEmailInfo | null = null;
   @Prop mediaState: MediaUploadState | null = null;
@@ -41,7 +42,7 @@ export struct ProfileEditorPage {
   }
 
   build() {
-    Scroll() {
+    Scroll(this.scroller) {
       Column({ space: 14 }) {
         Row({ space: 10 }) {
           Button($r('app.string.profile_edit_change_avatar'), { type: ButtonType.Normal })
@@ -115,6 +116,7 @@ export struct ProfileEditorPage {
     }
     .width('100%')
     .height('100%')
+    .clip(false)
     .backgroundColor($r('sys.color.comp_background_primary'))
   }
 }

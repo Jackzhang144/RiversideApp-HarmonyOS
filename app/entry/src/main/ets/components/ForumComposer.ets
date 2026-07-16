@@ -23,6 +23,7 @@ import { Category } from '../models/ForumModels';
 
 @Component
 export struct ForumComposer {
+  scroller: Scroller = new Scroller();
   @Prop presentation: ForumComposerPresentation = ForumComposerPresentation.reply(
     0,
     '',
@@ -548,7 +549,7 @@ export struct ForumComposer {
   }
 
   build() {
-    Scroll() {
+    Scroll(this.scroller) {
       Column({ space: 12 }) {
         this.ComposerContext()
         if (this.presentation.showsTitleInput) {
@@ -624,6 +625,7 @@ export struct ForumComposer {
     }
     .width('100%')
     .height('100%')
+    .clip(false)
     .edgeEffect(EdgeEffect.Spring)
   }
 }

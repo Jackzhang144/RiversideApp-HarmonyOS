@@ -12,6 +12,7 @@ import {
 
 @Component
 export struct UserProfileSummaryPage {
+  scroller: Scroller = new Scroller();
   @Prop state: ProfileViewState = ProfileViewState.initial();
   @Prop ownProfile: boolean = false;
   onRetry: () => void = (): void => {};
@@ -102,7 +103,7 @@ export struct UserProfileSummaryPage {
 
   @Builder
   private ProfileContent(profile: UserProfile): void {
-    Scroll() {
+    Scroll(this.scroller) {
       Column({ space: 12 }) {
         Column({ space: 10 }) {
           if (profile.profileBackgroundUrl.length > 0) {
@@ -240,6 +241,7 @@ export struct UserProfileSummaryPage {
     }
     .width('100%')
     .height('100%')
+    .clip(false)
     .backgroundColor($r('sys.color.background_secondary'))
   }
 

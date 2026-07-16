@@ -9,6 +9,7 @@ import {
 
 @Component
 export struct AppSettingsPage {
+  scroller: Scroller = new Scroller();
   @Prop selectedHomeChannel: HomeChannel = HomeChannel.LATEST_REPLIES;
   @Prop selectedThemeMode: AppThemeMode = AppThemeMode.SYSTEM;
   @Prop hidePresence: boolean = false;
@@ -85,7 +86,7 @@ export struct AppSettingsPage {
   }
 
   build() {
-    Scroll() {
+    Scroll(this.scroller) {
       Column({ space: 12 }) {
         Text($r('app.string.settings_home_channel'))
           .fontSize(13)
@@ -182,6 +183,7 @@ export struct AppSettingsPage {
     }
     .width('100%')
     .height('100%')
+    .clip(false)
     .edgeEffect(EdgeEffect.Spring)
     .backgroundColor($r('sys.color.background_secondary'))
   }

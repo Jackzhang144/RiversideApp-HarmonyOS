@@ -4,7 +4,9 @@ import { BusinessError, pasteboard } from '@kit.BasicServicesKit';
 import {
   hdsMaterial,
   HdsNavDestination,
+  HdsNavDestinationTitleMode,
   HdsNavigation,
+  HdsNavigationTitleBarOptions,
   HdsNavigationTitleMode,
   HdsSnackBar,
   HdsTabs,
@@ -94,7 +96,8 @@ import {
 } from '../app/ChatConversationPollingController';
 import {
   NotificationCentreModel,
-  NotificationCentreState
+  NotificationCentreState,
+  NotificationCentreStateKind
 } from '../app/NotificationCentreModel';
 import { ProfileManagementModel, ProfileViewState } from '../app/ProfileManagementModel';
 import {
@@ -121,6 +124,7 @@ import { NotificationCentrePage } from '../components/NotificationCentrePage';
 import { CategoryTopicsPage } from '../components/CategoryTopicsPage';
 import { HomeBrowsePage } from '../components/HomeBrowsePage';
 import { HomeFloatingHeader } from '../components/HomeFloatingHeader';
+import { ImmersiveFloatingHeader } from '../components/ImmersiveFloatingHeader';
 import { FeatureSitePresentation } from '../components/HomePresentation';
 import { ForumComposer } from '../components/ForumComposer';
 import {
@@ -200,6 +204,20 @@ struct Index {
   private readonly pathStack: NavPathStack = new NavPathStack();
   private readonly tabsController: HdsTabsController = new HdsTabsController();
   private readonly homeScroller: Scroller = new Scroller();
+  private readonly categoryScroller: Scroller = new Scroller();
+  private readonly chatScroller: Scroller = new Scroller();
+  private readonly notificationScroller: Scroller = new Scroller();
+  private readonly accountScroller: Scroller = new Scroller();
+  private readonly settingsScroller: Scroller = new Scroller();
+  private readonly onlineUsersScroller: Scroller = new Scroller();
+  private readonly categoryTopicsScroller: Scroller = new Scroller();
+  private readonly searchScroller: Scroller = new Scroller();
+  private readonly topicScroller: Scroller = new Scroller();
+  private readonly chatConversationScroller: Scroller = new Scroller();
+  private readonly profileScroller: Scroller = new Scroller();
+  private readonly profileEditorScroller: Scroller = new Scroller();
+  private readonly profileContentScroller: Scroller = new Scroller();
+  private readonly topicComposerScroller: Scroller = new Scroller();
   private model: AppShellModel | null = null;
   private chatModel: ChatModel | null = null;
   private chatPollingController: ChatConversationPollingController | null = null;
@@ -2405,10 +2423,66 @@ struct Index {
   }
 
   @Builder
+  private SecondaryHeader(title: ResourceStr): void {
+    ImmersiveFloatingHeader({
+      title,
+      leadingInset: 48
+    })
+  }
+
+  private secondaryTitleBar(
+    title: ResourceStr,
+    backLabel: ResourceStr = BACK_LABEL
+  ): HdsNavigationTitleBarOptions {
+    return {
+      avoidLayoutSafeArea: true,
+      enableComponentSafeArea: true,
+      content: {
+        title: { mainTitle: '' },
+        backIcon: { label: backLabel },
+        stackBuilder: (): void => this.SecondaryHeader(title)
+      },
+      style: {
+        scrollEffectOpts: {
+          enableScrollEffect: false,
+          scrollEffectType: ScrollEffectType.GRADIENT_BLUR
+        },
+        originalStyle: {
+          backgroundStyle: {
+            backgroundColor: Color.Transparent,
+            maskExtraHeight: 32,
+            blurRadius: 16
+          },
+          contentStyle: {
+            backIconStyle: {
+              backgroundColor: $r('sys.color.comp_background_tertiary'),
+              iconColor: $r('sys.color.font_primary')
+            }
+          }
+        },
+        scrollEffectStyle: {
+          backgroundStyle: {
+            backgroundColor: Color.Transparent,
+            maskExtraHeight: 32,
+            blurRadius: 16
+          },
+          contentStyle: {
+            backIconStyle: {
+              backgroundColor: $r('sys.color.comp_background_tertiary'),
+              iconColor: $r('sys.color.font_primary')
+            }
+          }
+        }
+      }
+    };
+  }
+
+  @Builder
   private SecondaryPage(name: string, _param: Object): void {
     if (name === APP_SETTINGS_ROUTE) {
       HdsNavDestination() {
         AppSettingsPage({
+          scroller: this.settingsScroller,
           selectedHomeChannel: this.selectedHomeChannel,
           selectedThemeMode: this.appThemeMode,
           hidePresence: this.accountProfileState.profile?.hidePresence ?? false,
@@ -2426,13 +2500,9 @@ struct Index {
           }
         })
       }
-      .titleBar({
-        enableComponentSafeArea: true,
-        content: {
-          title: { mainTitle: APP_SETTINGS_TITLE },
-          backIcon: { label: BACK_TO_ACCOUNT_LABEL }
-        }
-      })
+      .titleBar(this.secondaryTitleBar(APP_SETTINGS_TITLE, BACK_TO_ACCOUNT_LABEL))
+      .titleMode(HdsNavDestinationTitleMode.MINI)
+      .bindToScrollable([this.settingsScroller])
       .onBackPressed((): boolean => false)
     } else if (name === ABOUT_ROUTE) {
       HdsNavDestination() {
@@ -2443,17 +2513,13 @@ struct Index {
           }
         })
       }
-      .titleBar({
-        enableComponentSafeArea: true,
-        content: {
-          title: { mainTitle: APP_ABOUT_TITLE },
-          backIcon: { label: BACK_TO_ACCOUNT_LABEL }
-        }
-      })
+      .titleBar(this.secondaryTitleBar(APP_ABOUT_TITLE, BACK_TO_ACCOUNT_LABEL))
+      .titleMode(HdsNavDestinationTitleMode.MINI)
       .onBackPressed((): boolean => false)
     } else if (name === ONLINE_USERS_ROUTE) {
       HdsNavDestination() {
         OnlineUsersPage({
+          scroller: this.onlineUsersScroller,
           count: this.onlineUserCount,
           users: this.onlineUsersState.items,
           onOpenUser: (user: OnlineUser): void => {
@@ -2461,17 +2527,14 @@ struct Index {
           }
         })
       }
-      .titleBar({
-        enableComponentSafeArea: true,
-        content: {
-          title: { mainTitle: `在线用户（${this.onlineUserCount}）` },
-          backIcon: { label: BACK_TO_HOME_LABEL }
-        }
-      })
+      .titleBar(this.secondaryTitleBar(`在线用户（${this.onlineUserCount}）`, BACK_TO_HOME_LABEL))
+      .titleMode(HdsNavDestinationTitleMode.MINI)
+      .bindToScrollable([this.onlineUsersScroller])
       .onBackPressed((): boolean => this.handleSecondaryBack())
     } else if (name === CATEGORY_TOPICS_ROUTE) {
       HdsNavDestination() {
         CategoryTopicsPage({
+          scroller: this.categoryTopicsScroller,
           state: this.categoryTopicsState,
           categories: this.categoryState.items,
           onRefresh: (): void => {
@@ -2485,17 +2548,14 @@ struct Index {
           }
         })
       }
-      .titleBar({
-        enableComponentSafeArea: true,
-        content: {
-          title: { mainTitle: this.categoryTitle },
-          backIcon: { label: BACK_TO_CATEGORY_LABEL }
-        }
-      })
+      .titleBar(this.secondaryTitleBar(this.categoryTitle, BACK_TO_CATEGORY_LABEL))
+      .titleMode(HdsNavDestinationTitleMode.MINI)
+      .bindToScrollable([this.categoryTopicsScroller])
       .onBackPressed((): boolean => this.handleSecondaryBack())
     } else if (name === SEARCH_ROUTE) {
       HdsNavDestination() {
         SearchPage({
+          scroller: this.searchScroller,
           state: this.searchState,
           suggestionState: this.searchSuggestionState,
           knownCategories: this.categoryState.items,
@@ -2525,17 +2585,14 @@ struct Index {
           }
         })
       }
-      .titleBar({
-        enableComponentSafeArea: true,
-        content: {
-          title: { mainTitle: APP_SEARCH_TITLE },
-          backIcon: { label: BACK_TO_HOME_LABEL }
-        }
-      })
+      .titleBar(this.secondaryTitleBar(APP_SEARCH_TITLE, BACK_TO_HOME_LABEL))
+      .titleMode(HdsNavDestinationTitleMode.MINI)
+      .bindToScrollable([this.searchScroller])
       .onBackPressed((): boolean => this.handleSecondaryBack())
     } else if (name === TOPIC_ROUTE) {
       HdsNavDestination() {
         TopicDetailPage({
+          readingScroller: this.topicScroller,
           state: this.topicState,
           authenticated: this.authState.kind === AuthStateKind.AUTHENTICATED,
           reactionUsersState: this.topicReactionUsersState,
@@ -2657,17 +2714,14 @@ struct Index {
           }
         })
       }
-      .titleBar({
-        enableComponentSafeArea: true,
-        content: {
-          title: { mainTitle: APP_TOPIC_DETAIL_TITLE },
-          backIcon: { label: BACK_TO_TOPIC_LIST_LABEL }
-        }
-      })
+      .titleBar(this.secondaryTitleBar(APP_TOPIC_DETAIL_TITLE, BACK_TO_TOPIC_LIST_LABEL))
+      .titleMode(HdsNavDestinationTitleMode.MINI)
+      .bindToScrollable([this.topicScroller])
       .onBackPressed((): boolean => this.handleSecondaryBack())
     } else if (name === CHAT_CONVERSATION_ROUTE) {
       HdsNavDestination() {
         ChatConversationPage({
+          messageScroller: this.chatConversationScroller,
           state: this.chatConversationState,
           composer: this.chatComposerState,
           emojis: this.chatEmojis,
@@ -2709,13 +2763,12 @@ struct Index {
           onLeaveChannel: (): void => { this.confirmLeaveChatChannel(); }
         })
       }
-      .titleBar({
-        enableComponentSafeArea: true,
-        content: {
-          title: { mainTitle: this.chatConversationState.channel?.title ?? APP_CHAT_FALLBACK_TITLE },
-          backIcon: { label: BACK_TO_CHAT_LIST_LABEL }
-        }
-      })
+      .titleBar(this.secondaryTitleBar(
+        this.chatConversationState.channel?.title ?? APP_CHAT_FALLBACK_TITLE,
+        BACK_TO_CHAT_LIST_LABEL
+      ))
+      .titleMode(HdsNavDestinationTitleMode.MINI)
+      .bindToScrollable([this.chatConversationScroller])
       .onShown((): void => {
         this.chatConversationVisible = true;
         this.synchronizeChatPolling();
@@ -2728,6 +2781,7 @@ struct Index {
     } else if (name === USER_PROFILE_ROUTE) {
       HdsNavDestination() {
         UserProfileSummaryPage({
+          scroller: this.profileScroller,
           state: this.profileState,
           ownProfile: this.profileIsOwn,
           onRetry: (): void => {
@@ -2753,17 +2807,14 @@ struct Index {
           }
         })
       }
-      .titleBar({
-        enableComponentSafeArea: true,
-        content: {
-          title: { mainTitle: APP_PROFILE_TITLE },
-          backIcon: { label: BACK_TO_TOPIC_LABEL }
-        }
-      })
+      .titleBar(this.secondaryTitleBar(APP_PROFILE_TITLE, BACK_TO_TOPIC_LABEL))
+      .titleMode(HdsNavDestinationTitleMode.MINI)
+      .bindToScrollable([this.profileScroller])
       .onBackPressed((): boolean => false)
     } else if (name === PROFILE_EDITOR_ROUTE) {
       HdsNavDestination() {
         ProfileEditorPage({
+          scroller: this.profileEditorScroller,
           profile: this.profileState.profile,
           emails: this.profileState.emails,
           mediaState: this.profileMediaState,
@@ -2783,17 +2834,14 @@ struct Index {
           }
         })
       }
-      .titleBar({
-        enableComponentSafeArea: true,
-        content: {
-          title: { mainTitle: APP_PROFILE_EDITOR_TITLE },
-          backIcon: { label: BACK_TO_PROFILE_LABEL }
-        }
-      })
+      .titleBar(this.secondaryTitleBar(APP_PROFILE_EDITOR_TITLE, BACK_TO_PROFILE_LABEL))
+      .titleMode(HdsNavDestinationTitleMode.MINI)
+      .bindToScrollable([this.profileEditorScroller])
       .onBackPressed((): boolean => false)
     } else if (name === PROFILE_CONTENT_ROUTE) {
       HdsNavDestination() {
         ProfileContentPage({
+          scroller: this.profileContentScroller,
           kind: this.profileContentState.kind,
           loading: this.profileContentState.loading,
           loadingMore: this.profileContentState.loadingMore,
@@ -2823,13 +2871,9 @@ struct Index {
           }
         })
       }
-      .titleBar({
-        enableComponentSafeArea: true,
-        content: {
-          title: { mainTitle: this.profileContentTitle() },
-          backIcon: { label: BACK_TO_ACCOUNT_LABEL }
-        }
-      })
+      .titleBar(this.secondaryTitleBar(this.profileContentTitle(), BACK_TO_ACCOUNT_LABEL))
+      .titleMode(HdsNavDestinationTitleMode.MINI)
+      .bindToScrollable([this.profileContentScroller])
       .onBackPressed((): boolean => false)
     } else if (name === RICH_EMBED_ROUTE) {
       HdsNavDestination() {
@@ -2841,13 +2885,8 @@ struct Index {
           onRequestExternalOpen: (url: string): void => this.confirmExternalNavigation(url)
         })
       }
-      .titleBar({
-        enableComponentSafeArea: true,
-        content: {
-          title: { mainTitle: this.richEmbedTitle },
-          backIcon: { label: BACK_TO_TOPIC_LABEL }
-        }
-      })
+      .titleBar(this.secondaryTitleBar(this.richEmbedTitle, BACK_TO_TOPIC_LABEL))
+      .titleMode(HdsNavDestinationTitleMode.MINI)
       .onBackPressed((): boolean => this.handleRichEmbedBack())
     } else if (name === IMAGE_VIEWER_ROUTE) {
       HdsNavDestination() {
@@ -2864,19 +2903,16 @@ struct Index {
           }
         })
       }
-      .titleBar({
-        enableComponentSafeArea: true,
-        content: {
-          title: {
-            mainTitle: this.imageViewerState.title.length > 0 ? this.imageViewerState.title : APP_IMAGE_VIEWER_TITLE
-          },
-          backIcon: { label: BACK_TO_TOPIC_LABEL }
-        }
-      })
+      .titleBar(this.secondaryTitleBar(
+        this.imageViewerState.title.length > 0 ? this.imageViewerState.title : APP_IMAGE_VIEWER_TITLE,
+        BACK_TO_TOPIC_LABEL
+      ))
+      .titleMode(HdsNavDestinationTitleMode.MINI)
       .onBackPressed((): boolean => false)
     } else if (name === TOPIC_COMPOSER_ROUTE) {
       HdsNavDestination() {
         ForumComposer({
+          scroller: this.topicComposerScroller,
           presentation: this.topicComposerPresentation(),
           categories: this.categoryState.items,
           selectedCategoryId: this.topicComposerState.categoryId,
@@ -2923,15 +2959,12 @@ struct Index {
           }
         })
       }
-      .titleBar({
-        enableComponentSafeArea: true,
-        content: {
-          title: {
-            mainTitle: this.model?.topicAuthoring.editingTopicId === null ? APP_NEW_TOPIC_TITLE : APP_EDIT_TOPIC_TITLE
-          },
-          backIcon: { label: BACK_LABEL }
-        }
-      })
+      .titleBar(this.secondaryTitleBar(
+        this.model?.topicAuthoring.editingTopicId === null ? APP_NEW_TOPIC_TITLE : APP_EDIT_TOPIC_TITLE,
+        BACK_LABEL
+      ))
+      .titleMode(HdsNavDestinationTitleMode.MINI)
+      .bindToScrollable([this.topicComposerScroller])
       .onBackPressed((): boolean => this.handleTopicComposerBack())
     } else if (name === LOGIN_ROUTE) {
       HdsNavDestination() {
@@ -2945,13 +2978,8 @@ struct Index {
           }
         })
       }
-      .titleBar({
-        enableComponentSafeArea: true,
-        content: {
-          title: { mainTitle: APP_LOGIN_TITLE },
-          backIcon: { label: CANCEL_LOGIN_LABEL }
-        }
-      })
+      .titleBar(this.secondaryTitleBar(APP_LOGIN_TITLE, CANCEL_LOGIN_LABEL))
+      .titleMode(HdsNavDestinationTitleMode.MINI)
       .onBackPressed((): boolean => this.cancelLogin())
     } else if (name === UI_PROTOTYPE_ROUTE) {
       HdsNavDestination() {
@@ -2968,10 +2996,8 @@ struct Index {
       HdsNavDestination() {
         Text(APP_UNAVAILABLE_PAGE_TITLE)
       }
-      .titleBar({
-        enableComponentSafeArea: true,
-        content: { title: { mainTitle: APP_PRODUCT_TITLE } }
-      })
+      .titleBar(this.secondaryTitleBar(APP_PRODUCT_TITLE))
+      .titleMode(HdsNavDestinationTitleMode.MINI)
       .onBackPressed((): boolean => this.handleSecondaryBack())
     }
   }
@@ -3059,7 +3085,7 @@ struct Index {
   }
 
   @Builder
-  private HomeHeader(): void {
+  private RootHeader(): void {
     if (this.selectedRoot === RootDestination.HOME) {
       HomeFloatingHeader({
         selectedChannel: this.selectedHomeChannel,
@@ -3084,6 +3110,38 @@ struct Index {
         onSelectChannel: (index: number): void => {
           this.selectHomeChannel(index);
         }
+      })
+    } else if (this.selectedRoot === RootDestination.CATEGORY) {
+      ImmersiveFloatingHeader({
+        title: $r('app.string.category_all')
+      })
+    } else if (this.selectedRoot === RootDestination.CHAT) {
+      ImmersiveFloatingHeader({
+        title: $r('app.string.chat_title'),
+        showAction: true,
+        actionEnabled: this.authState.kind === AuthStateKind.AUTHENTICATED &&
+          !this.accountIdentityLoading && this.accountIdentityError.length === 0 &&
+          this.accountProfileState.profile?.canChat === true && !this.chatChannelState.refreshing,
+        actionAccessibilityText: $r('app.string.chat_refresh_accessibility'),
+        onAction: (): void => {
+          this.loadChatChannels();
+        }
+      })
+    } else if (this.selectedRoot === RootDestination.NOTIFICATIONS) {
+      ImmersiveFloatingHeader({
+        title: $r('app.string.notification_title'),
+        showAction: true,
+        actionEnabled: this.authState.kind === AuthStateKind.AUTHENTICATED &&
+          !this.notificationState.refreshing &&
+          this.notificationState.kind !== NotificationCentreStateKind.LOADING,
+        actionAccessibilityText: $r('app.string.notification_refresh_accessibility'),
+        onAction: (): void => {
+          this.refreshNotificationCentre();
+        }
+      })
+    } else {
+      ImmersiveFloatingHeader({
+        title: $r('app.string.account_title')
       })
     }
   }
@@ -3122,6 +3180,7 @@ struct Index {
         TabContent() {
           CategoryBrowsePage({
             state: this.categoryState,
+            scroller: this.categoryScroller,
             onRefresh: (): void => {
               this.refreshCategories();
             },
@@ -3130,6 +3189,7 @@ struct Index {
             }
           })
         }
+        .clip(false)
         .tabBar(this.rootTabStyle(ROOT_CATEGORY_LABEL, $r('sys.symbol.square_grid_2x2')))
 
         TabContent() {
@@ -3141,6 +3201,7 @@ struct Index {
             canStartDirectChat: this.accountProfileState.profile?.canStartDirectChat() === true,
             state: this.chatChannelState,
             searchState: this.chatSearchState,
+            scroller: this.chatScroller,
             onLogin: (): void => { this.openLogin(); },
             onRetryCapability: (): void => { this.refreshAccountIdentity(); },
             onRefresh: (): void => { this.loadChatChannels(); },
@@ -3151,6 +3212,7 @@ struct Index {
             onOpenDirectChat: (username: string): void => { this.openDirectChat(username); }
           })
         }
+        .clip(false)
         .tabBar(this.rootTabStyle(ROOT_CHAT_LABEL, $r('sys.symbol.message')))
 
         TabContent() {
@@ -3158,6 +3220,7 @@ struct Index {
             authenticated: this.authState.kind === AuthStateKind.AUTHENTICATED,
             unreadCount: this.accountIdentity?.unreadNotifications ?? 0,
             state: this.notificationState,
+            scroller: this.notificationScroller,
             onLogin: (): void => { this.openLogin(); },
             onRefresh: (): void => { this.refreshNotificationCentre(); },
             onSelectBucket: (bucket: NotificationBucket): void => { this.selectNotificationBucket(bucket); },
@@ -3165,6 +3228,7 @@ struct Index {
             onOpenItem: (item: NotificationItem): void => { this.openNotificationItem(item); }
           })
         }
+        .clip(false)
         .tabBar(this.rootTabStyle(this.notificationTabLabel(), $r('sys.symbol.bell')))
 
         TabContent() {
@@ -3173,6 +3237,7 @@ struct Index {
             identity: this.accountProfileState.profile,
             identityLoading: this.accountIdentityLoading,
             identityError: this.accountIdentityError,
+            scroller: this.accountScroller,
             onLogin: (): void => {
               this.openLogin();
             },
@@ -3190,6 +3255,7 @@ struct Index {
             }
           })
         }
+        .clip(false)
         .tabBar(this.rootTabStyle(ROOT_ACCOUNT_LABEL, $r('sys.symbol.person_crop_circle_fill_1')))
       }
       .scrollable(false)
@@ -3218,10 +3284,10 @@ struct Index {
     }
     .titleBar({
       avoidLayoutSafeArea: true,
-      enableComponentSafeArea: this.selectedRoot === RootDestination.HOME,
+      enableComponentSafeArea: true,
       content: {
         title: { mainTitle: '' },
-        stackBuilder: (): void => this.HomeHeader()
+        stackBuilder: (): void => this.RootHeader()
       },
       style: {
         scrollEffectOpts: {
@@ -3238,10 +3304,16 @@ struct Index {
       }
     })
     .titleMode(HdsNavigationTitleMode.MINI)
-    .hideTitleBar(this.selectedRoot !== RootDestination.HOME)
+    .hideTitleBar(false)
     .hideBackButton(true)
     .navDestination(this.SecondaryPage)
-    .bindToScrollable([this.homeScroller])
+    .bindToScrollable([
+      this.homeScroller,
+      this.categoryScroller,
+      this.chatScroller,
+      this.notificationScroller,
+      this.accountScroller
+    ])
     .width('100%')
     .height('100%')
     .ignoreLayoutSafeArea(
