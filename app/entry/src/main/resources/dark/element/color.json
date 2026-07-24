@@ -25,6 +25,10 @@
       "value": "#82B4FF"
     },
     {
+      "name": "reaction_liked",
+      "value": "#FF6FAE"
+    },
+    {
       "name": "status_error",
       "value": "#FF858C"
     },

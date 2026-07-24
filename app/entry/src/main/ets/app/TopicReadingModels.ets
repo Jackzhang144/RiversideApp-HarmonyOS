@@ -1,5 +1,38 @@
 import { ForumPost, Topic, TopicDetail } from '../models/ForumModels';
 
+export function samePostReactionState(left: ForumPost, right: ForumPost): boolean {
+  const leftCurrentReaction: string = left.currentUserReaction?.trim() ?? '';
+  const rightCurrentReaction: string = right.currentUserReaction?.trim() ?? '';
+  if (leftCurrentReaction !== rightCurrentReaction) {
+    return false;
+  }
+  const reactionIds: Set<string> = new Set<string>();
+  for (const reaction of left.reactions) {
+    reactionIds.add(reaction.id);
+  }
+  for (const reaction of right.reactions) {
+    reactionIds.add(reaction.id);
+  }
+  for (const reactionId of reactionIds) {
+    let leftCount: number = 0;
+    let rightCount: number = 0;
+    for (const reaction of left.reactions) {
+      if (reaction.id === reactionId) {
+        leftCount += reaction.count;
+      }
+    }
+    for (const reaction of right.reactions) {
+      if (reaction.id === reactionId) {
+        rightCount += reaction.count;
+      }
+    }
+    if (leftCount !== rightCount) {
+      return false;
+    }
+  }
+  return true;
+}
+
 export enum TopicReadStateKind {
   INITIAL = 'initial',
   LOADING = 'loading',
@@ -484,4 +517,3 @@ export function orderPosts(postIds: Array<number>, posts: Array<ForumPost>): Arr
 export function replacePost(posts: Array<ForumPost>, replacement: ForumPost): Array<ForumPost> {
   return posts.map((post: ForumPost): ForumPost => post.id === replacement.id ? replacement : post);
 }
-

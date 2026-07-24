@@ -272,6 +272,66 @@ export class ForumPost {
     return this.postType === 3 && this.actionCode.length > 0;
   }
 
+  public withToggledReaction(reactionId: string): ForumPost {
+    const normalizedReaction: string = reactionId.trim();
+    if (normalizedReaction.length === 0) {
+      return this;
+    }
+    const previousReaction: string = this.currentUserReaction?.trim() ?? '';
+    const nextReaction: string = previousReaction === normalizedReaction ? '' : normalizedReaction;
+    const updatedReactions: Array<PostReaction> = [];
+    let nextReactionFound: boolean = false;
+    for (const reaction of this.reactions) {
+      let count: number = reaction.count;
+      if (reaction.id === previousReaction) {
+        count -= 1;
+      }
+      if (reaction.id === nextReaction) {
+        count += 1;
+        nextReactionFound = true;
+      }
+      if (count > 0) {
+        updatedReactions.push(new PostReaction(reaction.id, count));
+      }
+    }
+    if (nextReaction.length > 0 && !nextReactionFound) {
+      updatedReactions.push(new PostReaction(nextReaction, 1));
+    }
+    let updatedLikeCount: number = 0;
+    for (const reaction of updatedReactions) {
+      updatedLikeCount += reaction.count;
+    }
+    return new ForumPost(
+      this.id,
+      this.userId,
+      this.username,
+      this.cooked,
+      this.raw,
+      this.postNumber,
+      this.replyToPostNumber,
+      this.createdAt,
+      new ForumPostMetadata(
+        this.userTitle,
+        this.avatarUrl,
+        this.flairUrl,
+        this.replyToUsername,
+        this.replyToAvatarUrl,
+        updatedLikeCount,
+        updatedReactions,
+        nextReaction.length > 0 ? nextReaction : null,
+        this.canEdit,
+        this.canDelete,
+        this.acceptedAnswer,
+        this.canAcceptAnswer,
+        this.canUnacceptAnswer,
+        this.bookmarked,
+        this.bookmarkId,
+        this.postType,
+        this.actionCode
+      )
+    );
+  }
+
   public withBookmark(bookmarked: boolean, bookmarkId: number | null): ForumPost {
     return new ForumPost(
       this.id,

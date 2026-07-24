@@ -144,7 +144,7 @@ export function reactionCount(reactionId: string, reactions: Array<PostReaction>
 export function displayedReactions(reactions: Array<PostReaction>): Array<PostReaction> {
   const displayed: Array<PostReaction> = [];
   for (const reaction of reactions) {
-    if (reaction.count > 0) {
+    if (reaction.count > 0 && reactionEmojiKey(reaction.id) !== '+1') {
       displayed.push(reaction);
     }
   }

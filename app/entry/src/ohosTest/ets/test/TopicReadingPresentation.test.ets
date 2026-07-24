@@ -58,7 +58,7 @@ export default function topicReadingPresentationTest(): void {
 
     it('shows only Reactions that already have server-proven counts', 0, () => {
       const reactions: Array<PostReaction> = [
-        new PostReaction('+1', 0),
+        new PostReaction('+1', 4),
         new PostReaction('heart', 2),
         new PostReaction('thinking', 0)
       ];
@@ -67,6 +67,7 @@ export default function topicReadingPresentationTest(): void {
       expect(displayedReactions(reactions).length).assertEqual(1);
       expect(displayedReactions(reactions)[0].id).assertEqual('heart');
       expect(displayedReactions(reactions)[0].count).assertEqual(2);
+      expect(reactionCount('+1', reactions)).assertEqual(4);
     });
 
     it('projects only server-bookmarked Posts into observable selection state', 0, () => {

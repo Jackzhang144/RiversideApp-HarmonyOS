@@ -54,6 +54,7 @@ import {
 import {
   orderPosts,
   replacePost,
+  samePostReactionState,
   TopicPostActionKind,
   TopicPostActionState,
   TopicPostJumpState,
@@ -68,6 +69,10 @@ import { MediaUploadStateListener } from './MediaUploadCoordinator';
 import { DiscoveryCoordinator } from './DiscoveryCoordinator';
 import { CategoryBrowseCoordinator } from './CategoryBrowseCoordinator';
 import { TopicAuthoringCoordinator } from './TopicAuthoringCoordinator';
+
+const REACTION_INITIAL_SYNC_DELAY_MS: number = 750;
+const REACTION_CONFIRMATION_DELAY_MS: number = 1250;
+const REACTION_MAX_SYNC_ATTEMPTS: number = 3;
 
 class TopicNavigationFrame {
   public readonly topic: Topic;
@@ -116,6 +121,7 @@ export class AppShellModel {
   private selectedTopicPostNumber: number | null = null;
   private topicRequestVersion: number = 0;
   private topicReactionUsersRequestVersion: number = 0;
+  private topicReactionMutationVersion: number = 0;
   private replyRequestVersion: number = 0;
   private replyDraftRequestVersion: number = 0;
   private replyDraftSequence: number = 0;
@@ -543,7 +549,7 @@ export class AppShellModel {
     this.topicState = TopicReadState.withDetail(this.topicState, detail.withSuggestedTopics(result.data));
   }
 
-  public async togglePostReaction(postId: number, reaction: string): Promise<void> {
+  public async togglePostReaction(postId: number, reaction: string): Promise<number | null> {
     const detail: TopicDetail | null = this.topicState.detail;
     const normalizedReaction: string = reaction.trim();
     const post: ForumPost | undefined = this.topicState.posts.find(
@@ -556,9 +562,11 @@ export class AppShellModel {
       this.topicState.postActionState.busy ||
       (detail.validReactions.length > 0 && !detail.validReactions.includes(normalizedReaction))
     ) {
-      return;
+      return null;
     }
 
+    this.topicReactionMutationVersion += 1;
+    const mutationVersion: number = this.topicReactionMutationVersion;
     const requestVersion: number = this.topicRequestVersion;
     this.topicState = TopicReadState.withPostAction(
       this.topicState,
@@ -567,7 +575,7 @@ export class AppShellModel {
     const result: RepositoryResult<ForumPost> =
       await this.repository.togglePostReaction(postId, normalizedReaction);
     if (requestVersion !== this.topicRequestVersion || this.topicState.topicId !== detail.id) {
-      return;
+      return null;
     }
     if (!result.isSuccess() || result.data === null) {
       this.requiresAuthentication = result.isUnauthorized();
@@ -576,10 +584,71 @@ export class AppShellModel {
         TopicPostActionState.error(TopicPostActionKind.REACTION, postId, result.message)
       );
       await this.notifyUnauthorized(result.isUnauthorized());
-      return;
+      return null;
     }
-    this.topicState = TopicReadState.withPosts(this.topicState, replacePost(this.topicState.posts, result.data));
+    const optimisticPost: ForumPost = post.withToggledReaction(normalizedReaction);
+    this.topicState = TopicReadState.withPosts(this.topicState, replacePost(this.topicState.posts, optimisticPost));
     this.topicState = TopicReadState.withPostAction(this.topicState, TopicPostActionState.idle());
+    return mutationVersion;
+  }
+
+  private waitForReactionSync(delayMilliseconds: number): Promise<void> {
+    return new Promise<void>((resolve: () => void): void => {
+      setTimeout(resolve, delayMilliseconds);
+    });
+  }
+
+  private isCurrentReactionMutation(topicId: number, mutationVersion: number): boolean {
+    return this.topicState.topicId === topicId &&
+      this.topicRequestVersion > 0 &&
+      this.topicReactionMutationVersion === mutationVersion;
+  }
+
+  private async loadServerPostReactionState(topicId: number, postId: number): Promise<ForumPost | null> {
+    const result: RepositoryResult<TopicPostBatch> = await this.repository.loadTopicPosts(topicId, [postId]);
+    if (!result.isSuccess() || result.data === null) {
+      return null;
+    }
+    return result.data.posts.find((post: ForumPost): boolean => post.id === postId) ?? null;
+  }
+
+  public async reconcilePostReaction(postId: number, mutationVersion: number): Promise<boolean> {
+    const topicId: number = this.topicState.topicId;
+    if (!this.isCurrentReactionMutation(topicId, mutationVersion)) {
+      return false;
+    }
+    let mismatchCount: number = 0;
+    for (let attemptIndex: number = 0; attemptIndex < REACTION_MAX_SYNC_ATTEMPTS; attemptIndex += 1) {
+      await this.waitForReactionSync(
+        attemptIndex === 0 ? REACTION_INITIAL_SYNC_DELAY_MS : REACTION_CONFIRMATION_DELAY_MS
+      );
+      if (!this.isCurrentReactionMutation(topicId, mutationVersion)) {
+        return false;
+      }
+      const serverPost: ForumPost | null = await this.loadServerPostReactionState(topicId, postId);
+      const currentPost: ForumPost | undefined = this.topicState.posts.find(
+        (post: ForumPost): boolean => post.id === postId
+      );
+      if (currentPost === undefined || !this.isCurrentReactionMutation(topicId, mutationVersion)) {
+        return false;
+      }
+      if (serverPost === null) {
+        continue;
+      }
+      if (samePostReactionState(currentPost, serverPost)) {
+        return false;
+      }
+      mismatchCount += 1;
+      if (mismatchCount < 2) {
+        continue;
+      }
+      this.topicState = TopicReadState.withPosts(
+        this.topicState,
+        replacePost(this.topicState.posts, serverPost)
+      );
+      return true;
+    }
+    return false;
   }
 
   public async loadPostReactionUsers(postId: number): Promise<void> {

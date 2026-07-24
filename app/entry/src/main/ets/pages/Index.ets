@@ -1610,10 +1610,18 @@ struct Index {
     if (model === null) {
       return;
     }
-    const task: Promise<void> = model.togglePostReaction(postId, reaction);
+    const task: Promise<number | null> = model.togglePostReaction(postId, reaction);
     this.synchronizeTopicState(model);
-    await task;
+    const mutationVersion: number | null = await task;
     this.synchronizeTopicState(model);
+    if (mutationVersion === null) {
+      return;
+    }
+    const corrected: boolean = await model.reconcilePostReaction(postId, mutationVersion);
+    this.synchronizeTopicState(model);
+    if (corrected) {
+      this.showPostReactionCorrectionMessage();
+    }
   }
 
   private async openPostReactionUsers(postId: number): Promise<void> {
@@ -3048,6 +3056,24 @@ struct Index {
         closeButtonAccessibilityText: '关闭提示'
       },
       { duration: 4000 }
+    );
+  }
+
+  private showPostReactionCorrectionMessage(): void {
+    if (this.snackBar === null) {
+      return;
+    }
+    this.snackBar.show(
+      { icon: $r('sys.symbol.exclamationmark_circle') },
+      {
+        title: '表情回应未同步',
+        content: '服务器状态与本地结果不一致，已恢复服务器状态'
+      },
+      {
+        operationType: SnackBarOperationType.CLOSE_BUTTON_ONLY,
+        closeButtonAccessibilityText: '关闭提示'
+      },
+      { duration: 5000 }
     );
   }
 

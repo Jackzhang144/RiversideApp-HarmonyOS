@@ -1,8 +1,10 @@
-import { TopicPostActionState } from '../app/TopicReadingModels';
+import { TopicPostActionKind, TopicPostActionState } from '../app/TopicReadingModels';
 import { ForumPost, PostReaction } from '../models/ForumModels';
 import {
   displayedReactions,
   reactionAccessibilityLabel,
+  reactionCount,
+  reactionEmojiKey,
   reactionEmojiUrl
 } from './TopicReadingPresentation';
 
@@ -48,7 +50,7 @@ export struct TopicPostActionBar {
     .padding({ left: 10, right: 10 })
     .backgroundColor($r('sys.color.background_secondary'))
     .borderRadius(17)
-    .margin({ right: 6, bottom: 6 })
+    .margin({ right: 6 })
     .onClick((): void => this.onOpenReactionUsers(this.post.id))
     .accessibilityText(`${reactionAccessibilityLabel(reaction.id)}回应，${reaction.count} 次`)
   }
@@ -67,30 +69,90 @@ export struct TopicPostActionBar {
     }
   }
 
+  private currentReactionId(): string | null {
+    const currentReaction: string = this.post.currentUserReaction?.trim() ?? '';
+    return currentReaction.length > 0 ? currentReaction : null;
+  }
+
+  private triggerReactionId(): string {
+    return this.currentReactionId() ?? '+1';
+  }
+
+  private hasCustomCurrentReaction(): boolean {
+    const currentReaction: string | null = this.currentReactionId();
+    return currentReaction !== null && reactionEmojiKey(currentReaction) !== '+1';
+  }
+
+  private hasPositiveCurrentReaction(): boolean {
+    const currentReaction: string | null = this.currentReactionId();
+    return currentReaction !== null && reactionEmojiKey(currentReaction) === '+1';
+  }
+
+  private reactionTriggerAccessibilityText(): string {
+    const currentReaction: string | null = this.currentReactionId();
+    if (currentReaction !== null && reactionEmojiKey(currentReaction) !== '+1') {
+      return `已选择${reactionAccessibilityLabel(currentReaction)}回应；点击取消，长按选择其他回应`;
+    }
+    const positiveCount: number = reactionCount('+1', this.post.reactions);
+    if (this.hasPositiveCurrentReaction()) {
+      return `已赞同，当前 ${positiveCount} 个赞同；点击取消，长按选择其他回应`;
+    }
+    return positiveCount > 0
+      ? `当前 ${positiveCount} 个赞同；点击赞同，长按选择其他回应`
+      : '添加赞同回应，长按选择其他回应';
+  }
+
   @Builder
   private ReactionTrigger(): void {
     Button() {
-      SymbolGlyph($r('sys.symbol.hand_thumbsup'))
-        .width(18)
-        .height(18)
-        .fontColor([this.post.currentUserReaction === '+1'
-          ? $r('app.color.brand_primary')
-          : $r('sys.color.font_secondary')])
+      Row({ space: 4 }) {
+        if (this.hasCustomCurrentReaction()) {
+          Image(reactionEmojiUrl(this.triggerReactionId()))
+            .width(18)
+            .height(18)
+            .objectFit(ImageFit.Contain)
+        } else {
+          SymbolGlyph(reactionCount('+1', this.post.reactions) > 0
+            ? $r('sys.symbol.hand_thumbsup_fill')
+            : $r('sys.symbol.hand_thumbsup'))
+            .fontSize(18)
+            .fontColor([this.hasPositiveCurrentReaction()
+              ? $r('app.color.reaction_liked')
+              : $r('sys.color.font_secondary')])
+          if (reactionCount('+1', this.post.reactions) > 0) {
+            Text(reactionCount('+1', this.post.reactions).toString())
+              .fontSize(12)
+              .fontWeight(FontWeight.Medium)
+              .fontColor(this.hasPositiveCurrentReaction()
+                ? $r('app.color.reaction_liked')
+                : $r('sys.color.font_secondary'))
+          }
+        }
+      }
+      .justifyContent(FlexAlign.Center)
+      .alignItems(VerticalAlign.Center)
     }
-    .width(42)
+    .constraintSize({ minWidth: 36 })
+    .padding({ left: 6, right: 6 })
     .height(34)
     .backgroundColor(Color.Transparent)
     .enabled(!this.actionState.busy)
-    .onClick((): void => this.onToggleReaction(this.post.id, '+1'))
+    .onClick((): void => this.onToggleReaction(this.post.id, this.triggerReactionId()))
     .bindContextMenu(this.ReactionPicker(), ResponseType.LongPress, {
       preview: MenuPreviewMode.NONE,
       enableArrow: true
     })
-    .accessibilityText(
-      this.post.currentUserReaction === '+1'
-        ? '取消赞同回应，长按选择其他回应'
-        : '添加赞同回应，长按选择其他回应'
-    )
+    .accessibilityText(this.reactionTriggerAccessibilityText())
+  }
+
+  @Builder
+  private CompactActions(): void {
+    Row({ space: 0 }) {
+      this.ReactionTrigger()
+      this.MoreActionsTrigger()
+      this.ReplyTrigger()
+    }
+    .alignItems(VerticalAlign.Center)
   }
 
   @Builder
@@ -102,7 +164,7 @@ export struct TopicPostActionBar {
           ? $r('app.color.brand_primary')
           : $r('sys.color.font_secondary')])
     }
-    .width(42)
+    .width(36)
     .height(34)
     .backgroundColor(Color.Transparent)
     .onClick((): void => {
@@ -119,7 +181,7 @@ export struct TopicPostActionBar {
           .fontSize(19)
           .fontColor([$r('sys.color.font_secondary')])
       }
-      .width(42)
+      .width(36)
       .height(34)
       .backgroundColor(Color.Transparent)
       .onClick(this.onReply)
@@ -130,109 +192,131 @@ export struct TopicPostActionBar {
   @Builder
   private MoreActions(): void {
     if (this.moreActionsExpanded) {
-      Flex({ direction: FlexDirection.Row, wrap: FlexWrap.Wrap, justifyContent: FlexAlign.Start }) {
+      Row({ space: 0 }) {
         Button() {
           if (this.bookmarked) {
             SymbolGlyph($r('sys.symbol.bookmark_fill'))
-              .fontSize(18)
-              .fontColor([$r('app.color.on_accent')])
+              .fontSize(19)
+              .fontColor([$r('app.color.brand_primary')])
           } else {
             SymbolGlyph($r('sys.symbol.bookmark'))
-              .fontSize(18)
-              .fontColor([$r('app.color.text_link')])
+              .fontSize(19)
+              .fontColor([$r('sys.color.font_secondary')])
           }
         }
-        .width(42)
+        .width(36)
         .height(34)
-        .backgroundColor(this.bookmarked ? $r('app.color.brand_primary') : $r('sys.color.background_secondary'))
-        .margin({ right: 6, bottom: 6 })
+        .backgroundColor(Color.Transparent)
         .enabled(!this.actionState.busy)
         .onClick((): void => this.onToggleBookmark(this.post.id))
         .accessibilityText(this.bookmarked ? '取消收藏' : '收藏')
+        Button() {
+          SymbolGlyph($r('sys.symbol.paperclip'))
+            .fontSize(19)
+            .fontColor([$r('sys.color.font_secondary')])
+        }
+        .width(36)
+        .height(34)
+        .backgroundColor(Color.Transparent)
+        .onClick((): void => this.onCopyPostLink(this.topicId, this.post.postNumber))
+        .accessibilityText(`复制 Post #${this.post.postNumber} 链接`)
+        Button() {
+          SymbolGlyph($r('sys.symbol.flag'))
+            .fontSize(19)
+            .fontColor([$r('sys.color.font_secondary')])
+        }
+        .width(36)
+        .height(34)
+        .backgroundColor(Color.Transparent)
+        .enabled(!this.actionState.busy)
+        .onClick((): void => this.onReport(this.post))
+        .accessibilityText(`举报 Post #${this.post.postNumber}`)
         if (this.post.canAcceptAnswer || this.post.canUnacceptAnswer) {
-          Button(this.post.acceptedAnswer ? '取消采纳' : '采纳回答')
+          Button() {
+            SymbolGlyph(this.post.acceptedAnswer
+              ? $r('sys.symbol.checkmark_circle_fill')
+              : $r('sys.symbol.checkmark_circle'))
+              .fontSize(19)
+              .fontColor([this.post.acceptedAnswer
+                ? $r('app.color.status_warning')
+                : $r('app.color.status_success')])
+          }
+            .width(36)
             .height(34)
-            .fontSize(12)
-            .backgroundColor($r('sys.color.background_secondary'))
-            .fontColor(this.post.acceptedAnswer ? $r('app.color.status_warning') : $r('app.color.status_success'))
-            .margin({ right: 6, bottom: 6 })
+            .backgroundColor(Color.Transparent)
             .enabled(!this.actionState.busy)
             .onClick((): void => this.onToggleAcceptedAnswer(this.post.id))
             .accessibilityText(this.post.acceptedAnswer ? '取消采纳此回答' : '采纳此回答')
         }
-        Button($r('app.string.action_copy_link'))
-          .height(34)
-          .fontSize(12)
-          .backgroundColor($r('sys.color.background_secondary'))
-          .fontColor($r('app.color.text_link'))
-          .margin({ right: 6, bottom: 6 })
-          .onClick((): void => this.onCopyPostLink(this.topicId, this.post.postNumber))
-          .accessibilityText(`复制 Post #${this.post.postNumber} 链接`)
-        Button($r('app.string.topic_report'))
-          .height(34)
-          .fontSize(12)
-          .backgroundColor($r('sys.color.background_secondary'))
-          .fontColor($r('sys.color.font_secondary'))
-          .margin({ right: 6, bottom: 6 })
-          .enabled(!this.actionState.busy)
-          .onClick((): void => this.onReport(this.post))
-          .accessibilityText(`举报 Post #${this.post.postNumber}`)
         if (this.editable) {
-          Button($r('app.string.action_edit'))
+          Button() {
+            SymbolGlyph($r('sys.symbol.square_and_pencil'))
+              .fontSize(19)
+              .fontColor([$r('sys.color.font_secondary')])
+          }
+            .width(36)
             .height(34)
-            .fontSize(12)
-            .backgroundColor($r('sys.color.background_secondary'))
-            .fontColor($r('app.color.text_link'))
-            .margin({ right: 6, bottom: 6 })
+            .backgroundColor(Color.Transparent)
             .enabled(!this.actionState.busy)
             .onClick((): void => this.onEdit(this.post.id))
             .accessibilityText(this.post.postNumber === 1 ? '编辑 Topic' : `编辑 Post #${this.post.postNumber}`)
         }
         if (this.post.canDelete) {
-          Button($r('app.string.action_delete'))
+          Button() {
+            SymbolGlyph($r('sys.symbol.trash'))
+              .fontSize(19)
+              .fontColor([$r('app.color.status_error')])
+          }
+            .width(36)
             .height(34)
-            .fontSize(12)
-            .backgroundColor($r('sys.color.background_secondary'))
-            .fontColor($r('app.color.status_error'))
-            .margin({ right: 6, bottom: 6 })
+            .backgroundColor(Color.Transparent)
             .enabled(!this.actionState.busy)
             .onClick((): void => this.onDelete(this.post.id))
             .accessibilityText(this.post.postNumber === 1 ? '删除 Topic 首帖' : `删除 Post #${this.post.postNumber}`)
         }
       }
       .width('100%')
-      .padding({ top: 4 })
+      .justifyContent(FlexAlign.End)
+      .alignItems(VerticalAlign.Center)
     }
   }
 
   build() {
     Column({ space: 7 }) {
       Row({ space: 6 }) {
-        Flex({ direction: FlexDirection.Row, wrap: FlexWrap.Wrap, justifyContent: FlexAlign.Start }) {
-        if (this.post.acceptedAnswer) {
-          Text($r('app.string.topic_accepted_answer'))
-            .height(34)
-            .fontSize(12)
-            .fontWeight(FontWeight.Medium)
-            .fontColor($r('app.color.status_success'))
-            .padding({ left: 10, right: 10 })
-            .backgroundColor($r('sys.color.background_secondary'))
-            .borderRadius(17)
-            .margin({ right: 6, bottom: 6 })
-            .accessibilityText($r('app.string.topic_accepted_answer_accessibility'))
+        if (this.post.acceptedAnswer || displayedReactions(this.post.reactions).length > 0) {
+          Flex({ direction: FlexDirection.Row, wrap: FlexWrap.Wrap, justifyContent: FlexAlign.Start }) {
+            if (this.post.acceptedAnswer) {
+              Text($r('app.string.topic_accepted_answer'))
+                .height(34)
+                .fontSize(12)
+                .fontWeight(FontWeight.Medium)
+                .fontColor($r('app.color.status_success'))
+                .padding({ left: 10, right: 10 })
+                .backgroundColor($r('sys.color.background_secondary'))
+                .borderRadius(17)
+                .margin({ right: 6 })
+                .accessibilityText($r('app.string.topic_accepted_answer_accessibility'))
+            }
+            ForEach(displayedReactions(this.post.reactions), (reaction: PostReaction) => {
+              this.ReactionSummary(reaction)
+            }, (reaction: PostReaction): string => reaction.id)
+          }
+          .layoutWeight(1)
+        } else {
+          Blank()
+            .layoutWeight(1)
         }
-        ForEach(displayedReactions(this.post.reactions), (reaction: PostReaction) => {
-          this.ReactionSummary(reaction)
-        }, (reaction: PostReaction): string => reaction.id)
-        }
-        .layoutWeight(1)
-        this.ReactionTrigger()
-        this.MoreActionsTrigger()
-        this.ReplyTrigger()
+        this.CompactActions()
       }
       .width('100%')
+      .alignItems(VerticalAlign.Bottom)
       this.MoreActions()
-      if (this.actionState.postId === this.post.id && this.actionState.busy) {
+      if (
+        this.actionState.postId === this.post.id &&
+        this.actionState.busy &&
+        this.actionState.kind !== TopicPostActionKind.REACTION
+      ) {
         Row({ space: 6 }) {
           LoadingProgress()
             .width(18)

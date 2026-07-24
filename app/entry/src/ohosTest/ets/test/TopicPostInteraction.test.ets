@@ -64,14 +64,14 @@ import {
 
 export default function topicPostInteractionTest(): void {
   describe('AppShell Topic post interaction', () => {
-    it('updates a Reaction only after the server returns the authoritative Post', 0, async (done: Function) => {
+    it('applies a successful Reaction response to local state immediately', 0, async (done: Function) => {
       const repository: TopicReadingRepository = new TopicReadingRepository();
       repository.topicDetailResults.push(RepositoryResult.success<TopicDetail>(new TopicDetail(
         2725, 'Reaction Topic', 10, 1, 0, false, false, true, [102728], [firstPost()]
       )));
       repository.reactionResults.push(
         RepositoryResult.unknown<ForumPost>('Reaction 更新失败'),
-        RepositoryResult.success<ForumPost>(reactedFirstPost())
+        RepositoryResult.success<ForumPost>(firstPost())
       );
       const model: AppShellModel = new AppShellModel(
         repository, new MemoryCategoryCache(), CategoryCacheScope.anonymous()
@@ -87,6 +87,80 @@ export default function topicPostInteractionTest(): void {
       expect(model.topicState.posts[0].currentUserReaction).assertEqual('heart');
       expect(model.topicState.posts[0].likeCount).assertEqual(1);
       expect(model.topicState.postActionState.message).assertEqual('');
+      done();
+    });
+
+    it('keeps an optimistic Reaction when server reconciliation agrees', 0, async (done: Function) => {
+      const repository: TopicReadingRepository = new TopicReadingRepository();
+      repository.topicDetailResults.push(RepositoryResult.success<TopicDetail>(new TopicDetail(
+        2725, 'Reaction Topic', 10, 1, 0, false, false, true, [102728], [firstPost()]
+      )));
+      repository.reactionResults.push(RepositoryResult.success<ForumPost>(firstPost()));
+      repository.topicPostResults.push(
+        RepositoryResult.success<TopicPostBatch>(new TopicPostBatch([reactedFirstPost()]))
+      );
+      const model: AppShellModel = new AppShellModel(
+        repository, new MemoryCategoryCache(), CategoryCacheScope.anonymous()
+      );
+      await model.openTopic(topic());
+
+      const mutationVersion: number | null = await model.togglePostReaction(102728, 'heart');
+      expect(model.topicState.posts[0].currentUserReaction).assertEqual('heart');
+      expect(mutationVersion === null).assertFalse();
+      const corrected: boolean = await model.reconcilePostReaction(102728, mutationVersion ?? 0);
+
+      expect(corrected).assertFalse();
+      expect(repository.requestedPostIds.length).assertEqual(1);
+      expect(model.topicState.posts[0].currentUserReaction).assertEqual('heart');
+      done();
+    });
+
+    it('retries a failed silent Reaction sync without rolling back local state', 0, async (done: Function) => {
+      const repository: TopicReadingRepository = new TopicReadingRepository();
+      repository.topicDetailResults.push(RepositoryResult.success<TopicDetail>(new TopicDetail(
+        2725, 'Reaction Topic', 10, 1, 0, false, false, true, [102728], [firstPost()]
+      )));
+      repository.reactionResults.push(RepositoryResult.success<ForumPost>(firstPost()));
+      repository.topicPostResults.push(
+        RepositoryResult.network<TopicPostBatch>('临时断网'),
+        RepositoryResult.success<TopicPostBatch>(new TopicPostBatch([reactedFirstPost()]))
+      );
+      const model: AppShellModel = new AppShellModel(
+        repository, new MemoryCategoryCache(), CategoryCacheScope.anonymous()
+      );
+      await model.openTopic(topic());
+
+      const mutationVersion: number | null = await model.togglePostReaction(102728, 'heart');
+      const corrected: boolean = await model.reconcilePostReaction(102728, mutationVersion ?? 0);
+
+      expect(corrected).assertFalse();
+      expect(repository.requestedPostIds.length).assertEqual(2);
+      expect(model.topicState.posts[0].currentUserReaction).assertEqual('heart');
+      done();
+    });
+
+    it('restores confirmed server Reaction state after two mismatches', 0, async (done: Function) => {
+      const repository: TopicReadingRepository = new TopicReadingRepository();
+      repository.topicDetailResults.push(RepositoryResult.success<TopicDetail>(new TopicDetail(
+        2725, 'Reaction Topic', 10, 1, 0, false, false, true, [102728], [firstPost()]
+      )));
+      repository.reactionResults.push(RepositoryResult.success<ForumPost>(reactedFirstPost()));
+      repository.topicPostResults.push(
+        RepositoryResult.success<TopicPostBatch>(new TopicPostBatch([firstPost()])),
+        RepositoryResult.success<TopicPostBatch>(new TopicPostBatch([firstPost()]))
+      );
+      const model: AppShellModel = new AppShellModel(
+        repository, new MemoryCategoryCache(), CategoryCacheScope.anonymous()
+      );
+      await model.openTopic(topic());
+
+      const mutationVersion: number | null = await model.togglePostReaction(102728, 'heart');
+      expect(model.topicState.posts[0].currentUserReaction).assertEqual('heart');
+      const corrected: boolean = await model.reconcilePostReaction(102728, mutationVersion ?? 0);
+
+      expect(corrected).assertTrue();
+      expect(repository.requestedPostIds.length).assertEqual(2);
+      expect(model.topicState.posts[0].currentUserReaction).assertNull();
       done();
     });
 
