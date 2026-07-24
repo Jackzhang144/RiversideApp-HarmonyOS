@@ -39,6 +39,7 @@ import chatModelTest from './ChatModel.test';
 import chatComposerEditingTest from './ChatComposerEditing.test';
 import chatMessagePresentationTest from './ChatMessagePresentation.test';
 import chatConversationPollingControllerTest from './ChatConversationPollingController.test';
+import categoryBrowsePresentationTest from './CategoryBrowsePresentation.test';
 import notificationModelsTest from './NotificationModels.test';
 import notificationRepositoryTest from './NotificationRepository.test';
 import notificationCentreModelTest from './NotificationCentreModel.test';
@@ -47,6 +48,7 @@ import forumPlainTextTest from './ForumPlainText.test';
 import riversideEnvironmentTest from './RiversideEnvironment.test';
 
 export default function tests(): void {
+  categoryBrowsePresentationTest();
   riversideEnvironmentTest();
   forumPlainTextTest();
   composerEmojiModelsTest();

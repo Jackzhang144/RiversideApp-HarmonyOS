@@ -1,5 +1,6 @@
 import { BrowseState, BrowseStateKind } from '../app/BrowseModels';
 import { Category } from '../models/ForumModels';
+import { CategorySection, categorySections } from './CategoryBrowsePresentation';
 
 @Component
 export struct CategoryBrowsePage {
@@ -7,37 +8,6 @@ export struct CategoryBrowsePage {
   scroller: Scroller = new Scroller();
   onRefresh: () => void = (): void => {};
   onOpenCategory: (category: Category) => void = (_category: Category): void => {};
-
-  private categoryDepth(category: Category): number {
-    let depth: number = 0;
-    let current: Category = category;
-    const visited: Set<number> = new Set<number>();
-    visited.add(category.id);
-    while (current.parentCategoryId !== null && depth < 3) {
-      depth += 1;
-      const parentId: number = current.parentCategoryId;
-      if (visited.has(parentId)) {
-        break;
-      }
-      visited.add(parentId);
-      let parent: Category | null = null;
-      for (const candidate of this.state.items) {
-        if (candidate.id === parentId) {
-          parent = candidate;
-          break;
-        }
-      }
-      if (parent === null) {
-        break;
-      }
-      current = parent;
-    }
-    return depth;
-  }
-
-  private categoryLeftPadding(category: Category): number {
-    return 16 + this.categoryDepth(category) * 20;
-  }
 
   private categoryAccent(category: Category): ResourceColor {
     const color: string = category.color.trim();
@@ -112,76 +82,101 @@ export struct CategoryBrowsePage {
   }
 
   @Builder
-  private CategoryIcon(category: Category): void {
-    if (this.categoryDepth(category) === 0) {
+  private ParentCategoryHeader(category: Category): void {
+    Row({ space: 12 }) {
       SymbolGlyph($r('sys.symbol.square_grid_2x2'))
         .fontSize(22)
         .fontColor([this.categoryAccent(category)])
-    } else {
-      SymbolGlyph($r('sys.symbol.folder'))
-        .fontSize(21)
-        .fontColor([this.categoryAccent(category)])
+      Text(category.name)
+        .fontSize(17)
+        .fontWeight(FontWeight.Medium)
+        .fontColor($r('sys.color.font_primary'))
+        .maxLines(1)
+        .textOverflow({ overflow: TextOverflow.Ellipsis })
+        .layoutWeight(1)
+      SymbolGlyph($r('sys.symbol.chevron_right'))
+        .fontSize(16)
+        .fontColor([$r('sys.color.font_tertiary')])
     }
+    .width('100%')
+    .height(52)
+    .padding({ left: 8, right: 8 })
+    .onClick((): void => {
+      this.onOpenCategory(category);
+    })
+    .accessibilityText(`父版块：${category.name}，查看全部主题`)
   }
 
   @Builder
-  private CategoryRow(category: Category): void {
-    Column() {
-      Row({ space: 12 }) {
-        this.CategoryIcon(category)
-        Column({ space: 3 }) {
-          Text(category.name)
-            .fontSize(15)
-            .fontWeight(this.categoryDepth(category) === 0 ? FontWeight.Bold : FontWeight.Medium)
-            .maxLines(1)
+  private ChildCategoryRow(category: Category): void {
+    Row({ space: 12 }) {
+      SymbolGlyph($r('sys.symbol.folder'))
+        .fontSize(22)
+        .fontColor([this.categoryAccent(category)])
+      Column({ space: 3 }) {
+        Text(category.name)
+          .fontSize(15)
+          .fontWeight(FontWeight.Medium)
+          .fontColor($r('sys.color.font_primary'))
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+        if (category.description.length > 0) {
+          Text(category.description)
+            .fontSize(12)
+            .fontColor($r('sys.color.font_secondary'))
+            .maxLines(2)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
-          if (category.description.length > 0) {
-            Text(category.description)
-              .fontSize(12)
-              .fontColor($r('sys.color.font_secondary'))
-              .maxLines(2)
-              .textOverflow({ overflow: TextOverflow.Ellipsis })
-          }
         }
-        .layoutWeight(1)
-        .alignItems(HorizontalAlign.Start)
-        SymbolGlyph($r('sys.symbol.chevron_right'))
-          .fontSize(16)
-          .fontColor([$r('sys.color.font_tertiary')])
       }
-      .width('100%')
-      .constraintSize({ minHeight: 64 })
-      .padding({
-        left: this.categoryLeftPadding(category),
-        right: 16,
-        top: 10,
-        bottom: 10
-      })
-      .backgroundColor(this.categoryDepth(category) === 0
-        ? $r('sys.color.background_secondary')
-        : $r('sys.color.comp_background_primary'))
-      .onClick((): void => {
-        this.onOpenCategory(category);
-      })
-      .accessibilityText(
-        `${this.categoryDepth(category) === 0 ? '一级分类' : '子分类'}：${category.name}`
-      )
-      Divider()
-        .margin({ left: this.categoryLeftPadding(category) + 34 })
-        .color($r('sys.color.comp_divider'))
+      .layoutWeight(1)
+      .alignItems(HorizontalAlign.Start)
+      SymbolGlyph($r('sys.symbol.chevron_right'))
+        .fontSize(16)
+        .fontColor([$r('sys.color.font_tertiary')])
     }
     .width('100%')
+    .constraintSize({ minHeight: 68 })
+    .padding({ left: 16, right: 16, top: 10, bottom: 10 })
+    .onClick((): void => {
+      this.onOpenCategory(category);
+    })
+    .accessibilityText(`子版块：${category.name}`)
+  }
+
+  @Builder
+  private CategoryGroup(section: CategorySection): void {
+    Column({ space: 8 }) {
+      this.ParentCategoryHeader(section.parent)
+      if (section.children.length > 0) {
+        Column() {
+          ForEach(section.children, (category: Category, index: number) => {
+            this.ChildCategoryRow(category)
+            if (index < section.children.length - 1) {
+              Divider()
+                .margin({ left: 50, right: 16 })
+                .color($r('sys.color.comp_divider'))
+            }
+          }, (category: Category): string => category.id.toString())
+        }
+        .width('100%')
+        .backgroundColor($r('sys.color.comp_background_primary'))
+        .borderRadius(18)
+        .border({ width: 1, color: $r('sys.color.comp_divider') })
+      }
+    }
+    .width('100%')
+    .padding({ left: 12, right: 12, bottom: 12 })
   }
 
   @Builder
   private CategoryList(): void {
     Refresh({ refreshing: this.state.isRefreshing }) {
       List({ scroller: this.scroller }) {
-        ForEach(this.state.items, (category: Category) => {
+        ForEach(categorySections(this.state.items), (section: CategorySection) => {
           ListItem() {
-            this.CategoryRow(category)
+            this.CategoryGroup(section)
           }
-        }, (category: Category): string => category.id.toString())
+        }, (section: CategorySection): string => section.parent.id.toString())
         ListItem() {
           Column()
             .width('100%')
@@ -190,7 +185,7 @@ export struct CategoryBrowsePage {
       }
       .width('100%')
       .height('100%')
-      .contentStartOffset(10)
+      .contentStartOffset(6)
       .clip(false)
       .cachedCount(3, true)
       .backgroundColor(Color.Transparent)
