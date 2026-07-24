@@ -34,7 +34,7 @@ export default function forumComposerPresentationTest(): void {
       );
 
       expect(presentation.mode).assertEqual(ForumComposerMode.REPLY);
-      expect(presentation.sheetTitle).assertEqual('Reply 编辑器');
+      expect(presentation.sheetTitle).assertEqual('回复 Topic');
       expect(presentation.contextTitle).assertEqual('回复 Topic #2725');
       expect(presentation.contextBadge).assertEqual('Topic');
       expect(presentation.showsTitleInput).assertFalse();
@@ -44,7 +44,7 @@ export default function forumComposerPresentationTest(): void {
       expect(presentation.mentionActionAccessibilityText).assertEqual('插入用户提及');
       expect(presentation.showsDraftActions).assertTrue();
       expect(presentation.canSubmit()).assertTrue();
-      expect(presentation.submitLabel()).assertEqual('发布 Reply');
+      expect(presentation.submitLabel()).assertEqual('回复');
     });
 
     it('blocks submission while an image is uploading and exposes cancel progress', 0, () => {
@@ -96,7 +96,8 @@ export default function forumComposerPresentationTest(): void {
         '操作过于频繁'
       );
 
-      expect(presentation.contextTitle).assertEqual('回复 Post #3');
+      expect(presentation.contextTitle).assertEqual('回复 #3');
+      expect(presentation.sheetTitle).assertEqual('回复 #3');
       expect(presentation.contextBadge).assertEqual('#3');
       expect(presentation.characterCount()).assertEqual(1001);
       expect(presentation.canSubmit()).assertTrue();
@@ -133,14 +134,14 @@ export default function forumComposerPresentationTest(): void {
       );
 
       expect(complete.mode).assertEqual(ForumComposerMode.TOPIC);
-      expect(complete.sheetTitle).assertEqual('发帖 编辑器');
+      expect(complete.sheetTitle).assertEqual('发布新 Topic');
       expect(complete.contextTitle).assertEqual('发布到 RiverSide');
       expect(complete.contextBadge).assertEqual('水手之家');
       expect(complete.showsTitleInput).assertTrue();
       expect(complete.showsCategoryInput).assertTrue();
       expect(incomplete.canSubmit()).assertFalse();
       expect(complete.canSubmit()).assertTrue();
-      expect(complete.submitLabel()).assertEqual('发布 Topic');
+      expect(complete.submitLabel()).assertEqual('发布');
       expect(complete.contextDescription).assertEqual('发布到 水手之家');
       expect(complete.showsDraftActions).assertTrue();
 
@@ -161,7 +162,7 @@ export default function forumComposerPresentationTest(): void {
       expect(post.mode).assertEqual(ForumComposerMode.EDIT_POST);
       expect(post.showsTitleInput).assertFalse();
       expect(post.showsDraftActions).assertFalse();
-      expect(post.submitLabel()).assertEqual('保存 Post');
+      expect(post.submitLabel()).assertEqual('保存');
       expect(topic.mode).assertEqual(ForumComposerMode.EDIT_TOPIC);
       expect(topic.showsTitleInput).assertTrue();
       expect(topic.showsDraftActions).assertFalse();

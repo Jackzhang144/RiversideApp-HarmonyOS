@@ -626,15 +626,15 @@
     },
     {
       "name": "composer_topic_title_accessibility",
-      "value": "Topic 标题"
+      "value": "帖子标题"
     },
     {
       "name": "composer_category_label",
-      "value": "Category"
+      "value": "分类"
     },
     {
       "name": "composer_category_accessibility",
-      "value": "选择 Topic Category"
+      "value": "选择帖子分类"
     },
     {
       "name": "topic_loading",

@@ -20,6 +20,7 @@ import {
 } from '../models/ComposerMentionModels';
 import { ChatEmoji } from '../models/ChatModels';
 import { Category } from '../models/ForumModels';
+import { ForumComposerToolbar } from './ForumComposerToolbar';
 
 @Component
 export struct ForumComposer {
@@ -153,7 +154,7 @@ export struct ForumComposer {
     const selected: Category | undefined = this.categories.find(
       (category: Category): boolean => category.id === this.selectedCategoryId
     );
-    return selected?.name ?? '请选择 Category';
+    return selected?.name ?? '请选择分类';
   }
 
   @Builder
@@ -185,7 +186,8 @@ export struct ForumComposer {
     }
     .width('100%')
     .padding(12)
-    .backgroundColor($r('sys.color.background_secondary'))
+    .backgroundColor($r('sys.color.comp_background_primary'))
+    .border({ width: 1, color: $r('sys.color.comp_divider') })
     .borderRadius($r('app.float.card_corner_radius'))
   }
 
@@ -286,19 +288,6 @@ export struct ForumComposer {
   }
 
   @Builder
-  private ToolButton(label: string, tool: ComposerTool, accessibilityText: string): void {
-    Button(label)
-      .height(34)
-      .fontSize(12)
-      .enabled(this.presentation.canEdit())
-      .backgroundColor($r('sys.color.background_secondary'))
-      .fontColor($r('app.color.text_link'))
-      .margin({ right: 7, bottom: 7 })
-      .onClick((): void => this.applyTool(tool))
-      .accessibilityText(accessibilityText)
-  }
-
-  @Builder
   private EmojiPicker(): void {
     Column({ space: 10 }) {
       Row({ space: 8 }) {
@@ -391,59 +380,15 @@ export struct ForumComposer {
 
   @Builder
   private ComposerTools(): void {
-    Flex({ direction: FlexDirection.Row, wrap: FlexWrap.Wrap, justifyContent: FlexAlign.Start }) {
-      this.ToolButton('B', ComposerTool.BOLD, '粗体')
-      this.ToolButton('I', ComposerTool.ITALIC, '斜体')
-      this.ToolButton('H1', ComposerTool.HEADING_1, '一级标题')
-      this.ToolButton('H2', ComposerTool.HEADING_2, '二级标题')
-      this.ToolButton('H3', ComposerTool.HEADING_3, '三级标题')
-      this.ToolButton('H4', ComposerTool.HEADING_4, '四级标题')
-      this.ToolButton('链接', ComposerTool.LINK, '插入链接')
-      this.ToolButton('引用', ComposerTool.QUOTE, '块引用')
-      this.ToolButton('代码', ComposerTool.CODE_BLOCK, '代码块')
-      this.ToolButton('`code`', ComposerTool.INLINE_CODE, '行内代码')
-      this.ToolButton('• 列表', ComposerTool.BULLET_LIST, '无序列表')
-      this.ToolButton('1. 列表', ComposerTool.ORDERED_LIST, '有序列表')
-      this.ToolButton('☐', ComposerTool.CHECKLIST, 'Checklist')
-      this.ToolButton('☑', ComposerTool.CHECKLIST_DONE, '已完成 Checklist')
-      this.ToolButton('Spoiler', ComposerTool.SPOILER, 'Spoiler')
-      this.ToolButton('目录', ComposerTool.TABLE_OF_CONTENTS, '目录')
-      this.ToolButton('单选投票', ComposerTool.POLL_SINGLE, '插入单选投票模板')
-      this.ToolButton('多选投票', ComposerTool.POLL_MULTIPLE, '插入多选投票模板')
-      this.ToolButton('表格', ComposerTool.TABLE, '插入表格')
-      this.ToolButton('公式', ComposerTool.MATH, '插入公式')
-      Button('😀')
-        .height(34)
-        .fontSize(16)
-        .enabled(this.presentation.canEdit())
-        .backgroundColor($r('sys.color.background_secondary'))
-        .margin({ right: 7, bottom: 7 })
-        .onClick((): void => this.toggleEmojiPicker())
-        .accessibilityText($r('app.string.composer_emoji_open_accessibility'))
-      Button() {
-        SymbolGlyph($r('sys.symbol.ohos_photo'))
-          .fontSize(18)
-          .fontColor([$r('sys.color.font_tertiary')])
-      }
-      .width(42)
-      .height(34)
-      .enabled(this.presentation.imageActionAvailable)
-      .backgroundColor($r('sys.color.background_secondary'))
-      .margin({ right: 7, bottom: 7 })
-      .onClick(this.onSelectMedia)
-      .accessibilityText(this.presentation.imageActionAccessibilityText)
-      Button('@')
-        .width(42)
-        .height(34)
-        .fontSize(16)
-        .enabled(this.presentation.mentionActionAvailable)
-        .backgroundColor($r('sys.color.background_secondary'))
-        .fontColor($r('sys.color.font_tertiary'))
-        .margin({ right: 7, bottom: 7 })
-        .onClick((): void => this.insertText('@'))
-        .accessibilityText(this.presentation.mentionActionAccessibilityText)
-    }
-    .width('100%')
+    ForumComposerToolbar({
+      toolbarEnabled: this.presentation.canEdit(),
+      imageEnabled: this.presentation.imageActionAvailable,
+      mentionEnabled: this.presentation.mentionActionAvailable,
+      onToolSelected: (tool: ComposerTool): void => this.applyTool(tool),
+      onEmojiSelected: (): void => this.toggleEmojiPicker(),
+      onImageSelected: (): void => this.onSelectMedia(),
+      onMentionSelected: (): void => this.insertText('@')
+    })
   }
 
   @Builder
@@ -504,45 +449,41 @@ export struct ForumComposer {
   }
 
   @Builder
-  private PrimaryAction(): void {
+  private ComposerActions(): void {
     if (this.presentation.needsAuthentication()) {
       Button($r('app.string.composer_reauthenticate'))
         .width('100%')
-        .height(48)
+        .height(44)
         .onClick(this.onReauthenticate)
         .accessibilityText($r('app.string.composer_reauthenticate_accessibility'))
     } else {
-      Button(this.presentation.submitLabel())
-        .width('100%')
-        .height(48)
-        .enabled(this.presentation.canSubmit())
-        .onClick(this.onSubmit)
-        .accessibilityText(this.presentation.status === ForumComposerStatus.ERROR
-          ? '再次确认后显式重试发布'
-          : this.presentation.submitLabel())
-    }
-  }
-
-  @Builder
-  private DraftActions(): void {
-    if (this.presentation.showsDraftActions) {
       Row({ space: 10 }) {
-        Button($r('app.string.composer_save_draft'))
+        if (this.presentation.showsDraftActions) {
+          Button($r('app.string.composer_discard'))
+            .layoutWeight(0.8)
+            .height(44)
+            .enabled(!this.presentation.isBusy())
+            .backgroundColor(Color.Transparent)
+            .fontColor($r('app.color.status_error'))
+            .onClick(this.onDiscard)
+            .accessibilityText($r('app.string.composer_discard_accessibility'))
+          Button($r('app.string.composer_save_draft'))
+            .layoutWeight(1)
+            .height(44)
+            .enabled(this.presentation.canEdit())
+            .backgroundColor($r('sys.color.background_secondary'))
+            .fontColor($r('app.color.text_link'))
+            .onClick(this.onSaveDraft)
+            .accessibilityText($r('app.string.composer_save_draft_accessibility'))
+        }
+        Button(this.presentation.submitLabel())
           .layoutWeight(1)
-          .height(42)
-          .enabled(this.presentation.canEdit())
-          .backgroundColor($r('sys.color.background_secondary'))
-          .fontColor($r('app.color.text_link'))
-          .onClick(this.onSaveDraft)
-          .accessibilityText($r('app.string.composer_save_draft_accessibility'))
-        Button($r('app.string.composer_discard'))
-          .layoutWeight(1)
-          .height(42)
-          .enabled(!this.presentation.isBusy())
-          .backgroundColor($r('sys.color.background_secondary'))
-          .fontColor($r('app.color.status_error'))
-          .onClick(this.onDiscard)
-          .accessibilityText($r('app.string.composer_discard_accessibility'))
+          .height(44)
+          .enabled(this.presentation.canSubmit())
+          .onClick(this.onSubmit)
+          .accessibilityText(this.presentation.status === ForumComposerStatus.ERROR
+            ? '再次确认后显式重试发布'
+            : this.presentation.submitLabel())
       }
       .width('100%')
     }
@@ -559,7 +500,9 @@ export struct ForumComposer {
           })
             .height(44)
             .enabled(this.presentation.canEdit())
-            .backgroundColor($r('sys.color.background_secondary'))
+            .backgroundColor($r('sys.color.comp_background_primary'))
+            .border({ width: 1, color: $r('sys.color.comp_divider') })
+            .borderRadius($r('app.float.card_corner_radius'))
             .onChange((value: string): void => this.onTitleChange(value))
             .accessibilityText($r('app.string.composer_topic_title_accessibility'))
         }
@@ -573,6 +516,10 @@ export struct ForumComposer {
               .selected(this.selectedCategoryIndex())
               .value(this.selectedCategoryName())
               .width('100%')
+              .height(44)
+              .backgroundColor($r('sys.color.comp_background_primary'))
+              .border({ width: 1, color: $r('sys.color.comp_divider') })
+              .borderRadius(22)
               .enabled(this.presentation.canEdit() && this.categories.length > 0)
               .onSelect((index: number, _value: string): void => {
                 const category: Category | undefined = this.categories[index];
@@ -584,15 +531,27 @@ export struct ForumComposer {
           }
           .width('100%')
         }
+        Text(this.presentation.mode === ForumComposerMode.REPLY ||
+          this.presentation.mode === ForumComposerMode.EDIT_POST
+          ? '回复内容'
+          : '正文')
+          .fontSize(12)
+          .fontColor($r('sys.color.font_secondary'))
+          .width('100%')
+        this.ComposerTools()
+        if (this.emojiPickerVisible) {
+          this.EmojiPicker()
+        }
         TextArea({
           text: this.presentation.bodyDraft,
           placeholder: this.presentation.bodyPlaceholder,
           controller: this.bodyController
         })
-          .height(190)
+          .height(240)
           .enabled(this.presentation.canEdit())
-          .backgroundColor($r('sys.color.background_secondary'))
-          .borderRadius(10)
+          .backgroundColor($r('sys.color.comp_background_primary'))
+          .border({ width: 1, color: $r('sys.color.comp_divider') })
+          .borderRadius($r('app.float.card_corner_radius'))
           .onChange((value: string): void => this.handleBodyChange(value))
           .onTextSelectionChange((selectionStart: number, selectionEnd: number): void => {
             this.selectionStart = selectionStart;
@@ -602,22 +561,17 @@ export struct ForumComposer {
           .accessibilityText(
             this.presentation.mode === ForumComposerMode.REPLY ||
             this.presentation.mode === ForumComposerMode.EDIT_POST
-              ? 'Reply 内容'
-              : 'Topic 正文'
+              ? '回复内容'
+              : '帖子正文'
           )
         this.MentionSuggestions()
-        Text(`${this.presentation.characterCount()} 字符 · 支持 Markdown 与服务端草稿`)
+        Text(`${this.presentation.characterCount()} 字 · 支持 Markdown`)
           .fontSize(11)
           .fontColor($r('sys.color.font_tertiary'))
           .width('100%')
-        this.ComposerTools()
-        if (this.emojiPickerVisible) {
-          this.EmojiPicker()
-        }
         this.MediaStatus()
         this.StatusMessage()
-        this.DraftActions()
-        this.PrimaryAction()
+        this.ComposerActions()
       }
       .width('100%')
       .constraintSize({ minHeight: '100%' })

@@ -51,11 +51,11 @@ export class ForumComposerPresentation {
     categorySelected: boolean = true
   ) {
     this.mode = mode;
-    this.sheetTitle = this.isReplyMode() ? 'Reply 编辑器' : '发帖 编辑器';
-    this.sheetSubtitle = '快速输入';
     this.contextTitle = contextTitle;
     this.contextDescription = contextDescription;
     this.contextBadge = contextBadge;
+    this.sheetTitle = this.composerTitle();
+    this.sheetSubtitle = '支持 Markdown';
     this.titleDraft = titleDraft;
     this.bodyDraft = bodyDraft;
     this.status = status;
@@ -66,9 +66,9 @@ export class ForumComposerPresentation {
     this.showsCategoryInput = this.isTopicMode();
     this.categorySelected = categorySelected;
     this.showsDraftActions = mode === ForumComposerMode.REPLY || mode === ForumComposerMode.TOPIC;
-    this.titlePlaceholder = 'Topic 标题';
+    this.titlePlaceholder = '标题';
     this.bodyPlaceholder = this.isReplyMode()
-      ? '输入纯文本或 Markdown Reply'
+      ? '写下你的回复…'
       : '分享内容、问题或想法';
     this.imageActionAvailable = this.canEdit() && !this.isMediaPending();
   }
@@ -85,7 +85,7 @@ export class ForumComposerPresentation {
     const targetsPost: boolean = replyToPostNumber !== null;
     return new ForumComposerPresentation(
       ForumComposerMode.REPLY,
-      targetsPost ? `回复 Post #${replyToPostNumber}` : `回复 Topic #${topicId}`,
+      targetsPost ? `回复 #${replyToPostNumber}` : `回复 Topic #${topicId}`,
       topicTitle,
       targetsPost ? `#${replyToPostNumber}` : 'Topic',
       '',
@@ -108,7 +108,7 @@ export class ForumComposerPresentation {
     return new ForumComposerPresentation(
       ForumComposerMode.TOPIC,
       '发布到 RiverSide',
-      categorySelected ? `发布到 ${categoryName}` : '请选择 Category',
+      categorySelected ? `发布到 ${categoryName}` : '请选择分类',
       categoryName,
       titleDraft,
       bodyDraft,
@@ -200,12 +200,12 @@ export class ForumComposerPresentation {
       return '显式重试';
     }
     if (this.mode === ForumComposerMode.EDIT_POST) {
-      return '保存 Post';
+      return '保存';
     }
     if (this.mode === ForumComposerMode.EDIT_TOPIC) {
-      return '保存 Topic';
+      return '保存';
     }
-    return this.mode === ForumComposerMode.REPLY ? '发布 Reply' : '发布 Topic';
+    return this.mode === ForumComposerMode.REPLY ? '回复' : '发布';
   }
 
   public hasMediaStatus(): boolean {
@@ -241,6 +241,16 @@ export class ForumComposerPresentation {
   private isMediaPending(): boolean {
     return this.mediaState?.kind === MediaUploadStateKind.SELECTED ||
       this.mediaState?.kind === MediaUploadStateKind.UPLOADING;
+  }
+
+  private composerTitle(): string {
+    if (this.mode === ForumComposerMode.REPLY) {
+      return this.contextBadge === 'Topic' ? '回复 Topic' : `回复 ${this.contextBadge}`;
+    }
+    if (this.mode === ForumComposerMode.EDIT_POST) {
+      return '编辑 Post';
+    }
+    return this.mode === ForumComposerMode.EDIT_TOPIC ? '编辑 Topic' : '发布新 Topic';
   }
 
   private isReplyMode(): boolean {

@@ -997,7 +997,7 @@ export struct TopicDetailPage {
       dragBar: true,
       title: {
         title: this.composerPresentation().sheetTitle,
-        subtitle: `${this.composerPresentation().sheetSubtitle} · 支持 Markdown`
+        subtitle: this.composerPresentation().sheetSubtitle
       },
       keyboardAvoidMode: SheetKeyboardAvoidMode.TRANSLATE_AND_RESIZE,
       shouldDismiss: (sheetDismiss: SheetDismiss): void => {
