@@ -244,7 +244,7 @@ struct Index {
   @State worldCupEntryEnabled: boolean = true;
   @State categoryState: BrowseState<Category> = BrowseState.initial<Category>();
   @State categoryTopicsState: BrowseState<Topic> = BrowseState.initial<Topic>();
-  @State categoryTitle: string = 'Category';
+  @State categoryTitle: string = '分类';
   @State topicState: TopicReadState = TopicReadState.initial();
   @State topicReactionUsersState: BrowseState<PostReactionUsers> = BrowseState.initial<PostReactionUsers>();
   @State reactionUsersSheetVisible: boolean = false;

@@ -15,7 +15,7 @@ export const APP_UNAVAILABLE_PAGE_TITLE: string = '页面不可用';
 
 export const BACK_TO_ACCOUNT_LABEL: string = '返回我的';
 export const BACK_TO_HOME_LABEL: string = '返回首页';
-export const BACK_TO_CATEGORY_LABEL: string = '返回 Category';
+export const BACK_TO_CATEGORY_LABEL: string = '返回分类';
 export const BACK_TO_TOPIC_LIST_LABEL: string = '返回 Topic 列表';
 export const BACK_TO_CHAT_LIST_LABEL: string = '返回聊天列表';
 export const BACK_TO_TOPIC_LABEL: string = '返回 Topic';
@@ -24,6 +24,6 @@ export const BACK_LABEL: string = '返回';
 export const CANCEL_LOGIN_LABEL: string = '取消登录';
 
 export const ROOT_HOME_LABEL: string = '首页';
-export const ROOT_CATEGORY_LABEL: string = 'Category';
+export const ROOT_CATEGORY_LABEL: string = '分类';
 export const ROOT_CHAT_LABEL: string = '聊天';
 export const ROOT_ACCOUNT_LABEL: string = '我的';
