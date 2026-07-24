@@ -46,8 +46,10 @@ import notificationCentreModelTest from './NotificationCentreModel.test';
 import presenceHeartbeatTest from './PresenceHeartbeat.test';
 import forumPlainTextTest from './ForumPlainText.test';
 import riversideEnvironmentTest from './RiversideEnvironment.test';
+import startupRequestSequenceTest from './StartupRequestSequence.test';
 
 export default function tests(): void {
+  startupRequestSequenceTest();
   categoryBrowsePresentationTest();
   riversideEnvironmentTest();
   forumPlainTextTest();

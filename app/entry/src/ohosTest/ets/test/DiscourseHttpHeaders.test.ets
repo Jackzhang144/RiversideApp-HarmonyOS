@@ -4,8 +4,14 @@ import { AppMetadata } from '../../../main/ets/core/AppMetadata';
 import {
   AuthenticatedSessionProvider,
   DiscourseHeaders,
-  DiscourseRequestHeadersFactory
+  DiscourseRequestHeadersFactory,
+  DiscourseRequestPolicy,
+  executeTopicGetWithRetry,
+  HttpTextRequestAttempt,
+  HttpTextResult,
+  httpFailureForErrorCode
 } from '../../../main/ets/network/DiscourseHttpClient';
+import { RepositoryFailureCode } from '../../../main/ets/core/RepositoryResult';
 
 const CLIENT_ID: string = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
 
@@ -42,6 +48,60 @@ export default function discourseHttpHeadersTest(): void {
 
       expect(headers.userApiKey).assertEqual('user-api-key');
       expect(headers.userApiClientId).assertEqual(CLIENT_ID);
+    });
+
+    it('gives interactive Topic requests a bounded timeout', 0, () => {
+      const policy: DiscourseRequestPolicy = new DiscourseRequestPolicy();
+
+      expect(policy.connectTimeoutMs).assertEqual(15000);
+      expect(policy.transferTimeoutMs).assertEqual(30000);
+    });
+
+    it('reports HarmonyOS operation timeouts separately from other network failures', 0, () => {
+      const timeout = httpFailureForErrorCode(1007900028);
+      const networkFailure = httpFailureForErrorCode(1007900007);
+
+      expect(timeout.failureCode).assertEqual(RepositoryFailureCode.TIMEOUT);
+      expect(timeout.message).assertEqual('请求超时，请重试');
+      expect(networkFailure.failureCode).assertEqual(RepositoryFailureCode.NETWORK);
+      expect(networkFailure.message).assertEqual('网络连接失败');
+    });
+
+    it('retries an idempotent Topic GET once after an operation timeout', 0, async (done: Function) => {
+      const results: Array<HttpTextResult> = [
+        httpFailureForErrorCode(1007900028),
+        HttpTextResult.success(200, '{"id":2725}')
+      ];
+      let attempts: number = 0;
+      const operation: HttpTextRequestAttempt = new HttpTextRequestAttempt(
+        (): Promise<HttpTextResult> => {
+          attempts += 1;
+          return Promise.resolve(results.shift() ?? HttpTextResult.failure(0, 'unexpected retry'));
+        }
+      );
+
+      const result: HttpTextResult =
+        await executeTopicGetWithRetry('/t/2725.json', operation);
+
+      expect(attempts).assertEqual(2);
+      expect(result.isSuccess()).assertTrue();
+      done();
+    });
+
+    it('does not retry non-Topic GETs or non-timeout failures', 0, async (done: Function) => {
+      let attempts: number = 0;
+      const operation: HttpTextRequestAttempt = new HttpTextRequestAttempt(
+        (): Promise<HttpTextResult> => {
+          attempts += 1;
+          return Promise.resolve(HttpTextResult.failure(503, '服务器返回 503'));
+        }
+      );
+
+      await executeTopicGetWithRetry('/t/2725.json', operation);
+      await executeTopicGetWithRetry('/latest.json', operation);
+
+      expect(attempts).assertEqual(2);
+      done();
     });
   });
 }

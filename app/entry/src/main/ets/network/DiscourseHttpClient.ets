@@ -1,12 +1,17 @@
-import { http } from '@kit.NetworkKit';
+import { hilog } from '@kit.PerformanceAnalysisKit';
+import { rcp } from '@kit.RemoteCommunicationKit';
 import { AuthenticatedSession } from '../auth/AuthModels';
 import { RIVERSIDE_ORIGIN } from '../core/RiversideEnvironment';
 import { AppMetadata } from '../core/AppMetadata';
+import { JsonObjectReader } from '../core/JsonObjectReader';
 import { RepositoryFailureCode, RepositoryResult } from '../core/RepositoryResult';
 import { ReplyRequest } from '../models/ReplyModels';
 
-const CONNECT_TIMEOUT_MS: number = 8000;
-const READ_TIMEOUT_MS: number = 10000;
+const HTTP_LOG_DOMAIN: number = 0x0000;
+const HTTP_LOG_TAG: string = 'DiscourseHttp';
+const RCP_OPERATION_TIMEOUT_CODE: number = 1007900028;
+const CONNECT_TIMEOUT_MS: number = 15000;
+const READ_TIMEOUT_MS: number = 30000;
 
 export enum HttpTextResultKind {
   SUCCESS = 'success',
@@ -56,6 +61,10 @@ export class HttpTextResult {
     return HttpTextResult.failed(statusCode, code, message);
   }
 
+  public static timeout(message: string): HttpTextResult {
+    return HttpTextResult.failed(0, RepositoryFailureCode.TIMEOUT, message);
+  }
+
   public static invalidInput(message: string): HttpTextResult {
     return HttpTextResult.failed(0, RepositoryFailureCode.INVALID_INPUT, message);
   }
@@ -92,6 +101,62 @@ export class HttpTextResult {
     message: string
   ): HttpTextResult {
     return new HttpTextResult(HttpTextResultKind.FAILURE, statusCode, '', failureCode, message);
+  }
+}
+
+export class DiscourseRequestPolicy {
+  public readonly connectTimeoutMs: number = CONNECT_TIMEOUT_MS;
+  public readonly transferTimeoutMs: number = READ_TIMEOUT_MS;
+
+  public shouldRetryTopicGet(
+    path: string,
+    result: HttpTextResult,
+    completedAttempts: number
+  ): boolean {
+    return path.startsWith('/t/') &&
+      result.failureCode === RepositoryFailureCode.TIMEOUT &&
+      completedAttempts < 2;
+  }
+}
+
+export function httpFailureForErrorCode(errorCode: number | null): HttpTextResult {
+  return errorCode === RCP_OPERATION_TIMEOUT_CODE
+    ? HttpTextResult.timeout('请求超时，请重试')
+    : HttpTextResult.failure(0, '网络连接失败');
+}
+
+function caughtHttpErrorCode(error: Object): number | null {
+  try {
+    return JsonObjectReader.parse(JSON.stringify(error))?.number('code') ?? null;
+  } catch (_) {
+    return null;
+  }
+}
+
+export class HttpTextRequestAttempt {
+  private readonly request: () => Promise<HttpTextResult>;
+
+  public constructor(request: () => Promise<HttpTextResult>) {
+    this.request = request;
+  }
+
+  public execute(): Promise<HttpTextResult> {
+    return this.request();
+  }
+}
+
+export async function executeTopicGetWithRetry(
+  path: string,
+  operation: HttpTextRequestAttempt,
+  policy: DiscourseRequestPolicy = new DiscourseRequestPolicy()
+): Promise<HttpTextResult> {
+  let completedAttempts: number = 0;
+  while (true) {
+    const result: HttpTextResult = await operation.execute();
+    completedAttempts += 1;
+    if (!policy.shouldRetryTopicGet(path, result, completedAttempts)) {
+      return result;
+    }
   }
 }
 
@@ -181,6 +246,37 @@ export class DiscourseHeaders {
       'Content-Type': contentType
     };
   }
+
+  public toRcpRequestHeaders(contentType: string | null = null): rcp.RequestHeaders {
+    if (this.userApiKey === null || this.userApiClientId === null) {
+      if (contentType === null) {
+        return {
+          'User-Agent': this.userAgent,
+          Accept: this.accept
+        };
+      }
+      return {
+        'User-Agent': this.userAgent,
+        Accept: this.accept,
+        'Content-Type': contentType
+      };
+    }
+    if (contentType === null) {
+      return {
+        'User-Agent': this.userAgent,
+        Accept: this.accept,
+        'User-Api-Key': this.userApiKey,
+        'User-Api-Client-Id': this.userApiClientId
+      };
+    }
+    return {
+      'User-Agent': this.userAgent,
+      Accept: this.accept,
+      'User-Api-Key': this.userApiKey,
+      'User-Api-Client-Id': this.userApiClientId,
+      'Content-Type': contentType
+    };
+  }
 }
 
 export interface AuthenticatedSessionProvider {
@@ -226,6 +322,7 @@ export interface ForumHttpClient extends PresenceHttpClient {
 export class DiscourseHttpClient implements ForumHttpClient {
   private readonly baseUrl: string;
   private readonly headersFactory: DiscourseRequestHeadersFactory;
+  private readonly requestPolicy: DiscourseRequestPolicy;
 
   public constructor(
     baseUrl: string = RIVERSIDE_ORIGIN,
@@ -233,49 +330,53 @@ export class DiscourseHttpClient implements ForumHttpClient {
   ) {
     this.baseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
     this.headersFactory = new DiscourseRequestHeadersFactory(sessionProvider);
+    this.requestPolicy = new DiscourseRequestPolicy();
   }
 
   public async get(path: string): Promise<HttpTextResult> {
-    return await this.requestText(path, http.RequestMethod.GET, null, null);
+    const operation: HttpTextRequestAttempt = new HttpTextRequestAttempt(
+      (): Promise<HttpTextResult> => this.requestText(path, 'GET', null, null)
+    );
+    return await executeTopicGetWithRetry(path, operation, this.requestPolicy);
   }
 
   public async postReply(reply: ReplyRequest): Promise<HttpTextResult> {
     const payload: DiscourseReplyPayload = new DiscourseReplyPayload(reply);
     return await this.requestText(
       '/posts.json',
-      http.RequestMethod.POST,
+      'POST',
       JSON.stringify(payload.toHttpExtraData()),
       'application/json'
     );
   }
 
   public async put(path: string): Promise<HttpTextResult> {
-    return await this.requestText(path, http.RequestMethod.PUT, null, null);
+    return await this.requestText(path, 'PUT', null, null);
   }
 
   public async postForm(path: string, body: string): Promise<HttpTextResult> {
-    return await this.requestText(path, http.RequestMethod.POST, body, 'application/x-www-form-urlencoded');
+    return await this.requestText(path, 'POST', body, 'application/x-www-form-urlencoded');
   }
 
   public async postJson(path: string, body: string): Promise<HttpTextResult> {
-    return await this.requestText(path, http.RequestMethod.POST, body, 'application/json');
+    return await this.requestText(path, 'POST', body, 'application/json');
   }
 
   public async putForm(path: string, body: string): Promise<HttpTextResult> {
-    return await this.requestText(path, http.RequestMethod.PUT, body, 'application/x-www-form-urlencoded');
+    return await this.requestText(path, 'PUT', body, 'application/x-www-form-urlencoded');
   }
 
   public async deleteForm(path: string, body: string): Promise<HttpTextResult> {
-    return await this.requestText(path, http.RequestMethod.DELETE, body, 'application/x-www-form-urlencoded');
+    return await this.requestText(path, 'DELETE', body, 'application/x-www-form-urlencoded');
   }
 
   public async delete(path: string): Promise<HttpTextResult> {
-    return await this.requestText(path, http.RequestMethod.DELETE, null, null);
+    return await this.requestText(path, 'DELETE', null, null);
   }
 
   private async requestText(
     path: string,
-    method: http.RequestMethod,
+    method: rcp.HttpMethod,
     requestBody: string | null,
     contentType: string | null
   ): Promise<HttpTextResult> {
@@ -283,37 +384,48 @@ export class DiscourseHttpClient implements ForumHttpClient {
       return HttpTextResult.invalidInput('请求路径无效');
     }
 
-    const request: http.HttpRequest = http.createHttp();
-    const headers: DiscourseHeaders = this.headersFactory.create();
-    const options: http.HttpRequestOptions = {
-      method: method,
-      header: headers.toHttpHeaderValues(contentType),
-      expectDataType: http.HttpDataType.STRING,
-      connectTimeout: CONNECT_TIMEOUT_MS,
-      readTimeout: READ_TIMEOUT_MS,
-      usingCache: false
+    const requestHeaders: rcp.RequestHeaders =
+      this.headersFactory.create().toRcpRequestHeaders(contentType);
+    const configuration: rcp.Configuration = {
+      transfer: {
+        autoRedirect: true,
+        timeout: {
+          connectMs: this.requestPolicy.connectTimeoutMs,
+          transferMs: this.requestPolicy.transferTimeoutMs
+        }
+      }
     };
+    const request: rcp.Request = new rcp.Request(`${this.baseUrl}${path}`, method);
+    request.headers = requestHeaders;
+    request.configuration = configuration;
     if (requestBody !== null) {
-      options.extraData = requestBody;
+      request.content = requestBody;
     }
 
     try {
-      const response: http.HttpResponse = await request.request(`${this.baseUrl}${path}`, options);
-      const statusCode: number = response.responseCode;
+      const session: rcp.DefaultSession = rcp.getDefaultSession();
+      const response: rcp.Response = await session.fetch(request);
+      const statusCode: number = response.statusCode;
       if (statusCode === 401) {
         return HttpTextResult.unauthorized();
       }
       if (statusCode < 200 || statusCode >= 300) {
         return HttpTextResult.failure(statusCode, `服务器返回 ${statusCode}`);
       }
-      if (typeof response.result !== 'string') {
+      const responseText: string | null = response.toString();
+      if (responseText === null) {
         return HttpTextResult.invalidResponse(statusCode, '服务器响应格式无效');
       }
-      return HttpTextResult.success(statusCode, response.result);
-    } catch (_) {
-      return HttpTextResult.failure(0, '网络连接失败');
-    } finally {
-      request.destroy();
+      return HttpTextResult.success(statusCode, responseText);
+    } catch (error) {
+      const errorCode: number | null = caughtHttpErrorCode(error);
+      hilog.warn(
+        HTTP_LOG_DOMAIN,
+        HTTP_LOG_TAG,
+        'HTTP request failed with code %{public}d',
+        errorCode ?? 0
+      );
+      return httpFailureForErrorCode(errorCode);
     }
   }
 }

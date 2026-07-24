@@ -78,6 +78,7 @@ import {
   SecondaryDestination
 } from '../app/ShellNavigationModels';
 import { PresenceHeartbeat } from '../app/PresenceHeartbeat';
+import { runStartupRequestSequence, StartupRequestTasks } from '../app/StartupRequestSequence';
 import {
   ChatChannelState,
   ChatComposerState,
@@ -412,11 +413,16 @@ struct Index {
     this.worldCupEntryEnabled = model.discovery.worldCupEntryEnabled;
     model.selectRoot(this.selectedRoot);
     this.model = model;
-    this.synchronizePresenceHeartbeat();
     this.refreshAccountIdentity();
-    this.loadHome();
-    this.loadOnlineUsers();
-    this.loadCategories();
+    const startupTasks: StartupRequestTasks = new StartupRequestTasks(
+      (): Promise<void> => this.loadHome(),
+      (): Promise<void> => this.loadCategories(),
+      (): void => this.synchronizePresenceHeartbeat(),
+      (): void => {
+        this.loadOnlineUsers();
+      }
+    );
+    await runStartupRequestSequence(startupTasks);
   }
 
   private categoryCacheScope(repository: AuthRepository): CategoryCacheScope {

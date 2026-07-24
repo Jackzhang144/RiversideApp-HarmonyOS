@@ -8,6 +8,7 @@ export enum RepositoryFailureCode {
   UNAUTHORIZED = 'unauthorized',
   INVALID_INPUT = 'invalid-input',
   NETWORK = 'network',
+  TIMEOUT = 'timeout',
   SERVER = 'server',
   INVALID_RESPONSE = 'invalid-response',
   STORAGE = 'storage',
