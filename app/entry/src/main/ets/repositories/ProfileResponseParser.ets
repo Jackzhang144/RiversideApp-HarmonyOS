@@ -4,6 +4,7 @@ import { HomeChannel } from '../models/DiscoveryModels';
 import { CurrentUser } from '../models/ReplyModels';
 import {
   ProfileGroup,
+  ProfileBadge,
   UserBookmarkItem,
   UserEmailInfo,
   UserProfile,
@@ -146,12 +147,12 @@ export class ProfileResponseParser {
     if (summary === null) {
       return RepositoryResult.success<UserProfileSummary>(UserProfileSummary.unavailable());
     }
-    const badges: Array<string> = [];
+    const badges: Array<ProfileBadge> = [];
     for (const value of envelope.array('badges') ?? []) {
       const badge: JsonObjectReader | null = JsonObjectReader.fromValue(value);
       const name: string = badge?.string('display_name') ?? badge?.string('name') ?? '';
       if (name.trim().length > 0) {
-        badges.push(name.trim());
+        badges.push(new ProfileBadge(name, badge?.string('image_url') ?? ''));
       }
     }
     return RepositoryResult.success<UserProfileSummary>(new UserProfileSummary(

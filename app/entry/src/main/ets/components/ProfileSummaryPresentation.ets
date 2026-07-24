@@ -1,4 +1,4 @@
-import { UserProfileSummary } from '../models/ProfileModels';
+import { ProfileBadge, UserProfileSummary } from '../models/ProfileModels';
 
 export class ProfileSummaryMetric {
   public readonly label: string;
@@ -13,12 +13,12 @@ export class ProfileSummaryMetric {
 export class ProfileSummaryPresentation {
   public readonly available: boolean;
   public readonly metrics: Array<ProfileSummaryMetric>;
-  public readonly badges: Array<string>;
+  public readonly badges: Array<ProfileBadge>;
 
   public constructor(
     available: boolean,
     metrics: Array<ProfileSummaryMetric>,
-    badges: Array<string>
+    badges: Array<ProfileBadge>
   ) {
     this.available = available;
     this.metrics = metrics;

@@ -3,7 +3,7 @@ import {
   ProfileSummaryPresentation,
   profileSummaryPresentationFor
 } from '../../../main/ets/components/ProfileSummaryPresentation';
-import { UserProfileSummary } from '../../../main/ets/models/ProfileModels';
+import { ProfileBadge, UserProfileSummary } from '../../../main/ets/models/ProfileModels';
 
 export default function profileSummaryPresentationTest(): void {
   describe('Profile summary presentation', () => {
@@ -16,7 +16,10 @@ export default function profileSummaryPresentationTest(): void {
         6,
         41,
         3,
-        ['热心成员', '解决达人']
+        [
+          new ProfileBadge('热心成员', '/images/badges/enthusiast.svg'),
+          new ProfileBadge('解决达人')
+        ]
       );
 
       const presentation: ProfileSummaryPresentation = profileSummaryPresentationFor(summary);
@@ -35,7 +38,10 @@ export default function profileSummaryPresentationTest(): void {
       expect(presentation.metrics[4].value).assertEqual(92);
       expect(presentation.metrics[5].label).assertEqual('解决');
       expect(presentation.metrics[5].value).assertEqual(3);
-      expect(presentation.badges.join(',')).assertEqual('热心成员,解决达人');
+      expect(presentation.badges.map((badge: ProfileBadge): string => badge.name).join(','))
+        .assertEqual('热心成员,解决达人');
+      expect(presentation.badges[0].imageUrl)
+        .assertEqual('https://river-side.cc/images/badges/enthusiast.svg');
     });
 
     it('keeps unavailable summaries empty', 0, () => {

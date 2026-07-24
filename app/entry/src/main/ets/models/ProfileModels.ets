@@ -207,7 +207,7 @@ export class UserProfileSummary {
   public readonly topicCount: number;
   public readonly postCount: number;
   public readonly solvedCount: number;
-  public readonly badges: Array<string>;
+  public readonly badges: Array<ProfileBadge>;
 
   public constructor(
     available: boolean,
@@ -217,7 +217,7 @@ export class UserProfileSummary {
     topicCount: number = 0,
     postCount: number = 0,
     solvedCount: number = 0,
-    badges: Array<string> = []
+    badges: Array<ProfileBadge> = []
   ) {
     this.available = available;
     this.likesGiven = Math.max(0, Math.trunc(likesGiven));
@@ -226,11 +226,21 @@ export class UserProfileSummary {
     this.topicCount = Math.max(0, Math.trunc(topicCount));
     this.postCount = Math.max(0, Math.trunc(postCount));
     this.solvedCount = Math.max(0, Math.trunc(solvedCount));
-    this.badges = badges.filter((badge: string): boolean => badge.trim().length > 0);
+    this.badges = badges.filter((badge: ProfileBadge): boolean => badge.name.length > 0);
   }
 
   public static unavailable(): UserProfileSummary {
     return new UserProfileSummary(false);
+  }
+}
+
+export class ProfileBadge {
+  public readonly name: string;
+  public readonly imageUrl: string;
+
+  public constructor(name: string, imageUrl: string = '') {
+    this.name = name.trim();
+    this.imageUrl = absoluteProfileUrl(imageUrl);
   }
 }
 

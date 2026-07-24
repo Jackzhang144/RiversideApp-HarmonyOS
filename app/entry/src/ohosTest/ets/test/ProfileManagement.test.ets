@@ -64,6 +64,26 @@ export default function profileManagementTest(): void {
         done();
       });
 
+    it('keeps badge names and images from the Profile summary', 0, async (done: Function) => {
+      const client: StubForumHttpClient = new StubForumHttpClient();
+      client.results.push(HttpTextResult.success(200,
+        '{"user_summary":{"topic_count":6,"post_count":41},' +
+        '"badges":[{"name":"热心成员","image_url":"/images/badges/enthusiast.svg"},' +
+        '{"display_name":"解决达人","name":"solver"}]}'
+      ));
+      const repository: DiscourseProfileRepository = new DiscourseProfileRepository(client);
+
+      const result: RepositoryResult<UserProfileSummary> =
+        await repository.loadUserSummary('member');
+
+      expect(result.data?.badges.length).assertEqual(2);
+      expect(result.data?.badges[0].name).assertEqual('热心成员');
+      expect(result.data?.badges[0].imageUrl)
+        .assertEqual('https://river-side.cc/images/badges/enthusiast.svg');
+      expect(result.data?.badges[1].name).assertEqual('解决达人');
+      done();
+    });
+
     it('keeps Profile biography markup out of visible summary text', 0, async (done: Function) => {
       const client: StubForumHttpClient = new StubForumHttpClient();
       client.results.push(HttpTextResult.success(200,
