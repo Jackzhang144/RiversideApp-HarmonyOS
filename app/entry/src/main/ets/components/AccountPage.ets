@@ -20,7 +20,6 @@ export struct AccountPage {
   onLogout: () => void = (): void => {};
   onRetryIdentity: () => void = (): void => {};
   onOpenPlaceholder: (kind: AccountPlaceholderKind) => void = (): void => {};
-  onOpenUiPrototype: () => void = (): void => {};
 
   private placeholderIcon(kind: AccountPlaceholderKind): Resource {
     if (kind === AccountPlaceholderKind.PERSONAL_INFORMATION) {
@@ -187,50 +186,26 @@ export struct AccountPage {
   }
 
   @Builder
-  private PrototypeCapsule(): void {
-    Button('UI 原型', { type: ButtonType.Normal })
-      .fontSize(12)
-      .fontWeight(FontWeight.Medium)
-      .fontColor($r('app.color.on_accent'))
-      .backgroundColor($r('app.color.prototype_entry_surface'))
-      .borderRadius(16)
-      .height(32)
-      .padding({ left: 16, right: 16 })
-      .margin({ right: 12, bottom: 92 })
-      .onClick(this.onOpenUiPrototype)
-      .accessibilityText('打开原生 UI UX 设计原型')
-  }
-
-  @Builder
   private AccountContent(presentation: AccountPresentation): void {
-    Stack({ alignContent: Alignment.BottomEnd }) {
-      Scroll(this.scroller) {
-        Column({ space: 12 }) {
-          this.AccountHeader(presentation)
-          ForEach(presentation.placeholderSections, (section: AccountPlaceholderSection) => {
-            this.PlaceholderGroup(section)
-          }, (section: AccountPlaceholderSection): string => section.kind)
-          Text('RiverSide')
-            .fontSize(11)
-            .fontColor($r('sys.color.font_tertiary'))
-            .width('100%')
-            .textAlign(TextAlign.Center)
-        }
-        .width('100%')
-        .padding({ left: 12, right: 12, top: 12, bottom: 196 })
+    Scroll(this.scroller) {
+      Column({ space: 12 }) {
+        this.AccountHeader(presentation)
+        ForEach(presentation.placeholderSections, (section: AccountPlaceholderSection) => {
+          this.PlaceholderGroup(section)
+        }, (section: AccountPlaceholderSection): string => section.kind)
+        Text('RiverSide')
+          .fontSize(11)
+          .fontColor($r('sys.color.font_tertiary'))
+          .width('100%')
+          .textAlign(TextAlign.Center)
       }
       .width('100%')
-      .height('100%')
-      .clip(false)
-      .edgeEffect(EdgeEffect.Spring)
-
-      if (presentation.prototypeEntryVisible) {
-        this.PrototypeCapsule()
-      }
+      .padding({ left: 12, right: 12, top: 12, bottom: 124 })
     }
     .width('100%')
     .height('100%')
     .clip(false)
+    .edgeEffect(EdgeEffect.Spring)
     .backgroundColor($r('sys.color.background_secondary'))
   }
 

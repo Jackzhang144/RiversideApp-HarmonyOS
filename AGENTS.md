@@ -1,16 +1,6 @@
-## Agent skills
+## 领域术语
 
-### Issue tracker
-
-Issues and specs live as local Markdown files under `.scratch/`. See `docs/agents/issue-tracker.md`.
-
-### Triage labels
-
-Default triage labels are used. See `docs/agents/triage-labels.md`.
-
-### Domain docs
-
-This is a single-context repository. See `docs/agents/domain.md`.
+- 使用 `CONTEXT.md` 中定义的 Category、Topic、Post、Reply、Authenticated Session 与 Authorization Request。
 
 ## 编码与提交约束
 

@@ -48,7 +48,7 @@ check_source_file() {
     'RiversideApp/[0-9]' \
     "$content"
 
-  if [[ "$path" != "$THEME_PALETTE_PATH" && "$path" != *'/prototype/'* ]]; then
+  if [[ "$path" != "$THEME_PALETTE_PATH" ]]; then
     report_matches \
       'raw color outside the platform system-bar palette' \
       "$path" \

@@ -17,7 +17,6 @@ import { AbilityConstant, ConfigurationConstant, UIAbility, Want } from '@kit.Ab
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { window } from '@kit.ArkUI';
 import { AbilityContextRegistry } from '../core/AbilityContextRegistry';
-import { SystemNotificationService } from '../core/SystemNotificationService';
 import {
   AppSystemBarPalette,
   AppThemeMode,
@@ -33,7 +32,6 @@ export default class EntryAbility extends UIAbility {
 
   onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {
     AbilityContextRegistry.initialize(this.context);
-    SystemNotificationService.initialize(this.context);
     this.themeRestore = this.restoreThemeMode();
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onCreate');
   }
@@ -50,7 +48,6 @@ export default class EntryAbility extends UIAbility {
 
   onDestroy(): void {
     AbilityContextRegistry.clear();
-    SystemNotificationService.clear();
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onDestroy');
   }
 

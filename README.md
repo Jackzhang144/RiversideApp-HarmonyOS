@@ -9,7 +9,6 @@ RiverSide 社区的 HarmonyOS 原生客户端，面向 API 23 手机设备构建
 - 阅读与回复 Topic，创建和编辑内容，管理草稿与媒体
 - 查看和编辑个人资料，浏览个人 Topic、Reply、草稿等内容
 - 支持聊天室、通知中心、富内容与站内链接导航
-- 提供持久化的 UI 原型实验区；实验内容不会自动进入正式页面
 
 部分入口会以“未实现”展示，表示对应能力仍在规划中。
 
@@ -33,7 +32,7 @@ RiverSide 社区的 HarmonyOS 原生客户端，面向 API 23 手机设备构建
 | `components/` | ArkUI 页面与展示组件 |
 | `ohosTest/` | 设备端单元与集成测试 |
 
-更详细的术语和架构约束见 [CONTEXT.md](CONTEXT.md) 与 [`docs/adr/`](docs/adr)。
+项目术语见 [CONTEXT.md](CONTEXT.md)。
 
 ## 环境要求
 
@@ -74,7 +73,7 @@ scripts/check-code-health.sh --all
 scripts/verify-mvp-api23.sh <设备序列号> <设备类型>
 ```
 
-`<设备类型>` 必须与 `devecocli device list` 输出中目标设备的 Kind 列完全一致；目标必须是 phone 设备。各功能的人工验收步骤在 [`docs/verification/`](docs/verification) 中维护。
+`<设备类型>` 必须与 `devecocli device list` 输出中目标设备的 Kind 列完全一致；目标必须是 phone 设备。
 
 ## 开发约定
 
@@ -84,4 +83,4 @@ scripts/verify-mvp-api23.sh <设备序列号> <设备类型>
 - 每个提交只处理一个可独立验证的小点；提交前运行与风险相符的验证。
 - 不要提交本地签名材料、构建产物或设备日志。
 
-项目中的需求、规格和实施票据保存在 [`.scratch/`](.scratch/)；提交前的敏感配置保护脚本在 [`scripts/check-staged-sensitive-config.sh`](scripts/check-staged-sensitive-config.sh)。
+提交前的敏感配置保护脚本位于 [`scripts/check-staged-sensitive-config.sh`](scripts/check-staged-sensitive-config.sh)。

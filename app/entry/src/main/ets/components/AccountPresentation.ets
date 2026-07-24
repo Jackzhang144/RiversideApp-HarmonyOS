@@ -56,7 +56,6 @@ export class AccountPresentation {
   public readonly capabilityDetail: string;
   public readonly avatarUrl: string;
   public readonly placeholderSections: Array<AccountPlaceholderSection>;
-  public readonly prototypeEntryVisible: boolean = true;
 
   public constructor(
     title: string,

@@ -20,7 +20,6 @@ const PLACEHOLDER_LABELS: Array<string> = [
 ];
 
 function assertPersistentContent(presentation: AccountPresentation, actionsAvailable: boolean = false): void {
-  expect(presentation.prototypeEntryVisible).assertTrue();
   expect(presentation.placeholderSections.length).assertEqual(2);
   let placeholderIndex: number = 0;
   for (const section of presentation.placeholderSections) {
@@ -40,7 +39,7 @@ function assertPersistentContent(presentation: AccountPresentation, actionsAvail
 
 export default function accountPresentationTest(): void {
   describe('Account presentation contract', () => {
-    it('keeps placeholders and the prototype entry visible in every required authentication state', 0, () => {
+    it('keeps account entries visible in every required authentication state', 0, () => {
       const session: AuthenticatedSession | null = AuthenticatedSession.create(
         'user-api-key',
         '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'

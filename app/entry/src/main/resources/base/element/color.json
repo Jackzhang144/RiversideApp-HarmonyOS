@@ -63,10 +63,6 @@
     {
       "name": "on_accent",
       "value": "#FFFFFF"
-    },
-    {
-      "name": "prototype_entry_surface",
-      "value": "#24262B"
     }
   ]
 }

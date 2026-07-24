@@ -11,5 +11,4 @@ export const PROFILE_EDITOR_ROUTE: string = 'profile-editor';
 export const PROFILE_CONTENT_ROUTE: string = 'profile-content';
 export const RICH_EMBED_ROUTE: string = 'rich-embed';
 export const IMAGE_VIEWER_ROUTE: string = 'image-viewer';
-export const UI_PROTOTYPE_ROUTE: string = 'ui-prototype';
 export const CHAT_CONVERSATION_ROUTE: string = 'chat-conversation';

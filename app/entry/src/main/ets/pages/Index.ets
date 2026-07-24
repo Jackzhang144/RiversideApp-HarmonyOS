@@ -55,7 +55,6 @@ import {
   SEARCH_ROUTE,
   TOPIC_COMPOSER_ROUTE,
   TOPIC_ROUTE,
-  UI_PROTOTYPE_ROUTE,
   USER_PROFILE_ROUTE
 } from '../app/AppRoutes';
 import {
@@ -143,7 +142,6 @@ import { ProfileContentPage } from '../components/ProfileContentPage';
 import { AccountPlaceholderKind } from '../components/AccountPresentation';
 import { ImageViewerPage } from '../components/ImageViewerPage';
 import { selectedBookmarkPostIds, topicPostUrl } from '../components/TopicReadingPresentation';
-import { UiPrototypePage } from '../components/prototype/UiPrototypePage';
 import { Category, ForumPost, PostReactionUsers, Topic } from '../models/ForumModels';
 import {
   ChatChannel,
@@ -2044,10 +2042,6 @@ struct Index {
     await this.beginAuthorization();
   }
 
-  private openUiPrototype(): void {
-    this.pathStack.pushPath({ name: UI_PROTOTYPE_ROUTE });
-  }
-
   private openAccountPlaceholder(kind: AccountPlaceholderKind): void {
     if (kind === AccountPlaceholderKind.APP_SETTINGS) {
       this.pathStack.pushPath({ name: APP_SETTINGS_ROUTE });
@@ -2331,14 +2325,6 @@ struct Index {
     if (model.openReplyDraft(draft)) {
       this.synchronizeReplyState(model, true);
     }
-  }
-
-  private closeUiPrototype(): void {
-    const model: AppShellModel | null = this.model;
-    if (model !== null) {
-      model.closeSecondary();
-    }
-    this.pathStack.pop();
   }
 
   private async beginAuthorization(): Promise<void> {
@@ -2969,17 +2955,6 @@ struct Index {
           }
         })
       }
-    } else if (name === UI_PROTOTYPE_ROUTE) {
-      HdsNavDestination() {
-        UiPrototypePage({
-          onExit: (): void => {
-            this.closeUiPrototype();
-          }
-        })
-      }
-      .hideTitleBar(true)
-      .ignoreLayoutSafeArea([LayoutSafeAreaType.SYSTEM], [LayoutSafeAreaEdge.BOTTOM])
-      .onBackPressed((): boolean => this.handleSecondaryBack())
     } else {
       DestinationPageShell({
         title: APP_PRODUCT_TITLE,

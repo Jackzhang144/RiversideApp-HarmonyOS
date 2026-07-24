@@ -1,6 +1,6 @@
 # RiversideApp HarmonyOS
 
-The API 23 native HarmonyOS client for the RiverSide Discourse community. It preserves the forum's existing user-facing concepts and server contract while replacing the Flutter client implementation.
+The API 23 native HarmonyOS client for the RiverSide Discourse community. It preserves the forum's existing user-facing concepts and server contract.
 
 ## Forum
 
