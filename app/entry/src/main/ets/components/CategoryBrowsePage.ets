@@ -193,13 +193,13 @@ export struct CategoryBrowsePage {
       .contentStartOffset(10)
       .clip(false)
       .cachedCount(3, true)
-      .backgroundColor($r('sys.color.comp_background_primary'))
+      .backgroundColor(Color.Transparent)
       .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
     }
     .width('100%')
     .layoutWeight(1)
     .clip(false)
-    .backgroundColor($r('sys.color.comp_background_primary'))
+    .backgroundColor(Color.Transparent)
     .refreshOffset(64)
     .pullToRefresh(true)
     .pullUpToCancelRefresh(false)
@@ -223,6 +223,6 @@ export struct CategoryBrowsePage {
     .width('100%')
     .height('100%')
     .clip(false)
-    .backgroundColor($r('sys.color.comp_background_primary'))
+    .backgroundColor(Color.Transparent)
   }
 }

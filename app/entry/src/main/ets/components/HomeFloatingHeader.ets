@@ -252,7 +252,7 @@ export struct HomeFloatingHeader {
     .width('100%')
     .height(56)
     .padding({ left: 16, right: 16, bottom: 6 })
-    .backgroundColor($r('sys.color.background_secondary'))
+    .backgroundColor(Color.Transparent)
     .bindSheet($$this.onlineUsersSheetVisible, this.OnlineUsersSheet(), {
       detents: [SheetSize.MEDIUM, SheetSize.LARGE],
       detentSelection: SheetSize.MEDIUM,

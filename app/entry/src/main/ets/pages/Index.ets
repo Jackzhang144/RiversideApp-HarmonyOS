@@ -4,14 +4,9 @@ import { BusinessError, pasteboard } from '@kit.BasicServicesKit';
 import {
   hdsMaterial,
   HdsNavDestination,
-  HdsNavDestinationTitleMode,
-  HdsNavigation,
-  HdsNavigationTitleBarOptions,
-  HdsNavigationTitleMode,
   HdsSnackBar,
   HdsTabs,
   HdsTabsController,
-  ScrollEffectType,
   SnackBarOperationType
 } from '@kit.UIDesignKit';
 import { SymbolGlyphModifier, window } from '@kit.ArkUI';
@@ -125,6 +120,11 @@ import { CategoryTopicsPage } from '../components/CategoryTopicsPage';
 import { HomeBrowsePage } from '../components/HomeBrowsePage';
 import { HomeFloatingHeader } from '../components/HomeFloatingHeader';
 import { ImmersiveFloatingHeader } from '../components/ImmersiveFloatingHeader';
+import {
+  DestinationPageShell,
+  PageSurface,
+  RootPageShell
+} from '../components/PageShell';
 import { FeatureSitePresentation } from '../components/HomePresentation';
 import { ForumComposer } from '../components/ForumComposer';
 import {
@@ -644,9 +644,7 @@ struct Index {
     abilityContext: common.UIAbilityContext,
     mode: AppThemeMode
   ): Promise<void> {
-    const systemDark: boolean = abilityContext.config.colorMode ===
-      ConfigurationConstant.ColorMode.COLOR_MODE_DARK;
-    const dark: boolean = mode === AppThemeMode.DARK || (mode === AppThemeMode.SYSTEM && systemDark);
+    const dark: boolean = this.usesDarkChrome(mode, abilityContext);
     try {
       const mainWindow: window.Window = await window.getLastWindow(abilityContext);
       await mainWindow.setWindowSystemBarProperties({
@@ -662,6 +660,15 @@ struct Index {
     } catch (_) {
       // Theme selection remains valid even when system-bar styling is temporarily unavailable.
     }
+  }
+
+  private usesDarkChrome(
+    mode: AppThemeMode,
+    abilityContext: common.UIAbilityContext | null = AbilityContextRegistry.current()
+  ): boolean {
+    const systemDark: boolean = abilityContext?.config.colorMode ===
+      ConfigurationConstant.ColorMode.COLOR_MODE_DARK;
+    return mode === AppThemeMode.DARK || (mode === AppThemeMode.SYSTEM && systemDark);
   }
 
   private async loadMoreHome(): Promise<void> {
@@ -2433,64 +2440,15 @@ struct Index {
   }
 
   @Builder
-  private SecondaryHeader(title: ResourceStr): void {
-    ImmersiveFloatingHeader({
-      title,
-      leadingInset: 48
-    })
-  }
-
-  private secondaryTitleBar(
-    title: ResourceStr,
-    backLabel: ResourceStr = BACK_LABEL
-  ): HdsNavigationTitleBarOptions {
-    return {
-      avoidLayoutSafeArea: true,
-      enableComponentSafeArea: true,
-      content: {
-        title: { mainTitle: '' },
-        backIcon: { label: backLabel },
-        stackBuilder: (): void => this.SecondaryHeader(title)
-      },
-      style: {
-        scrollEffectOpts: {
-          enableScrollEffect: false,
-          scrollEffectType: ScrollEffectType.GRADIENT_BLUR
-        },
-        originalStyle: {
-          backgroundStyle: {
-            backgroundColor: Color.Transparent,
-            maskExtraHeight: 32,
-            blurRadius: 16
-          },
-          contentStyle: {
-            backIconStyle: {
-              backgroundColor: $r('sys.color.comp_background_tertiary'),
-              iconColor: $r('sys.color.font_primary')
-            }
-          }
-        },
-        scrollEffectStyle: {
-          backgroundStyle: {
-            backgroundColor: Color.Transparent,
-            maskExtraHeight: 32,
-            blurRadius: 16
-          },
-          contentStyle: {
-            backIconStyle: {
-              backgroundColor: $r('sys.color.comp_background_tertiary'),
-              iconColor: $r('sys.color.font_primary')
-            }
-          }
-        }
-      }
-    };
-  }
-
-  @Builder
   private SecondaryPage(name: string, _param: Object): void {
     if (name === APP_SETTINGS_ROUTE) {
-      HdsNavDestination() {
+      DestinationPageShell({
+        title: APP_SETTINGS_TITLE,
+        backLabel: BACK_TO_ACCOUNT_LABEL,
+        darkMode: this.usesDarkChrome(this.appThemeMode),
+        scrollables: [this.settingsScroller],
+        onBackPressed: (): boolean => false
+      }) {
         AppSettingsPage({
           scroller: this.settingsScroller,
           selectedHomeChannel: this.selectedHomeChannel,
@@ -2510,12 +2468,13 @@ struct Index {
           }
         })
       }
-      .titleBar(this.secondaryTitleBar(APP_SETTINGS_TITLE, BACK_TO_ACCOUNT_LABEL))
-      .titleMode(HdsNavDestinationTitleMode.MINI)
-      .bindToScrollable([this.settingsScroller])
-      .onBackPressed((): boolean => false)
     } else if (name === ABOUT_ROUTE) {
-      HdsNavDestination() {
+      DestinationPageShell({
+        title: APP_ABOUT_TITLE,
+        backLabel: BACK_TO_ACCOUNT_LABEL,
+        darkMode: this.usesDarkChrome(this.appThemeMode),
+        onBackPressed: (): boolean => false
+      }) {
         AboutPage({
           version: this.appVersion,
           onOpenWebsite: (): void => {
@@ -2523,11 +2482,14 @@ struct Index {
           }
         })
       }
-      .titleBar(this.secondaryTitleBar(APP_ABOUT_TITLE, BACK_TO_ACCOUNT_LABEL))
-      .titleMode(HdsNavDestinationTitleMode.MINI)
-      .onBackPressed((): boolean => false)
     } else if (name === ONLINE_USERS_ROUTE) {
-      HdsNavDestination() {
+      DestinationPageShell({
+        title: `在线用户（${this.onlineUserCount}）`,
+        backLabel: BACK_TO_HOME_LABEL,
+        darkMode: this.usesDarkChrome(this.appThemeMode),
+        scrollables: [this.onlineUsersScroller],
+        onBackPressed: (): boolean => this.handleSecondaryBack()
+      }) {
         OnlineUsersPage({
           scroller: this.onlineUsersScroller,
           count: this.onlineUserCount,
@@ -2537,12 +2499,14 @@ struct Index {
           }
         })
       }
-      .titleBar(this.secondaryTitleBar(`在线用户（${this.onlineUserCount}）`, BACK_TO_HOME_LABEL))
-      .titleMode(HdsNavDestinationTitleMode.MINI)
-      .bindToScrollable([this.onlineUsersScroller])
-      .onBackPressed((): boolean => this.handleSecondaryBack())
     } else if (name === CATEGORY_TOPICS_ROUTE) {
-      HdsNavDestination() {
+      DestinationPageShell({
+        title: this.categoryTitle,
+        backLabel: BACK_TO_CATEGORY_LABEL,
+        darkMode: this.usesDarkChrome(this.appThemeMode),
+        scrollables: [this.categoryTopicsScroller],
+        onBackPressed: (): boolean => this.handleSecondaryBack()
+      }) {
         CategoryTopicsPage({
           scroller: this.categoryTopicsScroller,
           state: this.categoryTopicsState,
@@ -2558,12 +2522,14 @@ struct Index {
           }
         })
       }
-      .titleBar(this.secondaryTitleBar(this.categoryTitle, BACK_TO_CATEGORY_LABEL))
-      .titleMode(HdsNavDestinationTitleMode.MINI)
-      .bindToScrollable([this.categoryTopicsScroller])
-      .onBackPressed((): boolean => this.handleSecondaryBack())
     } else if (name === SEARCH_ROUTE) {
-      HdsNavDestination() {
+      DestinationPageShell({
+        title: APP_SEARCH_TITLE,
+        backLabel: BACK_TO_HOME_LABEL,
+        darkMode: this.usesDarkChrome(this.appThemeMode),
+        scrollables: [this.searchScroller],
+        onBackPressed: (): boolean => this.handleSecondaryBack()
+      }) {
         SearchPage({
           scroller: this.searchScroller,
           state: this.searchState,
@@ -2595,12 +2561,14 @@ struct Index {
           }
         })
       }
-      .titleBar(this.secondaryTitleBar(APP_SEARCH_TITLE, BACK_TO_HOME_LABEL))
-      .titleMode(HdsNavDestinationTitleMode.MINI)
-      .bindToScrollable([this.searchScroller])
-      .onBackPressed((): boolean => this.handleSecondaryBack())
     } else if (name === TOPIC_ROUTE) {
-      HdsNavDestination() {
+      DestinationPageShell({
+        title: APP_TOPIC_DETAIL_TITLE,
+        backLabel: BACK_TO_TOPIC_LIST_LABEL,
+        darkMode: this.usesDarkChrome(this.appThemeMode),
+        scrollables: [this.topicScroller],
+        onBackPressed: (): boolean => this.handleSecondaryBack()
+      }) {
         TopicDetailPage({
           readingScroller: this.topicScroller,
           state: this.topicState,
@@ -2724,12 +2692,22 @@ struct Index {
           }
         })
       }
-      .titleBar(this.secondaryTitleBar(APP_TOPIC_DETAIL_TITLE, BACK_TO_TOPIC_LIST_LABEL))
-      .titleMode(HdsNavDestinationTitleMode.MINI)
-      .bindToScrollable([this.topicScroller])
-      .onBackPressed((): boolean => this.handleSecondaryBack())
     } else if (name === CHAT_CONVERSATION_ROUTE) {
-      HdsNavDestination() {
+      DestinationPageShell({
+        title: this.chatConversationState.channel?.title ?? APP_CHAT_FALLBACK_TITLE,
+        backLabel: BACK_TO_CHAT_LIST_LABEL,
+        darkMode: this.usesDarkChrome(this.appThemeMode),
+        scrollables: [this.chatConversationScroller],
+        onShown: (): void => {
+          this.chatConversationVisible = true;
+          this.synchronizeChatPolling();
+        },
+        onHidden: (): void => {
+          this.chatConversationVisible = false;
+          this.synchronizeChatPolling();
+        },
+        onBackPressed: (): boolean => this.closeChatConversation()
+      }) {
         ChatConversationPage({
           messageScroller: this.chatConversationScroller,
           state: this.chatConversationState,
@@ -2773,23 +2751,14 @@ struct Index {
           onLeaveChannel: (): void => { this.confirmLeaveChatChannel(); }
         })
       }
-      .titleBar(this.secondaryTitleBar(
-        this.chatConversationState.channel?.title ?? APP_CHAT_FALLBACK_TITLE,
-        BACK_TO_CHAT_LIST_LABEL
-      ))
-      .titleMode(HdsNavDestinationTitleMode.MINI)
-      .bindToScrollable([this.chatConversationScroller])
-      .onShown((): void => {
-        this.chatConversationVisible = true;
-        this.synchronizeChatPolling();
-      })
-      .onHidden((): void => {
-        this.chatConversationVisible = false;
-        this.synchronizeChatPolling();
-      })
-      .onBackPressed((): boolean => this.closeChatConversation())
     } else if (name === USER_PROFILE_ROUTE) {
-      HdsNavDestination() {
+      DestinationPageShell({
+        title: APP_PROFILE_TITLE,
+        backLabel: BACK_TO_TOPIC_LABEL,
+        darkMode: this.usesDarkChrome(this.appThemeMode),
+        scrollables: [this.profileScroller],
+        onBackPressed: (): boolean => false
+      }) {
         UserProfileSummaryPage({
           scroller: this.profileScroller,
           state: this.profileState,
@@ -2817,12 +2786,14 @@ struct Index {
           }
         })
       }
-      .titleBar(this.secondaryTitleBar(APP_PROFILE_TITLE, BACK_TO_TOPIC_LABEL))
-      .titleMode(HdsNavDestinationTitleMode.MINI)
-      .bindToScrollable([this.profileScroller])
-      .onBackPressed((): boolean => false)
     } else if (name === PROFILE_EDITOR_ROUTE) {
-      HdsNavDestination() {
+      DestinationPageShell({
+        title: APP_PROFILE_EDITOR_TITLE,
+        backLabel: BACK_TO_PROFILE_LABEL,
+        darkMode: this.usesDarkChrome(this.appThemeMode),
+        scrollables: [this.profileEditorScroller],
+        onBackPressed: (): boolean => false
+      }) {
         ProfileEditorPage({
           scroller: this.profileEditorScroller,
           profile: this.profileState.profile,
@@ -2844,12 +2815,14 @@ struct Index {
           }
         })
       }
-      .titleBar(this.secondaryTitleBar(APP_PROFILE_EDITOR_TITLE, BACK_TO_PROFILE_LABEL))
-      .titleMode(HdsNavDestinationTitleMode.MINI)
-      .bindToScrollable([this.profileEditorScroller])
-      .onBackPressed((): boolean => false)
     } else if (name === PROFILE_CONTENT_ROUTE) {
-      HdsNavDestination() {
+      DestinationPageShell({
+        title: this.profileContentTitle(),
+        backLabel: BACK_TO_ACCOUNT_LABEL,
+        darkMode: this.usesDarkChrome(this.appThemeMode),
+        scrollables: [this.profileContentScroller],
+        onBackPressed: (): boolean => false
+      }) {
         ProfileContentPage({
           scroller: this.profileContentScroller,
           kind: this.profileContentState.kind,
@@ -2881,12 +2854,13 @@ struct Index {
           }
         })
       }
-      .titleBar(this.secondaryTitleBar(this.profileContentTitle(), BACK_TO_ACCOUNT_LABEL))
-      .titleMode(HdsNavDestinationTitleMode.MINI)
-      .bindToScrollable([this.profileContentScroller])
-      .onBackPressed((): boolean => false)
     } else if (name === RICH_EMBED_ROUTE) {
-      HdsNavDestination() {
+      DestinationPageShell({
+        title: this.richEmbedTitle,
+        backLabel: BACK_TO_TOPIC_LABEL,
+        darkMode: this.usesDarkChrome(this.appThemeMode),
+        onBackPressed: (): boolean => this.handleRichEmbedBack()
+      }) {
         SecureRichEmbedPage({
           url: this.richEmbedUrl,
           title: this.richEmbedTitle,
@@ -2895,11 +2869,14 @@ struct Index {
           onRequestExternalOpen: (url: string): void => this.confirmExternalNavigation(url)
         })
       }
-      .titleBar(this.secondaryTitleBar(this.richEmbedTitle, BACK_TO_TOPIC_LABEL))
-      .titleMode(HdsNavDestinationTitleMode.MINI)
-      .onBackPressed((): boolean => this.handleRichEmbedBack())
     } else if (name === IMAGE_VIEWER_ROUTE) {
-      HdsNavDestination() {
+      DestinationPageShell({
+        title: this.imageViewerState.title.length > 0 ? this.imageViewerState.title : APP_IMAGE_VIEWER_TITLE,
+        backLabel: BACK_TO_TOPIC_LABEL,
+        darkMode: this.usesDarkChrome(this.appThemeMode),
+        surface: PageSurface.MEDIA,
+        onBackPressed: (): boolean => false
+      }) {
         ImageViewerPage({
           state: this.imageViewerState,
           onCopyUrl: (): void => {
@@ -2913,14 +2890,14 @@ struct Index {
           }
         })
       }
-      .titleBar(this.secondaryTitleBar(
-        this.imageViewerState.title.length > 0 ? this.imageViewerState.title : APP_IMAGE_VIEWER_TITLE,
-        BACK_TO_TOPIC_LABEL
-      ))
-      .titleMode(HdsNavDestinationTitleMode.MINI)
-      .onBackPressed((): boolean => false)
     } else if (name === TOPIC_COMPOSER_ROUTE) {
-      HdsNavDestination() {
+      DestinationPageShell({
+        title: this.model?.topicAuthoring.editingTopicId === null ? APP_NEW_TOPIC_TITLE : APP_EDIT_TOPIC_TITLE,
+        backLabel: BACK_LABEL,
+        darkMode: this.usesDarkChrome(this.appThemeMode),
+        scrollables: [this.topicComposerScroller],
+        onBackPressed: (): boolean => this.handleTopicComposerBack()
+      }) {
         ForumComposer({
           scroller: this.topicComposerScroller,
           presentation: this.topicComposerPresentation(),
@@ -2969,15 +2946,13 @@ struct Index {
           }
         })
       }
-      .titleBar(this.secondaryTitleBar(
-        this.model?.topicAuthoring.editingTopicId === null ? APP_NEW_TOPIC_TITLE : APP_EDIT_TOPIC_TITLE,
-        BACK_LABEL
-      ))
-      .titleMode(HdsNavDestinationTitleMode.MINI)
-      .bindToScrollable([this.topicComposerScroller])
-      .onBackPressed((): boolean => this.handleTopicComposerBack())
     } else if (name === LOGIN_ROUTE) {
-      HdsNavDestination() {
+      DestinationPageShell({
+        title: APP_LOGIN_TITLE,
+        backLabel: CANCEL_LOGIN_LABEL,
+        darkMode: this.usesDarkChrome(this.appThemeMode),
+        onBackPressed: (): boolean => this.cancelLogin()
+      }) {
         LoginPage({
           state: this.authState,
           onRetry: (): void => {
@@ -2988,9 +2963,6 @@ struct Index {
           }
         })
       }
-      .titleBar(this.secondaryTitleBar(APP_LOGIN_TITLE, CANCEL_LOGIN_LABEL))
-      .titleMode(HdsNavDestinationTitleMode.MINI)
-      .onBackPressed((): boolean => this.cancelLogin())
     } else if (name === UI_PROTOTYPE_ROUTE) {
       HdsNavDestination() {
         UiPrototypePage({
@@ -3003,12 +2975,14 @@ struct Index {
       .ignoreLayoutSafeArea([LayoutSafeAreaType.SYSTEM], [LayoutSafeAreaEdge.BOTTOM])
       .onBackPressed((): boolean => this.handleSecondaryBack())
     } else {
-      HdsNavDestination() {
+      DestinationPageShell({
+        title: APP_PRODUCT_TITLE,
+        backLabel: BACK_LABEL,
+        darkMode: this.usesDarkChrome(this.appThemeMode),
+        onBackPressed: (): boolean => this.handleSecondaryBack()
+      }) {
         Text(APP_UNAVAILABLE_PAGE_TITLE)
       }
-      .titleBar(this.secondaryTitleBar(APP_PRODUCT_TITLE))
-      .titleMode(HdsNavDestinationTitleMode.MINI)
-      .onBackPressed((): boolean => this.handleSecondaryBack())
     }
   }
 
@@ -3156,9 +3130,9 @@ struct Index {
     }
   }
 
-  build() {
-    HdsNavigation(this.pathStack) {
-      HdsTabs({ controller: this.tabsController }) {
+  @Builder
+  private RootTabs(): void {
+    HdsTabs({ controller: this.tabsController }) {
         TabContent() {
           HomeBrowsePage({
             state: this.homeState,
@@ -3267,68 +3241,56 @@ struct Index {
         }
         .clip(false)
         .tabBar(this.rootTabStyle(ROOT_ACCOUNT_LABEL, $r('sys.symbol.person_crop_circle_fill_1')))
-      }
-      .scrollable(false)
-      .barPosition(BarPosition.End)
-      .vertical(false)
-      .barOverlap(true)
-      .barFloatingStyle({
-        barSideMargin: 12,
-        barBottomMargin: 28,
-        adaptToHandedness: true,
-        systemMaterialEffect: {
-          materialType: hdsMaterial.MaterialType.ADAPTIVE,
-          materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE
-        }
-      })
-      .onContentWillChange((_currentIndex: number, comingIndex: number): boolean => {
-        return rootDestinationForTabIndex(comingIndex) !== null;
-      })
-      .onChange((index: number): void => {
-        this.selectRoot(index);
-      })
-      .width('100%')
-      .height('100%')
-      .clip(false)
-      .ignoreLayoutSafeArea([LayoutSafeAreaType.SYSTEM], [LayoutSafeAreaEdge.BOTTOM])
     }
-    .titleBar({
-      avoidLayoutSafeArea: true,
-      enableComponentSafeArea: true,
-      content: {
-        title: { mainTitle: '' },
-        stackBuilder: (): void => this.RootHeader()
-      },
-      style: {
-        scrollEffectOpts: {
-          enableScrollEffect: false,
-          scrollEffectType: ScrollEffectType.GRADIENT_BLUR
-        },
-        originalStyle: {
-          backgroundStyle: {
-            backgroundColor: Color.Transparent,
-            maskExtraHeight: 32,
-            blurRadius: 16
-          }
-        }
+    .scrollable(false)
+    .barPosition(BarPosition.End)
+    .vertical(false)
+    .barOverlap(true)
+    .barFloatingStyle({
+      barSideMargin: 12,
+      barBottomMargin: 28,
+      adaptToHandedness: true,
+      systemMaterialEffect: {
+        materialType: hdsMaterial.MaterialType.ADAPTIVE,
+        materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE
       }
     })
-    .titleMode(HdsNavigationTitleMode.MINI)
-    .hideTitleBar(false)
-    .hideBackButton(true)
-    .navDestination(this.SecondaryPage)
-    .bindToScrollable([
-      this.homeScroller,
-      this.categoryScroller,
-      this.chatScroller,
-      this.notificationScroller,
-      this.accountScroller
-    ])
+    .onContentWillChange((_currentIndex: number, comingIndex: number): boolean => {
+      return rootDestinationForTabIndex(comingIndex) !== null;
+    })
+    .onChange((index: number): void => {
+      this.selectRoot(index);
+    })
     .width('100%')
     .height('100%')
-    .ignoreLayoutSafeArea(
-      [LayoutSafeAreaType.SYSTEM],
-      [LayoutSafeAreaEdge.TOP, LayoutSafeAreaEdge.BOTTOM]
-    )
+    .clip(false)
+    .ignoreLayoutSafeArea([LayoutSafeAreaType.SYSTEM], [LayoutSafeAreaEdge.BOTTOM])
+  }
+
+  build() {
+    Stack() {
+      RootPageShell({
+        pathStack: this.pathStack,
+        scrollables: [
+          this.homeScroller,
+          this.categoryScroller,
+          this.chatScroller,
+          this.notificationScroller,
+          this.accountScroller
+        ],
+        darkMode: this.usesDarkChrome(this.appThemeMode),
+        header: (): void => {
+          this.RootHeader()
+        },
+        content: (): void => {
+          this.RootTabs()
+        },
+        destination: (name: string, param: Object): void => {
+          this.SecondaryPage(name, param)
+        }
+      })
+    }
+    .width('100%')
+    .height('100%')
   }
 }
