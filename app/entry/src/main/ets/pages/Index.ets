@@ -4,10 +4,13 @@ import { BusinessError, pasteboard } from '@kit.BasicServicesKit';
 import {
   hdsMaterial,
   HdsNavDestination,
+  HdsNavigationTitleBarOptions,
   HdsSnackBar,
   HdsTabs,
   HdsTabsController,
-  SnackBarOperationType
+  IconStyleMode,
+  SnackBarOperationType,
+  TextStyleMode
 } from '@kit.UIDesignKit';
 import { SymbolGlyphModifier, window } from '@kit.ArkUI';
 import { AppShellModel } from '../app/AppShellModel';
@@ -118,14 +121,16 @@ import { ChatRootPage } from '../components/ChatRootPage';
 import { NotificationCentrePage } from '../components/NotificationCentrePage';
 import { CategoryTopicsPage } from '../components/CategoryTopicsPage';
 import { HomeBrowsePage } from '../components/HomeBrowsePage';
-import { HomeFloatingHeader } from '../components/HomeFloatingHeader';
-import { ImmersiveFloatingHeader } from '../components/ImmersiveFloatingHeader';
 import {
   DestinationPageShell,
+  NavigationChrome,
   PageSurface,
   RootPageShell
 } from '../components/PageShell';
-import { FeatureSitePresentation } from '../components/HomePresentation';
+import {
+  FeatureSitePresentation,
+  featureSitePresentations
+} from '../components/HomePresentation';
 import { ForumComposer } from '../components/ForumComposer';
 import {
   ForumComposerPresentation,
@@ -153,7 +158,7 @@ import {
 import { NotificationBucket, NotificationItem } from '../models/NotificationModels';
 import {
   HomeChannel,
-  homeChannelFromIndex,
+  homeChannelLabel,
   OnlineUser,
   OnlineUsers,
   SearchPost,
@@ -197,6 +202,11 @@ import {
 
 const ROOT_TAB_SELECTED_COLOR: ResourceColor = $r('app.color.brand_primary');
 
+enum HomeHeaderSheetKind {
+  CHANNEL = 'channel',
+  FEATURE_SITES = 'feature-sites'
+}
+
 @Entry
 @Component
 struct Index {
@@ -238,6 +248,8 @@ struct Index {
   @State selectedRoot: RootDestination = RootDestination.HOME;
   @State homeState: BrowseState<Topic> = BrowseState.initial<Topic>();
   @State selectedHomeChannel: HomeChannel = HomeChannel.LATEST_REPLIES;
+  @State homeHeaderSheetVisible: boolean = false;
+  @State homeHeaderSheetKind: HomeHeaderSheetKind = HomeHeaderSheetKind.CHANNEL;
   @State appThemeMode: AppThemeMode = AppThemeMode.SYSTEM;
   @State worldCupEntryEnabled: boolean = true;
   @State categoryState: BrowseState<Category> = BrowseState.initial<Category>();
@@ -599,6 +611,33 @@ struct Index {
     }
   }
 
+  private async showOnlineUsers(): Promise<void> {
+    if (this.onlineUsersState.kind !== BrowseStateKind.CONTENT) {
+      await this.loadOnlineUsers();
+    }
+    this.openOnlineUsers();
+  }
+
+  private showFeatureSiteMenu(): void {
+    this.homeHeaderSheetKind = HomeHeaderSheetKind.FEATURE_SITES;
+    this.homeHeaderSheetVisible = true;
+  }
+
+  private homeChannels(): Array<HomeChannel> {
+    return [
+      HomeChannel.LATEST_REPLIES,
+      HomeChannel.LATEST_CREATED,
+      HomeChannel.UNREAD,
+      HomeChannel.HOT,
+      HomeChannel.FEATURED
+    ];
+  }
+
+  private showHomeChannelMenu(): void {
+    this.homeHeaderSheetKind = HomeHeaderSheetKind.CHANNEL;
+    this.homeHeaderSheetVisible = true;
+  }
+
   private async refreshHome(): Promise<void> {
     const model: AppShellModel | null = this.model;
     if (model === null) {
@@ -609,14 +648,6 @@ struct Index {
     await task;
     this.homeState = model.discovery.homeState;
     this.showHomeRefreshMessage();
-  }
-
-  private async selectHomeChannel(index: number): Promise<void> {
-    const channel: HomeChannel | null = homeChannelFromIndex(index);
-    if (channel === null) {
-      return;
-    }
-    await this.applyHomeChannelPreference(channel);
   }
 
   private async applyHomeChannelPreference(channel: HomeChannel): Promise<void> {
@@ -3049,66 +3080,248 @@ struct Index {
     );
   }
 
-  @Builder
-  private RootHeader(): void {
+  private rootTitleBar(): HdsNavigationTitleBarOptions {
     if (this.selectedRoot === RootDestination.HOME) {
-      HomeFloatingHeader({
-        selectedChannel: this.selectedHomeChannel,
-        newTopicAvailable: this.canCreateAuthoringTopic(),
-        onlineUsersState: this.onlineUsersState,
-        onlineUserCount: this.onlineUserCount,
-        onOpenOnlineUser: (user: OnlineUser): void => {
-          this.openUserProfile(user.username);
+      return NavigationChrome.rootTitleBar({
+        title: { mainTitle: '' },
+        backIcon: {
+          label: '打开 Riverside 功能入口',
+          icon: $r('app.media.riverside_harmony_foreground_v2'),
+          type: IconStyleMode.NORMAL,
+          action: (): void => {
+            this.showFeatureSiteMenu();
+          }
         },
-        onRetryOnlineUsers: (): void => {
-          this.loadOnlineUsers();
+        subIcon: {
+          content: {
+            label: homeChannelLabel(this.selectedHomeChannel),
+            type: TextStyleMode.NORMAL,
+            action: (): void => {
+              this.showHomeChannelMenu();
+            }
+          }
         },
-        onOpenFeatureSite: (site: FeatureSitePresentation): void => {
-          this.openRichEmbed(site.entryUrl, site.provider, site.title);
-        },
-        onOpenSearch: (): void => {
-          this.openSearch();
-        },
-        onOpenNewTopic: (): void => {
-          this.openNewTopic();
-        },
-        onSelectChannel: (index: number): void => {
-          this.selectHomeChannel(index);
+        menu: {
+          maxCount: 3,
+          value: [
+            {
+              content: {
+                label: '搜索论坛',
+                icon: $r('sys.symbol.magnifyingglass'),
+                action: (): void => {
+                  this.openSearch();
+                }
+              }
+            },
+            {
+              content: {
+                label: '发布新 Topic',
+                icon: $r('sys.symbol.plus'),
+                isEnabled: this.canCreateAuthoringTopic(),
+                action: (): void => {
+                  this.openNewTopic();
+                }
+              }
+            },
+            {
+              content: {
+                label: this.onlineUserCount.toString(),
+                type: TextStyleMode.NORMAL,
+                action: (): void => {
+                  this.showOnlineUsers();
+                }
+              }
+            }
+          ]
         }
-      })
-    } else if (this.selectedRoot === RootDestination.CATEGORY) {
-      ImmersiveFloatingHeader({
-        title: $r('app.string.category_all')
-      })
-    } else if (this.selectedRoot === RootDestination.CHAT) {
-      ImmersiveFloatingHeader({
-        title: $r('app.string.chat_title'),
-        showAction: true,
-        actionEnabled: this.authState.kind === AuthStateKind.AUTHENTICATED &&
-          !this.accountIdentityLoading && this.accountIdentityError.length === 0 &&
-          this.accountProfileState.profile?.canChat === true && !this.chatChannelState.refreshing,
-        actionAccessibilityText: $r('app.string.chat_refresh_accessibility'),
-        onAction: (): void => {
-          this.loadChatChannels();
-        }
-      })
-    } else if (this.selectedRoot === RootDestination.NOTIFICATIONS) {
-      ImmersiveFloatingHeader({
-        title: $r('app.string.notification_title'),
-        showAction: true,
-        actionEnabled: this.authState.kind === AuthStateKind.AUTHENTICATED &&
-          !this.notificationState.refreshing &&
-          this.notificationState.kind !== NotificationCentreStateKind.LOADING,
-        actionAccessibilityText: $r('app.string.notification_refresh_accessibility'),
-        onAction: (): void => {
-          this.refreshNotificationCentre();
-        }
-      })
-    } else {
-      ImmersiveFloatingHeader({
-        title: $r('app.string.account_title')
-      })
+      });
     }
+
+    let title: ResourceStr = $r('app.string.account_title');
+    if (this.selectedRoot === RootDestination.CATEGORY) {
+      title = $r('app.string.category_all');
+    } else if (this.selectedRoot === RootDestination.CHAT) {
+      title = $r('app.string.chat_title');
+    } else if (this.selectedRoot === RootDestination.NOTIFICATIONS) {
+      title = $r('app.string.notification_title');
+    }
+
+    if (this.selectedRoot === RootDestination.CHAT) {
+      return NavigationChrome.rootTitleBar({
+        title: { mainTitle: '' },
+        subIcon: {
+          content: {
+            label: title,
+            type: TextStyleMode.NORMAL
+          }
+        },
+        menu: {
+          value: [{
+            content: {
+              label: $r('app.string.chat_refresh_accessibility'),
+              icon: $r('sys.symbol.arrow_clockwise'),
+              isEnabled: this.authState.kind === AuthStateKind.AUTHENTICATED &&
+                !this.accountIdentityLoading && this.accountIdentityError.length === 0 &&
+                this.accountProfileState.profile?.canChat === true && !this.chatChannelState.refreshing,
+              action: (): void => {
+                this.loadChatChannels();
+              }
+            }
+          }]
+        }
+      });
+    }
+
+    if (this.selectedRoot === RootDestination.NOTIFICATIONS) {
+      return NavigationChrome.rootTitleBar({
+        title: { mainTitle: '' },
+        subIcon: {
+          content: {
+            label: title,
+            type: TextStyleMode.NORMAL
+          }
+        },
+        menu: {
+          value: [{
+            content: {
+              label: $r('app.string.notification_refresh_accessibility'),
+              icon: $r('sys.symbol.arrow_clockwise'),
+              isEnabled: this.authState.kind === AuthStateKind.AUTHENTICATED &&
+                !this.notificationState.refreshing &&
+                this.notificationState.kind !== NotificationCentreStateKind.LOADING,
+              action: (): void => {
+                this.refreshNotificationCentre();
+              }
+            }
+          }]
+        }
+      });
+    }
+
+    return NavigationChrome.rootTitleBar({
+      title: { mainTitle: '' },
+      subIcon: {
+        content: {
+          label: title,
+          type: TextStyleMode.NORMAL
+        }
+      },
+      menu: { value: [] }
+    });
+  }
+
+  private rootTitleBarRevision(): string {
+    return [
+      this.selectedRoot,
+      this.selectedHomeChannel,
+      this.onlineUserCount.toString(),
+      this.canCreateAuthoringTopic().toString(),
+      this.chatChannelState.refreshing.toString(),
+      this.notificationState.refreshing.toString()
+    ].join(':');
+  }
+
+  @Builder
+  private HomeChannelSheet(): void {
+    List({ space: 8 }) {
+      ForEach(this.homeChannels(), (channel: HomeChannel) => {
+        ListItem() {
+          Button() {
+            Row({ space: 12 }) {
+              Text(homeChannelLabel(channel))
+                .fontSize(16)
+                .fontWeight(channel === this.selectedHomeChannel
+                  ? FontWeight.Bold
+                  : FontWeight.Medium)
+                .fontColor($r('sys.color.font_primary'))
+                .layoutWeight(1)
+              if (channel === this.selectedHomeChannel) {
+                SymbolGlyph($r('sys.symbol.checkmark'))
+                  .fontSize(18)
+                  .fontColor([$r('app.color.brand_primary')])
+              }
+            }
+            .width('100%')
+            .padding({ left: 16, right: 16 })
+            .hitTestBehavior(HitTestMode.None)
+          }
+          .width('100%')
+          .height(52)
+          .backgroundColor(channel === this.selectedHomeChannel
+            ? $r('app.color.brand_tint_surface')
+            : $r('sys.color.comp_background_primary'))
+          .borderRadius(16)
+          .onClick((): void => {
+            this.homeHeaderSheetVisible = false;
+            this.applyHomeChannelPreference(channel);
+          })
+          .accessibilityText(`切换到${homeChannelLabel(channel)}`)
+        }
+      }, (channel: HomeChannel): string => channel.toString())
+    }
+    .width('100%')
+    .height('100%')
+    .padding({ left: 16, right: 16, top: 8, bottom: 16 })
+    .backgroundColor($r('sys.color.background_secondary'))
+  }
+
+  @Builder
+  private FeatureSiteSheet(): void {
+    List({ space: 8 }) {
+      ForEach(featureSitePresentations(), (site: FeatureSitePresentation) => {
+        ListItem() {
+          Button() {
+            Row({ space: 12 }) {
+              Text(site.title)
+                .fontSize(16)
+                .fontWeight(FontWeight.Medium)
+                .fontColor($r('sys.color.font_primary'))
+                .layoutWeight(1)
+              SymbolGlyph($r('sys.symbol.chevron_right'))
+                .fontSize(16)
+                .fontColor([$r('sys.color.font_tertiary')])
+            }
+            .width('100%')
+            .padding({ left: 16, right: 16 })
+            .hitTestBehavior(HitTestMode.None)
+          }
+          .width('100%')
+          .height(52)
+          .backgroundColor($r('sys.color.comp_background_primary'))
+          .borderRadius(16)
+          .onClick((): void => {
+            this.homeHeaderSheetVisible = false;
+            this.openRichEmbed(site.entryUrl, site.provider, site.title);
+          })
+          .accessibilityText(`打开${site.title}`)
+        }
+      }, (site: FeatureSitePresentation): string => site.provider)
+    }
+    .width('100%')
+    .height('100%')
+    .padding({ left: 16, right: 16, top: 8, bottom: 16 })
+    .backgroundColor($r('sys.color.background_secondary'))
+  }
+
+  @Builder
+  private HomeHeaderSheet(): void {
+    if (this.homeHeaderSheetKind === HomeHeaderSheetKind.FEATURE_SITES) {
+      this.FeatureSiteSheet()
+    } else {
+      this.HomeChannelSheet()
+    }
+  }
+
+  private homeHeaderSheetTitle(): string {
+    return this.homeHeaderSheetKind === HomeHeaderSheetKind.FEATURE_SITES
+      ? 'Riverside 功能入口'
+      : '切换首页';
+  }
+
+  private homeHeaderSheetSubtitle(): string {
+    return this.homeHeaderSheetKind === HomeHeaderSheetKind.FEATURE_SITES
+      ? '选择要打开的站点'
+      : `当前：${homeChannelLabel(this.selectedHomeChannel)}`;
   }
 
   @Builder
@@ -3214,9 +3427,6 @@ struct Index {
             },
             onOpenPlaceholder: (kind: AccountPlaceholderKind): void => {
               this.openAccountPlaceholder(kind);
-            },
-            onOpenUiPrototype: (): void => {
-              this.openUiPrototype();
             }
           })
         }
@@ -3260,8 +3470,10 @@ struct Index {
           this.accountScroller
         ],
         darkMode: this.usesDarkChrome(this.appThemeMode),
-        header: (): void => {
-          this.RootHeader()
+        hideBackButton: this.selectedRoot !== RootDestination.HOME,
+        titleBarRevision: this.rootTitleBarRevision(),
+        titleBarOptions: (): HdsNavigationTitleBarOptions => {
+          return this.rootTitleBar();
         },
         content: (): void => {
           this.RootTabs()
@@ -3273,5 +3485,15 @@ struct Index {
     }
     .width('100%')
     .height('100%')
+    .bindSheet($$this.homeHeaderSheetVisible, this.HomeHeaderSheet(), {
+      detents: [SheetSize.MEDIUM],
+      detentSelection: SheetSize.MEDIUM,
+      showClose: true,
+      dragBar: true,
+      title: {
+        title: this.homeHeaderSheetTitle(),
+        subtitle: this.homeHeaderSheetSubtitle()
+      }
+    })
   }
 }

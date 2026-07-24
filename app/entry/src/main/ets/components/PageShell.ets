@@ -1,21 +1,23 @@
 import { window } from '@kit.ArkUI';
 import {
+  hdsMaterial,
   HdsNavDestination,
   HdsNavDestinationTitleMode,
   HdsNavigation,
   HdsNavigationTitleBarOptions,
   HdsNavigationTitleMode,
-  ScrollEffectType
+  ScrollEffectType,
+  TextStyleMode,
+  TitleBarContentOptions
 } from '@kit.UIDesignKit';
 import { AppSystemBarPalette } from '../settings/AppThemeSettings';
-import { ImmersiveFloatingHeader } from './ImmersiveFloatingHeader';
 
 export enum PageSurface {
   STANDARD = 'standard',
   MEDIA = 'media'
 }
 
-class NavigationChrome {
+export class NavigationChrome {
   public static statusBarStyle(darkMode: boolean, surface: PageSurface): window.SystemBarStyle {
     const lightContent: boolean = darkMode || surface === PageSurface.MEDIA;
     return {
@@ -25,10 +27,74 @@ class NavigationChrome {
     };
   }
 
-  public static titleBar(
-    stackBuilder: () => void,
+  public static rootTitleBar(
+    content: TitleBarContentOptions,
+    surface: PageSurface = PageSurface.STANDARD
+  ): HdsNavigationTitleBarOptions {
+    const backgroundColor: ResourceColor = surface === PageSurface.MEDIA
+      ? $r('app.color.image_viewer_surface')
+      : $r('sys.color.background_secondary');
+    return {
+      avoidLayoutSafeArea: true,
+      enableComponentSafeArea: true,
+      content,
+      style: {
+        scrollEffectOpts: {
+          enableScrollEffect: false,
+          scrollEffectType: ScrollEffectType.GRADIENT_BLUR
+        },
+        systemMaterialEffect: {
+          materialType: hdsMaterial.MaterialType.ADAPTIVE,
+          materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE
+        },
+        originalStyle: {
+          backgroundStyle: {
+            backgroundColor,
+            maskExtraHeight: 32,
+            blurRadius: 12
+          },
+          contentStyle: {
+            backIconStyle: {
+              iconColor: $r('sys.color.font_primary')
+            },
+            subIconStyle: {
+              iconColor: $r('sys.color.font_primary'),
+              textColor: $r('sys.color.font_primary')
+            },
+            menuStyle: {
+              iconColor: $r('sys.color.font_primary'),
+              textColor: $r('sys.color.font_primary')
+            }
+          }
+        },
+        scrollEffectStyle: {
+          backgroundStyle: {
+            backgroundColor,
+            maskExtraHeight: 32,
+            blurRadius: 12
+          },
+          contentStyle: {
+            backIconStyle: {
+              iconColor: $r('sys.color.font_primary')
+            },
+            subIconStyle: {
+              iconColor: $r('sys.color.font_primary'),
+              textColor: $r('sys.color.font_primary')
+            },
+            menuStyle: {
+              iconColor: $r('sys.color.font_primary'),
+              textColor: $r('sys.color.font_primary')
+            }
+          }
+        }
+      }
+    };
+  }
+
+  public static destinationTitleBar(
+    title: ResourceStr,
     surface: PageSurface,
-    backLabel: ResourceStr | null = null
+    backLabel: ResourceStr
   ): HdsNavigationTitleBarOptions {
     const backgroundColor: ResourceColor = surface === PageSurface.MEDIA
       ? $r('app.color.image_viewer_surface')
@@ -38,24 +104,35 @@ class NavigationChrome {
       enableComponentSafeArea: true,
       content: {
         title: { mainTitle: '' },
-        backIcon: backLabel === null ? undefined : { label: backLabel },
-        stackBuilder
+        backIcon: { label: backLabel },
+        subIcon: {
+          content: {
+            label: title,
+            type: TextStyleMode.NORMAL
+          }
+        }
       },
       style: {
         scrollEffectOpts: {
           enableScrollEffect: false,
           scrollEffectType: ScrollEffectType.GRADIENT_BLUR
         },
+        systemMaterialEffect: {
+          materialType: hdsMaterial.MaterialType.ADAPTIVE,
+          materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE
+        },
         originalStyle: {
           backgroundStyle: {
             backgroundColor,
             maskExtraHeight: 32,
-            blurRadius: 16
+            blurRadius: 12
           },
           contentStyle: {
             backIconStyle: {
-              backgroundColor: $r('sys.color.comp_background_tertiary'),
               iconColor: $r('sys.color.font_primary')
+            },
+            subIconStyle: {
+              textColor: $r('sys.color.font_primary')
             }
           }
         },
@@ -63,12 +140,14 @@ class NavigationChrome {
           backgroundStyle: {
             backgroundColor,
             maskExtraHeight: 32,
-            blurRadius: 16
+            blurRadius: 12
           },
           contentStyle: {
             backIconStyle: {
-              backgroundColor: $r('sys.color.comp_background_tertiary'),
               iconColor: $r('sys.color.font_primary')
+            },
+            subIconStyle: {
+              textColor: $r('sys.color.font_primary')
             }
           }
         }
@@ -88,6 +167,13 @@ export struct RootPageShell {
   pathStack: NavPathStack = new NavPathStack();
   scrollables: Array<Scroller> = [];
   @Prop darkMode: boolean = false;
+  @Prop hideBackButton: boolean = true;
+  @Prop titleBarRevision: string = '';
+  titleBarOptions: () => HdsNavigationTitleBarOptions = (): HdsNavigationTitleBarOptions => {
+    return NavigationChrome.rootTitleBar({
+      title: { mainTitle: '' }
+    });
+  };
 
   @Builder
   private emptyContent(): void {
@@ -97,7 +183,6 @@ export struct RootPageShell {
   private emptyDestination(_name: string, _param: Object): void {
   }
 
-  @BuilderParam header: () => void = this.emptyContent;
   @BuilderParam content: () => void = this.emptyContent;
   @BuilderParam destination: (name: string, param: Object) => void = this.emptyDestination;
 
@@ -110,21 +195,17 @@ export struct RootPageShell {
     HdsNavigation(this.pathStack) {
       this.content()
     }
-    .titleBar(NavigationChrome.titleBar(
-      (): void => {
-        this.header();
-      },
-      PageSurface.STANDARD
-    ))
+    .titleBar(this.titleBarOptions())
     .systemBarStyle(
       NavigationChrome.statusBarStyle(this.darkMode, PageSurface.STANDARD),
       NavigationChrome.statusBarStyle(this.darkMode, PageSurface.STANDARD)
     )
     .titleMode(HdsNavigationTitleMode.MINI)
     .hideTitleBar(false)
-    .hideBackButton(true)
+    .hideBackButton(this.hideBackButton)
     .navDestination(this.destinationBuilder)
     .bindToScrollable(this.scrollables)
+    .id(`root-navigation-${this.titleBarRevision}`)
     .width('100%')
     .height('100%')
     .backgroundColor(NavigationChrome.pageBackground(PageSurface.STANDARD))
@@ -152,22 +233,12 @@ export struct DestinationPageShell {
 
   @BuilderParam content: () => void = this.emptyContent;
 
-  @Builder
-  private header(): void {
-    ImmersiveFloatingHeader({
-      title: this.title,
-      leadingInset: 48
-    })
-  }
-
   build() {
     HdsNavDestination() {
       this.content()
     }
-    .titleBar(NavigationChrome.titleBar(
-      (): void => {
-        this.header();
-      },
+    .titleBar(NavigationChrome.destinationTitleBar(
+      this.title,
       this.surface,
       this.backLabel
     ))
