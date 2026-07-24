@@ -310,6 +310,10 @@ struct Index {
 
   onPageShow(): void {
     this.foregroundVisible = true;
+    const abilityContext: common.UIAbilityContext | null = AbilityContextRegistry.current();
+    if (abilityContext !== null) {
+      this.applySystemBarTheme(abilityContext, this.appThemeMode);
+    }
     this.synchronizePresenceHeartbeat();
     this.appForeground = true;
     this.synchronizeChatPolling();
@@ -339,6 +343,10 @@ struct Index {
     );
     this.appThemeSettingsStore = dependencies.appThemeSettingsStore;
     this.appThemeMode = await dependencies.appThemeSettingsStore.read();
+    const abilityContext: common.UIAbilityContext | null = AbilityContextRegistry.current();
+    if (abilityContext !== null) {
+      await this.applySystemBarTheme(abilityContext, this.appThemeMode);
+    }
     const authRepository: AuthRepository = dependencies.authRepository;
     this.authRepository = authRepository;
     const restoring: Promise<void> = authRepository.restore();
@@ -642,7 +650,9 @@ struct Index {
     try {
       const mainWindow: window.Window = await window.getLastWindow(abilityContext);
       await mainWindow.setWindowSystemBarProperties({
-        statusBarColor: AppSystemBarPalette.transparent,
+        statusBarColor: dark
+          ? AppSystemBarPalette.transparent
+          : AppSystemBarPalette.lightContentBackground,
         navigationBarColor: AppSystemBarPalette.transparent,
         statusBarContentColor: dark ? AppSystemBarPalette.darkContent : AppSystemBarPalette.lightStatusContent,
         navigationBarContentColor: dark

@@ -13,7 +13,7 @@
  * limitations under the License.
  */
 
-import { AbilityConstant, UIAbility, Want } from '@kit.AbilityKit';
+import { AbilityConstant, ConfigurationConstant, UIAbility, Want } from '@kit.AbilityKit';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { window } from '@kit.ArkUI';
 import { AbilityContextRegistry } from '../core/AbilityContextRegistry';
@@ -70,13 +70,19 @@ export default class EntryAbility extends UIAbility {
       try {
         const mainWindow: window.Window = windowStage.getMainWindowSync();
         await mainWindow.setWindowLayoutFullScreen(true);
+        const systemDark: boolean = this.context.config.colorMode ===
+          ConfigurationConstant.ColorMode.COLOR_MODE_DARK;
+        const dark: boolean = this.restoredThemeMode === AppThemeMode.DARK ||
+          (this.restoredThemeMode === AppThemeMode.SYSTEM && systemDark);
         const systemBarProperties: window.SystemBarProperties = {
-          statusBarColor: AppSystemBarPalette.transparent,
+          statusBarColor: dark
+            ? AppSystemBarPalette.transparent
+            : AppSystemBarPalette.lightContentBackground,
           navigationBarColor: AppSystemBarPalette.transparent,
-          statusBarContentColor: this.restoredThemeMode === AppThemeMode.DARK
+          statusBarContentColor: dark
             ? AppSystemBarPalette.darkContent
             : AppSystemBarPalette.lightStatusContent,
-          navigationBarContentColor: this.restoredThemeMode === AppThemeMode.DARK
+          navigationBarContentColor: dark
             ? AppSystemBarPalette.darkContent
             : AppSystemBarPalette.lightNavigationContent
         };
