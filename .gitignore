@@ -17,6 +17,7 @@ oh_modules/
 
 # Local environment and signing material
 local.properties
+/app/build-profile.json5
 *.p12
 *.pfx
 *.jks
