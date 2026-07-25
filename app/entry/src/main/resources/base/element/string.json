@@ -153,14 +153,6 @@
       "value": "在应用内打开 RiverSide 关于页面"
     },
     {
-      "name": "home_online_loading",
-      "value": "正在读取在线用户"
-    },
-    {
-      "name": "home_online_load_failed",
-      "value": "在线用户加载失败"
-    },
-    {
       "name": "home_empty_title",
       "value": "还没有 Topic"
     },

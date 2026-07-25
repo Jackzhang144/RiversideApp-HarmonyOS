@@ -2,18 +2,15 @@ export class StartupRequestTasks {
   private readonly homeLoader: () => Promise<void>;
   private readonly categoryLoader: () => Promise<void>;
   private readonly presenceStarter: () => void;
-  private readonly onlineUsersLoader: () => void;
 
   public constructor(
     homeLoader: () => Promise<void>,
     categoryLoader: () => Promise<void>,
-    presenceStarter: () => void,
-    onlineUsersLoader: () => void
+    presenceStarter: () => void
   ) {
     this.homeLoader = homeLoader;
     this.categoryLoader = categoryLoader;
     this.presenceStarter = presenceStarter;
-    this.onlineUsersLoader = onlineUsersLoader;
   }
 
   public loadHome(): Promise<void> {
@@ -27,10 +24,6 @@ export class StartupRequestTasks {
   public startPresence(): void {
     this.presenceStarter();
   }
-
-  public loadOnlineUsers(): void {
-    this.onlineUsersLoader();
-  }
 }
 
 export async function runStartupRequestSequence(tasks: StartupRequestTasks): Promise<void> {
@@ -38,5 +31,4 @@ export async function runStartupRequestSequence(tasks: StartupRequestTasks): Pro
   const categoryTask: Promise<void> = tasks.loadCategories();
   await Promise.all([homeTask, categoryTask]);
   tasks.startPresence();
-  tasks.loadOnlineUsers();
 }

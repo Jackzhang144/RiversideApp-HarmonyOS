@@ -2,7 +2,6 @@ export const CATEGORY_TOPICS_ROUTE: string = 'category-topics';
 export const TOPIC_ROUTE: string = 'topic';
 export const LOGIN_ROUTE: string = 'login';
 export const SEARCH_ROUTE: string = 'search';
-export const ONLINE_USERS_ROUTE: string = 'online-users';
 export const ABOUT_ROUTE: string = 'about';
 export const APP_SETTINGS_ROUTE: string = 'app-settings';
 export const TOPIC_COMPOSER_ROUTE: string = 'topic-composer';

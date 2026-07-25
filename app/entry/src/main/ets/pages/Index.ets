@@ -51,7 +51,6 @@ import {
   CHAT_CONVERSATION_ROUTE,
   IMAGE_VIEWER_ROUTE,
   LOGIN_ROUTE,
-  ONLINE_USERS_ROUTE,
   PROFILE_CONTENT_ROUTE,
   PROFILE_EDITOR_ROUTE,
   RICH_EMBED_ROUTE,
@@ -138,7 +137,6 @@ import {
 } from '../components/ForumComposerPresentation';
 import { LoginPage } from '../components/LoginPage';
 import { SearchPage } from '../components/SearchPage';
-import { OnlineUsersPage } from '../components/OnlineUsersPage';
 import { SecureRichEmbedPage } from '../components/SecureRichEmbedPage';
 import { TopicDetailPage } from '../components/TopicDetailPage';
 import { UserProfileSummaryPage } from '../components/UserProfileSummaryPage';
@@ -159,8 +157,6 @@ import { NotificationBucket, NotificationItem } from '../models/NotificationMode
 import {
   HomeChannel,
   homeChannelLabel,
-  OnlineUser,
-  OnlineUsers,
   SearchPost,
   SearchUser
 } from '../models/DiscoveryModels';
@@ -218,7 +214,6 @@ struct Index {
   private readonly notificationScroller: Scroller = new Scroller();
   private readonly accountScroller: Scroller = new Scroller();
   private readonly settingsScroller: Scroller = new Scroller();
-  private readonly onlineUsersScroller: Scroller = new Scroller();
   private readonly categoryTopicsScroller: Scroller = new Scroller();
   private readonly searchScroller: Scroller = new Scroller();
   private readonly topicScroller: Scroller = new Scroller();
@@ -272,8 +267,6 @@ struct Index {
   @State accountIdentityError: string = '';
   @State accountProfileState: ProfileViewState = ProfileViewState.initial();
   @State searchState: SearchState = SearchState.initial();
-  @State onlineUsersState: BrowseState<OnlineUser> = BrowseState.initial<OnlineUser>();
-  @State onlineUserCount: number = 0;
   @State searchSuggestionState: SearchSuggestionState = SearchSuggestionState.initial();
   @State chatChannelState: ChatChannelState = ChatChannelState.initial();
   @State chatConversationState: ChatConversationState = ChatConversationState.initial();
@@ -427,10 +420,7 @@ struct Index {
     const startupTasks: StartupRequestTasks = new StartupRequestTasks(
       (): Promise<void> => this.loadHome(),
       (): Promise<void> => this.loadCategories(),
-      (): void => this.synchronizePresenceHeartbeat(),
-      (): void => {
-        this.loadOnlineUsers();
-      }
+      (): void => this.synchronizePresenceHeartbeat()
     );
     await runStartupRequestSequence(startupTasks);
   }
@@ -582,40 +572,6 @@ struct Index {
     this.homeState = model.discovery.homeState;
     await task;
     this.homeState = model.discovery.homeState;
-  }
-
-  private async loadOnlineUsers(): Promise<void> {
-    const repository: DiscourseForumRepository | null = this.forumRepository;
-    if (repository === null) {
-      return;
-    }
-    this.onlineUsersState = BrowseState.loading<OnlineUser>();
-    const result: RepositoryResult<OnlineUsers> = await repository.loadOnlineUsers();
-    if (!result.isSuccess() || result.data === null) {
-      if (result.isUnauthorized()) {
-        await this.authenticationLifecycle?.handleUnauthorized();
-      }
-      this.onlineUsersState = BrowseState.error<OnlineUser>(result.message);
-      this.onlineUserCount = 0;
-      return;
-    }
-    this.onlineUserCount = result.data.count;
-    this.onlineUsersState = result.data.users.length === 0
-      ? BrowseState.empty<OnlineUser>()
-      : BrowseState.content<OnlineUser>(result.data.users);
-  }
-
-  private openOnlineUsers(): void {
-    if (this.onlineUsersState.kind === BrowseStateKind.CONTENT) {
-      this.pathStack.pushPath({ name: ONLINE_USERS_ROUTE });
-    }
-  }
-
-  private async showOnlineUsers(): Promise<void> {
-    if (this.onlineUsersState.kind !== BrowseStateKind.CONTENT) {
-      await this.loadOnlineUsers();
-    }
-    this.openOnlineUsers();
   }
 
   private showFeatureSiteMenu(): void {
@@ -2513,23 +2469,6 @@ struct Index {
           }
         })
       }
-    } else if (name === ONLINE_USERS_ROUTE) {
-      DestinationPageShell({
-        title: `在线用户（${this.onlineUserCount}）`,
-        backLabel: BACK_TO_HOME_LABEL,
-        darkMode: this.usesDarkChrome(this.appThemeMode),
-        scrollables: [this.onlineUsersScroller],
-        onBackPressed: (): boolean => this.handleSecondaryBack()
-      }) {
-        OnlineUsersPage({
-          scroller: this.onlineUsersScroller,
-          count: this.onlineUserCount,
-          users: this.onlineUsersState.items,
-          onOpenUser: (user: OnlineUser): void => {
-            this.openUserProfile(user.username);
-          }
-        })
-      }
     } else if (name === CATEGORY_TOPICS_ROUTE) {
       DestinationPageShell({
         title: this.categoryTitle,
@@ -3128,7 +3067,7 @@ struct Index {
           }
         },
         menu: {
-          maxCount: 3,
+          maxCount: 2,
           value: [
             {
               content: {
@@ -3146,15 +3085,6 @@ struct Index {
                 isEnabled: this.canCreateAuthoringTopic(),
                 action: (): void => {
                   this.openNewTopic();
-                }
-              }
-            },
-            {
-              content: {
-                label: this.onlineUserCount.toString(),
-                type: TextStyleMode.NORMAL,
-                action: (): void => {
-                  this.showOnlineUsers();
                 }
               }
             }
@@ -3240,7 +3170,6 @@ struct Index {
     return [
       this.selectedRoot,
       this.selectedHomeChannel,
-      this.onlineUserCount.toString(),
       this.canCreateAuthoringTopic().toString(),
       this.chatChannelState.refreshing.toString(),
       this.notificationState.refreshing.toString()
@@ -3365,7 +3294,6 @@ struct Index {
             },
             onRefresh: (): void => {
               this.refreshHome();
-              this.loadOnlineUsers();
             },
             onLoadMore: (): void => {
               this.loadMoreHome();

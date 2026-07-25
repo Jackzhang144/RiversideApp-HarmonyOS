@@ -28,7 +28,7 @@ async function flushPromises(): Promise<void> {
 
 export default function startupRequestSequenceTest(): void {
   describe('Startup network request sequencing', () => {
-    it('defers Presence and online users until Home and Category requests finish', 0,
+    it('defers Presence until Home and Category requests finish', 0,
       async (done: Function) => {
         const home: ControlledVoid = new ControlledVoid();
         const categories: ControlledVoid = new ControlledVoid();
@@ -44,9 +44,6 @@ export default function startupRequestSequenceTest(): void {
           },
           (): void => {
             events.push('presence');
-          },
-          (): void => {
-            events.push('online');
           }
         );
 
@@ -59,7 +56,7 @@ export default function startupRequestSequenceTest(): void {
 
         categories.complete();
         await sequence;
-        expect(events.join(',')).assertEqual('home,categories,presence,online');
+        expect(events.join(',')).assertEqual('home,categories,presence');
         done();
       });
   });

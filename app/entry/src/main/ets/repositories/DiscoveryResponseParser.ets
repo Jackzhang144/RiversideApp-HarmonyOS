@@ -3,8 +3,6 @@ import { RepositoryResult } from '../core/RepositoryResult';
 import { ComposerMentionUser } from '../models/ComposerMentionModels';
 import {
   ForumSearchResult,
-  OnlineUser,
-  OnlineUsers,
   SearchGroup,
   SearchPost,
   SearchTag,
@@ -216,34 +214,4 @@ export class DiscoveryResponseParser {
     return RepositoryResult.success<Array<ComposerMentionUser>>(users);
   }
 
-  public parseOnlineUsers(text: string): RepositoryResult<OnlineUsers> {
-    const envelope: JsonObjectReader | null = JsonObjectReader.parse(text);
-    const state: JsonObjectReader | null = envelope?.object('whos_online_state') ?? null;
-    if (state === null) {
-      return RepositoryResult.invalidResponse<OnlineUsers>('服务器在线用户格式无效');
-    }
-    const userValues: Array<Object | null> | null = state.array('users');
-    if (state.has('users') && userValues === null && !state.isNull('users')) {
-      return RepositoryResult.invalidResponse<OnlineUsers>('服务器在线用户格式无效');
-    }
-    const users: Array<OnlineUser> = [];
-    for (const value of userValues ?? []) {
-      const user: JsonObjectReader | null = JsonObjectReader.fromValue(value);
-      const username: string | null = user?.string('username') ?? null;
-      if (user !== null && username !== null && username.trim().length > 0) {
-        users.push(new OnlineUser(
-          numberOrZero(user.number('id')),
-          username,
-          user.string('name') ?? '',
-          user.string('avatar_template') ?? ''
-        ));
-      }
-    }
-    const count: number = state.number('count') ?? users.length;
-    return RepositoryResult.success<OnlineUsers>(new OnlineUsers(
-      count,
-      numberOrZero(state.number('last_message_id')),
-      users
-    ));
-  }
 }

@@ -1,40 +1,5 @@
 import { Category, Topic } from './ForumModels';
 import { forumPlainText, ForumPlainTextContext } from '../core/ForumPlainText';
-import { RIVERSIDE_URL_RESOLVER } from '../core/RiversideEnvironment';
-
-function onlineAvatarUrl(template: string): string {
-  return RIVERSIDE_URL_RESOLVER.avatar(template, 96);
-}
-
-export class OnlineUser {
-  public readonly id: number;
-  public readonly username: string;
-  public readonly name: string;
-  public readonly avatarUrl: string;
-
-  public constructor(id: number, username: string, name: string, avatarTemplate: string) {
-    this.id = Number.isInteger(id) && id >= 0 ? id : 0;
-    this.username = username.trim();
-    this.name = name.trim();
-    this.avatarUrl = onlineAvatarUrl(avatarTemplate);
-  }
-
-  public get displayName(): string {
-    return this.name.length > 0 ? this.name : this.username;
-  }
-}
-
-export class OnlineUsers {
-  public readonly count: number;
-  public readonly lastMessageId: number;
-  public readonly users: Array<OnlineUser>;
-
-  public constructor(count: number, lastMessageId: number, users: Array<OnlineUser>) {
-    this.count = Number.isInteger(count) && count >= 0 ? count : users.length;
-    this.lastMessageId = Number.isInteger(lastMessageId) && lastMessageId >= 0 ? lastMessageId : 0;
-    this.users = users.slice();
-  }
-}
 
 export enum HomeChannel {
   LATEST_REPLIES = 0,

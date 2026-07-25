@@ -8,7 +8,7 @@ import {
   TopicDetail,
   TopicPostBatch
 } from '../models/ForumModels';
-import { ForumSearchResult, HomeChannel, homeChannelPath, OnlineUsers } from '../models/DiscoveryModels';
+import { ForumSearchResult, HomeChannel, homeChannelPath } from '../models/DiscoveryModels';
 import {
   CreateTopicRequest,
   DraftWriteRequest,
@@ -169,17 +169,6 @@ export class DiscourseForumRepository implements ForumRepository {
       return response.asRepositoryFailure<Array<ComposerMentionUser>>();
     }
     return this.discoveryParser.parseComposerMentionUsers(response.body);
-  }
-
-  public async loadOnlineUsers(): Promise<RepositoryResult<OnlineUsers>> {
-    const response: HttpTextResult = await this.client.get('/site.json');
-    if (response.kind === HttpTextResultKind.UNAUTHORIZED) {
-      return RepositoryResult.unauthorized<OnlineUsers>();
-    }
-    if (!response.isSuccess()) {
-      return response.asRepositoryFailure<OnlineUsers>();
-    }
-    return this.discoveryParser.parseOnlineUsers(response.body);
   }
 
   public async loadTopicDetail(

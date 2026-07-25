@@ -13,7 +13,7 @@ import {
   TopicDetail,
   TopicPostBatch
 } from '../../../main/ets/models/ForumModels';
-import { ForumSearchResult, HomeChannel, OnlineUsers } from '../../../main/ets/models/DiscoveryModels';
+import { ForumSearchResult, HomeChannel } from '../../../main/ets/models/DiscoveryModels';
 import {
   CreateTopicRequest,
   DraftWriteRequest,
