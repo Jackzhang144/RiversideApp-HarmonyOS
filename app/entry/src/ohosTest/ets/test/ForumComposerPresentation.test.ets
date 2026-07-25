@@ -1,5 +1,6 @@
 import { describe, expect, it } from '@ohos/hypium';
 import {
+  canOpenTopicComposer,
   ForumComposerMode,
   ForumComposerPresentation,
   ForumComposerStatus
@@ -23,6 +24,16 @@ function cachedImage(): CachedMedia {
 
 export default function forumComposerPresentationTest(): void {
   describe('Forum composer presentation contract', () => {
+    it('keeps Topic creation available while authenticated capabilities are still loading', 0, () => {
+      expect(canOpenTopicComposer(true, true, null, null)).assertTrue();
+      expect(canOpenTopicComposer(true, true, true, null)).assertTrue();
+      expect(canOpenTopicComposer(true, true, false, null)).assertFalse();
+      expect(canOpenTopicComposer(true, true, true, false)).assertFalse();
+      expect(canOpenTopicComposer(true, true, false, true)).assertTrue();
+      expect(canOpenTopicComposer(true, false, null, null)).assertFalse();
+      expect(canOpenTopicComposer(false, false, null, null)).assertTrue();
+    });
+
     it('describes a Topic Reply without exposing a title field', 0, () => {
       const presentation: ForumComposerPresentation = ForumComposerPresentation.reply(
         2725,

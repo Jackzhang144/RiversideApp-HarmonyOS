@@ -132,6 +132,7 @@ import {
 } from '../components/HomePresentation';
 import { ForumComposer } from '../components/ForumComposer';
 import {
+  canOpenTopicComposer,
   ForumComposerPresentation,
   ForumComposerStatus
 } from '../components/ForumComposerPresentation';
@@ -1783,10 +1784,12 @@ struct Index {
   }
 
   private canCreateAuthoringTopic(): boolean {
-    if (this.authState.kind !== AuthStateKind.AUTHENTICATED) {
-      return true;
-    }
-    return this.accountProfileState.profile?.canCreatePost === true && this.categoryState.items.length > 0;
+    return canOpenTopicComposer(
+      this.authState.kind === AuthStateKind.AUTHENTICATED,
+      this.categoryState.items.length > 0,
+      this.accountIdentity?.canCreatePost ?? null,
+      this.accountProfileState.profile?.canCreatePost ?? null
+    );
   }
 
   private topicComposerCategoryName(): string {

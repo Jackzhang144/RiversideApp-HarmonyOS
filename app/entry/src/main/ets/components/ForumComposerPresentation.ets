@@ -1,5 +1,20 @@
 import { MediaUploadState, MediaUploadStateKind } from '../models/MediaModels';
 
+export function canOpenTopicComposer(
+  authenticated: boolean,
+  hasCategories: boolean,
+  currentUserCanCreatePost: boolean | null,
+  profileCanCreatePost: boolean | null
+): boolean {
+  if (!authenticated) {
+    return true;
+  }
+  if (!hasCategories) {
+    return false;
+  }
+  return profileCanCreatePost ?? currentUserCanCreatePost ?? true;
+}
+
 export enum ForumComposerMode {
   REPLY = 'reply',
   EDIT_POST = 'edit-post',
