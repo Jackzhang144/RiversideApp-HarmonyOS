@@ -9,7 +9,8 @@ import {
   executeTopicGetWithRetry,
   HttpTextRequestAttempt,
   HttpTextResult,
-  httpFailureForErrorCode
+  httpFailureForErrorCode,
+  httpTextResultForSuccessfulResponse
 } from '../../../main/ets/network/DiscourseHttpClient';
 import { RepositoryFailureCode } from '../../../main/ets/core/RepositoryResult';
 
@@ -65,6 +66,21 @@ export default function discourseHttpHeadersTest(): void {
       expect(timeout.message).assertEqual('请求超时，请重试');
       expect(networkFailure.failureCode).assertEqual(RepositoryFailureCode.NETWORK);
       expect(networkFailure.message).assertEqual('网络连接失败');
+    });
+
+    it('accepts a successful HTTP response with no body', 0, () => {
+      const result: HttpTextResult = httpTextResultForSuccessfulResponse(200, undefined, null);
+
+      expect(result.isSuccess()).assertTrue();
+      expect(result.body).assertEqual('');
+    });
+
+    it('rejects a non-empty successful response that cannot be decoded as UTF-8', 0, () => {
+      const result: HttpTextResult =
+        httpTextResultForSuccessfulResponse(200, new ArrayBuffer(1), null);
+
+      expect(result.isSuccess()).assertFalse();
+      expect(result.message).assertEqual('服务器响应格式无效');
     });
 
     it('retries an idempotent Topic GET once after an operation timeout', 0, async (done: Function) => {

@@ -125,6 +125,20 @@ export function httpFailureForErrorCode(errorCode: number | null): HttpTextResul
     : HttpTextResult.failure(0, '网络连接失败');
 }
 
+export function httpTextResultForSuccessfulResponse(
+  statusCode: number,
+  body: ArrayBuffer | undefined,
+  responseText: string | null
+): HttpTextResult {
+  if (body === undefined || body.byteLength === 0) {
+    return HttpTextResult.success(statusCode, '');
+  }
+  if (responseText === null) {
+    return HttpTextResult.invalidResponse(statusCode, '服务器响应格式无效');
+  }
+  return HttpTextResult.success(statusCode, responseText);
+}
+
 function caughtHttpErrorCode(error: Object): number | null {
   try {
     return JsonObjectReader.parse(JSON.stringify(error))?.number('code') ?? null;
@@ -412,11 +426,11 @@ export class DiscourseHttpClient implements ForumHttpClient {
       if (statusCode < 200 || statusCode >= 300) {
         return HttpTextResult.failure(statusCode, `服务器返回 ${statusCode}`);
       }
-      const responseText: string | null = response.toString();
-      if (responseText === null) {
-        return HttpTextResult.invalidResponse(statusCode, '服务器响应格式无效');
-      }
-      return HttpTextResult.success(statusCode, responseText);
+      return httpTextResultForSuccessfulResponse(
+        statusCode,
+        response.body,
+        response.toString()
+      );
     } catch (error) {
       const errorCode: number | null = caughtHttpErrorCode(error);
       hilog.warn(
