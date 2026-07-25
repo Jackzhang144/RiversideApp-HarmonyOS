@@ -3070,28 +3070,16 @@ struct Index {
           }
         },
         menu: {
-          maxCount: 2,
-          value: [
-            {
-              content: {
-                label: '搜索论坛',
-                icon: $r('sys.symbol.magnifyingglass'),
-                action: (): void => {
-                  this.openSearch();
-                }
-              }
-            },
-            {
-              content: {
-                label: '发布新 Topic',
-                icon: $r('sys.symbol.plus'),
-                isEnabled: this.canCreateAuthoringTopic(),
-                action: (): void => {
-                  this.openNewTopic();
-                }
+          maxCount: 1,
+          value: [{
+            content: {
+              label: '搜索论坛',
+              icon: $r('sys.symbol.magnifyingglass'),
+              action: (): void => {
+                this.openSearch();
               }
             }
-          ]
+          }]
         }
       });
     }
@@ -3173,7 +3161,6 @@ struct Index {
     return [
       this.selectedRoot,
       this.selectedHomeChannel,
-      this.canCreateAuthoringTopic().toString(),
       this.chatChannelState.refreshing.toString(),
       this.notificationState.refreshing.toString()
     ].join(':');
@@ -3283,31 +3270,60 @@ struct Index {
   }
 
   @Builder
+  private HomeTopicComposerButton(): void {
+    Button() {
+      SymbolGlyph($r('sys.symbol.plus'))
+        .fontSize(21)
+        .fontWeight(FontWeight.Medium)
+        .fontColor([$r('app.color.on_accent')])
+        .hitTestBehavior(HitTestMode.None)
+    }
+    .width(48)
+    .height(48)
+    .borderRadius(24)
+    .backgroundColor($r('app.color.brand_primary'))
+    .shadow(ShadowStyle.OUTER_DEFAULT_MD)
+    .enabled(this.canCreateAuthoringTopic())
+    .onClick((): void => {
+      this.openNewTopic();
+    })
+    .accessibilityText('发布新 Topic')
+    .margin({ right: 20, bottom: 96 })
+    .zIndex(1)
+  }
+
+  @Builder
   private RootTabs(): void {
     HdsTabs({ controller: this.tabsController }) {
         TabContent() {
-          HomeBrowsePage({
-            state: this.homeState,
-            categories: this.categoryState.items,
-            selectedChannel: this.selectedHomeChannel,
-            worldCupEntryEnabled: this.worldCupEntryEnabled,
-            scroller: this.homeScroller,
-            onRetry: (): void => {
-              this.loadHome();
-            },
-            onRefresh: (): void => {
-              this.refreshHome();
-            },
-            onLoadMore: (): void => {
-              this.loadMoreHome();
-            },
-            onOpenTopic: (topic: Topic): void => {
-              this.openTopic(topic);
-            },
-            onWorldCupEntryChange: (enabled: boolean): void => {
-              this.setWorldCupEntryEnabled(enabled);
-            }
-          })
+          Stack({ alignContent: Alignment.BottomEnd }) {
+            HomeBrowsePage({
+              state: this.homeState,
+              categories: this.categoryState.items,
+              selectedChannel: this.selectedHomeChannel,
+              worldCupEntryEnabled: this.worldCupEntryEnabled,
+              scroller: this.homeScroller,
+              onRetry: (): void => {
+                this.loadHome();
+              },
+              onRefresh: (): void => {
+                this.refreshHome();
+              },
+              onLoadMore: (): void => {
+                this.loadMoreHome();
+              },
+              onOpenTopic: (topic: Topic): void => {
+                this.openTopic(topic);
+              },
+              onWorldCupEntryChange: (enabled: boolean): void => {
+                this.setWorldCupEntryEnabled(enabled);
+              }
+            })
+            this.HomeTopicComposerButton()
+          }
+          .width('100%')
+          .height('100%')
+          .clip(false)
         }
         .clip(false)
         .tabBar(this.rootTabStyle(ROOT_HOME_LABEL, $r('sys.symbol.house')))
