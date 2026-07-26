@@ -1,6 +1,8 @@
 import { RepositoryResult } from '../core/RepositoryResult';
 import {
   ChatChannel,
+  ChatChannelNotificationSettings,
+  ChatChannelNotificationUpdate,
   ChatEmoji,
   ChatMessage,
   ChatMessagePage,
@@ -36,6 +38,11 @@ export interface ChatRepository {
   loadChatEmojis(): Promise<RepositoryResult<Array<ChatEmoji>>>;
 
   searchChat(query: string, offset: number, limit: number): Promise<RepositoryResult<Array<ChatSearchResult>>>;
+
+  updateChatChannelNotifications(
+    channelId: number,
+    update: ChatChannelNotificationUpdate
+  ): Promise<RepositoryResult<ChatChannelNotificationSettings>>;
 
   leaveChatChannel(channelId: number): Promise<RepositoryResult<boolean>>;
 }

@@ -9,6 +9,8 @@ import { RepositoryResult } from '../../../main/ets/core/RepositoryResult';
 import { ComposerEdit } from '../../../main/ets/models/AuthoringModels';
 import {
   ChatChannel,
+  ChatChannelNotificationLevel,
+  ChatChannelNotificationSettings,
   ChatEmoji,
   ChatMessage,
   ChatMessagePage,
@@ -577,6 +579,43 @@ export default function chatModelTest(): void {
       expect(model.conversationState.message).assertEqual('离开失败');
       done();
     });
+
+    it('applies only server-confirmed channel notification settings to every active view', 0,
+      async (done: Function) => {
+        const repository: StubChatRepository = new StubChatRepository();
+        repository.channelResults.push(RepositoryResult.success<Array<ChatChannel>>([channel()]));
+        repository.messageResults.push(RepositoryResult.success<ChatMessagePage>(
+          new ChatMessagePage([message(9, '频道消息', '2026-07-12T09:00:00Z')], false, false)
+        ));
+        repository.notificationSettingsResults.push(
+          RepositoryResult.unknown<ChatChannelNotificationSettings>('通知设置失败'),
+          RepositoryResult.success<ChatChannelNotificationSettings>(
+            new ChatChannelNotificationSettings(ChatChannelNotificationLevel.ALWAYS, false)
+          ),
+          RepositoryResult.success<ChatChannelNotificationSettings>(
+            new ChatChannelNotificationSettings(ChatChannelNotificationLevel.ALWAYS, true)
+          )
+        );
+        const model: ChatModel = new ChatModel(repository);
+        await model.loadChannels();
+        await model.openChannel(channel());
+
+        expect(await model.updateCurrentChannelNotificationLevel(ChatChannelNotificationLevel.ALWAYS)).assertFalse();
+        expect(model.conversationState.channel?.notificationLevel)
+          .assertEqual(ChatChannelNotificationLevel.MENTION);
+        expect(await model.updateCurrentChannelNotificationLevel(ChatChannelNotificationLevel.ALWAYS)).assertTrue();
+        expect(model.conversationState.channel?.notificationLevel)
+          .assertEqual(ChatChannelNotificationLevel.ALWAYS);
+        expect(model.channelState.channels[0].notificationLevel)
+          .assertEqual(ChatChannelNotificationLevel.ALWAYS);
+        expect(await model.setCurrentChannelMuted(true)).assertTrue();
+        expect(model.conversationState.channel?.muted).assertTrue();
+        expect(repository.notificationUpdates[0].formBody())
+          .assertEqual('notifications_settings[notification_level]=always');
+        expect(repository.notificationUpdates[2].formBody())
+          .assertEqual('notifications_settings[muted]=true');
+        done();
+      });
 
     it('best-effort removes only an empty direct message when its conversation closes', 0,
       async (done: Function) => {

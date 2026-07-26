@@ -12,6 +12,61 @@ export function chatMessagePermalink(channelId: number, channelSlug: string, mes
   return RIVERSIDE_URL_RESOLVER.chatMessage(channelId, channelSlug, messageId);
 }
 
+export enum ChatChannelNotificationLevel {
+  NEVER = 'never',
+  MENTION = 'mention',
+  ALWAYS = 'always'
+}
+
+export function chatChannelNotificationLevel(value: string): ChatChannelNotificationLevel | null {
+  const normalized: string = value.trim().toLowerCase();
+  if (normalized === ChatChannelNotificationLevel.NEVER) return ChatChannelNotificationLevel.NEVER;
+  if (normalized === ChatChannelNotificationLevel.MENTION) return ChatChannelNotificationLevel.MENTION;
+  if (normalized === ChatChannelNotificationLevel.ALWAYS) return ChatChannelNotificationLevel.ALWAYS;
+  return null;
+}
+
+export function chatChannelNotificationLevelLabel(level: ChatChannelNotificationLevel): string {
+  if (level === ChatChannelNotificationLevel.NEVER) return '从不提醒';
+  if (level === ChatChannelNotificationLevel.ALWAYS) return '所有新消息';
+  return '仅提及我时';
+}
+
+export class ChatChannelNotificationSettings {
+  public readonly notificationLevel: ChatChannelNotificationLevel;
+  public readonly muted: boolean;
+
+  public constructor(notificationLevel: ChatChannelNotificationLevel, muted: boolean) {
+    this.notificationLevel = notificationLevel;
+    this.muted = muted;
+  }
+}
+
+export class ChatChannelNotificationUpdate {
+  public readonly notificationLevel: ChatChannelNotificationLevel | null;
+  public readonly muted: boolean | null;
+
+  private constructor(notificationLevel: ChatChannelNotificationLevel | null, muted: boolean | null) {
+    this.notificationLevel = notificationLevel;
+    this.muted = muted;
+  }
+
+  public static level(notificationLevel: ChatChannelNotificationLevel): ChatChannelNotificationUpdate {
+    return new ChatChannelNotificationUpdate(notificationLevel, null);
+  }
+
+  public static mute(muted: boolean): ChatChannelNotificationUpdate {
+    return new ChatChannelNotificationUpdate(null, muted);
+  }
+
+  public formBody(): string {
+    if (this.notificationLevel !== null) {
+      return `notifications_settings[notification_level]=${this.notificationLevel}`;
+    }
+    return `notifications_settings[muted]=${this.muted === true ? 'true' : 'false'}`;
+  }
+}
+
 export class ChatChannel {
   public readonly id: number;
   public readonly title: string;
@@ -26,6 +81,8 @@ export class ChatChannel {
   public readonly userSilenced: boolean;
   public readonly canDeleteSelf: boolean;
   public readonly canDeleteOthers: boolean;
+  public readonly notificationLevel: ChatChannelNotificationLevel;
+  public readonly muted: boolean;
 
   public constructor(
     id: number,
@@ -40,7 +97,9 @@ export class ChatChannel {
     slug: string,
     userSilenced: boolean = false,
     canDeleteSelf: boolean = false,
-    canDeleteOthers: boolean = false
+    canDeleteOthers: boolean = false,
+    notificationLevel: ChatChannelNotificationLevel = ChatChannelNotificationLevel.MENTION,
+    muted: boolean = false
   ) {
     this.id = id;
     this.title = title;
@@ -55,6 +114,8 @@ export class ChatChannel {
     this.userSilenced = userSilenced;
     this.canDeleteSelf = canDeleteSelf;
     this.canDeleteOthers = canDeleteOthers;
+    this.notificationLevel = notificationLevel;
+    this.muted = muted;
   }
 
   public withUnreadCount(unreadCount: number): ChatChannel {
@@ -71,7 +132,29 @@ export class ChatChannel {
       this.slug,
       this.userSilenced,
       this.canDeleteSelf,
-      this.canDeleteOthers
+      this.canDeleteOthers,
+      this.notificationLevel,
+      this.muted
+    );
+  }
+
+  public withNotificationSettings(settings: ChatChannelNotificationSettings): ChatChannel {
+    return new ChatChannel(
+      this.id,
+      this.title,
+      this.subtitle,
+      this.preview,
+      this.lastMessageAt,
+      this.isDirectMessage,
+      this.unreadCount,
+      this.lastMessageId,
+      this.lastMessageUsername,
+      this.slug,
+      this.userSilenced,
+      this.canDeleteSelf,
+      this.canDeleteOthers,
+      settings.notificationLevel,
+      settings.muted
     );
   }
 }

@@ -2,6 +2,8 @@ import { describe, expect, it } from '@ohos/hypium';
 import {
   absoluteChatUrl,
   ChatChannel,
+  ChatChannelNotificationLevel,
+  chatChannelNotificationLevelLabel,
   ChatMessage,
   ChatMessagePage,
   chatMessagePermalink
@@ -65,7 +67,8 @@ export default function chatModelsTest(): void {
     it('preserves custom Emoji text and server channel permissions', 0, () => {
       const channels: Array<ChatChannel> | null = parseChatChannels(
         '{"channels":[{"id":5,"title":"只读频道","meta":{"user_silenced":true,' +
-          '"can_delete_self":true,"can_delete_others":false}}]}'
+          '"can_delete_self":true,"can_delete_others":false},' +
+          '"current_user_membership":{"notification_level":"always","muted":true}}]}'
       );
       const page: ChatMessagePage | null = parseChatMessagePage(
         '{"messages":[{"id":4,"created_at":"2026-07-12T07:00:00Z",' +
@@ -76,6 +79,10 @@ export default function chatModelsTest(): void {
       expect(channels?.[0].userSilenced).assertTrue();
       expect(channels?.[0].canDeleteSelf).assertTrue();
       expect(channels?.[0].canDeleteOthers).assertFalse();
+      expect(channels?.[0].notificationLevel).assertEqual(ChatChannelNotificationLevel.ALWAYS);
+      expect(channels?.[0].muted).assertTrue();
+      expect(chatChannelNotificationLevelLabel(ChatChannelNotificationLevel.MENTION))
+        .assertEqual('仅提及我时');
       expect(page?.messages[0].displayText()).assertEqual(':riverside:');
     });
 

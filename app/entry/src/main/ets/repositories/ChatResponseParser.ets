@@ -3,6 +3,9 @@ import { JsonObjectReader } from '../core/JsonObjectReader';
 import {
   absoluteChatUrl,
   ChatChannel,
+  chatChannelNotificationLevel,
+  ChatChannelNotificationLevel,
+  ChatChannelNotificationSettings,
   ChatEmoji,
   ChatMessage,
   ChatMessagePage,
@@ -39,6 +42,13 @@ function firstNumber(reader: JsonObjectReader, names: Array<string>): number {
 
 function chatPlainText(value: string): string {
   return forumPlainText(value, ForumPlainTextContext.CHAT);
+}
+
+function notificationSettings(reader: JsonObjectReader | null): ChatChannelNotificationSettings {
+  const level: ChatChannelNotificationLevel =
+    chatChannelNotificationLevel(reader?.string('notification_level') ?? '') ??
+      ChatChannelNotificationLevel.MENTION;
+  return new ChatChannelNotificationSettings(level, reader?.boolean('muted') === true);
 }
 
 function parseChannel(reader: JsonObjectReader): ChatChannel | null {
@@ -89,6 +99,7 @@ function parseChannel(reader: JsonObjectReader): ChatChannel | null {
   const subtitle: string = firstString(reader, ['description', 'slug']) ||
     (chatable === null ? '' : firstString(chatable, ['description'])) ||
     (isDirect ? '直接消息' : '频道');
+  const settings: ChatChannelNotificationSettings = notificationSettings(membership);
   return new ChatChannel(
     id,
     title.length > 0 ? chatPlainText(title) : '未命名聊天',
@@ -102,7 +113,9 @@ function parseChannel(reader: JsonObjectReader): ChatChannel | null {
     firstString(reader, ['slug']),
     meta?.boolean('user_silenced') === true,
     meta?.boolean('can_delete_self') === true,
-    meta?.boolean('can_delete_others') === true
+    meta?.boolean('can_delete_others') === true,
+    settings.notificationLevel,
+    settings.muted
   );
 }
 
@@ -170,6 +183,20 @@ export function parseChatChannelResponse(text: string): ChatChannel | null {
   const channel: JsonObjectReader = envelope.object('channel') ??
     envelope.object('direct_message_channel') ?? envelope;
   return parseChannel(channel);
+}
+
+export function parseChatChannelNotificationSettings(text: string): ChatChannelNotificationSettings | null {
+  const envelope: JsonObjectReader | null = JsonObjectReader.parse(text);
+  if (envelope === null) {
+    return null;
+  }
+  const membership: JsonObjectReader | null = envelope.object('membership');
+  const level: ChatChannelNotificationLevel | null =
+    chatChannelNotificationLevel(membership?.string('notification_level') ?? '');
+  if (membership === null || level === null || membership.boolean('muted') === null) {
+    return null;
+  }
+  return new ChatChannelNotificationSettings(level, membership.boolean('muted') === true);
 }
 
 function parseReactionUser(value: Object | null): ChatReactionUser | null {

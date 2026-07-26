@@ -8,6 +8,8 @@ import { RepositoryResult } from '../../../../main/ets/core/RepositoryResult';
 import { ComposerEdit } from '../../../../main/ets/models/AuthoringModels';
 import {
   ChatChannel,
+  ChatChannelNotificationSettings,
+  ChatChannelNotificationUpdate,
   ChatEmoji,
   ChatMessage,
   ChatMessagePage,
@@ -39,6 +41,7 @@ export class StubChatRepository implements ChatRepository {
   public sendResults: Array<RepositoryResult<ChatSendConfirmation>> = [];
   public sendTasks: Array<Promise<RepositoryResult<ChatSendConfirmation>>> = [];
   public booleanResults: Array<RepositoryResult<boolean>> = [];
+  public notificationSettingsResults: Array<RepositoryResult<ChatChannelNotificationSettings>> = [];
   public emojiResults: Array<RepositoryResult<Array<ChatEmoji>>> = [];
   public searchResults: Array<RepositoryResult<Array<ChatSearchResult>>> = [];
   public messageChannelIds: Array<number> = [];
@@ -47,6 +50,7 @@ export class StubChatRepository implements ChatRepository {
   public reactionActions: Array<ChatReactionAction> = [];
   public markReadIds: Array<number> = [];
   public leaveChannelIds: Array<number> = [];
+  public notificationUpdates: Array<ChatChannelNotificationUpdate> = [];
 
   public async loadChatChannels(): Promise<RepositoryResult<Array<ChatChannel>>> {
     return this.channelResults.shift() ?? RepositoryResult.unknown<Array<ChatChannel>>('missing channel result');
@@ -113,6 +117,15 @@ export class StubChatRepository implements ChatRepository {
     _limit: number
   ): Promise<RepositoryResult<Array<ChatSearchResult>>> {
     return this.searchResults.shift() ?? RepositoryResult.success<Array<ChatSearchResult>>([]);
+  }
+
+  public async updateChatChannelNotifications(
+    _channelId: number,
+    update: ChatChannelNotificationUpdate
+  ): Promise<RepositoryResult<ChatChannelNotificationSettings>> {
+    this.notificationUpdates.push(update);
+    return this.notificationSettingsResults.shift() ??
+      RepositoryResult.unknown<ChatChannelNotificationSettings>('missing notification settings result');
   }
 
   public async leaveChatChannel(channelId: number): Promise<RepositoryResult<boolean>> {

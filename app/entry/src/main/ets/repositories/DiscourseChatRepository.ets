@@ -1,6 +1,8 @@
 import { RepositoryResult } from '../core/RepositoryResult';
 import {
   ChatChannel,
+  ChatChannelNotificationSettings,
+  ChatChannelNotificationUpdate,
   ChatEmoji,
   ChatMessagePage,
   ChatMessageQuery,
@@ -11,6 +13,7 @@ import {
 } from '../models/ChatModels';
 import {
   parseChatChannelResponse,
+  parseChatChannelNotificationSettings,
   parseChatChannels,
   parseChatEmojis,
   parseChatMessagePage,
@@ -189,6 +192,30 @@ export class DiscourseChatRepository implements ChatRepository {
     return results === null
       ? RepositoryResult.invalidResponse<Array<ChatSearchResult>>('聊天搜索响应无效')
       : RepositoryResult.success<Array<ChatSearchResult>>(results);
+  }
+
+  public async updateChatChannelNotifications(
+    channelId: number,
+    update: ChatChannelNotificationUpdate
+  ): Promise<RepositoryResult<ChatChannelNotificationSettings>> {
+    if (!Number.isSafeInteger(channelId) || channelId <= 0) {
+      return RepositoryResult.invalidInput<ChatChannelNotificationSettings>('聊天频道标识无效');
+    }
+    const response: HttpTextResult = await this.client.putForm(
+      `/chat/api/channels/${channelId}/notifications-settings/me`,
+      update.formBody()
+    );
+    if (response.kind === HttpTextResultKind.UNAUTHORIZED) {
+      return RepositoryResult.unauthorized<ChatChannelNotificationSettings>();
+    }
+    if (!response.isSuccess()) {
+      return response.asRepositoryFailure<ChatChannelNotificationSettings>();
+    }
+    const settings: ChatChannelNotificationSettings | null =
+      parseChatChannelNotificationSettings(response.body);
+    return settings === null
+      ? RepositoryResult.invalidResponse<ChatChannelNotificationSettings>('聊天通知设置响应无效')
+      : RepositoryResult.success<ChatChannelNotificationSettings>(settings);
   }
 
   public async leaveChatChannel(channelId: number): Promise<RepositoryResult<boolean>> {

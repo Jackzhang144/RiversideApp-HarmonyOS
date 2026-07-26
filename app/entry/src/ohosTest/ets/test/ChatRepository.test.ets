@@ -2,6 +2,9 @@ import { describe, expect, it } from '@ohos/hypium';
 import { RepositoryResult, RepositoryResultKind } from '../../../main/ets/core/RepositoryResult';
 import {
   ChatChannel,
+  ChatChannelNotificationLevel,
+  ChatChannelNotificationSettings,
+  ChatChannelNotificationUpdate,
   ChatEmoji,
   ChatMessage,
   ChatMessagePage,
@@ -186,5 +189,43 @@ export default function chatRepositoryTest(): void {
       expect(left.data).assertTrue();
       done();
     });
+
+    it('updates channel notification settings through the Discourse membership contract', 0,
+      async (done: Function) => {
+        const client: StubForumHttpClient = new StubForumHttpClient();
+        client.formPutResults.push(
+          HttpTextResult.success(200,
+            '{"membership":{"chat_channel_id":55,"last_read_message_id":9,' +
+            '"muted":false,"notification_level":"always","following":true,' +
+            '"last_viewed_at":"2026-07-26T10:00:00Z"}}'
+          ),
+          HttpTextResult.success(200,
+            '{"membership":{"chat_channel_id":55,"last_read_message_id":9,' +
+            '"muted":true,"notification_level":"always","following":true,' +
+            '"last_viewed_at":"2026-07-26T10:00:00Z"}}'
+          )
+        );
+        const repository: DiscourseChatRepository = new DiscourseChatRepository(client);
+
+        const levelResult: RepositoryResult<ChatChannelNotificationSettings> =
+          await repository.updateChatChannelNotifications(
+            55,
+            ChatChannelNotificationUpdate.level(ChatChannelNotificationLevel.ALWAYS)
+          );
+        const mutedResult: RepositoryResult<ChatChannelNotificationSettings> =
+          await repository.updateChatChannelNotifications(55, ChatChannelNotificationUpdate.mute(true));
+
+        expect(client.formPutRequests[0]).assertEqual(
+          '/chat/api/channels/55/notifications-settings/me|' +
+          'notifications_settings[notification_level]=always'
+        );
+        expect(client.formPutRequests[1]).assertEqual(
+          '/chat/api/channels/55/notifications-settings/me|notifications_settings[muted]=true'
+        );
+        expect(levelResult.data?.notificationLevel).assertEqual(ChatChannelNotificationLevel.ALWAYS);
+        expect(levelResult.data?.muted).assertFalse();
+        expect(mutedResult.data?.muted).assertTrue();
+        done();
+      });
   });
 }

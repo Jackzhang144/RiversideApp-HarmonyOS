@@ -4,6 +4,9 @@ import { ComposerEdit } from '../models/AuthoringModels';
 import { insertChatEmojiText } from '../models/ChatComposerEditing';
 import {
   ChatChannel,
+  ChatChannelNotificationLevel,
+  ChatChannelNotificationSettings,
+  ChatChannelNotificationUpdate,
   ChatEmoji,
   ChatMessage,
   ChatMessagePage,
@@ -134,6 +137,44 @@ export class ChatModel {
       this.loadChannels(),
       this.refreshActiveConversationIncrementally()
     ]);
+  }
+
+  public async updateCurrentChannelNotificationLevel(level: ChatChannelNotificationLevel): Promise<boolean> {
+    return await this.updateCurrentChannelNotifications(ChatChannelNotificationUpdate.level(level));
+  }
+
+  public async setCurrentChannelMuted(muted: boolean): Promise<boolean> {
+    return await this.updateCurrentChannelNotifications(ChatChannelNotificationUpdate.mute(muted));
+  }
+
+  private async updateCurrentChannelNotifications(update: ChatChannelNotificationUpdate): Promise<boolean> {
+    const channel: ChatChannel | null = this.conversationState.channel;
+    if (channel === null) {
+      return false;
+    }
+    const requestVersion: number = this.conversationRequestVersion;
+    const result: RepositoryResult<ChatChannelNotificationSettings> =
+      await this.repository.updateChatChannelNotifications(channel.id, update);
+    if (!this.isCurrentConversation(requestVersion, channel.id)) {
+      return false;
+    }
+    if (!result.isSuccess() || result.data === null) {
+      this.conversationState = this.conversationState.withPagination(
+        this.conversationState.loadingPast,
+        this.conversationState.loadingFuture,
+        result.message
+      );
+      if (result.isUnauthorized()) {
+        await this.notifyUnauthorized();
+      }
+      return false;
+    }
+    const updatedChannel: ChatChannel = channel.withNotificationSettings(result.data);
+    this.conversationState = this.conversationState.withChannel(updatedChannel);
+    this.channelState = ChatChannelState.fromChannels(this.channelState.channels.map(
+      (candidate: ChatChannel): ChatChannel => candidate.id === updatedChannel.id ? updatedChannel : candidate
+    ));
+    return true;
   }
 
   public async refreshActiveConversationIncrementally(): Promise<void> {

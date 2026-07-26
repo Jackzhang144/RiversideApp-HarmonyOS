@@ -155,6 +155,19 @@ export class ChatConversationState {
       message
     );
   }
+
+  public withChannel(channel: ChatChannel): ChatConversationState {
+    return new ChatConversationState(
+      this.kind,
+      channel,
+      this.messages,
+      this.canLoadMorePast,
+      this.canLoadMoreFuture,
+      this.loadingPast,
+      this.loadingFuture,
+      this.message
+    );
+  }
 }
 
 export class ChatComposerState {
