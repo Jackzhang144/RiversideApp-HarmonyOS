@@ -154,6 +154,7 @@ import { selectedBookmarkPostIds, topicPostUrl } from '../components/TopicReadin
 import { Category, ForumPost, PostReactionUsers, Topic } from '../models/ForumModels';
 import {
   ChatChannel,
+  ChatChannelNotificationLevel,
   ChatEmoji,
   chatMessagePermalink,
   ChatReactionAction,
@@ -1256,6 +1257,22 @@ struct Index {
       this.chatUploadState = null;
       this.pathStack.pop();
     }
+  }
+
+  private async updateChatChannelNotificationLevel(level: ChatChannelNotificationLevel): Promise<boolean> {
+    const model: ChatModel | null = this.chatModel;
+    if (model === null) return false;
+    const succeeded: boolean = await model.updateCurrentChannelNotificationLevel(level);
+    this.synchronizeChatState();
+    return succeeded;
+  }
+
+  private async setChatChannelMuted(muted: boolean): Promise<boolean> {
+    const model: ChatModel | null = this.chatModel;
+    if (model === null) return false;
+    const succeeded: boolean = await model.setCurrentChannelMuted(muted);
+    this.synchronizeChatState();
+    return succeeded;
   }
 
   private rootTabStyle(label: string, icon: Resource, available: boolean = true): BottomTabBarStyle {
@@ -2769,6 +2786,10 @@ struct Index {
           },
           onOpenImage: (url: string): void => { this.openImageViewer(url, APP_CHAT_IMAGE_TITLE); },
           onOpenProfile: (username: string): void => { this.openUserProfile(username); },
+          onUpdateNotificationLevel: (
+            level: ChatChannelNotificationLevel
+          ): Promise<boolean> => this.updateChatChannelNotificationLevel(level),
+          onSetChannelMuted: (muted: boolean): Promise<boolean> => this.setChatChannelMuted(muted),
           onLeaveChannel: (): void => { this.confirmLeaveChatChannel(); }
         })
       }

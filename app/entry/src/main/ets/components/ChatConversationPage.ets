@@ -11,6 +11,8 @@ import {
 import {
   absoluteChatUrl,
   ChatChannel,
+  ChatChannelNotificationLevel,
+  chatChannelNotificationLevelLabel,
   ChatEmoji,
   ChatMessage,
   ChatReaction,
@@ -60,6 +62,9 @@ export struct ChatConversationPage {
   @State reactionMessageId: number | null = null;
   @State reactionEmojiQuery: string = '';
   @State reactionEmojiGroup: string = '';
+  @State channelSettingsVisible: boolean = false;
+  @State channelSettingsSaving: boolean = false;
+  @State channelSettingsMessage: string = '';
   @State mentionUsers: Array<ComposerMentionUser> = [];
   @State mentionLoading: boolean = false;
   @State mentionMessage: string = '';
@@ -91,6 +96,10 @@ export struct ChatConversationPage {
     (_channelId: number, _channelSlug: string, _messageId: number): void => {};
   onOpenImage: (url: string) => void = (_url: string): void => {};
   onOpenProfile: (username: string) => void = (_username: string): void => {};
+  onUpdateNotificationLevel: (level: ChatChannelNotificationLevel) => Promise<boolean> =
+    async (_level: ChatChannelNotificationLevel): Promise<boolean> => false;
+  onSetChannelMuted: (muted: boolean) => Promise<boolean> =
+    async (_muted: boolean): Promise<boolean> => false;
   onLeaveChannel: () => void = (): void => {};
   private readonly composerController: TextAreaController = new TextAreaController();
   private readonly mentionRequestGate: ComposerMentionRequestGate = new ComposerMentionRequestGate();
@@ -538,18 +547,218 @@ export struct ChatConversationPage {
 
   private showChannelActions(): void {
     const channel: ChatChannel | null = this.state.channel;
-    if (channel === null || channel.isDirectMessage) {
+    if (channel === null) {
       return;
     }
-    this.getUIContext().showActionSheet({
-      title: channel.title,
-      message: channel.subtitle,
-      sheets: [{
-        title: $r('app.string.chat_leave_channel'),
-        action: (): void => this.onLeaveChannel()
-      }],
-      cancel: (): void => {}
-    });
+    this.channelSettingsMessage = '';
+    this.channelSettingsVisible = true;
+  }
+
+  private notificationLevelIcon(level: ChatChannelNotificationLevel): Resource {
+    if (level === ChatChannelNotificationLevel.ALWAYS) return $r('sys.symbol.bell');
+    if (level === ChatChannelNotificationLevel.MENTION) return $r('sys.symbol.at');
+    return $r('sys.symbol.eye_slash');
+  }
+
+  private notificationLevelDescription(level: ChatChannelNotificationLevel): string {
+    if (level === ChatChannelNotificationLevel.ALWAYS) return '频道内每条新消息都会提醒';
+    if (level === ChatChannelNotificationLevel.MENTION) return '有人提及你时才提醒';
+    return '保留未读计数，但不发送提醒';
+  }
+
+  private async saveNotificationLevel(level: ChatChannelNotificationLevel): Promise<void> {
+    const channel: ChatChannel | null = this.state.channel;
+    if (channel === null || this.channelSettingsSaving || channel.notificationLevel === level) return;
+    this.channelSettingsSaving = true;
+    this.channelSettingsMessage = '';
+    const succeeded: boolean = await this.onUpdateNotificationLevel(level);
+    this.channelSettingsSaving = false;
+    if (!succeeded) {
+      this.channelSettingsMessage = '通知设置未保存，请稍后重试';
+    }
+  }
+
+  private async saveChannelMuted(muted: boolean): Promise<void> {
+    const channel: ChatChannel | null = this.state.channel;
+    if (channel === null || this.channelSettingsSaving || channel.muted === muted) return;
+    this.channelSettingsSaving = true;
+    this.channelSettingsMessage = '';
+    const succeeded: boolean = await this.onSetChannelMuted(muted);
+    this.channelSettingsSaving = false;
+    if (!succeeded) {
+      this.channelSettingsMessage = '频道静音状态未保存，请稍后重试';
+    }
+  }
+
+  @Builder
+  private NotificationLevelRow(level: ChatChannelNotificationLevel): void {
+    Row({ space: 12 }) {
+      SymbolGlyph(this.notificationLevelIcon(level))
+        .fontSize(21)
+        .fontColor([
+          this.state.channel?.notificationLevel === level
+            ? $r('app.color.brand_primary')
+            : $r('sys.color.font_secondary')
+        ])
+        .width(38)
+        .height(38)
+        .padding(8)
+        .backgroundColor(this.state.channel?.notificationLevel === level
+          ? $r('app.color.brand_tint_surface')
+          : $r('sys.color.background_secondary'))
+        .borderRadius(19)
+      Column({ space: 3 }) {
+        Text(chatChannelNotificationLevelLabel(level))
+          .fontSize(15)
+          .fontWeight(FontWeight.Medium)
+          .fontColor($r('sys.color.font_primary'))
+        Text(this.notificationLevelDescription(level))
+          .fontSize(12)
+          .fontColor($r('sys.color.font_secondary'))
+      }
+      .alignItems(HorizontalAlign.Start)
+      .layoutWeight(1)
+      if (this.state.channel?.notificationLevel === level) {
+        SymbolGlyph($r('sys.symbol.checkmark_circle_fill'))
+          .fontSize(21)
+          .fontColor([$r('app.color.brand_primary')])
+      }
+    }
+    .width('100%')
+    .height(66)
+    .padding({ left: 12, right: 14 })
+    .backgroundColor(this.state.channel?.notificationLevel === level
+      ? $r('app.color.brand_selected_surface')
+      : Color.Transparent)
+    .animation({ duration: 180, curve: Curve.EaseOut })
+    .enabled(!this.channelSettingsSaving)
+    .onClick((): void => {
+      this.saveNotificationLevel(level);
+    })
+    .accessibilityText(
+      `${chatChannelNotificationLevelLabel(level)}${this.state.channel?.notificationLevel === level ? '，已选择' : ''}`
+    )
+  }
+
+  @Builder
+  private ChannelSettingsSheet(): void {
+    Column({ space: 14 }) {
+      Row({ space: 12 }) {
+        SymbolGlyph(this.state.channel?.isDirectMessage === true
+          ? $r('sys.symbol.envelope')
+          : $r('sys.symbol.message'))
+          .fontSize(22)
+          .fontColor([$r('app.color.brand_primary')])
+          .width(44)
+          .height(44)
+          .padding(10)
+          .backgroundColor($r('app.color.brand_tint_surface'))
+          .borderRadius(22)
+        Column({ space: 3 }) {
+          Text(this.state.channel?.title ?? '聊天设置')
+            .fontSize(18)
+            .fontWeight(FontWeight.Bold)
+            .fontColor($r('sys.color.font_primary'))
+            .maxLines(1)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
+          Text(this.state.channel?.isDirectMessage === true ? '直接消息' : (this.state.channel?.subtitle ?? '频道'))
+            .fontSize(12)
+            .fontColor($r('sys.color.font_secondary'))
+            .maxLines(1)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
+        }
+        .alignItems(HorizontalAlign.Start)
+        .layoutWeight(1)
+        if (this.channelSettingsSaving) {
+          LoadingProgress().width(24).height(24)
+        }
+      }
+      .width('100%')
+
+      Text('消息提醒')
+        .fontSize(13)
+        .fontWeight(FontWeight.Medium)
+        .fontColor($r('sys.color.font_secondary'))
+        .width('100%')
+        .padding({ left: 6 })
+      Column() {
+        this.NotificationLevelRow(ChatChannelNotificationLevel.NEVER)
+        Divider().margin({ left: 62, right: 14 }).color($r('sys.color.comp_divider'))
+        this.NotificationLevelRow(ChatChannelNotificationLevel.MENTION)
+        Divider().margin({ left: 62, right: 14 }).color($r('sys.color.comp_divider'))
+        this.NotificationLevelRow(ChatChannelNotificationLevel.ALWAYS)
+      }
+      .width('100%')
+      .backgroundColor($r('sys.color.comp_background_primary'))
+      .borderRadius(18)
+      .border({ width: 1, color: $r('sys.color.comp_divider') })
+      .clip(true)
+
+      Row({ space: 12 }) {
+        SymbolGlyph($r('sys.symbol.bell'))
+          .fontSize(21)
+          .fontColor([$r('sys.color.font_secondary')])
+          .width(38)
+          .height(38)
+          .padding(8)
+          .backgroundColor($r('sys.color.background_secondary'))
+          .borderRadius(19)
+        Column({ space: 3 }) {
+          Text('频道静音')
+            .fontSize(15)
+            .fontWeight(FontWeight.Medium)
+            .fontColor($r('sys.color.font_primary'))
+          Text('暂停此频道的声音和推送提醒')
+            .fontSize(12)
+            .fontColor($r('sys.color.font_secondary'))
+        }
+        .alignItems(HorizontalAlign.Start)
+        .layoutWeight(1)
+        Toggle({ type: ToggleType.Switch, isOn: this.state.channel?.muted === true })
+          .enabled(!this.channelSettingsSaving)
+          .onChange((value: boolean): void => {
+            this.saveChannelMuted(value);
+          })
+          .accessibilityText(`频道静音，${this.state.channel?.muted === true ? '已开启' : '已关闭'}`)
+      }
+      .width('100%')
+      .height(68)
+      .padding({ left: 12, right: 14 })
+      .backgroundColor($r('sys.color.comp_background_primary'))
+      .borderRadius(18)
+      .border({ width: 1, color: $r('sys.color.comp_divider') })
+
+      if (this.channelSettingsMessage.length > 0) {
+        Text(this.channelSettingsMessage)
+          .fontSize(12)
+          .fontColor($r('app.color.status_error'))
+          .width('100%')
+          .textAlign(TextAlign.Center)
+      }
+
+      if (this.state.channel?.isDirectMessage === false) {
+        Button() {
+          Row({ space: 8 }) {
+            SymbolGlyph($r('sys.symbol.trash'))
+              .fontSize(18)
+              .fontColor([$r('app.color.status_error')])
+            Text($r('app.string.chat_leave_channel'))
+              .fontSize(14)
+              .fontColor($r('app.color.status_error'))
+          }
+        }
+        .width('100%')
+        .height(44)
+        .backgroundColor(Color.Transparent)
+        .enabled(!this.channelSettingsSaving)
+        .onClick((): void => {
+          this.channelSettingsVisible = false;
+          this.onLeaveChannel();
+        })
+      }
+    }
+    .width('100%')
+    .padding({ left: 16, right: 16, top: 8, bottom: 28 })
   }
 
   @Builder
@@ -1334,10 +1543,12 @@ export struct ChatConversationPage {
 
   build() {
     Column() {
-      if (this.state.channel !== null && !this.state.channel.isDirectMessage) {
+      if (this.state.channel !== null) {
         Column() {
           Row({ space: 10 }) {
-            SymbolGlyph($r('sys.symbol.message'))
+            SymbolGlyph(this.state.channel.isDirectMessage
+              ? $r('sys.symbol.envelope')
+              : $r('sys.symbol.message'))
               .fontSize(17)
               .fontColor([$r('app.color.brand_primary')])
               .width(32)
@@ -1346,7 +1557,7 @@ export struct ChatConversationPage {
               .backgroundColor($r('app.color.brand_tint_surface'))
               .borderRadius(16)
             Column({ space: 2 }) {
-              Text('聊天室')
+              Text(this.state.channel.isDirectMessage ? '直接消息' : '聊天室')
                 .fontSize(12)
                 .fontWeight(FontWeight.Medium)
                 .fontColor($r('sys.color.font_primary'))
@@ -1412,6 +1623,20 @@ export struct ChatConversationPage {
         this.reactionMessageId = null;
         this.reactionEmojiQuery = '';
         this.reactionEmojiGroup = '';
+      }
+    })
+    .bindSheet($$this.channelSettingsVisible, this.ChannelSettingsSheet(), {
+      detents: [SheetSize.MEDIUM],
+      detentSelection: SheetSize.MEDIUM,
+      preferType: SheetType.BOTTOM,
+      showClose: true,
+      dragBar: true,
+      backgroundColor: $r('sys.color.background_secondary'),
+      maskColor: Color.Transparent,
+      enableOutsideInteractive: false,
+      onDisappear: (): void => {
+        this.channelSettingsVisible = false;
+        this.channelSettingsMessage = '';
       }
     })
   }
