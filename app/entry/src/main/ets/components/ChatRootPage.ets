@@ -43,6 +43,10 @@ export struct ChatRootPage {
     return normalized;
   }
 
+  private unreadText(count: number): string {
+    return count > 99 ? '99+' : count.toString();
+  }
+
   @Builder
   private SectionButton(label: string, icon: Resource, section: ChatRootSection): void {
     Button() {
@@ -57,9 +61,10 @@ export struct ChatRootPage {
       .justifyContent(FlexAlign.Center)
     }
       .layoutWeight(1)
-      .height(42)
-      .borderRadius(0)
-      .backgroundColor(this.section === section ? $r('app.color.brand_selected_surface') : $r('sys.color.comp_background_primary'))
+      .height(34)
+      .borderRadius(14)
+      .backgroundColor(this.section === section ? $r('app.color.brand_selected_surface') : Color.Transparent)
+      .animation({ duration: 180, curve: Curve.EaseOut })
       .onClick((): void => {
         this.section = section;
       })
@@ -69,22 +74,21 @@ export struct ChatRootPage {
   @Builder
   private SectionSwitcher(): void {
     Column() {
-      Row() {
+      Row({ space: 4 }) {
         this.SectionButton('频道', $r('sys.symbol.message'), ChatRootSection.CHANNELS)
-        Divider().vertical(true).height(42).color($r('sys.color.comp_divider'))
         this.SectionButton('直接消息', $r('sys.symbol.envelope'), ChatRootSection.DIRECT_MESSAGES)
-        Divider().vertical(true).height(42).color($r('sys.color.comp_divider'))
         this.SectionButton('搜索', $r('sys.symbol.magnifyingglass'), ChatRootSection.SEARCH)
       }
       .width('100%')
-      .height(42)
+      .height(40)
+      .padding(3)
       .backgroundColor($r('sys.color.comp_background_primary'))
-      .borderRadius(21)
+      .borderRadius(18)
       .border({ width: 1, color: $r('sys.color.comp_divider') })
       .clip(true)
     }
     .width('100%')
-    .padding({ left: 12, right: 12, top: 12, bottom: 8 })
+    .padding({ left: 12, right: 12, top: 10, bottom: 8 })
     .backgroundColor($r('sys.color.background_secondary'))
   }
 
@@ -117,28 +121,35 @@ export struct ChatRootPage {
   }
 
   @Builder
-  private ChannelCard(channel: ChatChannel): void {
+  private ChannelRow(channel: ChatChannel): void {
     Row({ space: 12 }) {
       SymbolGlyph(channel.isDirectMessage ? $r('sys.symbol.envelope') : $r('sys.symbol.message'))
-        .fontSize(26)
+        .fontSize(22)
         .fontColor([$r('app.color.brand_primary')])
-        .width(44)
-        .height(44)
+        .width(40)
+        .height(40)
         .padding(9)
         .backgroundColor($r('app.color.brand_tint_surface'))
-        .borderRadius(22)
-      Column({ space: 5 }) {
+        .borderRadius(20)
+      Column({ space: 4 }) {
         Row({ space: 8 }) {
           Text(channel.title)
-            .fontSize(16)
-            .fontWeight(FontWeight.Bold)
+            .fontSize(15)
+            .fontWeight(FontWeight.Medium)
             .maxLines(1)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
+            .layoutWeight(1)
           if (channel.unreadCount > 0) {
-            Circle()
-              .width(8)
-              .height(8)
-              .fill($r('app.color.unread_indicator'))
+            Text(this.unreadText(channel.unreadCount))
+              .fontSize(11)
+              .fontWeight(FontWeight.Bold)
+              .fontColor($r('app.color.on_accent'))
+              .height(18)
+              .constraintSize({ minWidth: 18 })
+              .padding({ left: 5, right: 5 })
+              .textAlign(TextAlign.Center)
+              .backgroundColor($r('app.color.brand_primary'))
+              .borderRadius(9)
           }
         }
         .width('100%')
@@ -164,14 +175,55 @@ export struct ChatRootPage {
       }
       .alignItems(HorizontalAlign.Start)
       .layoutWeight(1)
+      SymbolGlyph($r('sys.symbol.chevron_right'))
+        .fontSize(15)
+        .fontColor([$r('sys.color.font_tertiary')])
     }
     .width('100%')
-    .padding($r('app.float.card_content_padding'))
-    .backgroundColor($r('sys.color.comp_background_primary'))
-    .borderRadius($r('app.float.card_corner_radius'))
-    .border({ width: 1, color: $r('sys.color.comp_divider') })
+    .constraintSize({ minHeight: 68 })
+    .padding({ left: 14, right: 14, top: 10, bottom: 10 })
     .onClick((): void => this.onOpenChannel(channel))
     .accessibilityText(`${channel.title}${channel.unreadCount > 0 ? `，${channel.unreadCount} 条未读` : ''}`)
+  }
+
+  @Builder
+  private ChannelGroup(directMessages: boolean): void {
+    Column({ space: 8 }) {
+      Row({ space: 8 }) {
+        Text(directMessages ? '直接消息' : '我的频道')
+          .fontSize(14)
+          .fontWeight(FontWeight.Medium)
+          .fontColor($r('sys.color.font_secondary'))
+        Text(this.channels(directMessages).length.toString())
+          .fontSize(11)
+          .fontColor($r('sys.color.font_tertiary'))
+          .height(20)
+          .constraintSize({ minWidth: 20 })
+          .padding({ left: 6, right: 6 })
+          .textAlign(TextAlign.Center)
+          .backgroundColor($r('sys.color.comp_background_primary'))
+          .borderRadius(10)
+      }
+      .width('100%')
+      .padding({ left: 8, right: 8 })
+
+      Column() {
+        ForEach(this.channels(directMessages), (channel: ChatChannel, index: number): void => {
+          this.ChannelRow(channel)
+          if (index < this.channels(directMessages).length - 1) {
+            Divider()
+              .margin({ left: 66, right: 14 })
+              .color($r('sys.color.comp_divider'))
+          }
+        }, (channel: ChatChannel): string => channel.id.toString())
+      }
+      .width('100%')
+      .backgroundColor($r('sys.color.comp_background_primary'))
+      .borderRadius(18)
+      .border({ width: 1, color: $r('sys.color.comp_divider') })
+      .clip(true)
+    }
+    .width('100%')
   }
 
   @Builder
@@ -194,14 +246,33 @@ export struct ChatRootPage {
           .fontColor($r('sys.color.font_secondary'))
       }.width('100%').height('100%').justifyContent(FlexAlign.Center)
     } else {
-      List({ space: 10, scroller: this.scroller }) {
-        ForEach(this.channels(directMessages), (channel: ChatChannel): void => {
-          ListItem() { this.ChannelCard(channel) }
-        }, (channel: ChatChannel): string => channel.id.toString())
+      Refresh({ refreshing: this.state.refreshing }) {
+        List({ scroller: this.scroller }) {
+          ListItem() {
+            this.ChannelGroup(directMessages)
+          }
+          ListItem() {
+            Column()
+              .width('100%')
+              .height(104)
+          }
+        }
+        .width('100%')
+        .height('100%')
+        .padding({ left: 12, right: 12, top: 8 })
+        .clip(true)
+        .cachedCount(3, true)
+        .backgroundColor($r('sys.color.background_secondary'))
+        .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
       }
-      .width('100%').height('100%').padding({ left: 12, right: 12, top: 8, bottom: 124 })
-      .clip(false).cachedCount(3, true)
-      .backgroundColor($r('sys.color.background_secondary')).edgeEffect(EdgeEffect.Spring)
+      .width('100%')
+      .height('100%')
+      .refreshOffset(64)
+      .pullToRefresh(true)
+      .pullUpToCancelRefresh(false)
+      .onRefreshing((): void => {
+        this.onRefresh();
+      })
     }
   }
 
