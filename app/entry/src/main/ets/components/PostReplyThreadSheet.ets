@@ -1,6 +1,7 @@
 import { ForumPost } from '../models/ForumModels';
 import { ForumCardPresentation } from './ForumCardPresentation';
 import { ForumContentCard } from './ForumContentCard';
+import { UserAvatar } from './UserAvatar';
 
 @Component
 export struct PostReplyThreadSheet {
@@ -14,33 +15,14 @@ export struct PostReplyThreadSheet {
   onLoadMore: () => void = (): void => {};
   onOpenReply: (postNumber: number) => void = (_postNumber: number): void => {};
 
-  private parentInitial(): string {
-    const username: string = this.parentPost?.username.trim() ?? '';
-    return username.length > 0 ? username.slice(0, 1).toUpperCase() : '回';
-  }
-
   @Builder
   private ParentAvatar(post: ForumPost): void {
-    Stack() {
-      Text(this.parentInitial())
-        .width(38)
-        .height(38)
-        .fontSize(13)
-        .fontWeight(FontWeight.Bold)
-        .fontColor($r('app.color.brand_primary'))
-        .textAlign(TextAlign.Center)
-        .backgroundColor($r('app.color.brand_tint_surface'))
-        .borderRadius(19)
-      if (post.avatarUrl.length > 0) {
-        Image(post.avatarUrl)
-          .width(38)
-          .height(38)
-          .objectFit(ImageFit.Cover)
-          .borderRadius(19)
-      }
-    }
-    .width(38)
-    .height(38)
+    UserAvatar({
+      avatarUrl: post.avatarUrl,
+      displayName: post.username,
+      avatarSize: 38,
+      avatarAccessibilityText: `${post.username.length > 0 ? post.username : '匿名'} 的头像`
+    })
   }
 
   @Builder

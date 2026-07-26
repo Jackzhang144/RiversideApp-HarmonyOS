@@ -9,6 +9,7 @@ import {
   notificationBucketLabel,
   notificationTimeText
 } from '../models/NotificationModels';
+import { UserAvatar } from './UserAvatar';
 
 const NOTIFICATION_BUCKETS: Array<NotificationBucket> = [
   NotificationBucket.PRIVATE_MESSAGES,
@@ -96,26 +97,12 @@ export struct NotificationCentrePage {
   @Builder
   private ItemRow(item: NotificationItem): void {
     Row({ space: 12 }) {
-      Stack() {
-        Text(item.actorDisplayName().substring(0, 1))
-          .fontSize(13)
-          .fontWeight(FontWeight.Bold)
-          .fontColor($r('app.color.brand_primary'))
-          .width(36)
-          .height(36)
-          .textAlign(TextAlign.Center)
-          .backgroundColor($r('app.color.brand_tint_surface'))
-          .borderRadius(18)
-        if (item.avatarUrl.length > 0) {
-          Image(item.avatarUrl)
-            .width(36)
-            .height(36)
-            .objectFit(ImageFit.Cover)
-            .borderRadius(18)
-        }
-      }
-      .width(36)
-      .height(36)
+      UserAvatar({
+        avatarUrl: item.avatarUrl,
+        displayName: item.actorDisplayName(),
+        avatarSize: 36,
+        avatarAccessibilityText: `${item.actorDisplayName()} 的头像`
+      })
       Column({ space: 4 }) {
         Row({ space: 8 }) {
           Text(notificationActionText(this.state.bucket, item))

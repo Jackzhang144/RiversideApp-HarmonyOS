@@ -10,6 +10,7 @@ import {
   ProfileSummaryPresentation,
   profileSummaryPresentationFor
 } from './ProfileSummaryPresentation';
+import { UserAvatar } from './UserAvatar';
 
 @Component
 export struct UserProfileSummaryPage {
@@ -205,22 +206,12 @@ export struct UserProfileSummaryPage {
           .accessibilityText(`${profile.displayName} 的个人页背景`)
       }
       Row({ space: 14 }) {
-        Stack() {
-          SymbolGlyph($r('sys.symbol.person_crop_circle_fill_1'))
-            .fontSize(64)
-            .fontColor([$r('app.color.brand_primary')])
-          if (profile.avatarUrl.length > 0) {
-            Image(profile.avatarUrl)
-              .width(76)
-              .height(76)
-              .borderRadius(38)
-              .objectFit(ImageFit.Cover)
-          }
-        }
-        .width(76)
-        .height(76)
-        .backgroundColor($r('app.color.brand_tint_surface'))
-        .borderRadius(38)
+        UserAvatar({
+          avatarUrl: profile.avatarUrl,
+          displayName: profile.displayName,
+          avatarSize: 76,
+          avatarAccessibilityText: `${profile.displayName} 的头像`
+        })
 
         Column({ space: 5 }) {
           Text(profile.displayName)

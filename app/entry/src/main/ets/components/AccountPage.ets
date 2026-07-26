@@ -8,6 +8,7 @@ import {
   AccountPrimaryAction,
   accountPresentationFor
 } from './AccountPresentation';
+import { UserAvatar } from './UserAvatar';
 
 @Component
 export struct AccountPage {
@@ -50,22 +51,14 @@ export struct AccountPage {
   private AccountHeader(presentation: AccountPresentation): void {
     Column({ space: 16 }) {
       Row({ space: 14 }) {
-        Stack() {
-          SymbolGlyph($r('sys.symbol.person_crop_circle_fill_1'))
-            .fontSize(42)
-            .fontColor([$r('app.color.brand_primary')])
-          if (presentation.avatarUrl.length > 0) {
-            Image(presentation.avatarUrl)
-              .width(64)
-              .height(64)
-              .borderRadius(32)
-              .objectFit(ImageFit.Cover)
-          }
-        }
-        .width(64)
-        .height(64)
-        .backgroundColor($r('app.color.brand_tint_surface'))
-        .borderRadius(32)
+        UserAvatar({
+          avatarUrl: presentation.avatarUrl,
+          displayName: this.identity?.displayName ?? '',
+          avatarSize: 64,
+          avatarAccessibilityText: this.identity === null
+            ? '账户头像'
+            : `${this.identity.displayName} 的头像`
+        })
 
         Column({ space: 6 }) {
           Row({ space: 8 }) {

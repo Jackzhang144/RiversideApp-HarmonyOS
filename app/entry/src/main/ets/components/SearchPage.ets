@@ -4,10 +4,12 @@ import {
   SearchSuggestionState,
   SearchSuggestionStateKind
 } from '../app/BrowseModels';
+import { RIVERSIDE_URL_RESOLVER } from '../core/RiversideEnvironment';
 import { SearchGroup, SearchPost, SearchTag, SearchUser } from '../models/DiscoveryModels';
 import { Category, Topic } from '../models/ForumModels';
 import { ForumCardPresentation } from './ForumCardPresentation';
 import { ForumContentCard } from './ForumContentCard';
+import { UserAvatar } from './UserAvatar';
 
 @Component
 export struct SearchPage {
@@ -225,15 +227,12 @@ export struct SearchPage {
   @Builder
   private UserRow(user: SearchUser): void {
     Row({ space: 12 }) {
-      Text(user.displayName.slice(0, 1).toUpperCase())
-        .width(38)
-        .height(38)
-        .fontSize(15)
-        .fontWeight(FontWeight.Bold)
-        .fontColor($r('app.color.brand_primary'))
-        .textAlign(TextAlign.Center)
-        .backgroundColor($r('app.color.brand_tint_surface'))
-        .borderRadius(19)
+      UserAvatar({
+        avatarUrl: RIVERSIDE_URL_RESOLVER.avatar(user.avatarTemplate, 96),
+        displayName: user.displayName,
+        avatarSize: 38,
+        avatarAccessibilityText: `${user.displayName} 的头像`
+      })
       Column({ space: 2 }) {
         Text(user.displayName)
           .fontSize(15)

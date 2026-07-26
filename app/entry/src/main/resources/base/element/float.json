@@ -11,10 +11,6 @@
     {
       "name": "card_corner_radius",
       "value": "12vp"
-    },
-    {
-      "name": "forum_author_avatar_corner_radius",
-      "value": "8vp"
     }
   ]
 }

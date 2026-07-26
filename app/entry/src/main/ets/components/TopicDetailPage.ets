@@ -9,6 +9,7 @@ import {
 import { ForumCardPresentation } from './ForumCardPresentation';
 import { ForumContentCard } from './ForumContentCard';
 import { PostReplyThreadSheet } from './PostReplyThreadSheet';
+import { UserAvatar } from './UserAvatar';
 import {
   Category,
   ForumPost,
@@ -815,26 +816,12 @@ export struct TopicDetailPage {
 
   @Builder
   private ReactionUserAvatar(user: PostReactionUser): void {
-    Stack() {
-      Text(user.username.slice(0, 1).toUpperCase())
-        .width(36)
-        .height(36)
-        .textAlign(TextAlign.Center)
-        .fontSize(13)
-        .fontWeight(FontWeight.Bold)
-        .fontColor($r('app.color.brand_primary'))
-        .backgroundColor($r('app.color.brand_tint_surface'))
-        .borderRadius(18)
-      if (user.avatarUrl.length > 0) {
-        Image(user.avatarUrl)
-          .width(36)
-          .height(36)
-          .borderRadius(18)
-          .objectFit(ImageFit.Cover)
-      }
-    }
-    .width(36)
-    .height(36)
+    UserAvatar({
+      avatarUrl: user.avatarUrl,
+      displayName: user.username,
+      avatarSize: 36,
+      avatarAccessibilityText: `${user.username} 的头像`
+    })
   }
 
   @Builder

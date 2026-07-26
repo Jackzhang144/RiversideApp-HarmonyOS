@@ -41,6 +41,7 @@ import {
   selectQuickChatEmojis,
   visibleChatMessageId
 } from './ChatMessagePresentation';
+import { UserAvatar } from './UserAvatar';
 
 const CHAT_QUICK_REACTION_LIMIT: number = 5;
 const CHAT_MESSAGE_BUBBLE_MAX_WIDTH: number = 238;
@@ -472,11 +473,6 @@ export struct ChatConversationPage {
     return message.username.length > 0 ? message.username : '未知用户';
   }
 
-  private avatarInitial(message: ChatMessage): string {
-    const username: string = this.displayUsername(message);
-    return username.slice(0, 1).toUpperCase();
-  }
-
   private copyMessageLink(message: ChatMessage): void {
     const channel: ChatChannel | null = this.state.channel;
     if (channel !== null) {
@@ -871,23 +867,12 @@ export struct ChatConversationPage {
       }
       .width('100%')
       Row({ space: 9 }) {
-        if (item.message.avatarUrl.length > 0) {
-          Image(item.message.avatarUrl)
-            .width(32)
-            .height(32)
-            .objectFit(ImageFit.Cover)
-            .borderRadius(16)
-        } else {
-          Text(this.avatarInitial(item.message))
-            .width(32)
-            .height(32)
-            .fontSize(12)
-            .fontWeight(FontWeight.Bold)
-            .fontColor($r('app.color.brand_primary'))
-            .textAlign(TextAlign.Center)
-            .backgroundColor($r('app.color.brand_tint_surface'))
-            .borderRadius(16)
-        }
+        UserAvatar({
+          avatarUrl: item.message.avatarUrl,
+          displayName: this.displayUsername(item.message),
+          avatarSize: 32,
+          avatarAccessibilityText: `${this.displayUsername(item.message)} 的头像`
+        })
         Column({ space: 5 }) {
           Text(this.displayUsername(item.message))
             .fontSize(12)
@@ -1378,27 +1363,14 @@ export struct ChatConversationPage {
   @Builder
   private AuthorAvatar(message: ChatMessage, visible: boolean): void {
     if (visible) {
-      if (message.avatarUrl.length > 0) {
-        Image(message.avatarUrl)
-          .width(32)
-          .height(32)
-          .objectFit(ImageFit.Cover)
-          .borderRadius(16)
-          .onClick((): void => this.onOpenProfile(message.username))
-          .accessibilityText(`查看用户 ${this.displayUsername(message)}`)
-      } else {
-        Text(this.avatarInitial(message))
-          .width(32)
-          .height(32)
-          .fontSize(12)
-          .fontWeight(FontWeight.Bold)
-          .fontColor($r('app.color.brand_primary'))
-          .textAlign(TextAlign.Center)
-          .backgroundColor($r('app.color.brand_tint_surface'))
-          .borderRadius(16)
-          .onClick((): void => this.onOpenProfile(message.username))
-          .accessibilityText(`查看用户 ${this.displayUsername(message)}`)
-      }
+      UserAvatar({
+        avatarUrl: message.avatarUrl,
+        displayName: this.displayUsername(message),
+        avatarSize: 32,
+        interactive: true,
+        avatarAccessibilityText: `查看用户 ${this.displayUsername(message)}`,
+        onActivate: (): void => this.onOpenProfile(message.username)
+      })
     } else {
       Blank().width(32).height(1)
     }
@@ -1687,13 +1659,12 @@ export struct ChatConversationPage {
         } else if (this.mentionUsers.length > 0) {
           ForEach(this.mentionUsers, (user: ComposerMentionUser) => {
             Row({ space: 8 }) {
-              if (user.avatarTemplate.length > 0) {
-                Image(absoluteChatUrl(user.avatarTemplate.replace('{size}', '48')))
-                  .width(28)
-                  .height(28)
-                  .borderRadius(14)
-                  .objectFit(ImageFit.Cover)
-              }
+              UserAvatar({
+                avatarUrl: absoluteChatUrl(user.avatarTemplate.replace('{size}', '48')),
+                displayName: user.name.length > 0 ? user.name : user.username,
+                avatarSize: 28,
+                avatarAccessibilityText: `${user.username} 的头像`
+              })
               Column({ space: 2 }) {
                 Text(`@${user.username}`).fontSize(13).fontWeight(FontWeight.Medium)
                 if (user.name.length > 0) {

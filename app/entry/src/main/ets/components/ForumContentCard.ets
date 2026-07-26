@@ -17,6 +17,7 @@ import { ForumPost } from '../models/ForumModels';
 import { TopicPostActionState } from '../app/TopicReadingModels';
 import { RichPostContent } from './RichPostContent';
 import { TopicPostActionBar } from './TopicPostActionBar';
+import { UserAvatar } from './UserAvatar';
 
 @Component
 export struct ForumContentCard {
@@ -74,23 +75,12 @@ export struct ForumContentCard {
   @Builder
   private AuthorRow(author: ForumCardAuthor): void {
     Row({ space: 9 }) {
-      if (author.avatarUrl.length > 0) {
-        Image(author.avatarUrl)
-          .width(36)
-          .height(36)
-          .objectFit(ImageFit.Cover)
-          .borderRadius($r('app.float.forum_author_avatar_corner_radius'))
-      } else {
-        Text(author.initial)
-          .fontSize(13)
-          .fontWeight(FontWeight.Bold)
-          .fontColor($r('app.color.brand_primary'))
-          .width(36)
-          .height(36)
-          .textAlign(TextAlign.Center)
-          .backgroundColor($r('app.color.brand_tint_surface'))
-          .borderRadius($r('app.float.forum_author_avatar_corner_radius'))
-      }
+      UserAvatar({
+        avatarUrl: author.avatarUrl,
+        displayName: author.name,
+        avatarSize: 36,
+        avatarAccessibilityText: `${author.name} 的头像`
+      })
       Column({ space: 2 }) {
         Text(author.name)
           .fontSize(14)
