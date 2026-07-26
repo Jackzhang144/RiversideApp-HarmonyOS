@@ -24,6 +24,17 @@ export class FeatureSitePresentation {
     this.entryUrl = entryUrl;
     this.provider = provider;
   }
+
+  public displayHost(): string {
+    let normalizedUrl: string = this.homeUrl.trim();
+    if (normalizedUrl.startsWith('https://')) {
+      normalizedUrl = normalizedUrl.substring('https://'.length);
+    } else if (normalizedUrl.startsWith('http://')) {
+      normalizedUrl = normalizedUrl.substring('http://'.length);
+    }
+    const pathStart: number = normalizedUrl.indexOf('/');
+    return pathStart >= 0 ? normalizedUrl.substring(0, pathStart) : normalizedUrl;
+  }
 }
 
 export function featureSitePresentations(): Array<FeatureSitePresentation> {

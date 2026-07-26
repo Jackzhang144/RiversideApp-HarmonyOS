@@ -34,7 +34,9 @@ export default function homePresentationTest(): void {
         .assertEqual('树洞,选课指南,校友地图,觅电,RS date');
       expect(sites[0].entryUrl)
         .assertEqual('https://whisper.river-side.cc/auth/start?mode=interactive');
+      expect(sites[0].displayHost()).assertEqual('whisper.river-side.cc');
       expect(sites[3].entryUrl).assertEqual('https://food.river-side.cc/auth/discourse');
+      expect(sites[3].displayHost()).assertEqual('food.river-side.cc');
       expect(sites.some((site: FeatureSitePresentation): boolean => site.homeUrl.includes('coin.'))).assertFalse();
     });
   });

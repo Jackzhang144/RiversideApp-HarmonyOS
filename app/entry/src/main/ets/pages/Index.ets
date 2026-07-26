@@ -6,6 +6,7 @@ import {
   HdsAnimationMode,
   HdsNavDestination,
   HdsNavigationTitleBarOptions,
+  HdsSideBar,
   HdsSnackBar,
   HdsTabs,
   HdsTabsController,
@@ -218,11 +219,6 @@ const ROOT_TAB_SELECTED_COLOR: ResourceColor = $r('app.color.brand_primary');
 const HOME_TOPIC_COMPOSER_ANIMATION_DURATION: number = 220;
 const HOME_TOPIC_COMPOSER_HIDDEN_OFFSET: number = 80;
 
-enum HomeHeaderSheetKind {
-  CHANNEL = 'channel',
-  FEATURE_SITES = 'feature-sites'
-}
-
 @Entry
 @Component
 struct Index {
@@ -265,7 +261,7 @@ struct Index {
   @State selectedHomeChannel: HomeChannel = HomeChannel.LATEST_REPLIES;
   @State homeBrowseChromeVisible: boolean = true;
   @State homeHeaderSheetVisible: boolean = false;
-  @State homeHeaderSheetKind: HomeHeaderSheetKind = HomeHeaderSheetKind.CHANNEL;
+  @State homeLinkSideBarVisible: boolean = false;
   @State appThemeMode: AppThemeMode = AppThemeMode.SYSTEM;
   @State worldCupEntryEnabled: boolean = true;
   @State categoryState: BrowseState<Category> = BrowseState.initial<Category>();
@@ -636,8 +632,8 @@ struct Index {
   }
 
   private showFeatureSiteMenu(): void {
-    this.homeHeaderSheetKind = HomeHeaderSheetKind.FEATURE_SITES;
-    this.homeHeaderSheetVisible = true;
+    this.restoreBrowseChrome();
+    this.homeLinkSideBarVisible = true;
   }
 
   private homeChannels(): Array<HomeChannel> {
@@ -651,7 +647,6 @@ struct Index {
   }
 
   private showHomeChannelMenu(): void {
-    this.homeHeaderSheetKind = HomeHeaderSheetKind.CHANNEL;
     this.homeHeaderSheetVisible = true;
   }
 
@@ -3276,8 +3271,8 @@ struct Index {
       return NavigationChrome.rootTitleBar({
         title: { mainTitle: '' },
         backIcon: {
-          label: '打开 Riverside 功能入口',
-          icon: $r('app.media.riverside_harmony_foreground_v2'),
+          label: '打开站点链接侧边栏',
+          icon: $r('sys.symbol.open_sidebar'),
           type: IconStyleMode.NORMAL,
           action: (): void => {
             this.showFeatureSiteMenu();
@@ -3454,62 +3449,113 @@ struct Index {
   }
 
   @Builder
-  private FeatureSiteSheet(): void {
-    List({ space: 8 }) {
-      ForEach(featureSitePresentations(), (site: FeatureSitePresentation) => {
-        ListItem() {
-          Button() {
-            Row({ space: 12 }) {
-              Text(site.title)
-                .fontSize(16)
-                .fontWeight(FontWeight.Medium)
-                .fontColor($r('sys.color.font_primary'))
+  private FeatureSiteSideBar(): void {
+    Column() {
+      Row({ space: 12 }) {
+        Button() {
+          SymbolGlyph($r('sys.symbol.chevron_left'))
+            .fontSize(20)
+            .fontColor([$r('sys.color.font_primary')])
+            .hitTestBehavior(HitTestMode.None)
+        }
+        .width(40)
+        .height(40)
+        .backgroundColor($r('sys.color.comp_background_primary'))
+        .borderRadius(14)
+        .border({ width: 1, color: $r('sys.color.comp_divider') })
+        .onClick((): void => {
+          this.homeLinkSideBarVisible = false;
+        })
+        .accessibilityText('关闭站点链接侧边栏')
+        Column({ space: 3 }) {
+          Text('站点链接')
+            .fontSize(20)
+            .fontWeight(FontWeight.Bold)
+            .fontColor($r('sys.color.font_primary'))
+          Text('探索 RiverSide 的扩展服务')
+            .fontSize(12)
+            .fontColor($r('sys.color.font_secondary'))
+        }
+        .alignItems(HorizontalAlign.Start)
+        .layoutWeight(1)
+      }
+      .width('100%')
+      .padding({
+        left: 18,
+        right: 16,
+        top: this.topAvoidHeight() + 16,
+        bottom: 16
+      })
+
+      List({ space: 9 }) {
+        ForEach(featureSitePresentations(), (site: FeatureSitePresentation) => {
+          ListItem() {
+            Button() {
+              Row({ space: 12 }) {
+                Stack() {
+                  SymbolGlyph($r('sys.symbol.link'))
+                    .fontSize(19)
+                    .fontColor([$r('app.color.brand_primary')])
+                }
+                .width(40)
+                .height(40)
+                .backgroundColor($r('app.color.brand_tint_surface'))
+                .borderRadius(12)
+                Column({ space: 3 }) {
+                  Text(site.title)
+                    .fontSize(15)
+                    .fontWeight(FontWeight.Medium)
+                    .fontColor($r('sys.color.font_primary'))
+                  Text(site.displayHost())
+                    .fontSize(11)
+                    .fontColor($r('sys.color.font_secondary'))
+                    .maxLines(1)
+                    .textOverflow({ overflow: TextOverflow.Ellipsis })
+                }
+                .alignItems(HorizontalAlign.Start)
                 .layoutWeight(1)
-              SymbolGlyph($r('sys.symbol.chevron_right'))
-                .fontSize(16)
-                .fontColor([$r('sys.color.font_tertiary')])
+                SymbolGlyph($r('sys.symbol.chevron_right'))
+                  .fontSize(15)
+                  .fontColor([$r('sys.color.font_tertiary')])
+              }
+              .width('100%')
+              .padding({ left: 12, right: 12 })
+              .hitTestBehavior(HitTestMode.None)
             }
             .width('100%')
-            .padding({ left: 16, right: 16 })
-            .hitTestBehavior(HitTestMode.None)
+            .height(66)
+            .backgroundColor($r('sys.color.comp_background_primary'))
+            .borderRadius(16)
+            .border({ width: 1, color: $r('sys.color.comp_divider') })
+            .onClick((): void => {
+              this.homeLinkSideBarVisible = false;
+              this.openRichEmbed(site.entryUrl, site.provider, site.title);
+            })
+            .accessibilityText(`打开${site.title}`)
           }
-          .width('100%')
-          .height(52)
-          .backgroundColor($r('sys.color.comp_background_primary'))
-          .borderRadius(16)
-          .onClick((): void => {
-            this.homeHeaderSheetVisible = false;
-            this.openRichEmbed(site.entryUrl, site.provider, site.title);
-          })
-          .accessibilityText(`打开${site.title}`)
-        }
-      }, (site: FeatureSitePresentation): string => site.provider)
+        }, (site: FeatureSitePresentation): string => site.provider)
+      }
+      .width('100%')
+      .layoutWeight(1)
+      .padding({ left: 14, right: 14, bottom: 18 })
+
+      Row({ space: 7 }) {
+        SymbolGlyph($r('sys.symbol.info_circle'))
+          .fontSize(14)
+          .fontColor([$r('sys.color.font_tertiary')])
+        Text('链接将在应用内安全打开')
+          .fontSize(11)
+          .fontColor($r('sys.color.font_tertiary'))
+      }
+      .padding({ left: 18, right: 18, bottom: 24 })
+      .width('100%')
     }
     .width('100%')
     .height('100%')
-    .padding({ left: 16, right: 16, top: 8, bottom: 16 })
     .backgroundColor($r('sys.color.background_secondary'))
-  }
-
-  @Builder
-  private HomeHeaderSheet(): void {
-    if (this.homeHeaderSheetKind === HomeHeaderSheetKind.FEATURE_SITES) {
-      this.FeatureSiteSheet()
-    } else {
-      this.HomeChannelSheet()
-    }
-  }
-
-  private homeHeaderSheetTitle(): string {
-    return this.homeHeaderSheetKind === HomeHeaderSheetKind.FEATURE_SITES
-      ? 'Riverside 功能入口'
-      : '切换首页';
-  }
-
-  private homeHeaderSheetSubtitle(): string {
-    return this.homeHeaderSheetKind === HomeHeaderSheetKind.FEATURE_SITES
-      ? '选择要打开的站点'
-      : `当前：${homeChannelLabel(this.selectedHomeChannel)}`;
+    .borderRadius({ topRight: 28, bottomRight: 28 })
+    .clip(true)
+    .shadow(ShadowStyle.OUTER_DEFAULT_MD)
   }
 
   @Builder
@@ -3685,7 +3731,8 @@ struct Index {
     .ignoreLayoutSafeArea([LayoutSafeAreaType.SYSTEM], [LayoutSafeAreaEdge.BOTTOM])
   }
 
-  build() {
+  @Builder
+  private MainContentPanel(): void {
     Stack() {
       RootPageShell({
         pathStack: this.pathStack,
@@ -3713,15 +3760,50 @@ struct Index {
     }
     .width('100%')
     .height('100%')
-    .bindSheet($$this.homeHeaderSheetVisible, this.HomeHeaderSheet(), {
+    .bindSheet($$this.homeHeaderSheetVisible, this.HomeChannelSheet(), {
       detents: [SheetSize.MEDIUM],
       detentSelection: SheetSize.MEDIUM,
       showClose: true,
       dragBar: true,
       title: {
-        title: this.homeHeaderSheetTitle(),
-        subtitle: this.homeHeaderSheetSubtitle()
+        title: '切换首页',
+        subtitle: `当前：${homeChannelLabel(this.selectedHomeChannel)}`
       }
     })
+  }
+
+  build() {
+    Stack() {
+      HdsSideBar({
+        sideBarPanelBuilder: (): void => {
+          this.FeatureSiteSideBar()
+        },
+        contentPanelBuilder: (): void => {
+          this.MainContentPanel()
+        },
+        contentAreaMask: true,
+        isShowSideBar: this.homeLinkSideBarVisible,
+        $isShowSideBar: (visible: boolean): void => {
+          this.homeLinkSideBarVisible = visible;
+        },
+        minSideBarWidth: 310,
+        maxSideBarWidth: 310,
+        sideBarWidth: 310,
+        minContentWidth: 0,
+        sideBarColor: Color.Transparent,
+        contentColor: Color.Transparent,
+        autoHide: true,
+        isSideBarBlur: true,
+        sideBarPosition: SideBarPosition.Start,
+        sideBarContainerType: SideBarContainerType.Overlay,
+        scaleContentEnabled: false,
+        swipeEnabled: true,
+        onChange: (visible: boolean): void => {
+          this.homeLinkSideBarVisible = visible;
+        }
+      })
+    }
+    .width('100%')
+    .height('100%')
   }
 }
