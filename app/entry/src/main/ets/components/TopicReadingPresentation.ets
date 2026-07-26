@@ -1,4 +1,9 @@
-import { Category, ForumPost, PostReaction } from '../models/ForumModels';
+import {
+  Category,
+  ForumPost,
+  PostReaction,
+  TopicNotificationLevel
+} from '../models/ForumModels';
 import { RIVERSIDE_URL_RESOLVER } from '../core/RiversideEnvironment';
 
 export class PostFlagOption {
@@ -13,6 +18,52 @@ export class PostFlagOption {
     this.description = description;
     this.needsMessage = needsMessage;
   }
+}
+
+export class TopicNotificationOption {
+  public readonly level: TopicNotificationLevel;
+  public readonly label: string;
+  public readonly description: string;
+
+  public constructor(level: TopicNotificationLevel, label: string, description: string) {
+    this.level = level;
+    this.label = label;
+    this.description = description;
+  }
+}
+
+export function topicNotificationOptions(): Array<TopicNotificationOption> {
+  return [
+    new TopicNotificationOption(
+      TopicNotificationLevel.WATCHING,
+      '关注',
+      '每条新 Reply 都会通知，并显示新回复数量。'
+    ),
+    new TopicNotificationOption(
+      TopicNotificationLevel.TRACKING,
+      '跟踪',
+      '提及或回复您时通知，并显示新回复数量。'
+    ),
+    new TopicNotificationOption(
+      TopicNotificationLevel.REGULAR,
+      '常规',
+      '仅在别人提及或回复您时通知。'
+    ),
+    new TopicNotificationOption(
+      TopicNotificationLevel.MUTED,
+      '免打扰',
+      '不接收这个 Topic 的任何通知。'
+    )
+  ];
+}
+
+export function topicNotificationLabel(level: TopicNotificationLevel): string {
+  for (const option of topicNotificationOptions()) {
+    if (option.level === level) {
+      return option.label;
+    }
+  }
+  return '常规';
 }
 
 export function postFlagOptions(username: string): Array<PostFlagOption> {

@@ -4,6 +4,7 @@ import {
   HdsNavDestination,
   HdsNavDestinationTitleMode,
   HdsNavigation,
+  HdsNavigationMenuContentOptions,
   HdsNavigationTitleBarOptions,
   HdsNavigationTitleMode,
   HideMode,
@@ -95,7 +96,8 @@ export class NavigationChrome {
   public static destinationTitleBar(
     title: ResourceStr,
     surface: PageSurface,
-    backLabel: ResourceStr
+    backLabel: ResourceStr,
+    menu: HdsNavigationMenuContentOptions = { value: [] }
   ): HdsNavigationTitleBarOptions {
     const backgroundColor: ResourceColor = surface === PageSurface.MEDIA
       ? $r('app.color.image_viewer_surface')
@@ -111,7 +113,8 @@ export class NavigationChrome {
             label: title,
             type: TextStyleMode.NORMAL
           }
-        }
+        },
+        menu
       },
       style: {
         scrollEffectOpts: {
@@ -231,6 +234,7 @@ export struct DestinationPageShell {
   @Prop darkMode: boolean = false;
   @Prop surface: PageSurface = PageSurface.STANDARD;
   @Prop dynamicTitleBarOnScroll: boolean = false;
+  @Prop menu: HdsNavigationMenuContentOptions = { value: [] };
   scrollables: Array<Scroller> = [];
   onBackPressed: () => boolean = (): boolean => false;
   onShown: () => void = (): void => {};
@@ -249,7 +253,8 @@ export struct DestinationPageShell {
     .titleBar(NavigationChrome.destinationTitleBar(
       this.title,
       this.surface,
-      this.backLabel
+      this.backLabel,
+      this.menu
     ))
     .systemBarStyle(
       NavigationChrome.statusBarStyle(this.darkMode, this.surface),

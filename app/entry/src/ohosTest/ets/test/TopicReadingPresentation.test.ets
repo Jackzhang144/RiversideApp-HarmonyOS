@@ -3,7 +3,8 @@ import {
   Category,
   ForumPost,
   ForumPostMetadata,
-  PostReaction
+  PostReaction,
+  TopicNotificationLevel
 } from '../../../main/ets/models/ForumModels';
 import {
   categoryLabel,
@@ -20,7 +21,10 @@ import {
   systemActionLabel,
   topicPostRenderKey,
   topicPostListIndex,
-  topicPostUrl
+  topicPostUrl,
+  TopicNotificationOption,
+  topicNotificationLabel,
+  topicNotificationOptions
 } from '../../../main/ets/components/TopicReadingPresentation';
 
 export default function topicReadingPresentationTest(): void {
@@ -149,6 +153,18 @@ export default function topicReadingPresentationTest(): void {
       expect(options[1].needsMessage).assertFalse();
       expect(options[4].needsMessage).assertTrue();
       expect(options[5].needsMessage).assertTrue();
+    });
+
+    it('presents every Discourse Topic notification level in a mobile-friendly order', 0, () => {
+      const options: Array<TopicNotificationOption> = topicNotificationOptions();
+
+      expect(options.map((option: TopicNotificationOption): number => option.level).join(','))
+        .assertEqual('3,2,1,0');
+      expect(options.map((option: TopicNotificationOption): string => option.label).join(','))
+        .assertEqual('关注,跟踪,常规,免打扰');
+      expect(topicNotificationLabel(TopicNotificationLevel.TRACKING)).assertEqual('跟踪');
+      expect(options[0].description.includes('每条')).assertTrue();
+      expect(options[3].description.includes('任何通知')).assertTrue();
     });
   });
 }

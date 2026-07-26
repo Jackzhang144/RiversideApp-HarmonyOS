@@ -151,8 +151,18 @@ import { ProfileEditorPage } from '../components/ProfileEditorPage';
 import { ProfileContentPage } from '../components/ProfileContentPage';
 import { AccountPlaceholderKind } from '../components/AccountPresentation';
 import { ImageViewerPage } from '../components/ImageViewerPage';
-import { selectedBookmarkPostIds, topicPostUrl } from '../components/TopicReadingPresentation';
-import { Category, ForumPost, PostReactionUsers, Topic } from '../models/ForumModels';
+import {
+  selectedBookmarkPostIds,
+  topicNotificationLabel,
+  topicPostUrl
+} from '../components/TopicReadingPresentation';
+import {
+  Category,
+  ForumPost,
+  PostReactionUsers,
+  Topic,
+  TopicNotificationLevel
+} from '../models/ForumModels';
 import {
   ChatChannel,
   ChatChannelNotificationLevel,
@@ -262,6 +272,7 @@ struct Index {
   @State categoryTopicsState: BrowseState<Topic> = BrowseState.initial<Topic>();
   @State categoryTitle: string = '分类';
   @State topicState: TopicReadState = TopicReadState.initial();
+  @State topicNotificationSheetVisible: boolean = false;
   @State topicReactionUsersState: BrowseState<PostReactionUsers> = BrowseState.initial<PostReactionUsers>();
   @State reactionUsersSheetVisible: boolean = false;
   @State bookmarkedPostIds: Array<number> = [];
@@ -1376,6 +1387,7 @@ struct Index {
       return;
     }
     this.reactionUsersSheetVisible = false;
+    this.topicNotificationSheetVisible = false;
     const task: Promise<void> = model.openTopic(topic, initialPostNumber);
     this.synchronizeTopicState(model);
     this.synchronizeReplyState(model, false);
@@ -1594,6 +1606,21 @@ struct Index {
     await task;
     this.synchronizeTopicState(model);
     this.synchronizeReplyState(model);
+  }
+
+  private async setTopicNotificationLevel(
+    notificationLevel: TopicNotificationLevel
+  ): Promise<RepositoryResult<boolean>> {
+    const model: AppShellModel | null = this.model;
+    if (model === null) {
+      return RepositoryResult.unavailable<boolean>('Topic 通知设置不可用');
+    }
+    if (this.authState.kind !== AuthStateKind.AUTHENTICATED) {
+      return RepositoryResult.unauthorized<boolean>();
+    }
+    const result: RepositoryResult<boolean> = await model.setTopicNotificationLevel(notificationLevel);
+    this.synchronizeTopicState(model);
+    return result;
   }
 
   private async refreshTopic(): Promise<void> {
@@ -2638,6 +2665,24 @@ struct Index {
         darkMode: this.usesDarkChrome(this.appThemeMode),
         dynamicTitleBarOnScroll: true,
         scrollables: [this.topicScroller],
+        menu: {
+          value: [{
+            content: {
+              label: `Topic 通知，当前${topicNotificationLabel(
+                this.topicState.detail?.notificationLevel ?? TopicNotificationLevel.REGULAR
+              )}`,
+              icon: $r('sys.symbol.bell'),
+              isEnabled: this.topicState.detail !== null,
+              action: (): void => {
+                if (this.authState.kind !== AuthStateKind.AUTHENTICATED) {
+                  this.openLogin();
+                  return;
+                }
+                this.topicNotificationSheetVisible = true;
+              }
+            }
+          }]
+        },
         onBackPressed: (): boolean => this.handleSecondaryBack()
       }) {
         TopicDetailPage({
@@ -2656,6 +2701,7 @@ struct Index {
           emojis: this.chatEmojis,
           emojiLoading: this.composerEmojiLoading,
           replySheetVisible: this.replySheetVisible,
+          topicNotificationSheetVisible: this.topicNotificationSheetVisible,
           onRetry: (): void => {
             this.retryTopic();
           },
@@ -2688,6 +2734,11 @@ struct Index {
           },
           onToggleAcceptedAnswer: (postId: number): void => {
             this.togglePostAcceptedAnswer(postId);
+          },
+          onSetTopicNotificationLevel: (
+            notificationLevel: TopicNotificationLevel
+          ): Promise<RepositoryResult<boolean>> => {
+            return this.setTopicNotificationLevel(notificationLevel);
           },
           onCopyPostLink: (topicId: number, postNumber: number): void => {
             this.copyPostLink(topicId, postNumber);

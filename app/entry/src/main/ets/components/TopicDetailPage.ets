@@ -14,7 +14,8 @@ import {
   PostReactionUser,
   PostReactionUsers,
   Topic,
-  TopicDetail
+  TopicDetail,
+  TopicNotificationLevel
 } from '../models/ForumModels';
 import { RichEmbedProvider } from '../models/RichNavigationPolicy';
 import { MediaUploadState } from '../models/MediaModels';
@@ -29,6 +30,9 @@ import {
   reactionEmojiUrl,
   shouldShowSuggestedTopics,
   systemActionLabel,
+  TopicNotificationOption,
+  topicNotificationLabel,
+  topicNotificationOptions,
   topicPostRenderKey,
   topicPostListIndex
 } from './TopicReadingPresentation';
@@ -49,11 +53,15 @@ export struct TopicDetailPage {
   @Prop emojis: Array<ChatEmoji> = [];
   @Prop emojiLoading: boolean = false;
   @Link replySheetVisible: boolean;
+  @Link topicNotificationSheetVisible: boolean;
   @State flagSheetVisible: boolean = false;
   @State flagPostId: number = 0;
   @State flagUsername: string = '';
   @State selectedFlagTypeId: number = 0;
   @State flagMessage: string = '';
+  @State topicNotificationSaving: boolean = false;
+  @State topicNotificationMessage: string = '';
+  @State pendingTopicNotificationLevel: TopicNotificationLevel | null = null;
   onRetry: () => void = (): void => {};
   onRefresh: () => void = (): void => {};
   onLoadMore: () => void = (): void => {};
@@ -74,6 +82,13 @@ export struct TopicDetailPage {
   ): void => {};
   onLoginForPostAction: () => void = (): void => {};
   onToggleAcceptedAnswer: (postId: number) => void = (_postId: number): void => {};
+  onSetTopicNotificationLevel: (
+    notificationLevel: TopicNotificationLevel
+  ) => Promise<RepositoryResult<boolean>> = async (
+    _notificationLevel: TopicNotificationLevel
+  ): Promise<RepositoryResult<boolean>> => {
+    return RepositoryResult.unavailable<boolean>('Topic 通知设置不可用');
+  };
   onCopyPostLink: (topicId: number, postNumber: number) => void = (
     _topicId: number,
     _postNumber: number
@@ -258,6 +273,46 @@ export struct TopicDetailPage {
     return this.state.canReply;
   }
 
+  private topicNotificationIcon(notificationLevel: TopicNotificationLevel): Resource {
+    if (notificationLevel === TopicNotificationLevel.WATCHING) {
+      return $r('sys.symbol.bell_fill');
+    }
+    if (notificationLevel === TopicNotificationLevel.TRACKING) {
+      return $r('sys.symbol.bell_badge_clock');
+    }
+    if (notificationLevel === TopicNotificationLevel.MUTED) {
+      return $r('sys.symbol.bell_slash');
+    }
+    return $r('sys.symbol.bell');
+  }
+
+  private async saveTopicNotificationLevel(notificationLevel: TopicNotificationLevel): Promise<void> {
+    const detail: TopicDetail | null = this.state.detail;
+    if (detail === null || this.topicNotificationSaving) {
+      return;
+    }
+    if (detail.notificationLevel === notificationLevel) {
+      this.topicNotificationSheetVisible = false;
+      return;
+    }
+    this.topicNotificationSaving = true;
+    this.pendingTopicNotificationLevel = notificationLevel;
+    this.topicNotificationMessage = '';
+    const result: RepositoryResult<boolean> = await this.onSetTopicNotificationLevel(notificationLevel);
+    this.topicNotificationSaving = false;
+    this.pendingTopicNotificationLevel = null;
+    if (result.isSuccess() && result.data === true) {
+      this.topicNotificationSheetVisible = false;
+      return;
+    }
+    if (result.isUnauthorized()) {
+      this.topicNotificationSheetVisible = false;
+      this.onLoginForPostAction();
+      return;
+    }
+    this.topicNotificationMessage = result.message.length > 0 ? result.message : '通知设置失败，请重试';
+  }
+
   private highestPostNumber(): number {
     return Math.max(1, this.state.detail?.highestPostNumber ?? 1);
   }
@@ -388,6 +443,114 @@ export struct TopicDetailPage {
     }
     .width('100%')
     .padding({ left: 4, right: 4 })
+  }
+
+  @Builder
+  private TopicNotificationOptionRow(
+    option: TopicNotificationOption,
+    currentLevel: TopicNotificationLevel
+  ): void {
+    Button() {
+      Row({ space: 13 }) {
+        Stack() {
+          SymbolGlyph(this.topicNotificationIcon(option.level))
+            .fontSize(22)
+            .fontColor([
+              option.level === currentLevel
+                ? $r('app.color.brand_primary')
+                : $r('sys.color.font_secondary')
+            ])
+        }
+        .width(38)
+        .height(38)
+        .borderRadius(19)
+        .backgroundColor(
+          option.level === currentLevel
+            ? $r('app.color.brand_tint_surface')
+            : $r('sys.color.background_secondary')
+        )
+
+        Column({ space: 3 }) {
+          Text(option.label)
+            .fontSize(15)
+            .fontWeight(FontWeight.Medium)
+            .fontColor($r('sys.color.font_primary'))
+          Text(option.description)
+            .fontSize(12)
+            .fontColor($r('sys.color.font_secondary'))
+            .maxLines(2)
+            .lineHeight(17)
+        }
+        .alignItems(HorizontalAlign.Start)
+        .layoutWeight(1)
+
+        if (this.topicNotificationSaving && option.level === this.pendingTopicNotificationLevel) {
+          LoadingProgress()
+            .width(20)
+            .height(20)
+            .color($r('app.color.brand_primary'))
+        } else if (option.level === currentLevel) {
+          SymbolGlyph($r('sys.symbol.checkmark_circle_fill'))
+            .fontSize(22)
+            .fontColor([$r('app.color.brand_primary')])
+        } else {
+          SymbolGlyph($r('sys.symbol.chevron_right'))
+            .fontSize(15)
+            .fontColor([$r('sys.color.font_tertiary')])
+        }
+      }
+      .width('100%')
+      .padding({ left: 14, right: 14 })
+      .hitTestBehavior(HitTestMode.None)
+    }
+    .width('100%')
+    .height(64)
+    .enabled(!this.topicNotificationSaving)
+    .backgroundColor(
+      option.level === currentLevel
+        ? $r('app.color.brand_tint_surface')
+        : $r('sys.color.comp_background_primary')
+    )
+    .border({
+      width: 1,
+      color: option.level === currentLevel
+        ? $r('app.color.brand_primary')
+        : $r('sys.color.comp_divider')
+    })
+    .borderRadius($r('app.float.card_corner_radius'))
+    .onClick((): void => {
+      this.saveTopicNotificationLevel(option.level);
+    })
+    .accessibilityText(
+      `${option.label}，${option.description}${option.level === currentLevel ? '，当前选择' : ''}`
+    )
+  }
+
+  @Builder
+  private TopicNotificationSheet(): void {
+    if (this.state.detail !== null) {
+      Column({ space: 9 }) {
+        if (this.topicNotificationMessage.length > 0) {
+          Row({ space: 8 }) {
+            SymbolGlyph($r('sys.symbol.exclamationmark_circle'))
+              .fontSize(17)
+              .fontColor([$r('app.color.status_error')])
+            Text(this.topicNotificationMessage)
+              .fontSize(12)
+              .fontColor($r('app.color.status_error'))
+              .layoutWeight(1)
+          }
+          .width('100%')
+          .padding({ left: 4, right: 4, bottom: 2 })
+        }
+        ForEach(topicNotificationOptions(), (option: TopicNotificationOption) => {
+          this.TopicNotificationOptionRow(option, this.state.detail?.notificationLevel ?? TopicNotificationLevel.REGULAR)
+        }, (option: TopicNotificationOption): string => option.level.toString())
+      }
+      .width('100%')
+      .padding({ left: 16, right: 16, top: 6, bottom: 24 })
+      .backgroundColor($r('sys.color.background_secondary'))
+    }
   }
 
   @Builder
@@ -1012,35 +1175,57 @@ export struct TopicDetailPage {
 
   @Builder
   private ReadingContent(): void {
-    Column() {
-      Refresh({ refreshing: this.state.isRefreshing }) {
-        this.ReadingList()
+    Stack() {
+      Column() {
+        Refresh({ refreshing: this.state.isRefreshing }) {
+          this.ReadingList()
+        }
+        .width('100%')
+        .height('100%')
+        .clip(false)
+        .backgroundColor($r('sys.color.background_secondary'))
+        .refreshOffset(64)
+        .pullToRefresh(true)
+        .pullUpToCancelRefresh(false)
+        .onRefreshing(this.onRefresh)
+        .bindSheet($$this.reactionUsersSheetVisible, this.ReactionUsersSheet(), {
+          detents: [SheetSize.MEDIUM, SheetSize.LARGE],
+          detentSelection: SheetSize.MEDIUM,
+          showClose: true,
+          dragBar: true,
+          title: { title: '回应用户', subtitle: '点击头像查看用户资料' }
+        })
       }
       .width('100%')
       .height('100%')
       .clip(false)
-      .backgroundColor($r('sys.color.background_secondary'))
-      .refreshOffset(64)
-      .pullToRefresh(true)
-      .pullUpToCancelRefresh(false)
-      .onRefreshing(this.onRefresh)
-      .bindSheet($$this.reactionUsersSheetVisible, this.ReactionUsersSheet(), {
-        detents: [SheetSize.MEDIUM, SheetSize.LARGE],
-        detentSelection: SheetSize.MEDIUM,
+      .bindSheet($$this.flagSheetVisible, this.PostFlagSheet(), {
+        detents: [SheetSize.LARGE],
+        detentSelection: SheetSize.LARGE,
         showClose: true,
         dragBar: true,
-        title: { title: '回应用户', subtitle: '点击头像查看用户资料' }
+        title: { title: '举报帖子', subtitle: `Post by @${this.flagUsername}` }
       })
     }
     .width('100%')
     .height('100%')
     .clip(false)
-    .bindSheet($$this.flagSheetVisible, this.PostFlagSheet(), {
-      detents: [SheetSize.LARGE],
-      detentSelection: SheetSize.LARGE,
+    .bindSheet($$this.topicNotificationSheetVisible, this.TopicNotificationSheet(), {
+      detents: [SheetSize.MEDIUM],
+      detentSelection: SheetSize.MEDIUM,
       showClose: true,
       dragBar: true,
-      title: { title: '举报帖子', subtitle: `Post by @${this.flagUsername}` }
+      title: {
+        title: 'Topic 通知',
+        subtitle: `当前：${topicNotificationLabel(
+          this.state.detail?.notificationLevel ?? TopicNotificationLevel.REGULAR
+        )}`
+      },
+      shouldDismiss: (sheetDismiss: SheetDismiss): void => {
+        if (!this.topicNotificationSaving) {
+          sheetDismiss.dismiss();
+        }
+      }
     })
   }
 
