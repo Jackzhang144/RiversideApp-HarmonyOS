@@ -641,18 +641,6 @@
       "value": "重新加载 Topic"
     },
     {
-      "name": "topic_floor_placeholder",
-      "value": "楼层"
-    },
-    {
-      "name": "topic_floor_jump",
-      "value": "跳转"
-    },
-    {
-      "name": "topic_floor_jump_accessibility",
-      "value": "跳转到输入楼层"
-    },
-    {
       "name": "topic_read_progress_syncing",
       "value": "正在同步阅读进度"
     },

@@ -9,6 +9,7 @@ import {
 import { ForumCardPresentation } from './ForumCardPresentation';
 import { ForumContentCard } from './ForumContentCard';
 import { PostReplyThreadSheet } from './PostReplyThreadSheet';
+import { TopicReadingProgressRail } from './TopicReadingProgressRail';
 import { UserAvatar } from './UserAvatar';
 import {
   Category,
@@ -26,7 +27,6 @@ import { RepositoryResult } from '../core/RepositoryResult';
 import { ComposerMentionUser } from '../models/ComposerMentionModels';
 import {
   categoryLabel,
-  normalizeTopicFloor,
   PostFlagOption,
   postFlagOptions,
   reactionEmojiUrl,
@@ -147,9 +147,6 @@ export struct TopicDetailPage {
   readingScroller: Scroller = new Scroller();
   @State private currentPostNumber: number = 1;
   @State private currentTopicId: number = 0;
-  @State private selectedFloor: number = 1;
-  @State private floorInput: string = '1';
-  @State private floorInputMessage: string = '';
   private synchronizedJumpTopicId: number = 0;
   private synchronizedJumpPostNumber: number = 0;
   private replyThreadRequestVersion: number = 0;
@@ -178,8 +175,6 @@ export struct TopicDetailPage {
       this.synchronizedJumpPostNumber = requestedPostNumber;
       this.currentTopicId = this.state.topicId;
       this.currentPostNumber = requestedPostNumber;
-      this.selectedFloor = requestedPostNumber;
-      this.floorInput = requestedPostNumber.toString();
       setTimeout((): void => this.scrollToPost(requestedPostNumber), 50);
       return;
     }
@@ -196,8 +191,6 @@ export struct TopicDetailPage {
     this.synchronizedJumpPostNumber = requestedPostVisible ? requestedPostNumber : 0;
     this.currentTopicId = this.state.topicId;
     this.currentPostNumber = focusedPostNumber;
-    this.selectedFloor = focusedPostNumber;
-    this.floorInput = focusedPostNumber.toString();
   }
 
   private mergeReplyThreadPosts(
@@ -431,17 +424,17 @@ export struct TopicDetailPage {
     }
   }
 
-  private async jumpToFloor(retry: boolean = false): Promise<void> {
-    const targetPostNumber: number | null = retry
+  private async jumpToPostNumber(postNumber: number, retry: boolean = false): Promise<void> {
+    const targetPostNumber: number = retry
       ? this.state.postJumpState.targetPostNumber
-      : normalizeTopicFloor(this.floorInput, this.highestPostNumber());
-    if (targetPostNumber === null || targetPostNumber <= 0) {
-      this.floorInputMessage = '请输入有效楼层';
+      : postNumber;
+    if (
+      !Number.isSafeInteger(targetPostNumber) ||
+      targetPostNumber <= 0 ||
+      targetPostNumber > this.highestPostNumber()
+    ) {
       return;
     }
-    this.floorInputMessage = '';
-    this.floorInput = targetPostNumber.toString();
-    this.selectedFloor = targetPostNumber;
     const succeeded: boolean = retry
       ? await this.onRetryPostJump()
       : await this.onJumpToPost(targetPostNumber);
@@ -655,90 +648,6 @@ export struct TopicDetailPage {
       .padding({ left: 16, right: 16, top: 6, bottom: 24 })
       .backgroundColor($r('sys.color.background_secondary'))
     }
-  }
-
-  @Builder
-  private FloorLocator(): void {
-    Column({ space: 8 }) {
-      Row({ space: 8 }) {
-        Text(`当前 #${this.currentPostNumber} / ${this.highestPostNumber()}`)
-          .fontSize(13)
-          .fontWeight(FontWeight.Medium)
-          .layoutWeight(1)
-        TextInput({ text: this.floorInput, placeholder: $r('app.string.topic_floor_placeholder') })
-          .width(88)
-          .height(36)
-          .type(InputType.Number)
-          .enabled(!this.state.postJumpState.busy)
-          .onChange((value: string): void => {
-            this.floorInput = value;
-            const normalized: number | null = normalizeTopicFloor(value, this.highestPostNumber());
-            if (normalized !== null) {
-              this.selectedFloor = normalized;
-            }
-          })
-        Button($r('app.string.topic_floor_jump'))
-          .height(36)
-          .fontSize(13)
-          .enabled(!this.state.postJumpState.busy)
-          .onClick((): void => {
-            this.jumpToFloor();
-          })
-          .accessibilityText($r('app.string.topic_floor_jump_accessibility'))
-      }
-      if (this.highestPostNumber() > 1) {
-        Slider({
-          value: this.selectedFloor,
-          min: 1,
-          max: this.highestPostNumber(),
-          step: 1,
-          style: SliderStyle.OutSet
-        })
-          .enabled(!this.state.postJumpState.busy)
-          .onChange((value: number, mode: SliderChangeMode): void => {
-            const targetPostNumber: number = Math.floor(value);
-            this.selectedFloor = targetPostNumber;
-            this.floorInput = targetPostNumber.toString();
-            if (mode === SliderChangeMode.End) {
-              this.jumpToFloor();
-            }
-          })
-      }
-      if (this.state.postJumpState.busy) {
-        Row({ space: 6 }) {
-          LoadingProgress()
-            .width(18)
-            .height(18)
-          Text(`正在定位 #${this.state.postJumpState.targetPostNumber}`)
-            .fontSize(12)
-            .fontColor($r('sys.color.font_secondary'))
-        }
-      } else if (this.state.postJumpState.message.length > 0) {
-        Row({ space: 8 }) {
-          Text(this.state.postJumpState.message)
-            .fontSize(12)
-            .fontColor($r('app.color.status_error'))
-            .layoutWeight(1)
-          Button($r('app.string.common_retry'))
-            .height(32)
-            .fontSize(12)
-            .onClick((): void => {
-              this.jumpToFloor(true);
-            })
-            .accessibilityText(`重试定位楼层 ${this.state.postJumpState.targetPostNumber}`)
-        }
-      } else if (this.floorInputMessage.length > 0) {
-        Text(this.floorInputMessage)
-          .fontSize(12)
-          .fontColor($r('app.color.status_error'))
-          .width('100%')
-      }
-    }
-    .width('100%')
-    .padding(12)
-    .backgroundColor($r('sys.color.comp_background_primary'))
-    .borderRadius($r('app.float.card_corner_radius'))
-    .border({ width: 1, color: $r('sys.color.comp_divider') })
   }
 
   @Builder
@@ -1192,17 +1101,12 @@ export struct TopicDetailPage {
             if (currentRatio >= 0.6 && this.hasStarterPost()) {
               this.currentPostNumber = this.state.posts[0].postNumber;
               this.currentTopicId = this.state.topicId;
-              this.selectedFloor = this.currentPostNumber;
-              this.floorInput = this.currentPostNumber.toString();
               this.scheduleReadProgress(this.state.posts[0].postNumber);
             }
           }
         )
         ListItem() {
           this.TopicMetadata(this.state.detail)
-        }
-        ListItem() {
-          this.FloorLocator()
         }
         ListItem() {
           this.ReadProgressFeedback()
@@ -1233,8 +1137,6 @@ export struct TopicDetailPage {
             if (currentRatio >= 0.6) {
               this.currentPostNumber = post.postNumber;
               this.currentTopicId = this.state.topicId;
-              this.selectedFloor = post.postNumber;
-              this.floorInput = post.postNumber.toString();
               this.scheduleReadProgress(post.postNumber);
             }
           }
@@ -1287,7 +1189,7 @@ export struct TopicDetailPage {
 
   @Builder
   private ReadingContent(): void {
-    Stack() {
+    Stack({ alignContent: Alignment.End }) {
       Column() {
         Stack() {
           Refresh({ refreshing: this.state.isRefreshing }) {
@@ -1337,6 +1239,23 @@ export struct TopicDetailPage {
         dragBar: true,
         title: { title: '举报帖子', subtitle: `Post by @${this.flagUsername}` }
       })
+
+      TopicReadingProgressRail({
+        posts: this.state.posts,
+        currentPostNumber: this.currentPostNumber,
+        highestPostNumber: this.highestPostNumber(),
+        jumpBusy: this.state.postJumpState.busy,
+        jumpMessage: this.state.postJumpState.message,
+        jumpTargetPostNumber: this.state.postJumpState.targetPostNumber,
+        onJump: (postNumber: number): void => {
+          this.jumpToPostNumber(postNumber);
+        },
+        onRetry: (): void => {
+          this.jumpToPostNumber(this.state.postJumpState.targetPostNumber, true);
+        }
+      })
+        .margin({ right: 6 })
+        .zIndex(20)
     }
     .width('100%')
     .height('100%')

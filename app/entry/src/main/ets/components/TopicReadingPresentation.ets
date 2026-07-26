@@ -83,16 +83,81 @@ export function postFlagOptions(username: string): Array<PostFlagOption> {
   ];
 }
 
-export function normalizeTopicFloor(value: string, highestPostNumber: number): number | null {
-  const normalized: string = value.trim();
-  if (normalized.length === 0 || !Number.isSafeInteger(highestPostNumber) || highestPostNumber <= 0) {
-    return null;
+export function topicProgressRatio(currentPostNumber: number, highestPostNumber: number): number {
+  if (!Number.isFinite(currentPostNumber) ||
+    !Number.isSafeInteger(highestPostNumber) ||
+    highestPostNumber <= 1) {
+    return 0;
   }
-  const parsed: number = Number(normalized);
-  if (!Number.isFinite(parsed)) {
-    return null;
+  return Math.min(
+    1,
+    Math.max(0, (currentPostNumber - 1) / (highestPostNumber - 1))
+  );
+}
+
+export function topicProgressTargetPostNumber(
+  positionY: number,
+  trackHeight: number,
+  highestPostNumber: number
+): number {
+  if (!Number.isFinite(positionY) ||
+    !Number.isFinite(trackHeight) ||
+    trackHeight <= 0 ||
+    !Number.isSafeInteger(highestPostNumber) ||
+    highestPostNumber <= 1) {
+    return 1;
   }
-  return Math.min(highestPostNumber, Math.max(1, Math.floor(parsed)));
+  const ratio: number = Math.min(1, Math.max(0, positionY / trackHeight));
+  return Math.round(1 + ratio * (highestPostNumber - 1));
+}
+
+export class TopicProgressPreview {
+  public readonly postNumber: number;
+  public readonly authorLabel: string;
+  public readonly excerpt: string;
+  public readonly loaded: boolean;
+
+  public constructor(
+    postNumber: number,
+    authorLabel: string,
+    excerpt: string,
+    loaded: boolean
+  ) {
+    this.postNumber = postNumber;
+    this.authorLabel = authorLabel;
+    this.excerpt = excerpt;
+    this.loaded = loaded;
+  }
+}
+
+export function topicProgressPreview(
+  posts: Array<ForumPost>,
+  postNumber: number
+): TopicProgressPreview {
+  const post: ForumPost | undefined = posts.find(
+    (candidate: ForumPost): boolean => candidate.postNumber === postNumber
+  );
+  if (post === undefined) {
+    return new TopicProgressPreview(
+      postNumber,
+      '尚未加载',
+      '松开后定位并加载这一楼',
+      false
+    );
+  }
+  const source: string = post.raw.trim().length > 0
+    ? post.raw
+    : post.cooked.replace(/<[^>]+>/g, ' ');
+  const normalized: string = source.replace(/\s+/g, ' ').trim();
+  const excerpt: string = normalized.length > 90
+    ? `${normalized.slice(0, 90)}…`
+    : normalized;
+  return new TopicProgressPreview(
+    postNumber,
+    post.username.trim().length > 0 ? `@${post.username.trim()}` : '系统',
+    excerpt.length > 0 ? excerpt : '这一楼没有可预览的文字内容',
+    true
+  );
 }
 
 export function topicPostUrl(topicId: number, postNumber: number): string {
@@ -113,7 +178,7 @@ export function topicPostListIndex(posts: Array<ForumPost>, postNumber: number):
   if (hasStarterPost && stateIndex === 0) {
     return 0;
   }
-  return hasStarterPost ? stateIndex + 5 : stateIndex + 6;
+  return hasStarterPost ? stateIndex + 4 : stateIndex + 5;
 }
 
 /**

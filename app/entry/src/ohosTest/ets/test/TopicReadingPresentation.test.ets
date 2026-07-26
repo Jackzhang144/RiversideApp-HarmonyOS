@@ -8,7 +8,6 @@ import {
 } from '../../../main/ets/models/ForumModels';
 import {
   categoryLabel,
-  normalizeTopicFloor,
   displayedReactions,
   reactionAccessibilityLabel,
   reactionCount,
@@ -20,6 +19,10 @@ import {
   selectedBookmarkPostIds,
   shouldShowSuggestedTopics,
   systemActionLabel,
+  topicProgressPreview,
+  TopicProgressPreview,
+  topicProgressRatio,
+  topicProgressTargetPostNumber,
   topicPostRenderKey,
   topicPostListIndex,
   topicPostUrl,
@@ -105,14 +108,32 @@ export default function topicReadingPresentationTest(): void {
       expect(shouldShowSuggestedTopics(false, 0)).assertFalse();
     });
 
-    it('normalizes typed and Slider floor targets against the Topic range', 0, () => {
-      expect(normalizeTopicFloor('37', 120)).assertEqual(37);
-      expect(normalizeTopicFloor('37.8', 120)).assertEqual(37);
-      expect(normalizeTopicFloor('0', 120)).assertEqual(1);
-      expect(normalizeTopicFloor('999', 120)).assertEqual(120);
-      expect(normalizeTopicFloor('not-a-floor', 120)).assertEqual(null);
-      expect(normalizeTopicFloor('37th', 120)).assertEqual(null);
-      expect(normalizeTopicFloor('2', 0)).assertEqual(null);
+    it('maps the vertical reading rail onto exact Topic Post positions', 0, () => {
+      expect(topicProgressRatio(1, 101)).assertEqual(0);
+      expect(topicProgressRatio(51, 101)).assertEqual(0.5);
+      expect(topicProgressRatio(101, 101)).assertEqual(1);
+      expect(topicProgressRatio(999, 101)).assertEqual(1);
+      expect(topicProgressTargetPostNumber(0, 200, 101)).assertEqual(1);
+      expect(topicProgressTargetPostNumber(100, 200, 101)).assertEqual(51);
+      expect(topicProgressTargetPostNumber(200, 200, 101)).assertEqual(101);
+      expect(topicProgressTargetPostNumber(-20, 200, 101)).assertEqual(1);
+    });
+
+    it('shows an exact loaded Post summary and an honest unloaded fallback', 0, () => {
+      const posts: Array<ForumPost> = [
+        new ForumPost(101, 2725, 'river_user', '<p>正文</p>', '  第一段\n第二段  ', 37, null, '')
+      ];
+
+      const loaded: TopicProgressPreview = topicProgressPreview(posts, 37);
+      const unloaded: TopicProgressPreview = topicProgressPreview(posts, 80);
+
+      expect(loaded.postNumber).assertEqual(37);
+      expect(loaded.authorLabel).assertEqual('@river_user');
+      expect(loaded.excerpt).assertEqual('第一段 第二段');
+      expect(loaded.loaded).assertTrue();
+      expect(unloaded.postNumber).assertEqual(80);
+      expect(unloaded.authorLabel).assertEqual('尚未加载');
+      expect(unloaded.loaded).assertFalse();
     });
 
     it('maps a loaded Post number to its Topic List position', 0, () => {
@@ -127,9 +148,9 @@ export default function topicReadingPresentationTest(): void {
       ];
 
       expect(topicPostListIndex(completeWindow, 1)).assertEqual(0);
-      expect(topicPostListIndex(completeWindow, 2)).assertEqual(6);
-      expect(topicPostListIndex(completeWindow, 3)).assertEqual(7);
-      expect(topicPostListIndex(pinpointWindow, 3)).assertEqual(6);
+      expect(topicPostListIndex(completeWindow, 2)).assertEqual(5);
+      expect(topicPostListIndex(completeWindow, 3)).assertEqual(6);
+      expect(topicPostListIndex(pinpointWindow, 3)).assertEqual(5);
       expect(topicPostListIndex(pinpointWindow, 2)).assertEqual(-1);
       expect(topicPostListIndex(completeWindow, 0)).assertEqual(-1);
     });
