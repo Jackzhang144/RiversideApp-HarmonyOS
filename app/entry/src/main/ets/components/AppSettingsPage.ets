@@ -5,7 +5,6 @@ import {
   appMaterialPreferenceDescription,
   appMaterialPreferenceFromIndex,
   appMaterialPreferenceIndex,
-  appMaterialPreferenceLabel,
   appMaterialPreferenceOptions,
   AppMaterialPreferenceOption,
   appThemePreferenceOptions,
@@ -15,7 +14,7 @@ import {
 } from './AppSettingsPresentation';
 
 const MATERIAL_PREFERENCE_COUNT: number = 5;
-const MATERIAL_SELECTOR_HEIGHT: number = 44;
+const MATERIAL_SELECTOR_HEIGHT: number = 46;
 const MATERIAL_SELECTOR_INSET: number = 3;
 
 @Component
@@ -92,47 +91,55 @@ struct AppMaterialLevelPicker {
       return 1;
     }
     if (preference === AppMaterialPreference.GENTLE) {
-      return 0.64;
+      return 0.68;
     }
-    return 0.3;
+    return 0.36;
+  }
+
+  private materialLevelHaloOpacity(preference: AppMaterialPreference): number {
+    if (preference === AppMaterialPreference.EXQUISITE) {
+      return 0.2;
+    }
+    if (preference === AppMaterialPreference.GENTLE) {
+      return 0.13;
+    }
+    return 0.07;
   }
 
   @Builder
   private MaterialTab(option: AppMaterialPreferenceOption): void {
     Button() {
       if (option.preference === AppMaterialPreference.SYSTEM) {
-        SymbolGlyph($r('sys.symbol.gearshape'))
-          .fontSize(18)
+        SymbolGlyph($r('sys.symbol.wand_and_stars_fill'))
+          .fontSize(19)
           .fontColor([option.index === this.activeIndex()
             ? $r('app.color.brand_primary')
             : $r('sys.color.font_secondary')])
           .hitTestBehavior(HitTestMode.None)
       } else if (option.preference === AppMaterialPreference.OFF) {
-        SymbolGlyph($r('sys.symbol.xmark_circle_fill'))
-          .fontSize(18)
+        SymbolGlyph($r('sys.symbol.xmark_circle'))
+          .fontSize(19)
           .fontColor([option.index === this.activeIndex()
-            ? $r('app.color.brand_primary')
+            ? $r('sys.color.font_primary')
             : $r('sys.color.font_tertiary')])
           .hitTestBehavior(HitTestMode.None)
       } else {
         Stack() {
-          if (option.index === this.activeIndex()) {
-            Circle()
-              .width(22)
-              .height(22)
-              .fill($r('app.color.brand_primary'))
-              .opacity(0.12)
-              .hitTestBehavior(HitTestMode.None)
-          }
           Circle()
-            .width(11)
-            .height(11)
+            .width(26)
+            .height(26)
+            .fill($r('app.color.brand_primary'))
+            .opacity(this.materialLevelHaloOpacity(option.preference))
+            .hitTestBehavior(HitTestMode.None)
+          Circle()
+            .width(12)
+            .height(12)
             .fill($r('app.color.brand_primary'))
             .opacity(this.materialLevelDotOpacity(option.preference))
             .hitTestBehavior(HitTestMode.None)
         }
-        .width(24)
-        .height(24)
+        .width(28)
+        .height(28)
       }
     }
       .layoutWeight(1)
@@ -148,15 +155,7 @@ struct AppMaterialLevelPicker {
   }
 
   build() {
-    Column({ space: 12 }) {
-      Text(appMaterialPreferenceDescription(this.activePreference()))
-        .fontSize(13)
-        .lineHeight(19)
-        .fontColor($r('sys.color.font_secondary'))
-        .height(38)
-        .textAlign(TextAlign.Start)
-      .width('100%')
-
+    Column({ space: 10 }) {
       Stack({ alignContent: Alignment.Start }) {
         Row()
           .width(this.indicatorWidth())
@@ -164,9 +163,9 @@ struct AppMaterialLevelPicker {
           .position({ x: this.indicatorOffset(), y: MATERIAL_SELECTOR_INSET })
           .borderRadius((MATERIAL_SELECTOR_HEIGHT - MATERIAL_SELECTOR_INSET * 2) / 2)
           .backgroundColor($r('sys.color.comp_background_primary'))
-          .border({ width: 1, color: $r('app.color.brand_primary') })
+          .border({ width: 1, color: $r('sys.color.comp_divider') })
           .shadow(ShadowStyle.OUTER_DEFAULT_XS)
-          .animation({ duration: 160, curve: Curve.EaseOut })
+          .animation({ duration: 180, curve: Curve.EaseOut })
 
         Row() {
           ForEach(
@@ -207,6 +206,16 @@ struct AppMaterialLevelPicker {
           })
       )
 
+      Text(appMaterialPreferenceDescription(this.activePreference()))
+        .fontSize(13)
+        .lineHeight(18)
+        .fontColor($r('sys.color.font_secondary'))
+        .maxLines(1)
+        .textOverflow({ overflow: TextOverflow.Ellipsis })
+        .textAlign(TextAlign.Center)
+      .width('100%')
+      .height(22)
+      .padding({ left: 4, right: 4 })
     }
     .width('100%')
     .padding({ left: 14, right: 14, top: 14, bottom: 14 })
