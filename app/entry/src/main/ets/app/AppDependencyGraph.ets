@@ -15,6 +15,7 @@ import { DiscourseNotificationRepository } from '../repositories/DiscourseNotifi
 import { DiscourseProfileRepository } from '../repositories/DiscourseProfileRepository';
 import { DiscourseMediaRepository } from '../repositories/MediaRepository';
 import { PreferencesAppThemeSettingsStore } from '../settings/PreferencesAppThemeSettingsStore';
+import { PreferencesAppBehaviorSettingsStore } from '../settings/PreferencesAppBehaviorSettingsStore';
 import { PreferencesDiscoverySettingsStore } from '../settings/PreferencesDiscoverySettingsStore';
 import { RIVERSIDE_ORIGIN } from '../core/RiversideEnvironment';
 import { DiscoursePresenceUpdater, PresenceHeartbeat } from './PresenceHeartbeat';
@@ -42,11 +43,13 @@ export class AppDependencyGraph {
   public readonly categoryCache: PreferencesCategoryCache;
   public readonly discoverySettingsStore: PreferencesDiscoverySettingsStore;
   public readonly appThemeSettingsStore: PreferencesAppThemeSettingsStore;
+  public readonly appBehaviorSettingsStore: PreferencesAppBehaviorSettingsStore;
   public readonly mediaGalleryService: MediaGalleryService | null;
   public readonly presenceHeartbeat: PresenceHeartbeat;
 
   public constructor(context: common.Context, onAuthenticationChanged: () => void) {
     this.appThemeSettingsStore = new PreferencesAppThemeSettingsStore(context);
+    this.appBehaviorSettingsStore = new PreferencesAppBehaviorSettingsStore(context);
     this.authRepository = new AuthRepository(
       HuksAuthenticatedSessionStore.create(context),
       new RsaAuthorizationCryptoFactory()

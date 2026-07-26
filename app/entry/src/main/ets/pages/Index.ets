@@ -12,7 +12,8 @@ import {
   HdsTabsController,
   IconStyleMode,
   SnackBarOperationType,
-  TextStyleMode
+  TextStyleMode,
+  TitleBarContentOptions
 } from '@kit.UIDesignKit';
 import { SymbolGlyphModifier, window } from '@kit.ArkUI';
 import { AppShellModel } from '../app/AppShellModel';
@@ -214,6 +215,12 @@ import {
   appThemePlatformColorMode,
   AppThemeSettingsStore
 } from '../settings/AppThemeSettings';
+import {
+  AppBehaviorSettings,
+  AppBehaviorSettingsStore,
+  AppMaterialPreference
+} from '../settings/AppBehaviorSettings';
+import { appMaterialEffect } from '../settings/AppMaterialPolicy';
 
 const ROOT_TAB_SELECTED_COLOR: ResourceColor = $r('app.color.brand_primary');
 const HOME_TOPIC_COMPOSER_ANIMATION_DURATION: number = 220;
@@ -252,6 +259,7 @@ struct Index {
   private mediaGalleryService: MediaGalleryService | null = null;
   private forumRepository: DiscourseForumRepository | null = null;
   private appThemeSettingsStore: AppThemeSettingsStore | null = null;
+  private appBehaviorSettingsStore: AppBehaviorSettingsStore | null = null;
   private presenceHeartbeat: PresenceHeartbeat | null = null;
   private foregroundVisible: boolean = false;
 
@@ -262,7 +270,14 @@ struct Index {
   @State homeBrowseChromeVisible: boolean = true;
   @State homeHeaderSheetVisible: boolean = false;
   @State homeLinkSideBarVisible: boolean = false;
-  @State appThemeMode: AppThemeMode = AppThemeMode.SYSTEM;
+  @StorageLink('riverside_theme_mode')
+  appThemeMode: AppThemeMode = AppThemeMode.SYSTEM;
+  @State immersiveBrowsingEnabled: boolean = true;
+  @State confirmExternalLinks: boolean = true;
+  @StorageLink('riverside_material_preference')
+  materialPreference: AppMaterialPreference = AppMaterialPreference.SYSTEM;
+  @StorageLink('riverside_immersive_material_supported')
+  immersiveMaterialSupported: boolean = false;
   @State worldCupEntryEnabled: boolean = true;
   @State categoryState: BrowseState<Category> = BrowseState.initial<Category>();
   @State categoryTopicsState: BrowseState<Topic> = BrowseState.initial<Topic>();
@@ -314,6 +329,10 @@ struct Index {
   private readonly browseChromeScrollBehavior: BrowseChromeScrollBehavior = new BrowseChromeScrollBehavior();
 
   private handleHomeBrowseScroll(scrollOffset: number, scrollState: ScrollState): void {
+    if (!this.immersiveBrowsingEnabled) {
+      this.restoreBrowseChrome();
+      return;
+    }
     const intent: BrowseChromeScrollIntent = this.browseChromeScrollBehavior.observe(
       scrollOffset,
       scrollState !== ScrollState.Idle
@@ -355,7 +374,17 @@ struct Index {
     return Math.max(statusBarBottom, cutoutBottom);
   }
 
+  private refreshSystemMaterialSupport(): void {
+    try {
+      this.immersiveMaterialSupported = hdsMaterial.getSystemMaterialTypes()
+        .includes(hdsMaterial.MaterialType.IMMERSIVE);
+    } catch (_) {
+      this.immersiveMaterialSupported = false;
+    }
+  }
+
   aboutToAppear(): void {
+    this.refreshSystemMaterialSupport();
     const context: common.Context | undefined = this.getUIContext().getHostContext();
     if (context === undefined) {
       this.homeState = BrowseState.error<Topic>('无法获取应用运行环境');
@@ -404,6 +433,11 @@ struct Index {
     );
     this.appThemeSettingsStore = dependencies.appThemeSettingsStore;
     this.appThemeMode = await dependencies.appThemeSettingsStore.read();
+    this.appBehaviorSettingsStore = dependencies.appBehaviorSettingsStore;
+    const behaviorSettings: AppBehaviorSettings = await dependencies.appBehaviorSettingsStore.read();
+    this.immersiveBrowsingEnabled = behaviorSettings.immersiveBrowsingEnabled;
+    this.confirmExternalLinks = behaviorSettings.confirmExternalLinks;
+    this.materialPreference = behaviorSettings.materialPreference;
     const abilityContext: common.UIAbilityContext | null = AbilityContextRegistry.current();
     if (abilityContext !== null) {
       await this.applySystemBarTheme(abilityContext, this.appThemeMode);
@@ -678,10 +712,10 @@ struct Index {
       return;
     }
     try {
-      abilityContext.getApplicationContext().setColorMode(appThemePlatformColorMode(mode));
-      await this.applySystemBarTheme(abilityContext, mode);
       this.appThemeMode = mode;
       await this.appThemeSettingsStore?.write(mode);
+      abilityContext.getApplicationContext().setColorMode(appThemePlatformColorMode(mode));
+      await this.applySystemBarTheme(abilityContext, mode);
     } catch (_) {
       this.showAuthenticationMessage('无法切换外观', '系统拒绝了外观设置');
     }
@@ -1491,6 +1525,10 @@ struct Index {
   }
 
   private confirmExternalNavigation(url: string): void {
+    if (!this.confirmExternalLinks) {
+      this.openExternalLink(url);
+      return;
+    }
     this.getUIContext().showAlertDialog({
       title: $r('app.string.external_open_title'),
       message: url,
@@ -2587,6 +2625,36 @@ struct Index {
     }
   }
 
+  private async setImmersiveBrowsingEnabled(enabled: boolean): Promise<void> {
+    this.immersiveBrowsingEnabled = enabled;
+    if (!enabled) {
+      this.restoreBrowseChrome();
+    }
+    await this.persistAppBehaviorSettings();
+  }
+
+  private async setConfirmExternalLinks(enabled: boolean): Promise<void> {
+    this.confirmExternalLinks = enabled;
+    await this.persistAppBehaviorSettings();
+  }
+
+  private async setMaterialPreference(preference: AppMaterialPreference): Promise<void> {
+    this.materialPreference = preference;
+    await this.persistAppBehaviorSettings();
+  }
+
+  private async persistAppBehaviorSettings(): Promise<void> {
+    const store: AppBehaviorSettingsStore | null = this.appBehaviorSettingsStore;
+    if (store === null) {
+      return;
+    }
+    await store.write(new AppBehaviorSettings(
+      this.immersiveBrowsingEnabled,
+      this.confirmExternalLinks,
+      this.materialPreference
+    ));
+  }
+
   @Builder
   private SecondaryPage(name: string, _param: Object): void {
     if (name === APP_SETTINGS_ROUTE) {
@@ -2600,7 +2668,10 @@ struct Index {
         AppSettingsPage({
           scroller: this.settingsScroller,
           selectedHomeChannel: this.selectedHomeChannel,
-          selectedThemeMode: this.appThemeMode,
+          immersiveBrowsingEnabled: this.immersiveBrowsingEnabled,
+          confirmExternalLinks: this.confirmExternalLinks,
+          materialPreference: this.materialPreference,
+          immersiveMaterialSupported: this.immersiveMaterialSupported,
           hidePresence: this.accountProfileState.profile?.hidePresence ?? false,
           presenceAvailable: this.authState.kind === AuthStateKind.AUTHENTICATED &&
             this.accountProfileState.profile !== null,
@@ -2610,6 +2681,15 @@ struct Index {
           },
           onSelectThemeMode: (mode: AppThemeMode): void => {
             this.applyAppThemePreference(mode);
+          },
+          onImmersiveBrowsingChange: (enabled: boolean): void => {
+            this.setImmersiveBrowsingEnabled(enabled);
+          },
+          onConfirmExternalLinksChange: (enabled: boolean): void => {
+            this.setConfirmExternalLinks(enabled);
+          },
+          onSelectMaterialPreference: (preference: AppMaterialPreference): void => {
+            this.setMaterialPreference(preference);
           },
           onHidePresenceChange: (hidden: boolean): void => {
             this.setHidePresence(hidden);
@@ -2697,7 +2777,7 @@ struct Index {
         title: APP_TOPIC_DETAIL_TITLE,
         backLabel: BACK_TO_TOPIC_LIST_LABEL,
         darkMode: this.usesDarkChrome(this.appThemeMode),
-        dynamicTitleBarOnScroll: true,
+        dynamicTitleBarOnScroll: this.immersiveBrowsingEnabled,
         scrollables: [this.topicScroller],
         menu: {
           value: [{
@@ -3266,9 +3346,21 @@ struct Index {
     );
   }
 
+  private appRootTitleBar(
+    content: TitleBarContentOptions,
+    surface: PageSurface = PageSurface.STANDARD
+  ): HdsNavigationTitleBarOptions {
+    return NavigationChrome.rootTitleBar(
+      content,
+      surface,
+      this.materialPreference,
+      this.immersiveMaterialSupported
+    );
+  }
+
   private rootTitleBar(): HdsNavigationTitleBarOptions {
     if (this.selectedRoot === RootDestination.HOME) {
-      return NavigationChrome.rootTitleBar({
+      return this.appRootTitleBar({
         title: { mainTitle: '' },
         backIcon: {
           label: '打开站点链接侧边栏',
@@ -3312,7 +3404,7 @@ struct Index {
     }
 
     if (this.selectedRoot === RootDestination.CHAT) {
-      return NavigationChrome.rootTitleBar({
+      return this.appRootTitleBar({
         title: { mainTitle: '' },
         subIcon: {
           content: {
@@ -3338,7 +3430,7 @@ struct Index {
     }
 
     if (this.selectedRoot === RootDestination.NOTIFICATIONS) {
-      return NavigationChrome.rootTitleBar({
+      return this.appRootTitleBar({
         title: { mainTitle: '' },
         subIcon: {
           content: {
@@ -3381,7 +3473,7 @@ struct Index {
       });
     }
 
-    return NavigationChrome.rootTitleBar({
+    return this.appRootTitleBar({
       title: { mainTitle: '' },
       subIcon: {
         content: {
@@ -3400,7 +3492,9 @@ struct Index {
       this.chatChannelState.refreshing.toString(),
       this.notificationState.refreshing.toString(),
       this.notificationState.markingAllRead.toString(),
-      (this.accountIdentity?.unreadNotifications ?? 0).toString()
+      (this.accountIdentity?.unreadNotifications ?? 0).toString(),
+      this.materialPreference,
+      this.immersiveMaterialSupported.toString()
     ].join(':');
   }
 
@@ -3714,10 +3808,10 @@ struct Index {
       barSideMargin: 12,
       barBottomMargin: 28,
       adaptToHandedness: true,
-      systemMaterialEffect: {
-        materialType: hdsMaterial.MaterialType.ADAPTIVE,
-        materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE
-      }
+      systemMaterialEffect: appMaterialEffect(
+        this.materialPreference,
+        this.immersiveMaterialSupported
+      )
     })
     .onContentWillChange((_currentIndex: number, comingIndex: number): boolean => {
       return rootDestinationForTabIndex(comingIndex) !== null;
@@ -3745,7 +3839,8 @@ struct Index {
         ],
         darkMode: this.usesDarkChrome(this.appThemeMode),
         hideBackButton: this.selectedRoot !== RootDestination.HOME,
-        dynamicTitleBarOnScroll: this.selectedRoot === RootDestination.HOME,
+        dynamicTitleBarOnScroll: this.immersiveBrowsingEnabled &&
+          this.selectedRoot === RootDestination.HOME,
         titleBarRevision: this.rootTitleBarRevision(),
         titleBarOptions: (): HdsNavigationTitleBarOptions => {
           return this.rootTitleBar();

@@ -1,6 +1,5 @@
 import { window } from '@kit.ArkUI';
 import {
-  hdsMaterial,
   HdsNavDestination,
   HdsNavDestinationTitleMode,
   HdsNavigation,
@@ -13,6 +12,8 @@ import {
   TitleBarContentOptions
 } from '@kit.UIDesignKit';
 import { AppSystemBarPalette } from '../settings/AppThemeSettings';
+import { AppMaterialPreference } from '../settings/AppBehaviorSettings';
+import { appMaterialEffect } from '../settings/AppMaterialPolicy';
 
 export enum PageSurface {
   STANDARD = 'standard',
@@ -31,7 +32,9 @@ export class NavigationChrome {
 
   public static rootTitleBar(
     content: TitleBarContentOptions,
-    surface: PageSurface = PageSurface.STANDARD
+    surface: PageSurface = PageSurface.STANDARD,
+    materialPreference: AppMaterialPreference = AppMaterialPreference.SYSTEM,
+    immersiveMaterialSupported: boolean = false
   ): HdsNavigationTitleBarOptions {
     const backgroundColor: ResourceColor = surface === PageSurface.MEDIA
       ? $r('app.color.image_viewer_surface')
@@ -45,10 +48,7 @@ export class NavigationChrome {
           enableScrollEffect: false,
           scrollEffectType: ScrollEffectType.GRADIENT_BLUR
         },
-        systemMaterialEffect: {
-          materialType: hdsMaterial.MaterialType.ADAPTIVE,
-          materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE
-        },
+        systemMaterialEffect: appMaterialEffect(materialPreference, immersiveMaterialSupported),
         originalStyle: {
           backgroundStyle: {
             backgroundColor,
@@ -97,7 +97,9 @@ export class NavigationChrome {
     title: ResourceStr,
     surface: PageSurface,
     backLabel: ResourceStr,
-    menu: HdsNavigationMenuContentOptions = { value: [] }
+    menu: HdsNavigationMenuContentOptions = { value: [] },
+    materialPreference: AppMaterialPreference = AppMaterialPreference.SYSTEM,
+    immersiveMaterialSupported: boolean = false
   ): HdsNavigationTitleBarOptions {
     const backgroundColor: ResourceColor = surface === PageSurface.MEDIA
       ? $r('app.color.image_viewer_surface')
@@ -121,10 +123,7 @@ export class NavigationChrome {
           enableScrollEffect: false,
           scrollEffectType: ScrollEffectType.GRADIENT_BLUR
         },
-        systemMaterialEffect: {
-          materialType: hdsMaterial.MaterialType.ADAPTIVE,
-          materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE
-        },
+        systemMaterialEffect: appMaterialEffect(materialPreference, immersiveMaterialSupported),
         originalStyle: {
           backgroundStyle: {
             backgroundColor,
@@ -174,10 +173,14 @@ export struct RootPageShell {
   @Prop hideBackButton: boolean = true;
   @Prop dynamicTitleBarOnScroll: boolean = false;
   @Prop titleBarRevision: string = '';
+  @StorageProp('riverside_material_preference')
+  materialPreference: AppMaterialPreference = AppMaterialPreference.SYSTEM;
+  @StorageProp('riverside_immersive_material_supported')
+  immersiveMaterialSupported: boolean = false;
   titleBarOptions: () => HdsNavigationTitleBarOptions = (): HdsNavigationTitleBarOptions => {
     return NavigationChrome.rootTitleBar({
       title: { mainTitle: '' }
-    });
+    }, PageSurface.STANDARD, this.materialPreference, this.immersiveMaterialSupported);
   };
 
   @Builder
@@ -235,6 +238,10 @@ export struct DestinationPageShell {
   @Prop surface: PageSurface = PageSurface.STANDARD;
   @Prop dynamicTitleBarOnScroll: boolean = false;
   @Prop menu: HdsNavigationMenuContentOptions = { value: [] };
+  @StorageProp('riverside_material_preference')
+  materialPreference: AppMaterialPreference = AppMaterialPreference.SYSTEM;
+  @StorageProp('riverside_immersive_material_supported')
+  immersiveMaterialSupported: boolean = false;
   scrollables: Array<Scroller> = [];
   onBackPressed: () => boolean = (): boolean => false;
   onShown: () => void = (): void => {};
@@ -254,7 +261,9 @@ export struct DestinationPageShell {
       this.title,
       this.surface,
       this.backLabel,
-      this.menu
+      this.menu,
+      this.materialPreference,
+      this.immersiveMaterialSupported
     ))
     .systemBarStyle(
       NavigationChrome.statusBarStyle(this.darkMode, this.surface),
