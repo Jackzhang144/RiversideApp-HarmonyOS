@@ -8,7 +8,6 @@ export enum AppThemeMode {
 
 export class AppSystemBarPalette {
   public static readonly transparent: string = '#00000000';
-  public static readonly lightContentBackground: string = '#F1F3F5';
   public static readonly darkContent: string = '#F5F5F5';
   public static readonly lightStatusContent: string = '#1F1F1F';
   public static readonly lightNavigationContent: string = '#606060';

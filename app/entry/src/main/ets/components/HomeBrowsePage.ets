@@ -16,6 +16,8 @@ export struct HomeBrowsePage {
   onLoadMore: () => void = (): void => {};
   onOpenTopic: (topic: Topic) => void = (_topic: Topic): void => {};
   onWorldCupEntryChange: (enabled: boolean) => void = (_enabled: boolean): void => {};
+  onBrowseScroll: (scrollOffset: number, scrollState: ScrollState) => void =
+    (_scrollOffset: number, _scrollState: ScrollState): void => {};
 
   @Builder
   private loadingState(): void {
@@ -163,6 +165,7 @@ export struct HomeBrowsePage {
       .clip(false)
       .cachedCount(3, true)
       .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
+      .onDidScroll(this.onBrowseScroll)
       .onReachEnd(this.onLoadMore)
     }
     .width('100%')

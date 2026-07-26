@@ -3,6 +3,7 @@ import { webview } from '@kit.ArkWeb';
 import { BusinessError, pasteboard } from '@kit.BasicServicesKit';
 import {
   hdsMaterial,
+  HdsAnimationMode,
   HdsNavDestination,
   HdsNavigationTitleBarOptions,
   HdsSnackBar,
@@ -79,6 +80,10 @@ import {
   SecondaryDestination
 } from '../app/ShellNavigationModels';
 import { PresenceHeartbeat } from '../app/PresenceHeartbeat';
+import {
+  BrowseChromeScrollBehavior,
+  BrowseChromeScrollIntent
+} from '../app/BrowseChromeScrollBehavior';
 import { runStartupRequestSequence, StartupRequestTasks } from '../app/StartupRequestSequence';
 import {
   ChatChannelState,
@@ -198,6 +203,8 @@ import {
 } from '../settings/AppThemeSettings';
 
 const ROOT_TAB_SELECTED_COLOR: ResourceColor = $r('app.color.brand_primary');
+const HOME_TOPIC_COMPOSER_ANIMATION_DURATION: number = 220;
+const HOME_TOPIC_COMPOSER_HIDDEN_OFFSET: number = 80;
 
 enum HomeHeaderSheetKind {
   CHANNEL = 'channel',
@@ -244,6 +251,7 @@ struct Index {
   @State selectedRoot: RootDestination = RootDestination.HOME;
   @State homeState: BrowseState<Topic> = BrowseState.initial<Topic>();
   @State selectedHomeChannel: HomeChannel = HomeChannel.LATEST_REPLIES;
+  @State homeBrowseChromeVisible: boolean = true;
   @State homeHeaderSheetVisible: boolean = false;
   @State homeHeaderSheetKind: HomeHeaderSheetKind = HomeHeaderSheetKind.CHANNEL;
   @State appThemeMode: AppThemeMode = AppThemeMode.SYSTEM;
@@ -293,6 +301,41 @@ struct Index {
   private accountIdentityRequestVersion: number = 0;
   private appForeground: boolean = false;
   private chatConversationVisible: boolean = false;
+  private readonly browseChromeScrollBehavior: BrowseChromeScrollBehavior = new BrowseChromeScrollBehavior();
+
+  private handleHomeBrowseScroll(scrollOffset: number, scrollState: ScrollState): void {
+    const intent: BrowseChromeScrollIntent = this.browseChromeScrollBehavior.observe(
+      scrollOffset,
+      scrollState !== ScrollState.Idle
+    );
+    if (intent === BrowseChromeScrollIntent.HIDE) {
+      this.setHomeBrowseChromeVisible(false);
+    } else if (intent === BrowseChromeScrollIntent.SHOW) {
+      this.setHomeBrowseChromeVisible(true);
+    }
+  }
+
+  private restoreBrowseChrome(): void {
+    this.browseChromeScrollBehavior.reset();
+    this.setHomeBrowseChromeVisible(true);
+  }
+
+  private setHomeBrowseChromeVisible(visible: boolean): void {
+    if (this.homeBrowseChromeVisible === visible) {
+      return;
+    }
+    this.homeBrowseChromeVisible = visible;
+    if (visible) {
+      this.tabsController.applyShowAnimation(HdsAnimationMode.SCROLL_ANIMATION);
+      return;
+    }
+    this.tabsController.applyHideAnimation(HdsAnimationMode.SCROLL_ANIMATION);
+  }
+
+  private pushSecondaryPath(name: string): void {
+    this.restoreBrowseChrome();
+    this.pathStack.pushPath({ name });
+  }
 
   private topAvoidHeight(): number {
     const statusBarBottom: number =
@@ -315,6 +358,7 @@ struct Index {
 
   onPageShow(): void {
     this.foregroundVisible = true;
+    this.restoreBrowseChrome();
     const abilityContext: common.UIAbilityContext | null = AbilityContextRegistry.current();
     if (abilityContext !== null) {
       this.applySystemBarTheme(abilityContext, this.appThemeMode);
@@ -327,6 +371,7 @@ struct Index {
 
   onPageHide(): void {
     this.foregroundVisible = false;
+    this.restoreBrowseChrome();
     this.synchronizePresenceHeartbeat();
     this.appForeground = false;
     this.synchronizeChatPolling();
@@ -334,6 +379,7 @@ struct Index {
 
   aboutToDisappear(): void {
     this.foregroundVisible = false;
+    this.restoreBrowseChrome();
     this.presenceHeartbeat?.dispose();
     this.chatPollingController?.destroy();
     this.chatPollingController = null;
@@ -640,9 +686,7 @@ struct Index {
     try {
       const mainWindow: window.Window = await window.getLastWindow(abilityContext);
       await mainWindow.setWindowSystemBarProperties({
-        statusBarColor: dark
-          ? AppSystemBarPalette.transparent
-          : AppSystemBarPalette.lightContentBackground,
+        statusBarColor: AppSystemBarPalette.transparent,
         navigationBarColor: AppSystemBarPalette.transparent,
         statusBarContentColor: dark ? AppSystemBarPalette.darkContent : AppSystemBarPalette.lightStatusContent,
         navigationBarContentColor: dark
@@ -691,7 +735,7 @@ struct Index {
       this.searchState = model.discovery.searchState;
       this.searchSuggestionState = model.discovery.searchSuggestionState;
     }
-    this.pathStack.pushPath({ name: SEARCH_ROUTE });
+    this.pushSecondaryPath(SEARCH_ROUTE);
   }
 
   private async searchForum(query: string): Promise<void> {
@@ -768,6 +812,7 @@ struct Index {
       if (!model.selectRootTab(index)) {
         return;
       }
+      this.restoreBrowseChrome();
       this.selectedRoot = model.selectedRoot;
       if (this.selectedRoot === RootDestination.CHAT) {
         this.loadChatChannels();
@@ -780,6 +825,7 @@ struct Index {
     if (destination === null) {
       return;
     }
+    this.restoreBrowseChrome();
     this.selectedRoot = destination;
     if (this.selectedRoot === RootDestination.CHAT) {
       this.loadChatChannels();
@@ -952,7 +998,7 @@ struct Index {
     const task: Promise<void> = model.openChannel(channel);
     this.chatUploadState = null;
     this.synchronizeChatState();
-    this.pathStack.pushPath({ name: CHAT_CONVERSATION_ROUTE });
+    this.pushSecondaryPath(CHAT_CONVERSATION_ROUTE);
     await Promise.all([task, model.loadEmojis()]);
     this.synchronizeChatState();
   }
@@ -966,7 +1012,7 @@ struct Index {
     const task: Promise<void> = model.openChannelAt(result.channel, result.message.id);
     this.chatUploadState = null;
     this.synchronizeChatState();
-    this.pathStack.pushPath({ name: CHAT_CONVERSATION_ROUTE });
+    this.pushSecondaryPath(CHAT_CONVERSATION_ROUTE);
     await Promise.all([task, model.loadEmojis()]);
     this.synchronizeChatState();
   }
@@ -1175,7 +1221,7 @@ struct Index {
     const opened: boolean = await task;
     this.synchronizeChatState();
     if (opened) {
-      this.pathStack.pushPath({ name: CHAT_CONVERSATION_ROUTE });
+      this.pushSecondaryPath(CHAT_CONVERSATION_ROUTE);
       await model.loadEmojis();
       this.synchronizeChatState();
     } else {
@@ -1247,7 +1293,7 @@ struct Index {
     const task: Promise<void> = model.navigateToCategory(category);
     this.categoryTitle = category.name;
     this.categoryTopicsState = model.categories.topicsState;
-    this.pathStack.pushPath({ name: CATEGORY_TOPICS_ROUTE });
+    this.pushSecondaryPath(CATEGORY_TOPICS_ROUTE);
     await task;
     this.categoryTopicsState = model.categories.topicsState;
   }
@@ -1283,7 +1329,7 @@ struct Index {
     const task: Promise<void> = model.openTopic(topic, initialPostNumber);
     this.synchronizeTopicState(model);
     this.synchronizeReplyState(model, false);
-    this.pathStack.pushPath({ name: TOPIC_ROUTE });
+    this.pushSecondaryPath(TOPIC_ROUTE);
     await task;
     this.synchronizeTopicState(model);
     this.synchronizeReplyState(model);
@@ -1317,7 +1363,7 @@ struct Index {
     this.profileIsOwn = ownProfile;
     this.profileState = ProfileViewState.loading();
     this.profileMediaState = null;
-    this.pathStack.pushPath({ name: USER_PROFILE_ROUTE });
+    this.pushSecondaryPath(USER_PROFILE_ROUTE);
     this.loadSelectedUserProfile();
   }
 
@@ -1344,7 +1390,7 @@ struct Index {
     this.richEmbedProvider = provider;
     this.richEmbedTitle = title;
     this.richEmbedController = new webview.WebviewController();
-    this.pathStack.pushPath({ name: RICH_EMBED_ROUTE });
+    this.pushSecondaryPath(RICH_EMBED_ROUTE);
   }
 
   private handleRichEmbedBack(): boolean {
@@ -1396,7 +1442,7 @@ struct Index {
       return;
     }
     this.imageViewerState = ImageViewerState.preparing(normalizedUrl, title);
-    this.pathStack.pushPath({ name: IMAGE_VIEWER_ROUTE });
+    this.pushSecondaryPath(IMAGE_VIEWER_ROUTE);
     const service: MediaGalleryService | null = this.mediaGalleryService;
     if (service === null) {
       this.imageViewerState = this.imageViewerState.failed('图片保存服务不可用');
@@ -1778,7 +1824,7 @@ struct Index {
     model.topicAuthoring.openNew();
     this.composerMediaState = null;
     this.topicComposerState = model.topicAuthoring.state;
-    this.pathStack.pushPath({ name: TOPIC_COMPOSER_ROUTE });
+    this.pushSecondaryPath(TOPIC_COMPOSER_ROUTE);
     await model.topicAuthoring.restoreDraft();
     this.topicComposerState = model.topicAuthoring.state;
   }
@@ -1808,7 +1854,7 @@ struct Index {
     if (model.topicAuthoring.editingTopicId !== null) {
       this.composerMediaState = null;
       this.topicComposerState = model.topicAuthoring.state;
-      this.pathStack.pushPath({ name: TOPIC_COMPOSER_ROUTE });
+      this.pushSecondaryPath(TOPIC_COMPOSER_ROUTE);
       return;
     }
     this.synchronizeReplyState(model, true);
@@ -2010,6 +2056,7 @@ struct Index {
   }
 
   private handleSecondaryBack(): boolean {
+    this.restoreBrowseChrome();
     const model: AppShellModel | null = this.model;
     if (model !== null) {
       const closingTopic: boolean = model.activeDestination === SecondaryDestination.TOPIC;
@@ -2036,17 +2083,17 @@ struct Index {
     ) {
       return;
     }
-    this.pathStack.pushPath({ name: LOGIN_ROUTE });
+    this.pushSecondaryPath(LOGIN_ROUTE);
     await this.beginAuthorization();
   }
 
   private openAccountPlaceholder(kind: AccountPlaceholderKind): void {
     if (kind === AccountPlaceholderKind.APP_SETTINGS) {
-      this.pathStack.pushPath({ name: APP_SETTINGS_ROUTE });
+      this.pushSecondaryPath(APP_SETTINGS_ROUTE);
       return;
     }
     if (kind === AccountPlaceholderKind.ABOUT_RIVERSIDE) {
-      this.pathStack.pushPath({ name: ABOUT_ROUTE });
+      this.pushSecondaryPath(ABOUT_ROUTE);
       return;
     }
     const profile = this.accountProfileState.profile;
@@ -2076,7 +2123,7 @@ struct Index {
     this.profileContentUsername = normalizedUsername;
     this.profileContentOwn = ownProfile;
     this.profileContentState = new ProfileContentState(kind, true);
-    this.pathStack.pushPath({ name: PROFILE_CONTENT_ROUTE });
+    this.pushSecondaryPath(PROFILE_CONTENT_ROUTE);
     this.loadProfileContent();
   }
 
@@ -2175,7 +2222,7 @@ struct Index {
     if (!this.profileIsOwn || this.profileState.profile === null) {
       return;
     }
-    this.pathStack.pushPath({ name: PROFILE_EDITOR_ROUTE });
+    this.pushSecondaryPath(PROFILE_EDITOR_ROUTE);
   }
 
   private async saveProfile(name: string, title: string, bio: string, location: string): Promise<void> {
@@ -2305,7 +2352,7 @@ struct Index {
       }
       this.composerMediaState = null;
       this.topicComposerState = model.topicAuthoring.state;
-      this.pathStack.pushPath({ name: TOPIC_COMPOSER_ROUTE });
+      this.pushSecondaryPath(TOPIC_COMPOSER_ROUTE);
       return;
     }
     await this.openTopic(new Topic(
@@ -2539,6 +2586,7 @@ struct Index {
         title: APP_TOPIC_DETAIL_TITLE,
         backLabel: BACK_TO_TOPIC_LIST_LABEL,
         darkMode: this.usesDarkChrome(this.appThemeMode),
+        dynamicTitleBarOnScroll: true,
         scrollables: [this.topicScroller],
         onBackPressed: (): boolean => this.handleSecondaryBack()
       }) {
@@ -3081,7 +3129,7 @@ struct Index {
             }
           }]
         }
-      });
+      }, PageSurface.STANDARD);
     }
 
     let title: ResourceStr = $r('app.string.account_title');
@@ -3283,7 +3331,15 @@ struct Index {
     .borderRadius(24)
     .backgroundColor($r('app.color.brand_primary'))
     .shadow(ShadowStyle.OUTER_DEFAULT_MD)
-    .enabled(this.canCreateAuthoringTopic())
+    .translate({ x: this.homeBrowseChromeVisible ? 0 : HOME_TOPIC_COMPOSER_HIDDEN_OFFSET })
+    .animation({
+      duration: HOME_TOPIC_COMPOSER_ANIMATION_DURATION,
+      curve: Curve.EaseOut
+    })
+    .hitTestBehavior(
+      this.homeBrowseChromeVisible ? HitTestMode.Default : HitTestMode.Transparent
+    )
+    .enabled(this.homeBrowseChromeVisible && this.canCreateAuthoringTopic())
     .onClick((): void => {
       this.openNewTopic();
     })
@@ -3311,6 +3367,9 @@ struct Index {
               },
               onLoadMore: (): void => {
                 this.loadMoreHome();
+              },
+              onBrowseScroll: (scrollOffset: number, scrollState: ScrollState): void => {
+                this.handleHomeBrowseScroll(scrollOffset, scrollState);
               },
               onOpenTopic: (topic: Topic): void => {
                 this.openTopic(topic);
@@ -3444,6 +3503,7 @@ struct Index {
         ],
         darkMode: this.usesDarkChrome(this.appThemeMode),
         hideBackButton: this.selectedRoot !== RootDestination.HOME,
+        dynamicTitleBarOnScroll: this.selectedRoot === RootDestination.HOME,
         titleBarRevision: this.rootTitleBarRevision(),
         titleBarOptions: (): HdsNavigationTitleBarOptions => {
           return this.rootTitleBar();

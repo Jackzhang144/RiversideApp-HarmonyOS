@@ -72,9 +72,7 @@ export default class EntryAbility extends UIAbility {
         const dark: boolean = this.restoredThemeMode === AppThemeMode.DARK ||
           (this.restoredThemeMode === AppThemeMode.SYSTEM && systemDark);
         const systemBarProperties: window.SystemBarProperties = {
-          statusBarColor: dark
-            ? AppSystemBarPalette.transparent
-            : AppSystemBarPalette.lightContentBackground,
+          statusBarColor: AppSystemBarPalette.transparent,
           navigationBarColor: AppSystemBarPalette.transparent,
           statusBarContentColor: dark
             ? AppSystemBarPalette.darkContent

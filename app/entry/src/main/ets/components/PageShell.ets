@@ -6,6 +6,7 @@ import {
   HdsNavigation,
   HdsNavigationTitleBarOptions,
   HdsNavigationTitleMode,
+  HideMode,
   ScrollEffectType,
   TextStyleMode,
   TitleBarContentOptions
@@ -50,7 +51,7 @@ export class NavigationChrome {
         originalStyle: {
           backgroundStyle: {
             backgroundColor,
-            maskExtraHeight: 32,
+            maskExtraHeight: 0,
             blurRadius: 12
           },
           contentStyle: {
@@ -70,7 +71,7 @@ export class NavigationChrome {
         scrollEffectStyle: {
           backgroundStyle: {
             backgroundColor,
-            maskExtraHeight: 32,
+            maskExtraHeight: 0,
             blurRadius: 12
           },
           contentStyle: {
@@ -124,7 +125,7 @@ export class NavigationChrome {
         originalStyle: {
           backgroundStyle: {
             backgroundColor,
-            maskExtraHeight: 32,
+            maskExtraHeight: 0,
             blurRadius: 12
           },
           contentStyle: {
@@ -139,7 +140,7 @@ export class NavigationChrome {
         scrollEffectStyle: {
           backgroundStyle: {
             backgroundColor,
-            maskExtraHeight: 32,
+            maskExtraHeight: 0,
             blurRadius: 12
           },
           contentStyle: {
@@ -168,6 +169,7 @@ export struct RootPageShell {
   scrollables: Array<Scroller> = [];
   @Prop darkMode: boolean = false;
   @Prop hideBackButton: boolean = true;
+  @Prop dynamicTitleBarOnScroll: boolean = false;
   @Prop titleBarRevision: string = '';
   titleBarOptions: () => HdsNavigationTitleBarOptions = (): HdsNavigationTitleBarOptions => {
     return NavigationChrome.rootTitleBar({
@@ -202,6 +204,12 @@ export struct RootPageShell {
     )
     .titleMode(HdsNavigationTitleMode.MINI)
     .hideTitleBar(false)
+    .dynamicHideTitleBar({
+      hideTitleArea: this.dynamicTitleBarOnScroll,
+      hideStatusBar: this.dynamicTitleBarOnScroll,
+      mode: HideMode.SCROLL_UP,
+      hideRatio: 1
+    })
     .hideBackButton(this.hideBackButton)
     .navDestination(this.destinationBuilder)
     .bindToScrollable(this.scrollables)
@@ -222,6 +230,7 @@ export struct DestinationPageShell {
   @Prop backLabel: ResourceStr = '';
   @Prop darkMode: boolean = false;
   @Prop surface: PageSurface = PageSurface.STANDARD;
+  @Prop dynamicTitleBarOnScroll: boolean = false;
   scrollables: Array<Scroller> = [];
   onBackPressed: () => boolean = (): boolean => false;
   onShown: () => void = (): void => {};
@@ -248,6 +257,12 @@ export struct DestinationPageShell {
     )
     .titleMode(HdsNavDestinationTitleMode.MINI)
     .bindToScrollable(this.scrollables)
+    .dynamicHideTitleBar({
+      hideTitleArea: this.dynamicTitleBarOnScroll,
+      hideStatusBar: this.dynamicTitleBarOnScroll,
+      mode: HideMode.SCROLL_UP,
+      hideRatio: 1
+    })
     .backgroundColor(NavigationChrome.pageBackground(this.surface))
     .onShown(this.onShown)
     .onHidden(this.onHidden)

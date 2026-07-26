@@ -47,8 +47,10 @@ import presenceHeartbeatTest from './PresenceHeartbeat.test';
 import forumPlainTextTest from './ForumPlainText.test';
 import riversideEnvironmentTest from './RiversideEnvironment.test';
 import startupRequestSequenceTest from './StartupRequestSequence.test';
+import browseChromeScrollBehaviorTest from './BrowseChromeScrollBehavior.test';
 
 export default function tests(): void {
+  browseChromeScrollBehaviorTest();
   startupRequestSequenceTest();
   categoryBrowsePresentationTest();
   riversideEnvironmentTest();
