@@ -1,5 +1,9 @@
 import { Category, Topic } from './ForumModels';
 import { forumPlainText, ForumPlainTextContext } from '../core/ForumPlainText';
+import {
+  absoluteDiscourseFlairUrl,
+  normalizedDiscourseFlairColor
+} from '../core/DiscourseFlair';
 
 export enum HomeChannel {
   LATEST_REPLIES = 0,
@@ -91,12 +95,29 @@ export class SearchUser {
   public readonly username: string;
   public readonly name: string;
   public readonly avatarTemplate: string;
+  public readonly flairName: string;
+  public readonly flairUrl: string;
+  public readonly flairBackgroundColor: string;
+  public readonly flairColor: string;
 
-  public constructor(id: number, username: string, name: string, avatarTemplate: string) {
+  public constructor(
+    id: number,
+    username: string,
+    name: string,
+    avatarTemplate: string,
+    flairName: string = '',
+    flairUrl: string = '',
+    flairBackgroundColor: string = '',
+    flairColor: string = ''
+  ) {
     this.id = id;
     this.username = username.trim();
     this.name = name.trim();
     this.avatarTemplate = avatarTemplate.trim();
+    this.flairName = flairName.trim();
+    this.flairUrl = absoluteDiscourseFlairUrl(flairUrl);
+    this.flairBackgroundColor = normalizedDiscourseFlairColor(flairBackgroundColor);
+    this.flairColor = normalizedDiscourseFlairColor(flairColor);
   }
 
   public get displayName(): string {

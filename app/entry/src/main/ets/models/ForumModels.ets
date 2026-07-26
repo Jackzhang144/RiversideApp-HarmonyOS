@@ -1,5 +1,9 @@
 import { forumPostPlainText } from '../core/ForumPlainText';
 import { RIVERSIDE_URL_RESOLVER } from '../core/RiversideEnvironment';
+import {
+  absoluteDiscourseFlairUrl,
+  normalizedDiscourseFlairColor
+} from '../core/DiscourseFlair';
 
 export class Topic {
   public readonly id: number;
@@ -180,6 +184,9 @@ export class ForumPostMetadata {
   public readonly postType: number;
   public readonly actionCode: string;
   public readonly replyCount: number;
+  public readonly flairName: string;
+  public readonly flairBackgroundColor: string;
+  public readonly flairColor: string;
 
   public constructor(
     userTitle: string = '',
@@ -199,7 +206,10 @@ export class ForumPostMetadata {
     bookmarkId: number | null = null,
     postType: number = 1,
     actionCode: string = '',
-    replyCount: number = 0
+    replyCount: number = 0,
+    flairName: string = '',
+    flairBackgroundColor: string = '',
+    flairColor: string = ''
   ) {
     this.userTitle = userTitle;
     this.avatarUrl = avatarUrl;
@@ -219,6 +229,9 @@ export class ForumPostMetadata {
     this.postType = postType;
     this.actionCode = actionCode;
     this.replyCount = Math.max(0, replyCount);
+    this.flairName = flairName.trim();
+    this.flairBackgroundColor = normalizedDiscourseFlairColor(flairBackgroundColor);
+    this.flairColor = normalizedDiscourseFlairColor(flairColor);
   }
 }
 
@@ -250,6 +263,9 @@ export class ForumPost {
   public readonly postType: number;
   public readonly actionCode: string;
   public readonly replyCount: number;
+  public readonly flairName: string;
+  public readonly flairBackgroundColor: string;
+  public readonly flairColor: string;
 
   public constructor(
     id: number,
@@ -273,7 +289,7 @@ export class ForumPost {
     this.createdAt = createdAt;
     this.userTitle = metadata.userTitle;
     this.avatarUrl = absoluteForumAvatarUrl(metadata.avatarUrl);
-    this.flairUrl = metadata.flairUrl;
+    this.flairUrl = absoluteDiscourseFlairUrl(metadata.flairUrl);
     this.replyToUsername = metadata.replyToUsername;
     this.replyToAvatarUrl = metadata.replyToAvatarUrl === null
       ? null
@@ -291,6 +307,9 @@ export class ForumPost {
     this.postType = metadata.postType;
     this.actionCode = metadata.actionCode;
     this.replyCount = metadata.replyCount;
+    this.flairName = metadata.flairName;
+    this.flairBackgroundColor = metadata.flairBackgroundColor;
+    this.flairColor = metadata.flairColor;
   }
 
   public isSystemAction(): boolean {
@@ -353,7 +372,10 @@ export class ForumPost {
         this.bookmarkId,
         this.postType,
         this.actionCode,
-        this.replyCount
+        this.replyCount,
+        this.flairName,
+        this.flairBackgroundColor,
+        this.flairColor
       )
     );
   }
@@ -386,7 +408,10 @@ export class ForumPost {
         bookmarkId,
         this.postType,
         this.actionCode,
-        this.replyCount
+        this.replyCount,
+        this.flairName,
+        this.flairBackgroundColor,
+        this.flairColor
       )
     );
   }
@@ -419,7 +444,10 @@ export class ForumPost {
         this.bookmarkId,
         this.postType,
         this.actionCode,
-        this.replyCount
+        this.replyCount,
+        this.flairName,
+        this.flairBackgroundColor,
+        this.flairColor
       )
     );
   }
@@ -452,7 +480,10 @@ export class ForumPost {
         this.bookmarkId,
         this.postType,
         this.actionCode,
-        this.replyCount
+        this.replyCount,
+        this.flairName,
+        this.flairBackgroundColor,
+        this.flairColor
       )
     );
   }

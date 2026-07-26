@@ -1,5 +1,6 @@
 import { describe, expect, it } from '@ohos/hypium';
 import {
+  avatarFlairSize,
   avatarCornerRadius,
   avatarInitial,
   normalizedAvatarSize
@@ -15,6 +16,8 @@ export default function userAvatarPresentationTest(): void {
       expect(avatarCornerRadius(64)).assertEqual(14);
       expect(avatarCornerRadius(76)).assertEqual(17);
       expect(avatarCornerRadius(76) < 38).assertTrue();
+      expect(avatarFlairSize(36)).assertEqual(14);
+      expect(avatarFlairSize(76)).assertEqual(27);
     });
 
     it('normalizes invalid sizes and creates a stable fallback initial', 0, () => {

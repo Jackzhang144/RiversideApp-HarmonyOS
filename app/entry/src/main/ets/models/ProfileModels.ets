@@ -1,5 +1,9 @@
 import { forumPlainText, ForumPlainTextContext } from '../core/ForumPlainText';
 import { RIVERSIDE_URL_RESOLVER } from '../core/RiversideEnvironment';
+import {
+  absoluteDiscourseFlairUrl,
+  normalizedDiscourseFlairColor
+} from '../core/DiscourseFlair';
 const VERIFIED_GROUP_NAMES: Array<string> = [
   'verified_uestcer',
   'scuer',
@@ -23,7 +27,7 @@ export class ProfileGroup {
     this.id = Number.isSafeInteger(id) && id > 0 ? id : 0;
     this.name = name.trim();
     this.displayName = displayName.trim();
-    this.flairUrl = absoluteProfileUrl(flairUrl);
+    this.flairUrl = absoluteDiscourseFlairUrl(flairUrl);
   }
 }
 
@@ -58,6 +62,9 @@ export interface UserProfileAttributes {
   flairGroupId?: number | null;
   primaryGroupName?: string;
   flairGroupName?: string;
+  flairUrl?: string;
+  flairBackgroundColor?: string;
+  flairColor?: string;
   trustLevel?: number;
   admin?: boolean;
   moderator?: boolean;
@@ -96,6 +103,9 @@ export class UserProfile {
   public readonly flairGroupId: number | null;
   public readonly primaryGroupName: string;
   public readonly flairGroupName: string;
+  public readonly flairUrl: string;
+  public readonly flairBackgroundColor: string;
+  public readonly flairColor: string;
   public readonly trustLevel: number;
   public readonly admin: boolean;
   public readonly moderator: boolean;
@@ -134,6 +144,9 @@ export class UserProfile {
     this.flairGroupId = attributes.flairGroupId ?? null;
     this.primaryGroupName = (attributes.primaryGroupName ?? '').trim();
     this.flairGroupName = (attributes.flairGroupName ?? '').trim();
+    this.flairUrl = absoluteDiscourseFlairUrl(attributes.flairUrl ?? '');
+    this.flairBackgroundColor = normalizedDiscourseFlairColor(attributes.flairBackgroundColor ?? '');
+    this.flairColor = normalizedDiscourseFlairColor(attributes.flairColor ?? '');
     this.trustLevel = Math.max(0, Math.trunc(attributes.trustLevel ?? 0));
     this.admin = attributes.admin === true;
     this.moderator = attributes.moderator === true;

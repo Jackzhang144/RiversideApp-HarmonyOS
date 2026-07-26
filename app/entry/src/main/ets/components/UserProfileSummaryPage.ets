@@ -210,7 +210,11 @@ export struct UserProfileSummaryPage {
           avatarUrl: profile.avatarUrl,
           displayName: profile.displayName,
           avatarSize: 76,
-          avatarAccessibilityText: `${profile.displayName} 的头像`
+          avatarAccessibilityText: `${profile.displayName} 的头像`,
+          flairUrl: profile.flairUrl,
+          flairName: profile.flairGroupName,
+          flairBackgroundColor: profile.flairBackgroundColor,
+          flairColor: profile.flairColor
         })
 
         Column({ space: 5 }) {

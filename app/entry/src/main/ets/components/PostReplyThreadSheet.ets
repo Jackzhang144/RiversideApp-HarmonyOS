@@ -21,7 +21,11 @@ export struct PostReplyThreadSheet {
       avatarUrl: post.avatarUrl,
       displayName: post.username,
       avatarSize: 38,
-      avatarAccessibilityText: `${post.username.length > 0 ? post.username : '匿名'} 的头像`
+      avatarAccessibilityText: `${post.username.length > 0 ? post.username : '匿名'} 的头像`,
+      flairUrl: post.flairUrl,
+      flairName: post.flairName,
+      flairBackgroundColor: post.flairBackgroundColor,
+      flairColor: post.flairColor
     })
   }
 

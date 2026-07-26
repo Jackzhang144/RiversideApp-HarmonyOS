@@ -3,6 +3,7 @@ import { JsonObjectReader } from '../core/JsonObjectReader';
 import { forumPlainText, ForumPlainTextContext } from '../core/ForumPlainText';
 import { Topic } from './ForumModels';
 import { RIVERSIDE_URL_RESOLVER } from '../core/RiversideEnvironment';
+import { absoluteDiscourseFlairUrl } from '../core/DiscourseFlair';
 
 export enum NotificationBucket {
   PRIVATE_MESSAGES = 'private-messages',
@@ -88,7 +89,7 @@ export class NotificationItem {
     this.actorUsername = forumPlainText(attributes.actorUsername ?? '', ForumPlainTextContext.NOTIFICATION);
     this.actorName = forumPlainText(attributes.actorName ?? '', ForumPlainTextContext.NOTIFICATION);
     this.avatarUrl = absoluteNotificationUrl(attributes.avatarUrl ?? '');
-    this.flairUrl = absoluteNotificationUrl(attributes.flairUrl ?? '');
+    this.flairUrl = absoluteDiscourseFlairUrl(attributes.flairUrl ?? '');
     this.reaction = forumPlainText(attributes.reaction ?? '', ForumPlainTextContext.NOTIFICATION).replace(/:/g, '');
   }
 

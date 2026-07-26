@@ -871,7 +871,8 @@ export struct ChatConversationPage {
           avatarUrl: item.message.avatarUrl,
           displayName: this.displayUsername(item.message),
           avatarSize: 32,
-          avatarAccessibilityText: `${this.displayUsername(item.message)} 的头像`
+          avatarAccessibilityText: `${this.displayUsername(item.message)} 的头像`,
+          showFlair: false
         })
         Column({ space: 5 }) {
           Text(this.displayUsername(item.message))
@@ -1369,6 +1370,7 @@ export struct ChatConversationPage {
         avatarSize: 32,
         interactive: true,
         avatarAccessibilityText: `查看用户 ${this.displayUsername(message)}`,
+        showFlair: false,
         onActivate: (): void => this.onOpenProfile(message.username)
       })
     } else {
@@ -1663,7 +1665,8 @@ export struct ChatConversationPage {
                 avatarUrl: absoluteChatUrl(user.avatarTemplate.replace('{size}', '48')),
                 displayName: user.name.length > 0 ? user.name : user.username,
                 avatarSize: 28,
-                avatarAccessibilityText: `${user.username} 的头像`
+                avatarAccessibilityText: `${user.username} 的头像`,
+                showFlair: false
               })
               Column({ space: 2 }) {
                 Text(`@${user.username}`).fontSize(13).fontWeight(FontWeight.Medium)

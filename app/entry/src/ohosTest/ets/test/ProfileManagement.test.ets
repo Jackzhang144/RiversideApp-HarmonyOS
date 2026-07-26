@@ -24,7 +24,9 @@ export default function profileManagementTest(): void {
         client.results.push(HttpTextResult.success(200,
           '{"user":{"id":24,"username":"member","name":"河畔成员","title":"校友",' +
           '"avatar_template":"/user_avatar/river-side.cc/member/{size}/1_2.png",' +
-          '"primary_group_id":45,"flair_group_id":50,"trust_level":3,' +
+          '"primary_group_id":45,"flair_group_id":50,"flair_name":"rs_developer",' +
+          '"flair_url":"/uploads/flair/developer.svg","flair_bg_color":"143C75",' +
+          '"flair_color":"FFFFFF","trust_level":3,' +
           '"groups":[{"id":45,"name":"scuer"},{"id":50,"name":"rs_developer"}],' +
           '"can_follow":true,"is_followed":true,"can_mute_user":true,"can_ignore_user":true,' +
           '"muted":false,"ignored":true,"can_upload_profile_header":true,' +
@@ -41,6 +43,10 @@ export default function profileManagementTest(): void {
         expect(result.data?.displayName).assertEqual('河畔成员');
         expect(result.data?.isVerified).assertTrue();
         expect(result.data?.groups.length).assertEqual(2);
+        expect(result.data?.flairGroupName).assertEqual('rs_developer');
+        expect(result.data?.flairUrl)
+          .assertEqual('https://river-side.cc/uploads/flair/developer.svg');
+        expect(result.data?.flairBackgroundColor).assertEqual('#143C75');
         expect(result.data?.following).assertTrue();
         expect(result.data?.notificationLevel).assertEqual(ProfileNotificationLevel.IGNORED);
         expect(result.data?.profileBackgroundUrl).assertEqual(

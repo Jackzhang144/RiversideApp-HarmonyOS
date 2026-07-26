@@ -149,7 +149,9 @@ export default function discourseForumRepositoryTest(): void {
           '{"posts":[{"id":103066,"username":"admin","blurb":"<b>河畔</b> 回复",' +
           '"post_number":2,"topic_id":2764,"created_at":"2026-01-28T02:24:17.848Z"}],' +
           '"topics":[{"id":2764,"title":"河畔公告","category_id":54,"posts_count":3}],' +
-          '"users":[{"id":38290,"username":"河畔流浪者","name":"河畔流浪者"}],' +
+          '"users":[{"id":38290,"username":"河畔流浪者","name":"河畔流浪者",' +
+          '"flair_name":"scuer","flair_url":"/uploads/flair/scuer.svg",' +
+          '"flair_bg_color":"25AAE2","flair_color":"FFFFFF"}],' +
           '"categories":[{"id":111,"name":"测试专用","color":"25AAE2","position":2}],' +
           '"tags":[{"id":"2-tag","name":"2-tag","topic_count":8}],' +
           '"groups":[{"id":50,"name":"rs_developer","full_name":"河畔开发者","user_count":8}],' +
@@ -164,6 +166,10 @@ export default function discourseForumRepositoryTest(): void {
         expect(result.data?.topics[0].id).assertEqual(2764);
         expect(result.data?.posts[0].displayText).assertEqual('河畔 回复');
         expect(result.data?.users[0].username).assertEqual('河畔流浪者');
+        expect(result.data?.users[0].flairName).assertEqual('scuer');
+        expect(result.data?.users[0].flairUrl)
+          .assertEqual('https://river-side.cc/uploads/flair/scuer.svg');
+        expect(result.data?.users[0].flairBackgroundColor).assertEqual('#25AAE2');
         expect(result.data?.categories[0].id).assertEqual(111);
         expect(result.data?.tags[0].name).assertEqual('2-tag');
         expect(result.data?.groups[0].fullName).assertEqual('河畔开发者');

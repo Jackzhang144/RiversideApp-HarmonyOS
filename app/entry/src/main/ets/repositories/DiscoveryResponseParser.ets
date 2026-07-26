@@ -109,7 +109,16 @@ export class DiscoveryResponseParser {
       const id: number | null = user?.number('id') ?? null;
       const username: string | null = user?.string('username') ?? null;
       if (user !== null && id !== null && username !== null && username.trim().length > 0) {
-        users.push(new SearchUser(id, username, user.string('name') ?? '', user.string('avatar_template') ?? ''));
+        users.push(new SearchUser(
+          id,
+          username,
+          user.string('name') ?? '',
+          user.string('avatar_template') ?? '',
+          user.string('flair_name') ?? '',
+          user.string('flair_url') ?? '',
+          user.string('flair_bg_color') ?? '',
+          user.string('flair_color') ?? ''
+        ));
       }
     }
 

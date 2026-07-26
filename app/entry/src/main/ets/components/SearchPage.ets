@@ -231,7 +231,11 @@ export struct SearchPage {
         avatarUrl: RIVERSIDE_URL_RESOLVER.avatar(user.avatarTemplate, 96),
         displayName: user.displayName,
         avatarSize: 38,
-        avatarAccessibilityText: `${user.displayName} 的头像`
+        avatarAccessibilityText: `${user.displayName} 的头像`,
+        flairUrl: user.flairUrl,
+        flairName: user.flairName,
+        flairBackgroundColor: user.flairBackgroundColor,
+        flairColor: user.flairColor
       })
       Column({ space: 2 }) {
         Text(user.displayName)

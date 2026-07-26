@@ -49,8 +49,10 @@ import riversideEnvironmentTest from './RiversideEnvironment.test';
 import startupRequestSequenceTest from './StartupRequestSequence.test';
 import browseChromeScrollBehaviorTest from './BrowseChromeScrollBehavior.test';
 import userAvatarPresentationTest from './UserAvatarPresentation.test';
+import discourseFlairTest from './DiscourseFlair.test';
 
 export default function tests(): void {
+  discourseFlairTest();
   userAvatarPresentationTest();
   browseChromeScrollBehaviorTest();
   startupRequestSequenceTest();

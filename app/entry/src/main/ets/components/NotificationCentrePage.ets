@@ -101,7 +101,8 @@ export struct NotificationCentrePage {
         avatarUrl: item.avatarUrl,
         displayName: item.actorDisplayName(),
         avatarSize: 36,
-        avatarAccessibilityText: `${item.actorDisplayName()} 的头像`
+        avatarAccessibilityText: `${item.actorDisplayName()} 的头像`,
+        flairUrl: item.flairUrl
       })
       Column({ space: 4 }) {
         Row({ space: 8 }) {

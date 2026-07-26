@@ -79,7 +79,11 @@ export struct ForumContentCard {
         avatarUrl: author.avatarUrl,
         displayName: author.name,
         avatarSize: 36,
-        avatarAccessibilityText: `${author.name} 的头像`
+        avatarAccessibilityText: `${author.name} 的头像`,
+        flairUrl: author.flairUrl,
+        flairName: author.flairName,
+        flairBackgroundColor: author.flairBackgroundColor,
+        flairColor: author.flairColor
       })
       Column({ space: 2 }) {
         Text(author.name)

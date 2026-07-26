@@ -26,19 +26,31 @@ export class ForumCardAuthor {
   public readonly timestamp: string;
   public readonly username: string;
   public readonly avatarUrl: string;
+  public readonly flairUrl: string;
+  public readonly flairName: string;
+  public readonly flairBackgroundColor: string;
+  public readonly flairColor: string;
 
   public constructor(
     name: string,
     initial: string,
     timestamp: string,
     username: string = '',
-    avatarUrl: string = ''
+    avatarUrl: string = '',
+    flairUrl: string = '',
+    flairName: string = '',
+    flairBackgroundColor: string = '',
+    flairColor: string = ''
   ) {
     this.name = name;
     this.initial = initial;
     this.timestamp = timestamp;
     this.username = username.trim();
     this.avatarUrl = avatarUrl.trim();
+    this.flairUrl = flairUrl.trim();
+    this.flairName = flairName.trim();
+    this.flairBackgroundColor = flairBackgroundColor.trim();
+    this.flairColor = flairColor.trim();
   }
 }
 
@@ -107,7 +119,11 @@ function postAuthor(post: ForumPost): ForumCardAuthor {
     authorBase.initial,
     displayTimestamp(post.createdAt),
     authorBase.username,
-    authorBase.avatarUrl
+    authorBase.avatarUrl,
+    post.flairUrl,
+    post.flairName,
+    post.flairBackgroundColor,
+    post.flairColor
   );
 }
 

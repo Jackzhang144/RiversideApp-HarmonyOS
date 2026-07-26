@@ -66,7 +66,10 @@ function forumPostFromReader(
     post.number('bookmark_id'),
     post.number('post_type') ?? 1,
     textOrEmpty(post.string('action_code')),
-    numberOrZero(post.number('reply_count'))
+    numberOrZero(post.number('reply_count')),
+    textOrEmpty(post.string('flair_name')),
+    textOrEmpty(post.string('flair_bg_color')),
+    textOrEmpty(post.string('flair_color'))
   );
   return new ForumPost(
     id,
