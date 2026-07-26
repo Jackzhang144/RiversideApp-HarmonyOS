@@ -55,6 +55,17 @@ export class DiscourseNotificationRepository implements NotificationRepository {
     return this.parseUserActivityResponse(response);
   }
 
+  public async markAllRead(): Promise<RepositoryResult<boolean>> {
+    const response: HttpTextResult = await this.client.put('/notifications/mark-read.json');
+    if (response.kind === HttpTextResultKind.UNAUTHORIZED) {
+      return RepositoryResult.unauthorized<boolean>();
+    }
+    if (!response.isSuccess()) {
+      return response.asRepositoryFailure<boolean>();
+    }
+    return RepositoryResult.success<boolean>(true);
+  }
+
   private async loadPrivateMessageItems(
     encodedUsername: string,
     page: number

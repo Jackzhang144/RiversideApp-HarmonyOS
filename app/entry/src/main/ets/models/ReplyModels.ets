@@ -178,6 +178,34 @@ export class CurrentUser {
       channel
     );
   }
+
+  public withUnreadNotifications(unreadNotifications: number): CurrentUser {
+    const normalizedUnreadNotifications: number =
+      Number.isInteger(unreadNotifications) && unreadNotifications >= 0
+        ? unreadNotifications
+        : this.unreadNotifications;
+    return new CurrentUser(
+      this.id,
+      this.username,
+      this.displayName,
+      this.title,
+      this.admin,
+      this.moderator,
+      this.trustLevel,
+      this.canCreatePost,
+      this.canChat,
+      this.canDirectMessage,
+      this.canChatWithUser,
+      normalizedUnreadNotifications,
+      this.groups,
+      this.groupIds,
+      this.primaryGroupId,
+      this.flairGroupId,
+      this.isVerified,
+      this.roleLabel,
+      this.defaultHomeChannel
+    );
+  }
 }
 
 export class ReplyRequest {

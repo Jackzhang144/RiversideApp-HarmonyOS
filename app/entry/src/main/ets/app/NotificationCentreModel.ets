@@ -22,6 +22,7 @@ export class NotificationCentreState {
   public readonly refreshing: boolean;
   public readonly loadingMore: boolean;
   public readonly message: string;
+  public readonly markingAllRead: boolean;
 
   public constructor(
     kind: NotificationCentreStateKind = NotificationCentreStateKind.INITIAL,
@@ -30,7 +31,8 @@ export class NotificationCentreState {
     hasMore: boolean = false,
     refreshing: boolean = false,
     loadingMore: boolean = false,
-    message: string = ''
+    message: string = '',
+    markingAllRead: boolean = false
   ) {
     this.kind = kind;
     this.bucket = bucket;
@@ -39,6 +41,7 @@ export class NotificationCentreState {
     this.refreshing = refreshing;
     this.loadingMore = loadingMore;
     this.message = message;
+    this.markingAllRead = markingAllRead;
   }
 
   public static loading(bucket: NotificationBucket): NotificationCentreState {
@@ -82,7 +85,10 @@ export class NotificationCentreState {
       this.bucket,
       this.items,
       this.hasMore,
-      true
+      true,
+      false,
+      '',
+      this.markingAllRead
     );
   }
 
@@ -93,7 +99,22 @@ export class NotificationCentreState {
       this.items,
       this.hasMore,
       false,
-      true
+      true,
+      '',
+      this.markingAllRead
+    );
+  }
+
+  public markingAllReadState(markingAllRead: boolean): NotificationCentreState {
+    return new NotificationCentreState(
+      this.kind,
+      this.bucket,
+      this.items,
+      this.hasMore,
+      this.refreshing,
+      this.loadingMore,
+      this.message,
+      markingAllRead
     );
   }
 }
@@ -169,7 +190,7 @@ export class NotificationCentreModel {
 
   public async refreshForForeground(username: string): Promise<void> {
     const normalizedUsername: string = username.trim();
-    if (normalizedUsername.length === 0) return;
+    if (normalizedUsername.length === 0 || this.state.markingAllRead) return;
     const bucket: NotificationBucket = this.state.bucket;
     this.requestVersion += 1;
     const requestVersion: number = this.requestVersion;
@@ -203,7 +224,8 @@ export class NotificationCentreModel {
       this.state.kind !== NotificationCentreStateKind.CONTENT ||
       !this.state.hasMore ||
       this.state.loadingMore ||
-      this.state.refreshing
+      this.state.refreshing ||
+      this.state.markingAllRead
     ) {
       return;
     }
@@ -232,6 +254,27 @@ export class NotificationCentreModel {
       uniqueNotificationItems(existing.concat(result.data)),
       result.data.length > 0
     );
+  }
+
+  public async markAllRead(): Promise<RepositoryResult<boolean>> {
+    if (this.username.length === 0) {
+      return RepositoryResult.invalidInput<boolean>('当前账号不可用');
+    }
+    if (this.state.markingAllRead) {
+      return RepositoryResult.unavailable<boolean>('正在将消息标为已读');
+    }
+    const requestVersion: number = this.requestVersion;
+    const username: string = this.username;
+    this.state = this.state.markingAllReadState(true);
+    const result: RepositoryResult<boolean> = await this.repository.markAllRead();
+    if (requestVersion !== this.requestVersion || username !== this.username) {
+      return result;
+    }
+    this.state = this.state.markingAllReadState(false);
+    if (!result.isSuccess()) {
+      await this.notifyUnauthorized(result.isUnauthorized());
+    }
+    return result;
   }
 
   public reset(): void {

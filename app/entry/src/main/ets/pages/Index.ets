@@ -941,6 +941,34 @@ struct Index {
     this.refreshAccountIdentity();
   }
 
+  private async markAllNotificationsRead(): Promise<void> {
+    const model: NotificationCentreModel | null = this.notificationModel;
+    const identity: CurrentUser | null = this.accountIdentity;
+    if (
+      model === null ||
+      identity === null ||
+      identity.unreadNotifications <= 0 ||
+      model.state.markingAllRead
+    ) {
+      return;
+    }
+    const task: Promise<RepositoryResult<boolean>> = model.markAllRead();
+    this.synchronizeNotificationState();
+    const result: RepositoryResult<boolean> = await task;
+    this.synchronizeNotificationState();
+    if (result.isSuccess() && result.data === true) {
+      if (this.accountIdentity === identity) {
+        this.accountIdentity = identity.withUnreadNotifications(0);
+      }
+      this.showNotificationReadMessage(true, '消息已全部标为已读，历史记录仍会保留');
+      return;
+    }
+    this.showNotificationReadMessage(
+      false,
+      result.isUnauthorized() ? '登录状态已失效，请重新登录' : result.message
+    );
+  }
+
   private async loadMoreNotifications(): Promise<void> {
     const model: NotificationCentreModel | null = this.notificationModel;
     if (model === null) return;
@@ -3179,6 +3207,24 @@ struct Index {
     );
   }
 
+  private showNotificationReadMessage(success: boolean, content: string): void {
+    if (this.snackBar === null) {
+      return;
+    }
+    this.snackBar.show(
+      { icon: success ? $r('sys.symbol.checkmark_circle') : $r('sys.symbol.exclamationmark_circle') },
+      {
+        title: success ? '消息已读' : '无法标记消息',
+        content: content
+      },
+      {
+        operationType: SnackBarOperationType.CLOSE_BUTTON_ONLY,
+        closeButtonAccessibilityText: '关闭提示'
+      },
+      { duration: success ? 3500 : 5000 }
+    );
+  }
+
   private showReplyMessage(): void {
     if (
       this.snackBar === null ||
@@ -3289,18 +3335,36 @@ struct Index {
           }
         },
         menu: {
-          value: [{
-            content: {
-              label: $r('app.string.notification_refresh_accessibility'),
-              icon: $r('sys.symbol.arrow_clockwise'),
-              isEnabled: this.authState.kind === AuthStateKind.AUTHENTICATED &&
-                !this.notificationState.refreshing &&
-                this.notificationState.kind !== NotificationCentreStateKind.LOADING,
-              action: (): void => {
-                this.refreshNotificationCentre();
+          maxCount: 2,
+          value: [
+            {
+              content: {
+                label: this.notificationState.markingAllRead
+                  ? '正在将全部消息标为已读'
+                  : '将全部消息标为已读',
+                icon: $r('sys.symbol.checkmark_circle'),
+                isEnabled: this.authState.kind === AuthStateKind.AUTHENTICATED &&
+                  (this.accountIdentity?.unreadNotifications ?? 0) > 0 &&
+                  !this.notificationState.markingAllRead,
+                action: (): void => {
+                  this.markAllNotificationsRead();
+                }
+              }
+            },
+            {
+              content: {
+                label: $r('app.string.notification_refresh_accessibility'),
+                icon: $r('sys.symbol.arrow_clockwise'),
+                isEnabled: this.authState.kind === AuthStateKind.AUTHENTICATED &&
+                  !this.notificationState.refreshing &&
+                  !this.notificationState.markingAllRead &&
+                  this.notificationState.kind !== NotificationCentreStateKind.LOADING,
+                action: (): void => {
+                  this.refreshNotificationCentre();
+                }
               }
             }
-          }]
+          ]
         }
       });
     }
@@ -3322,7 +3386,9 @@ struct Index {
       this.selectedRoot,
       this.selectedHomeChannel,
       this.chatChannelState.refreshing.toString(),
-      this.notificationState.refreshing.toString()
+      this.notificationState.refreshing.toString(),
+      this.notificationState.markingAllRead.toString(),
+      (this.accountIdentity?.unreadNotifications ?? 0).toString()
     ].join(':');
   }
 

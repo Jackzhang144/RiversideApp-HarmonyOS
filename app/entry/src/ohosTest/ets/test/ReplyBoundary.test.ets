@@ -30,6 +30,21 @@ export default function replyBoundaryTest(): void {
       expect(request?.replyToPostNumber).assertEqual(3);
     });
 
+    it('updates the local unread notification count without changing identity capabilities', 0, () => {
+      const user: CurrentUser | null = CurrentUser.create(24, 'Co-admin', {
+        unreadNotifications: 8,
+        canChat: true,
+        canCreatePost: true
+      });
+
+      const updated: CurrentUser | null = user?.withUnreadNotifications(0) ?? null;
+
+      expect(updated?.unreadNotifications).assertEqual(0);
+      expect(updated?.username).assertEqual('Co-admin');
+      expect(updated?.canChat).assertTrue();
+      expect(updated?.canCreatePost).assertTrue();
+    });
+
     it('does not recover a Topic Reply from a Post-targeted candidate', 0, () => {
       const reply: ReplyRequest | null = ReplyRequest.create(2725, '收到', null);
       const user: CurrentUser | null = CurrentUser.create(24, 'Co-admin');

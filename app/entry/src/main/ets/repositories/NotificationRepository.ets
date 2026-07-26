@@ -8,4 +8,6 @@ export interface NotificationRepository {
     page: number,
     offset: number
   ): Promise<RepositoryResult<Array<NotificationItem>>>;
+
+  markAllRead(): Promise<RepositoryResult<boolean>>;
 }

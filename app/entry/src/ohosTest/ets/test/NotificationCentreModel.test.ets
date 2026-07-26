@@ -14,7 +14,9 @@ import { NotificationRepository } from '../../../main/ets/repositories/Notificat
 
 class StubNotificationRepository implements NotificationRepository {
   public results: Array<RepositoryResult<Array<NotificationItem>>> = [];
+  public markAllReadResults: Array<RepositoryResult<boolean>> = [];
   public requests: Array<string> = [];
+  public markAllReadCallCount: number = 0;
 
   public async loadNotificationItems(
     username: string,
@@ -24,6 +26,12 @@ class StubNotificationRepository implements NotificationRepository {
   ): Promise<RepositoryResult<Array<NotificationItem>>> {
     this.requests.push(`${username}:${bucket}:${page}:${offset}`);
     return this.results.shift() ?? RepositoryResult.unknown<Array<NotificationItem>>('missing notification result');
+  }
+
+  public async markAllRead(): Promise<RepositoryResult<boolean>> {
+    this.markAllReadCallCount += 1;
+    return this.markAllReadResults.shift() ??
+      RepositoryResult.unknown<boolean>('missing mark-all-read result');
   }
 }
 
@@ -124,6 +132,41 @@ export default function notificationCentreModelTest(): void {
       expect(model.state.kind).assertEqual(NotificationCentreStateKind.ERROR);
       expect(model.state.message).assertEqual('服务不可用');
       await model.load('jack', NotificationBucket.MENTIONS);
+      expect(lifecycle.callCount).assertEqual(1);
+      done();
+    });
+
+    it('marks notifications read without clearing the visible activity history', 0, async (done: Function) => {
+      const repository: StubNotificationRepository = new StubNotificationRepository();
+      repository.results.push(RepositoryResult.success<Array<NotificationItem>>([activity(1, '历史消息')]));
+      repository.markAllReadResults.push(RepositoryResult.success<boolean>(true));
+      const model: NotificationCentreModel = new NotificationCentreModel(repository);
+
+      await model.load('jack', NotificationBucket.REPLIES);
+      const result: RepositoryResult<boolean> = await model.markAllRead();
+
+      expect(result.isSuccess()).assertTrue();
+      expect(repository.markAllReadCallCount).assertEqual(1);
+      expect(model.state.markingAllRead).assertFalse();
+      expect(model.state.items.length).assertEqual(1);
+      expect(model.state.items[0].title).assertEqual('历史消息');
+      done();
+    });
+
+    it('keeps state on mark-read failure and delegates canonical 401 once', 0, async (done: Function) => {
+      const repository: StubNotificationRepository = new StubNotificationRepository();
+      const lifecycle: StubNotificationAuthenticationLifecycle = new StubNotificationAuthenticationLifecycle();
+      repository.results.push(RepositoryResult.success<Array<NotificationItem>>([activity(1, '未读消息')]));
+      repository.markAllReadResults.push(RepositoryResult.unauthorized<boolean>());
+      const model: NotificationCentreModel = new NotificationCentreModel(repository, lifecycle);
+
+      await model.load('jack', NotificationBucket.MENTIONS);
+      const result: RepositoryResult<boolean> = await model.markAllRead();
+
+      expect(result.isUnauthorized()).assertTrue();
+      expect(model.state.items.length).assertEqual(1);
+      expect(model.state.markingAllRead).assertFalse();
+      expect(model.state.message).assertEqual('');
       expect(lifecycle.callCount).assertEqual(1);
       done();
     });

@@ -90,5 +90,30 @@ export default function notificationRepositoryTest(): void {
       expect(result.kind).assertEqual(RepositoryResultKind.UNAUTHORIZED);
       done();
     });
+
+    it('marks every server notification as read through the canonical endpoint', 0, async (done: Function) => {
+      const client: StubForumHttpClient = new StubForumHttpClient();
+      client.putResults.push(HttpTextResult.success(200, '{"success":"OK"}'));
+      const repository: DiscourseNotificationRepository = new DiscourseNotificationRepository(client);
+
+      const result: RepositoryResult<boolean> = await repository.markAllRead();
+
+      expect(client.putPaths[0]).assertEqual('/notifications/mark-read.json');
+      expect(result.kind).assertEqual(RepositoryResultKind.SUCCESS);
+      expect(result.data).assertTrue();
+      done();
+    });
+
+    it('preserves canonical authorization failures while marking notifications read', 0,
+      async (done: Function) => {
+        const client: StubForumHttpClient = new StubForumHttpClient();
+        client.putResults.push(HttpTextResult.unauthorized());
+        const repository: DiscourseNotificationRepository = new DiscourseNotificationRepository(client);
+
+        const result: RepositoryResult<boolean> = await repository.markAllRead();
+
+        expect(result.kind).assertEqual(RepositoryResultKind.UNAUTHORIZED);
+        done();
+      });
   });
 }
