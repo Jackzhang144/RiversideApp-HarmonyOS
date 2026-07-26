@@ -3,11 +3,20 @@ import {
   RichContentBlockKind,
   RichContentInlineFragment,
   RichContentInlineFragmentKind,
-  RichContentLink,
   RichContentListItem
 } from '../models/RichContentBlocks';
 import { parseRichPostContent } from '../models/RichContentParser';
 import { RichEmbedProvider } from '../models/RichNavigationPolicy';
+
+class RichContentImageRatio {
+  public readonly url: string;
+  public readonly ratio: number;
+
+  public constructor(url: string, ratio: number) {
+    this.url = url;
+    this.ratio = ratio;
+  }
+}
 
 @Component
 export struct RichPostContent {
@@ -15,6 +24,7 @@ export struct RichPostContent {
   @Prop raw: string = '';
   @State revealedSpoilers: Array<number> = [];
   @State failedImages: Array<string> = [];
+  @State imageRatios: Array<RichContentImageRatio> = [];
   onOpenLink: (url: string) => void = (_url: string): void => {};
   onOpenEmbed: (url: string, provider: RichEmbedProvider, title: string) => void = (
     _url: string,
@@ -39,66 +49,90 @@ export struct RichPostContent {
     }
   }
 
+  private imageAspectRatio(block: RichContentBlock): number {
+    for (const imageRatio of this.imageRatios) {
+      if (imageRatio.url === block.url) {
+        return imageRatio.ratio;
+      }
+    }
+    if (block.sourceWidth > 0 && block.sourceHeight > 0) {
+      return block.sourceWidth / block.sourceHeight;
+    }
+    return 4 / 3;
+  }
+
+  private recordImageRatio(url: string, width: number, height: number): void {
+    if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
+      return;
+    }
+    const ratio: number = width / height;
+    for (const imageRatio of this.imageRatios) {
+      if (imageRatio.url === url && Math.abs(imageRatio.ratio - ratio) < 0.001) {
+        return;
+      }
+    }
+    this.imageRatios = this.imageRatios
+      .filter((imageRatio: RichContentImageRatio): boolean => imageRatio.url !== url)
+      .concat([new RichContentImageRatio(url, ratio)]);
+  }
+
   @Builder
-  private LinkAction(link: RichContentLink): void {
-    Button(link.label, { type: ButtonType.Normal })
-      .height(34)
-      .fontSize(12)
-      .fontColor($r('app.color.text_link'))
-      .backgroundColor($r('sys.color.background_secondary'))
-      .borderRadius(17)
-      .padding({ left: 12, right: 12 })
-      .margin({ right: 6, top: 6 })
-      .onClick((): void => this.onOpenLink(link.url))
-      .accessibilityText(`打开链接：${link.label}`)
+  private InlineText(
+    fragments: Array<RichContentInlineFragment>,
+    fallback: string,
+    fontSize: number,
+    lineHeight: number,
+    textWeight: FontWeight = FontWeight.Regular,
+    linkWeight: FontWeight = FontWeight.Medium
+  ): void {
+    Text() {
+      if (fragments.length > 0) {
+        ForEach(fragments, (fragment: RichContentInlineFragment) => {
+          if (fragment.kind === RichContentInlineFragmentKind.EMOJI) {
+            ImageSpan(fragment.imageUrl)
+              .width(18)
+              .height(18)
+              .objectFit(ImageFit.Contain)
+              .verticalAlign(ImageSpanAlignment.CENTER)
+          } else if (fragment.kind === RichContentInlineFragmentKind.LINK) {
+            Span(fragment.text)
+              .fontColor($r('app.color.text_link'))
+              .fontWeight(linkWeight)
+              .onClick((): void => this.onOpenLink(fragment.url))
+          } else {
+            Span(fragment.text)
+              .fontColor($r('sys.color.font_primary'))
+              .fontWeight(textWeight)
+          }
+        }, (fragment: RichContentInlineFragment, index: number): string =>
+          `${index}-${fragment.kind}-${fragment.url}-${fragment.imageUrl}-${fragment.text}`)
+      } else {
+        Span(fallback)
+          .fontColor($r('sys.color.font_primary'))
+          .fontWeight(textWeight)
+      }
+    }
+      .fontSize(fontSize)
+      .lineHeight(lineHeight)
+      .width('100%')
+      .copyOption(CopyOptions.LocalDevice)
   }
 
   @Builder
   private TextBlock(block: RichContentBlock): void {
-    Column({ space: 4 }) {
-      Text() {
-        if (block.inlineFragments.length > 0) {
-          ForEach(block.inlineFragments, (fragment: RichContentInlineFragment) => {
-            if (fragment.kind === RichContentInlineFragmentKind.EMOJI) {
-              ImageSpan(fragment.imageUrl)
-                .width(18)
-                .height(18)
-                .objectFit(ImageFit.Contain)
-                .verticalAlign(ImageSpanAlignment.CENTER)
-            } else {
-              Span(fragment.text)
-            }
-          }, (fragment: RichContentInlineFragment, index: number): string => `${index}-${fragment.text}`)
-        } else {
-          Span(block.text)
-        }
-      }
-        .fontSize(14)
-        .lineHeight(22)
-        .fontColor($r('sys.color.font_primary'))
-        .width('100%')
-        .copyOption(CopyOptions.LocalDevice)
-      if (block.links.length > 0) {
-        Flex({ direction: FlexDirection.Row, wrap: FlexWrap.Wrap }) {
-          ForEach(block.links, (link: RichContentLink) => {
-            this.LinkAction(link)
-          }, (link: RichContentLink): string => `${link.url}-${link.label}`)
-        }
-        .width('100%')
-      }
-    }
-    .alignItems(HorizontalAlign.Start)
-    .width('100%')
+    this.InlineText(block.inlineFragments, block.text, 14, 22)
   }
 
   @Builder
   private HeadingBlock(block: RichContentBlock): void {
-    Text(block.text)
-      .fontSize(block.level <= 1 ? 22 : block.level === 2 ? 19 : 16)
-      .fontWeight(FontWeight.Bold)
-      .lineHeight(block.level <= 1 ? 30 : 26)
-      .width('100%')
-      .copyOption(CopyOptions.LocalDevice)
+    this.InlineText(
+      block.inlineFragments,
+      block.text,
+      block.level <= 1 ? 22 : block.level === 2 ? 19 : 16,
+      block.level <= 1 ? 30 : 26,
+      FontWeight.Bold,
+      FontWeight.Bold
+    )
   }
 
   @Builder
@@ -195,31 +229,18 @@ export struct RichPostContent {
   private ListBlock(block: RichContentBlock): void {
     Column({ space: 7 }) {
       ForEach(block.listItems, (item: RichContentListItem, index: number) => {
-        Column({ space: 3 }) {
-          Row({ space: 8 }) {
-            Text(block.ordered ? `${index + 1}.` : '•')
-              .fontSize(14)
-              .fontWeight(FontWeight.Bold)
-              .fontColor($r('app.color.text_link'))
-            Text(item.text)
-              .fontSize(14)
-              .lineHeight(21)
-              .layoutWeight(1)
-              .copyOption(CopyOptions.LocalDevice)
+        Row({ space: 8 }) {
+          Text(block.ordered ? `${index + 1}.` : '•')
+            .fontSize(14)
+            .fontWeight(FontWeight.Bold)
+            .fontColor($r('app.color.text_link'))
+          Column() {
+            this.InlineText(item.inlineFragments, item.text, 14, 21)
           }
-          .alignItems(VerticalAlign.Top)
-          .width('100%')
-          if (item.links.length > 0) {
-            Flex({ direction: FlexDirection.Row, wrap: FlexWrap.Wrap }) {
-              ForEach(item.links, (link: RichContentLink) => {
-                this.LinkAction(link)
-              }, (link: RichContentLink): string => `${link.url}-${link.label}`)
-            }
-            .padding({ left: 24 })
-            .width('100%')
-          }
+          .alignItems(HorizontalAlign.Start)
+          .layoutWeight(1)
         }
-        .alignItems(HorizontalAlign.Start)
+        .alignItems(VerticalAlign.Top)
         .width('100%')
       }, (item: RichContentListItem, index: number): string => `${index}-${item.text}`)
     }
@@ -283,11 +304,16 @@ export struct RichPostContent {
       } else {
         Image(block.url)
           .width('100%')
-          .height(220)
-          .objectFit(ImageFit.Contain)
+          .aspectRatio(this.imageAspectRatio(block))
+          .objectFit(ImageFit.Cover)
           .interpolation(ImageInterpolation.High)
-          .backgroundColor($r('sys.color.background_secondary'))
           .borderRadius(8)
+          .clip(true)
+          .onComplete((event): void => {
+            if (event !== undefined && event.loadingStatus === 1) {
+              this.recordImageRatio(block.url, event.width, event.height);
+            }
+          })
           .onError((): void => this.recordImageFailure(block.url))
           .onClick((): void => this.onOpenImage(block.url, block.title))
           .accessibilityText(block.title)

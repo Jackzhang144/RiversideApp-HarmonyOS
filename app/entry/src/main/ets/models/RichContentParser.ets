@@ -10,13 +10,13 @@ import {
 import {
   RichContentBlock,
   RichContentInlineFragment,
+  RichContentInlineFragmentKind,
   RichContentLink,
   RichContentListItem
 } from './RichContentBlocks';
 
 const EMOJI_TOKEN_PATTERN: RegExp = /^:[A-Za-z0-9_+\-]+:$/;
-const INLINE_EMOJI_MARKER_START: string = '\uE000';
-const INLINE_EMOJI_MARKER_END: string = '\uE001';
+const INLINE_BREAK_MARKER: string = '\uE000';
 
 function firstCapture(text: string, pattern: RegExp, group: number = 1): string {
   const match: RegExpExecArray | null = pattern.exec(text);
@@ -239,96 +239,179 @@ export function parsePlainTextInlineEmojis(text: string): Array<RichContentInlin
   return fragments;
 }
 
-function extractImages(html: string): Array<RichContentBlock> {
-  const tags: Array<string> = html.match(/<img\b[^>]*>/gi) ?? [];
-  const blocks: Array<RichContentBlock> = [];
-  for (const tag of tags) {
-    if (/youtube-thumbnail/i.test(tag)) {
-      continue;
-    }
-    if (inlineEmoji(tag) !== null) {
-      continue;
-    }
-    const url: string = absoluteUrl(firstCapture(tag, /src=["']([^"']+)["']/i));
-    const description: string = decodeEntities(firstCapture(tag, /alt=["']([^"']*)["']/i));
-    if (/^https:\/\//i.test(url)) {
-      blocks.push(RichContentBlock.image(url, description.length > 0 ? description : 'Post 图片'));
-    }
+function inlineText(html: string): string {
+  return decodeEntities(
+    html
+      .replace(/<br\s*\/?>/gi, INLINE_BREAK_MARKER)
+      .replace(/<[^>]+>/g, '')
+  )
+    .replace(/\s+/g, ' ')
+    .replace(new RegExp(INLINE_BREAK_MARKER, 'g'), '\n');
+}
+
+function imageDimension(tag: string, width: boolean): number {
+  const raw: string = width
+    ? firstCapture(tag, /\swidth=["']?(\d+(?:\.\d+)?)/i)
+    : firstCapture(tag, /\sheight=["']?(\d+(?:\.\d+)?)/i);
+  const value: number = Number(raw);
+  return Number.isFinite(value) && value > 0 ? value : 0;
+}
+
+function imageBlock(tag: string): RichContentBlock | null {
+  if (/youtube-thumbnail/i.test(tag) || inlineEmoji(tag) !== null) {
+    return null;
   }
-  return blocks;
-}
-
-class InlineEmojiExtraction {
-  public readonly html: string;
-  public readonly emojis: Array<RichContentInlineFragment>;
-
-  public constructor(html: string, emojis: Array<RichContentInlineFragment>) {
-    this.html = html;
-    this.emojis = emojis;
+  const url: string = absoluteUrl(firstCapture(tag, /src=["']([^"']+)["']/i));
+  if (!/^https:\/\//i.test(url)) {
+    return null;
   }
+  const description: string = decodeEntities(firstCapture(tag, /alt=["']([^"']*)["']/i));
+  return RichContentBlock.image(
+    url,
+    description.length > 0 ? description : 'Post 图片',
+    imageDimension(tag, true),
+    imageDimension(tag, false)
+  );
 }
 
-function extractInlineEmojis(html: string): InlineEmojiExtraction {
-  const emojis: Array<RichContentInlineFragment> = [];
-  const transformed: string = html.replace(/<img\b[^>]*>/gi, (tag: string): string => {
-    const emoji: RichContentInlineFragment | null = inlineEmoji(tag);
-    if (emoji === null) {
-      return tag;
-    }
-    const index: number = emojis.length;
-    emojis.push(emoji);
-    return `${INLINE_EMOJI_MARKER_START}${index}${INLINE_EMOJI_MARKER_END}`;
-  });
-  return new InlineEmojiExtraction(transformed, emojis);
+function appendTextFragments(
+  fragments: Array<RichContentInlineFragment>,
+  text: string
+): void {
+  if (text.length === 0) {
+    return;
+  }
+  const emojiFragments: Array<RichContentInlineFragment> = parsePlainTextInlineEmojis(text);
+  if (emojiFragments.length > 0) {
+    fragments.push(...emojiFragments);
+    return;
+  }
+  fragments.push(RichContentInlineFragment.textFragment(text));
 }
 
-function textWithInlineEmojis(
-  text: string,
-  emojis: Array<RichContentInlineFragment>
+function normalizeInlineFragments(
+  fragments: Array<RichContentInlineFragment>
 ): Array<RichContentInlineFragment> {
-  if (emojis.length === 0) {
-    return [];
+  const merged: Array<RichContentInlineFragment> = [];
+  for (const fragment of fragments) {
+    if (fragment.kind === RichContentInlineFragmentKind.TEXT) {
+      const previous: RichContentInlineFragment | null = merged[merged.length - 1] ?? null;
+      if (previous !== null && previous.kind === RichContentInlineFragmentKind.TEXT) {
+        merged[merged.length - 1] =
+          RichContentInlineFragment.textFragment(previous.text + fragment.text);
+      } else {
+        merged.push(fragment);
+      }
+    } else {
+      merged.push(fragment);
+    }
   }
-  const fragments: Array<RichContentInlineFragment> = [];
-  let cursor: number = 0;
-  while (cursor < text.length) {
-    const markerStart: number = text.indexOf(INLINE_EMOJI_MARKER_START, cursor);
-    if (markerStart < 0) {
-      break;
-    }
-    const markerEnd: number = text.indexOf(INLINE_EMOJI_MARKER_END, markerStart + INLINE_EMOJI_MARKER_START.length);
-    if (markerEnd < 0) {
-      break;
-    }
-    const indexText: string = text.slice(markerStart + INLINE_EMOJI_MARKER_START.length, markerEnd);
-    const emojiIndex: number = Number.parseInt(indexText, 10);
-    const emoji: RichContentInlineFragment | null = Number.isInteger(emojiIndex) && emojiIndex >= 0
-      ? emojis[emojiIndex] ?? null
-      : null;
-    if (emoji === null) {
-      cursor = markerEnd + INLINE_EMOJI_MARKER_END.length;
-      continue;
-    }
-    if (markerStart > cursor) {
-      fragments.push(RichContentInlineFragment.textFragment(text.slice(cursor, markerStart)));
-    }
-    fragments.push(emoji);
-    cursor = markerEnd + INLINE_EMOJI_MARKER_END.length;
+  if (merged.length > 0 && merged[0].kind === RichContentInlineFragmentKind.TEXT) {
+    merged[0] = RichContentInlineFragment.textFragment(merged[0].text.trimStart());
   }
-  if (cursor < text.length) {
-    fragments.push(RichContentInlineFragment.textFragment(text.slice(cursor)));
+  const lastIndex: number = merged.length - 1;
+  if (lastIndex >= 0 && merged[lastIndex].kind === RichContentInlineFragmentKind.TEXT) {
+    merged[lastIndex] = RichContentInlineFragment.textFragment(merged[lastIndex].text.trimEnd());
   }
-  return fragments;
+  return merged.filter((fragment: RichContentInlineFragment): boolean => {
+    return fragment.kind !== RichContentInlineFragmentKind.TEXT || fragment.text.length > 0;
+  });
 }
 
-function displayInlineEmojiText(text: string, emojis: Array<RichContentInlineFragment>): string {
-  return text.replace(/\uE000(\d+)\uE001/g, (_marker: string, indexText: string): string => {
-    const emojiIndex: number = Number.parseInt(indexText, 10);
-    const emoji: RichContentInlineFragment | null = Number.isInteger(emojiIndex) && emojiIndex >= 0
-      ? emojis[emojiIndex] ?? null
-      : null;
-    return emoji === null ? '' : emoji.text;
-  });
+function inlineFragmentsText(fragments: Array<RichContentInlineFragment>): string {
+  return fragments.map((fragment: RichContentInlineFragment): string => fragment.text).join('');
+}
+
+function inlineFragmentsFromHtml(html: string): Array<RichContentInlineFragment> {
+  const fragments: Array<RichContentInlineFragment> = [];
+  const pattern: RegExp = /<a\b[^>]*>[\s\S]*?<\/a>|<img\b[^>]*>/gi;
+  let cursor: number = 0;
+  let match: RegExpExecArray | null = pattern.exec(html);
+  while (match !== null) {
+    appendTextFragments(fragments, inlineText(html.slice(cursor, match.index)));
+    const tag: string = match[0];
+    if (/^<img\b/i.test(tag)) {
+      const emoji: RichContentInlineFragment | null = inlineEmoji(tag);
+      if (emoji !== null) {
+        fragments.push(emoji);
+      }
+    } else {
+      const nestedImageTag: string = firstCapture(tag, /(<img\b[^>]*>)/i);
+      const nestedEmoji: RichContentInlineFragment | null =
+        nestedImageTag.length > 0 ? inlineEmoji(nestedImageTag) : null;
+      if (nestedEmoji !== null) {
+        fragments.push(nestedEmoji);
+      } else if (nestedImageTag.length === 0) {
+        const href: string = absoluteUrl(firstCapture(tag, /href=["']([^"']+)["']/i));
+        const label: string = stripHtml(tag);
+        if (
+          href.length > 0 &&
+          label.length > 0 &&
+          classifyRichNavigation(href).kind !== RichNavigationKind.BLOCKED
+        ) {
+          fragments.push(RichContentInlineFragment.link(label, href));
+        } else {
+          appendTextFragments(fragments, label);
+        }
+      }
+    }
+    cursor = pattern.lastIndex;
+    match = pattern.exec(html);
+  }
+  appendTextFragments(fragments, inlineText(html.slice(cursor)));
+  return normalizeInlineFragments(fragments);
+}
+
+function appendHtmlInlineBlocks(html: string, blocks: Array<RichContentBlock>): void {
+  const pattern: RegExp = /<a\b[^>]*>[\s\S]*?<\/a>|<img\b[^>]*>/gi;
+  let fragments: Array<RichContentInlineFragment> = [];
+  let cursor: number = 0;
+
+  const flushText = (): void => {
+    const normalized: Array<RichContentInlineFragment> = normalizeInlineFragments(fragments);
+    const text: string = inlineFragmentsText(normalized);
+    if (text.length > 0) {
+      blocks.push(RichContentBlock.textBlock(text, normalized));
+    }
+    fragments = [];
+  };
+
+  let match: RegExpExecArray | null = pattern.exec(html);
+  while (match !== null) {
+    appendTextFragments(fragments, inlineText(html.slice(cursor, match.index)));
+    const tag: string = match[0];
+    const imageTag: string = /^<img\b/i.test(tag)
+      ? tag
+      : firstCapture(tag, /(<img\b[^>]*>)/i);
+    if (imageTag.length > 0) {
+      const emoji: RichContentInlineFragment | null = inlineEmoji(imageTag);
+      if (emoji !== null) {
+        fragments.push(emoji);
+      } else {
+        const image: RichContentBlock | null = imageBlock(imageTag);
+        if (image !== null) {
+          flushText();
+          blocks.push(image);
+        }
+      }
+    } else {
+      const href: string = absoluteUrl(firstCapture(tag, /href=["']([^"']+)["']/i));
+      const label: string = stripHtml(tag);
+      if (
+        href.length > 0 &&
+        label.length > 0 &&
+        classifyRichNavigation(href).kind !== RichNavigationKind.BLOCKED
+      ) {
+        fragments.push(RichContentInlineFragment.link(label, href));
+      } else {
+        appendTextFragments(fragments, label);
+      }
+    }
+    cursor = pattern.lastIndex;
+    match = pattern.exec(html);
+  }
+  appendTextFragments(fragments, inlineText(html.slice(cursor)));
+  flushText();
 }
 
 function directListItemTags(html: string): Array<string> {
@@ -414,24 +497,17 @@ function appendInlineBlocks(html: string, blocks: Array<RichContentBlock>): void
   const spoilerTags: Array<string> = html.match(
     /<(?:span|div)\b[^>]*class=["'][^"']*\b(?:spoiler|spoiled)\b[^"']*["'][^>]*>[\s\S]*?<\/(?:span|div)>/gi
   ) ?? [];
-  const inlineEmojiExtraction: InlineEmojiExtraction = extractInlineEmojis(html);
-  let visibleHtml: string = inlineEmojiExtraction.html;
+  let visibleHtml: string = html;
   for (const spoilerTag of spoilerTags) {
     visibleHtml = visibleHtml.replace(spoilerTag, '');
   }
   visibleHtml = visibleHtml.replace(/<iframe\b[^>]*>[\s\S]*?<\/iframe>/gi, '');
-  visibleHtml = visibleHtml.replace(/<img\b[^>]*>/gi, '');
-  const textWithMarkers: string = stripHtml(visibleHtml);
-  const inlineFragments: Array<RichContentInlineFragment> = textWithInlineEmojis(
-    textWithMarkers,
-    inlineEmojiExtraction.emojis
-  );
-  const text: string = displayInlineEmojiText(textWithMarkers, inlineEmojiExtraction.emojis);
+  const text: string = stripHtml(visibleHtml);
   const bareVideo: RichContentBlock | null = /^https?:\/\/\S+$/i.test(text) ? videoBlock(text) : null;
   if (bareVideo !== null) {
     blocks.push(bareVideo);
-  } else if (text.length > 0) {
-    blocks.push(RichContentBlock.textBlock(text, extractLinks(visibleHtml), inlineFragments));
+  } else {
+    appendHtmlInlineBlocks(visibleHtml, blocks);
   }
   for (const spoilerTag of spoilerTags) {
     const spoilerText: string = stripHtml(spoilerTag);
@@ -439,7 +515,6 @@ function appendInlineBlocks(html: string, blocks: Array<RichContentBlock>): void
       blocks.push(RichContentBlock.spoiler(spoilerText));
     }
   }
-  blocks.push(...extractImages(html));
 }
 
 function parseHtmlToken(token: string, blocks: Array<RichContentBlock>): void {
@@ -453,9 +528,14 @@ function parseHtmlToken(token: string, blocks: Array<RichContentBlock>): void {
   }
   if (lower.startsWith('<h')) {
     const levelText: string = firstCapture(token, /^<h([1-6])\b/i);
-    const heading: string = stripHtml(token);
+    const fragments: Array<RichContentInlineFragment> = inlineFragmentsFromHtml(token);
+    const heading: string = inlineFragmentsText(fragments);
     if (heading.length > 0) {
-      blocks.push(RichContentBlock.heading(heading, Number.parseInt(levelText, 10)));
+      blocks.push(RichContentBlock.heading(
+        heading,
+        Number.parseInt(levelText, 10),
+        fragments
+      ));
     }
     return;
   }
@@ -480,8 +560,10 @@ function parseHtmlToken(token: string, blocks: Array<RichContentBlock>): void {
   if ((lower.startsWith('<ul') || lower.startsWith('<ol'))) {
     const itemTags: Array<string> = directListItemTags(token);
     const items: Array<RichContentListItem> = itemTags
-      .map((item: string): RichContentListItem =>
-        new RichContentListItem(stripHtml(item), extractLinks(item)))
+      .map((item: string): RichContentListItem => {
+        const fragments: Array<RichContentInlineFragment> = inlineFragmentsFromHtml(item);
+        return new RichContentListItem(inlineFragmentsText(fragments), fragments);
+      })
       .filter((item: RichContentListItem): boolean => item.text.length > 0);
     if (items.length > 0) {
       blocks.push(RichContentBlock.list(items, lower.startsWith('<ol')));
@@ -540,27 +622,88 @@ function parseCookedHtml(cooked: string): Array<RichContentBlock> {
   return blocks;
 }
 
-function markdownLinks(text: string): Array<RichContentLink> {
-  const tags: Array<string> = text.match(/\[[^\]]+\]\([^)]+\)/g) ?? [];
-  const links: Array<RichContentLink> = [];
-  for (const tag of tags) {
-    const label: string = firstCapture(tag, /^\[([^\]]+)\]/);
-    const url: string = absoluteUrl(firstCapture(tag, /\]\(([^)]+)\)$/));
-    if (label.length > 0 && classifyRichNavigation(url).kind !== RichNavigationKind.BLOCKED) {
-      links.push(new RichContentLink(label, url));
-    }
-  }
-  return links;
-}
-
-function markdownText(text: string): string {
+function markdownInlineText(text: string): string {
   return text
     .replace(/!\[[^\]]*\]\([^)]+\)/g, '')
     .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
     .replace(/\*\*([^*]+)\*\*/g, '$1')
     .replace(/\*([^*]+)\*/g, '$1')
-    .replace(/`([^`]+)`/g, '$1')
-    .trim();
+    .replace(/`([^`]+)`/g, '$1');
+}
+
+function markdownText(text: string): string {
+  return markdownInlineText(text).trim();
+}
+
+function markdownInlineFragments(source: string): Array<RichContentInlineFragment> {
+  const fragments: Array<RichContentInlineFragment> = [];
+  const pattern: RegExp = /(!?)\[([^\]]*)\]\(([^)]+)\)/g;
+  let cursor: number = 0;
+  let match: RegExpExecArray | null = pattern.exec(source);
+  while (match !== null) {
+    appendTextFragments(fragments, markdownInlineText(source.slice(cursor, match.index)));
+    if (match[1] !== '!') {
+      const label: string = markdownInlineText(match[2]).trim();
+      const url: string = absoluteUrl(match[3]);
+      if (
+        label.length > 0 &&
+        classifyRichNavigation(url).kind !== RichNavigationKind.BLOCKED
+      ) {
+        fragments.push(RichContentInlineFragment.link(label, url));
+      } else {
+        appendTextFragments(fragments, label);
+      }
+    }
+    cursor = pattern.lastIndex;
+    match = pattern.exec(source);
+  }
+  appendTextFragments(fragments, markdownInlineText(source.slice(cursor)));
+  return normalizeInlineFragments(fragments);
+}
+
+function appendMarkdownInlineBlocks(
+  source: string,
+  blocks: Array<RichContentBlock>
+): void {
+  const pattern: RegExp = /(!?)\[([^\]]*)\]\(([^)]+)\)/g;
+  let fragments: Array<RichContentInlineFragment> = [];
+  let cursor: number = 0;
+
+  const flushText = (): void => {
+    const normalized: Array<RichContentInlineFragment> = normalizeInlineFragments(fragments);
+    const text: string = inlineFragmentsText(normalized);
+    if (text.length > 0) {
+      blocks.push(RichContentBlock.textBlock(text, normalized));
+    }
+    fragments = [];
+  };
+
+  let match: RegExpExecArray | null = pattern.exec(source);
+  while (match !== null) {
+    appendTextFragments(fragments, markdownInlineText(source.slice(cursor, match.index)));
+    const label: string = markdownInlineText(match[2]).trim();
+    const url: string = absoluteUrl(match[3]);
+    if (match[1] === '!') {
+      flushText();
+      if (/^https:\/\//i.test(url)) {
+        blocks.push(RichContentBlock.image(
+          url,
+          label.length > 0 ? label : 'Post 图片'
+        ));
+      }
+    } else if (
+      label.length > 0 &&
+      classifyRichNavigation(url).kind !== RichNavigationKind.BLOCKED
+    ) {
+      fragments.push(RichContentInlineFragment.link(label, url));
+    } else {
+      appendTextFragments(fragments, label);
+    }
+    cursor = pattern.lastIndex;
+    match = pattern.exec(source);
+  }
+  appendTextFragments(fragments, markdownInlineText(source.slice(cursor)));
+  flushText();
 }
 
 function parseMarkdown(raw: string): Array<RichContentBlock> {
@@ -604,7 +747,8 @@ function parseMarkdown(raw: string): Array<RichContentBlock> {
           break;
         }
         const itemSource: string = candidate.replace(ordered ? /^\d+\.\s+/ : /^[-*+]\s+/, '');
-        items.push(new RichContentListItem(markdownText(itemSource), markdownLinks(itemSource)));
+        const fragments: Array<RichContentInlineFragment> = markdownInlineFragments(itemSource);
+        items.push(new RichContentListItem(inlineFragmentsText(fragments), fragments));
         index += 1;
       }
       blocks.push(RichContentBlock.list(items, ordered));
@@ -615,21 +759,12 @@ function parseMarkdown(raw: string): Array<RichContentBlock> {
       index += 1;
       continue;
     }
-    const imageTags: Array<string> = line.match(/!\[[^\]]*\]\([^)]+\)/g) ?? [];
-    for (const imageTag of imageTags) {
-      const description: string = firstCapture(imageTag, /^!\[([^\]]*)\]/);
-      const url: string = absoluteUrl(firstCapture(imageTag, /\]\(([^)]+)\)$/));
-      if (/^https:\/\//i.test(url)) {
-        blocks.push(RichContentBlock.image(url, description.length > 0 ? description : 'Post 图片'));
-      }
-    }
-    const links: Array<RichContentLink> = markdownLinks(line);
     const text: string = markdownText(line);
     const video: RichContentBlock | null = /^https?:\/\/\S+$/i.test(text) ? videoBlock(text) : null;
     if (video !== null) {
       blocks.push(video);
-    } else if (text.length > 0) {
-      blocks.push(RichContentBlock.textBlock(text, links));
+    } else {
+      appendMarkdownInlineBlocks(line, blocks);
     }
     index += 1;
   }

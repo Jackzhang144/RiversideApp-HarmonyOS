@@ -40,7 +40,9 @@ export default function richContentTest(): void {
 
       expect(blocksOfKind(blocks, RichContentBlockKind.HEADING).length).assertEqual(1);
       expect(blocksOfKind(blocks, RichContentBlockKind.TEXT).length).assertEqual(2);
-      expect(blocksOfKind(blocks, RichContentBlockKind.TEXT)[0].links[0].url)
+      expect(blocksOfKind(blocks, RichContentBlockKind.TEXT)[0].inlineFragments[1].kind)
+        .assertEqual(RichContentInlineFragmentKind.LINK);
+      expect(blocksOfKind(blocks, RichContentBlockKind.TEXT)[0].inlineFragments[1].url)
         .assertEqual('https://river-side.cc/t/topic/42/3');
       expect(blocksOfKind(blocks, RichContentBlockKind.QUOTE)[0].title).assertEqual('alice');
       expect(blocksOfKind(blocks, RichContentBlockKind.CODE)[0].text).assertEqual('const value = 1 < 2;');
@@ -51,6 +53,41 @@ export default function richContentTest(): void {
       expect(blocksOfKind(blocks, RichContentBlockKind.IMAGE)[0].url)
         .assertEqual('https://river-side.cc/uploads/default/original/1X/example.png');
       expect(blocksOfKind(blocks, RichContentBlockKind.ONEBOX)[0].title).assertEqual('Topic 卡片');
+    });
+
+    it('preserves the source order and dimensions of inline links and images', 0, () => {
+      const blocks: Array<RichContentBlock> = parseRichPostContent(
+        '<p>前文 <a href="/t/topic/42">站内链接</a> 中间' +
+        '<img src="/uploads/default/original/1X/wide.png" alt="宽图" width="1200" height="800">' +
+        '后文</p>',
+        ''
+      );
+
+      expect(blocks.length).assertEqual(3);
+      expect(blocks[0].kind).assertEqual(RichContentBlockKind.TEXT);
+      expect(blocks[0].text).assertEqual('前文 站内链接 中间');
+      expect(blocks[0].inlineFragments[1].kind).assertEqual(RichContentInlineFragmentKind.LINK);
+      expect(blocks[0].inlineFragments[1].url).assertEqual('https://river-side.cc/t/topic/42');
+      expect(blocks[1].kind).assertEqual(RichContentBlockKind.IMAGE);
+      expect(blocks[1].sourceWidth).assertEqual(1200);
+      expect(blocks[1].sourceHeight).assertEqual(800);
+      expect(blocks[2].kind).assertEqual(RichContentBlockKind.TEXT);
+      expect(blocks[2].text).assertEqual('后文');
+    });
+
+    it('keeps links and Emoji clickable inside headings', 0, () => {
+      const blocks: Array<RichContentBlock> = parseRichPostContent(
+        '<h2><img class="emoji" src="/images/emoji/twitter/loudspeaker.png" ' +
+        'alt=":loudspeaker:"> <a href="/c/60-category/54-category/54">站务公告</a></h2>',
+        ''
+      );
+      const heading: RichContentBlock = blocksOfKind(blocks, RichContentBlockKind.HEADING)[0];
+
+      expect(heading.text).assertEqual(':loudspeaker: 站务公告');
+      expect(heading.inlineFragments[0].kind).assertEqual(RichContentInlineFragmentKind.EMOJI);
+      expect(heading.inlineFragments[2].kind).assertEqual(RichContentInlineFragmentKind.LINK);
+      expect(heading.inlineFragments[2].url)
+        .assertEqual('https://river-side.cc/c/60-category/54-category/54');
     });
 
     it('falls back to safe Markdown blocks when cooked HTML is absent', 0, () => {
@@ -66,8 +103,28 @@ export default function richContentTest(): void {
       expect(blocksOfKind(blocks, RichContentBlockKind.LIST)[0].listItems.length).assertEqual(2);
       expect(blocksOfKind(blocks, RichContentBlockKind.IMAGE)[0].url)
         .assertEqual('https://river-side.cc/uploads/example.png');
-      expect(blocksOfKind(blocks, RichContentBlockKind.TEXT)[0].links[0].url)
+      expect(blocksOfKind(blocks, RichContentBlockKind.TEXT)[0].inlineFragments[0].url)
         .assertEqual('https://river-side.cc/t/42');
+    });
+
+    it('keeps Markdown links and images in their original inline order', 0, () => {
+      const blocks: Array<RichContentBlock> = parseRichPostContent(
+        '',
+        '前文 [Topic](/t/42) 中间 ![示例图](/uploads/example.png) 后文'
+      );
+
+      expect(blocks.length).assertEqual(3);
+      expect(blocks[0].kind).assertEqual(RichContentBlockKind.TEXT);
+      expect(blocks[0].text).assertEqual('前文 Topic 中间');
+      expect(blocks[0].inlineFragments[1].kind)
+        .assertEqual(RichContentInlineFragmentKind.LINK);
+      expect(blocks[0].inlineFragments[1].url)
+        .assertEqual('https://river-side.cc/t/42');
+      expect(blocks[1].kind).assertEqual(RichContentBlockKind.IMAGE);
+      expect(blocks[1].url)
+        .assertEqual('https://river-side.cc/uploads/example.png');
+      expect(blocks[2].kind).assertEqual(RichContentBlockKind.TEXT);
+      expect(blocks[2].text).assertEqual('后文');
     });
 
     it('keeps cooked Discourse Emoji images inline with surrounding text', 0, () => {
@@ -188,7 +245,9 @@ export default function richContentTest(): void {
 
       expect(list.listItems.length).assertEqual(1);
       expect(list.listItems[0].text).assertEqual('Download: Click APK');
-      expect(list.listItems[0].links[0].url)
+      expect(list.listItems[0].inlineFragments[1].kind)
+        .assertEqual(RichContentInlineFragmentKind.LINK);
+      expect(list.listItems[0].inlineFragments[1].url)
         .assertEqual('https://river-side.cc/mobile-app/android/app.apk');
     });
 

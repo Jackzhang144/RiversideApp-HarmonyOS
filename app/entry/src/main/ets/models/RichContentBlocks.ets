@@ -16,26 +16,38 @@ export enum RichContentBlockKind {
 
 export enum RichContentInlineFragmentKind {
   TEXT = 'text',
-  EMOJI = 'emoji'
+  EMOJI = 'emoji',
+  LINK = 'link'
 }
 
 export class RichContentInlineFragment {
   public readonly kind: RichContentInlineFragmentKind;
   public readonly text: string;
   public readonly imageUrl: string;
+  public readonly url: string;
 
-  private constructor(kind: RichContentInlineFragmentKind, text: string, imageUrl: string) {
+  private constructor(
+    kind: RichContentInlineFragmentKind,
+    text: string,
+    imageUrl: string,
+    url: string
+  ) {
     this.kind = kind;
     this.text = text;
     this.imageUrl = imageUrl;
+    this.url = url;
   }
 
   public static textFragment(text: string): RichContentInlineFragment {
-    return new RichContentInlineFragment(RichContentInlineFragmentKind.TEXT, text, '');
+    return new RichContentInlineFragment(RichContentInlineFragmentKind.TEXT, text, '', '');
   }
 
   public static emoji(token: string, imageUrl: string): RichContentInlineFragment {
-    return new RichContentInlineFragment(RichContentInlineFragmentKind.EMOJI, token, imageUrl);
+    return new RichContentInlineFragment(RichContentInlineFragmentKind.EMOJI, token, imageUrl, '');
+  }
+
+  public static link(label: string, url: string): RichContentInlineFragment {
+    return new RichContentInlineFragment(RichContentInlineFragmentKind.LINK, label, '', url);
   }
 }
 
@@ -51,11 +63,14 @@ export class RichContentLink {
 
 export class RichContentListItem {
   public readonly text: string;
-  public readonly links: Array<RichContentLink>;
+  public readonly inlineFragments: Array<RichContentInlineFragment>;
 
-  public constructor(text: string, links: Array<RichContentLink> = []) {
+  public constructor(
+    text: string,
+    inlineFragments: Array<RichContentInlineFragment> = []
+  ) {
     this.text = text;
-    this.links = links;
+    this.inlineFragments = inlineFragments;
   }
 }
 
@@ -68,9 +83,10 @@ export class RichContentBlock {
   public readonly ordered: boolean;
   public readonly listItems: Array<RichContentListItem>;
   public readonly rows: Array<Array<string>>;
-  public readonly links: Array<RichContentLink>;
   public readonly embedProvider: RichEmbedProvider;
   public readonly inlineFragments: Array<RichContentInlineFragment>;
+  public readonly sourceWidth: number;
+  public readonly sourceHeight: number;
 
   private constructor(
     kind: RichContentBlockKind,
@@ -81,9 +97,10 @@ export class RichContentBlock {
     ordered: boolean = false,
     listItems: Array<RichContentListItem> = [],
     rows: Array<Array<string>> = [],
-    links: Array<RichContentLink> = [],
     embedProvider: RichEmbedProvider = RichEmbedProvider.NONE,
-    inlineFragments: Array<RichContentInlineFragment> = []
+    inlineFragments: Array<RichContentInlineFragment> = [],
+    sourceWidth: number = 0,
+    sourceHeight: number = 0
   ) {
     this.kind = kind;
     this.text = text;
@@ -93,22 +110,47 @@ export class RichContentBlock {
     this.ordered = ordered;
     this.listItems = listItems;
     this.rows = rows;
-    this.links = links;
     this.embedProvider = embedProvider;
     this.inlineFragments = inlineFragments;
+    this.sourceWidth = sourceWidth;
+    this.sourceHeight = sourceHeight;
   }
 
   public static textBlock(
     text: string,
-    links: Array<RichContentLink> = [],
     inlineFragments: Array<RichContentInlineFragment> = []
   ): RichContentBlock {
-    return new RichContentBlock(RichContentBlockKind.TEXT, text, '', '', 0, false, [], [], links,
-      RichEmbedProvider.NONE, inlineFragments);
+    return new RichContentBlock(
+      RichContentBlockKind.TEXT,
+      text,
+      '',
+      '',
+      0,
+      false,
+      [],
+      [],
+      RichEmbedProvider.NONE,
+      inlineFragments
+    );
   }
 
-  public static heading(text: string, level: number): RichContentBlock {
-    return new RichContentBlock(RichContentBlockKind.HEADING, text, '', '', level);
+  public static heading(
+    text: string,
+    level: number,
+    inlineFragments: Array<RichContentInlineFragment> = []
+  ): RichContentBlock {
+    return new RichContentBlock(
+      RichContentBlockKind.HEADING,
+      text,
+      '',
+      '',
+      level,
+      false,
+      [],
+      [],
+      RichEmbedProvider.NONE,
+      inlineFragments
+    );
   }
 
   public static quote(text: string, username: string): RichContentBlock {
@@ -135,8 +177,26 @@ export class RichContentBlock {
     return new RichContentBlock(RichContentBlockKind.TABLE, '', '', '', 0, false, [], rows);
   }
 
-  public static image(url: string, description: string): RichContentBlock {
-    return new RichContentBlock(RichContentBlockKind.IMAGE, '', description, url);
+  public static image(
+    url: string,
+    description: string,
+    sourceWidth: number = 0,
+    sourceHeight: number = 0
+  ): RichContentBlock {
+    return new RichContentBlock(
+      RichContentBlockKind.IMAGE,
+      '',
+      description,
+      url,
+      0,
+      false,
+      [],
+      [],
+      RichEmbedProvider.NONE,
+      [],
+      sourceWidth,
+      sourceHeight
+    );
   }
 
   public static onebox(url: string, title: string, domain: string): RichContentBlock {
@@ -144,6 +204,16 @@ export class RichContentBlock {
   }
 
   public static video(url: string, title: string, provider: RichEmbedProvider): RichContentBlock {
-    return new RichContentBlock(RichContentBlockKind.VIDEO, '', title, url, 0, false, [], [], [], provider);
+    return new RichContentBlock(
+      RichContentBlockKind.VIDEO,
+      '',
+      title,
+      url,
+      0,
+      false,
+      [],
+      [],
+      provider
+    );
   }
 }
