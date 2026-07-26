@@ -28,7 +28,7 @@ export function appThemePreferenceOptions(selectedMode: AppThemeMode): Array<App
 
 export function appMaterialPreferenceLabel(preference: AppMaterialPreference): string {
   if (preference === AppMaterialPreference.SYSTEM) {
-    return '系统自适应';
+    return '自适应';
   }
   if (preference === AppMaterialPreference.EXQUISITE) {
     return '精美';
@@ -40,22 +40,6 @@ export function appMaterialPreferenceLabel(preference: AppMaterialPreference): s
     return '流畅';
   }
   return '关闭';
-}
-
-export function appMaterialPreferenceDescription(preference: AppMaterialPreference): string {
-  if (preference === AppMaterialPreference.SYSTEM) {
-    return '根据设备性能自动选择光感等级';
-  }
-  if (preference === AppMaterialPreference.EXQUISITE) {
-    return '高等级，呈现更细腻的光感';
-  }
-  if (preference === AppMaterialPreference.GENTLE) {
-    return '中等级，平衡光感与性能';
-  }
-  if (preference === AppMaterialPreference.SMOOTH) {
-    return '低等级，优先保持界面流畅';
-  }
-  return '不使用沉浸光感材质';
 }
 
 export function appMaterialPreferenceIndex(preference: AppMaterialPreference): number {

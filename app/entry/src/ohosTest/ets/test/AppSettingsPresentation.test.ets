@@ -75,12 +75,12 @@ export default function appSettingsPresentationTest(): void {
       expect(appMaterialPreferenceFromIndex(0)).assertEqual(AppMaterialPreference.SYSTEM);
       expect(appMaterialPreferenceFromIndex(2)).assertEqual(AppMaterialPreference.SMOOTH);
       expect(appMaterialPreferenceFromIndex(4)).assertEqual(AppMaterialPreference.EXQUISITE);
-      expect(appMaterialPreferenceLabel(AppMaterialPreference.SYSTEM)).assertEqual('系统自适应');
+      expect(appMaterialPreferenceLabel(AppMaterialPreference.SYSTEM)).assertEqual('自适应');
 
       const options: Array<AppMaterialPreferenceOption> =
         appMaterialPreferenceOptions(AppMaterialPreference.SYSTEM);
       expect(options.length).assertEqual(5);
-      expect(options[0].label).assertEqual('系统自适应');
+      expect(options[0].label).assertEqual('自适应');
       expect(options[1].label).assertEqual('关闭');
       expect(options[4].label).assertEqual('精美');
       expect(options[0].selected).assertTrue();

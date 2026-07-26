@@ -2,7 +2,6 @@ import { HomeChannel } from '../models/DiscoveryModels';
 import { AppThemeMode } from '../settings/AppThemeSettings';
 import { AppMaterialPreference } from '../settings/AppBehaviorSettings';
 import {
-  appMaterialPreferenceDescription,
   appMaterialPreferenceFromIndex,
   appMaterialPreferenceIndex,
   appMaterialPreferenceOptions,
@@ -86,32 +85,79 @@ struct AppMaterialLevelPicker {
     this.dragPreviewIndex = -1;
   }
 
-  private materialLevelDotOpacity(preference: AppMaterialPreference): number {
-    if (preference === AppMaterialPreference.EXQUISITE) {
-      return 1;
-    }
-    if (preference === AppMaterialPreference.GENTLE) {
-      return 0.68;
-    }
-    return 0.36;
+  private activeIndicatorColor(): ResourceColor {
+    return this.activePreference() === AppMaterialPreference.OFF
+      ? $r('sys.color.comp_background_primary')
+      : $r('app.color.brand_primary');
   }
 
-  private materialLevelHaloOpacity(preference: AppMaterialPreference): number {
+  private activeIndicatorOpacity(): number {
+    const preference: AppMaterialPreference = this.activePreference();
+    if (preference === AppMaterialPreference.OFF) {
+      return 1;
+    }
     if (preference === AppMaterialPreference.EXQUISITE) {
-      return 0.2;
+      return 0.32;
     }
     if (preference === AppMaterialPreference.GENTLE) {
-      return 0.13;
+      return 0.22;
     }
-    return 0.07;
+    if (preference === AppMaterialPreference.SMOOTH) {
+      return 0.14;
+    }
+    return 0.1;
+  }
+
+  private materialLevelStageCount(preference: AppMaterialPreference): number {
+    if (preference === AppMaterialPreference.EXQUISITE) {
+      return 3;
+    }
+    if (preference === AppMaterialPreference.GENTLE) {
+      return 2;
+    }
+    return 1;
+  }
+
+  private materialLevelBarColor(
+    preference: AppMaterialPreference,
+    stage: number
+  ): ResourceColor {
+    return stage <= this.materialLevelStageCount(preference)
+      ? $r('app.color.brand_primary')
+      : $r('sys.color.font_tertiary');
+  }
+
+  private materialLevelBarOpacity(
+    option: AppMaterialPreferenceOption,
+    stage: number
+  ): number {
+    if (stage > this.materialLevelStageCount(option.preference)) {
+      return option.index === this.activeIndex() ? 0.34 : 0.22;
+    }
+    return option.index === this.activeIndex() ? 1 : 0.58;
+  }
+
+  @Builder
+  private MaterialLevelBar(
+    option: AppMaterialPreferenceOption,
+    stage: number,
+    height: number
+  ): void {
+    Row()
+      .width(4)
+      .height(height)
+      .borderRadius(2)
+      .backgroundColor(this.materialLevelBarColor(option.preference, stage))
+      .opacity(this.materialLevelBarOpacity(option, stage))
+      .hitTestBehavior(HitTestMode.None)
   }
 
   @Builder
   private MaterialTab(option: AppMaterialPreferenceOption): void {
     Button() {
       if (option.preference === AppMaterialPreference.SYSTEM) {
-        SymbolGlyph($r('sys.symbol.wand_and_stars_fill'))
-          .fontSize(19)
+        SymbolGlyph($r('sys.symbol.arrow_clockwise'))
+          .fontSize(18)
           .fontColor([option.index === this.activeIndex()
             ? $r('app.color.brand_primary')
             : $r('sys.color.font_secondary')])
@@ -124,22 +170,14 @@ struct AppMaterialLevelPicker {
             : $r('sys.color.font_tertiary')])
           .hitTestBehavior(HitTestMode.None)
       } else {
-        Stack() {
-          Circle()
-            .width(26)
-            .height(26)
-            .fill($r('app.color.brand_primary'))
-            .opacity(this.materialLevelHaloOpacity(option.preference))
-            .hitTestBehavior(HitTestMode.None)
-          Circle()
-            .width(12)
-            .height(12)
-            .fill($r('app.color.brand_primary'))
-            .opacity(this.materialLevelDotOpacity(option.preference))
-            .hitTestBehavior(HitTestMode.None)
+        Row({ space: 3 }) {
+          this.MaterialLevelBar(option, 1, 8)
+          this.MaterialLevelBar(option, 2, 12)
+          this.MaterialLevelBar(option, 3, 16)
         }
-        .width(28)
-        .height(28)
+        .height(20)
+        .alignItems(VerticalAlign.Bottom)
+        .hitTestBehavior(HitTestMode.None)
       }
     }
       .layoutWeight(1)
@@ -155,17 +193,26 @@ struct AppMaterialLevelPicker {
   }
 
   build() {
-    Column({ space: 10 }) {
+    Column() {
       Stack({ alignContent: Alignment.Start }) {
-        Row()
-          .width(this.indicatorWidth())
-          .height(MATERIAL_SELECTOR_HEIGHT - MATERIAL_SELECTOR_INSET * 2)
-          .position({ x: this.indicatorOffset(), y: MATERIAL_SELECTOR_INSET })
-          .borderRadius((MATERIAL_SELECTOR_HEIGHT - MATERIAL_SELECTOR_INSET * 2) / 2)
-          .backgroundColor($r('sys.color.comp_background_primary'))
-          .border({ width: 1, color: $r('sys.color.comp_divider') })
-          .shadow(ShadowStyle.OUTER_DEFAULT_XS)
-          .animation({ duration: 180, curve: Curve.EaseOut })
+        Stack() {
+          Row()
+            .width(this.indicatorWidth())
+            .height(MATERIAL_SELECTOR_HEIGHT - MATERIAL_SELECTOR_INSET * 2)
+            .position({ x: this.indicatorOffset(), y: MATERIAL_SELECTOR_INSET })
+            .borderRadius((MATERIAL_SELECTOR_HEIGHT - MATERIAL_SELECTOR_INSET * 2) / 2)
+            .backgroundColor(this.activeIndicatorColor())
+            .opacity(this.activeIndicatorOpacity())
+
+          Row()
+            .width(this.indicatorWidth())
+            .height(MATERIAL_SELECTOR_HEIGHT - MATERIAL_SELECTOR_INSET * 2)
+            .position({ x: this.indicatorOffset(), y: MATERIAL_SELECTOR_INSET })
+            .borderRadius((MATERIAL_SELECTOR_HEIGHT - MATERIAL_SELECTOR_INSET * 2) / 2)
+            .border({ width: 1, color: $r('sys.color.comp_divider') })
+            .shadow(ShadowStyle.OUTER_DEFAULT_XS)
+        }
+        .animation({ duration: 180, curve: Curve.EaseOut })
 
         Row() {
           ForEach(
@@ -205,17 +252,6 @@ struct AppMaterialLevelPicker {
             this.cancelMaterialDrag();
           })
       )
-
-      Text(appMaterialPreferenceDescription(this.activePreference()))
-        .fontSize(13)
-        .lineHeight(18)
-        .fontColor($r('sys.color.font_secondary'))
-        .maxLines(1)
-        .textOverflow({ overflow: TextOverflow.Ellipsis })
-        .textAlign(TextAlign.Center)
-      .width('100%')
-      .height(22)
-      .padding({ left: 4, right: 4 })
     }
     .width('100%')
     .padding({ left: 14, right: 14, top: 14, bottom: 14 })
