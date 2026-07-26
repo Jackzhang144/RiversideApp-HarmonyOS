@@ -108,60 +108,72 @@ struct AppMaterialLevelPicker {
     return 0.1;
   }
 
-  private materialLevelStageCount(preference: AppMaterialPreference): number {
+  private materialLevelCoreSize(preference: AppMaterialPreference): number {
     if (preference === AppMaterialPreference.EXQUISITE) {
-      return 3;
+      return 18;
     }
     if (preference === AppMaterialPreference.GENTLE) {
-      return 2;
+      return 14;
     }
-    return 1;
+    return 10;
   }
 
-  private materialLevelBarColor(
-    preference: AppMaterialPreference,
-    stage: number
-  ): ResourceColor {
-    return stage <= this.materialLevelStageCount(preference)
-      ? $r('app.color.brand_primary')
-      : $r('sys.color.font_tertiary');
+  private materialLevelCoreOpacity(preference: AppMaterialPreference): number {
+    if (preference === AppMaterialPreference.EXQUISITE) {
+      return 1;
+    }
+    if (preference === AppMaterialPreference.GENTLE) {
+      return 0.7;
+    }
+    return 0.42;
   }
 
-  private materialLevelBarOpacity(
-    option: AppMaterialPreferenceOption,
-    stage: number
-  ): number {
-    if (stage > this.materialLevelStageCount(option.preference)) {
-      return option.index === this.activeIndex() ? 0.34 : 0.22;
+  private materialLevelHaloOpacity(preference: AppMaterialPreference): number {
+    if (preference === AppMaterialPreference.EXQUISITE) {
+      return 0.2;
     }
-    return option.index === this.activeIndex() ? 1 : 0.58;
+    if (preference === AppMaterialPreference.GENTLE) {
+      return 0.13;
+    }
+    return 0.08;
   }
 
   @Builder
-  private MaterialLevelBar(
-    option: AppMaterialPreferenceOption,
-    stage: number,
-    height: number
-  ): void {
-    Row()
-      .width(4)
-      .height(height)
-      .borderRadius(2)
-      .backgroundColor(this.materialLevelBarColor(option.preference, stage))
-      .opacity(this.materialLevelBarOpacity(option, stage))
-      .hitTestBehavior(HitTestMode.None)
+  private MaterialLevelGlow(preference: AppMaterialPreference): void {
+    Stack({ alignContent: Alignment.Center }) {
+      Row()
+        .width(26)
+        .height(26)
+        .borderRadius(13)
+        .backgroundColor($r('app.color.brand_primary'))
+        .opacity(this.materialLevelHaloOpacity(preference))
+
+      Row()
+        .width(this.materialLevelCoreSize(preference))
+        .height(this.materialLevelCoreSize(preference))
+        .borderRadius(this.materialLevelCoreSize(preference) / 2)
+        .backgroundColor($r('app.color.brand_primary'))
+        .opacity(this.materialLevelCoreOpacity(preference))
+    }
+    .width(28)
+    .height(28)
+    .hitTestBehavior(HitTestMode.None)
   }
 
   @Builder
   private MaterialTab(option: AppMaterialPreferenceOption): void {
     Button() {
       if (option.preference === AppMaterialPreference.SYSTEM) {
-        SymbolGlyph($r('sys.symbol.arrow_clockwise'))
-          .fontSize(18)
-          .fontColor([option.index === this.activeIndex()
-            ? $r('app.color.brand_primary')
-            : $r('sys.color.font_secondary')])
-          .hitTestBehavior(HitTestMode.None)
+        Stack({ alignContent: Alignment.Center }) {
+          SymbolGlyph($r('sys.symbol.arrow_clockwise'))
+            .fontSize(18)
+            .fontColor([option.index === this.activeIndex()
+              ? $r('app.color.brand_primary')
+              : $r('sys.color.font_secondary')])
+        }
+        .width(28)
+        .height(28)
+        .hitTestBehavior(HitTestMode.None)
       } else if (option.preference === AppMaterialPreference.OFF) {
         SymbolGlyph($r('sys.symbol.xmark_circle'))
           .fontSize(19)
@@ -170,14 +182,7 @@ struct AppMaterialLevelPicker {
             : $r('sys.color.font_tertiary')])
           .hitTestBehavior(HitTestMode.None)
       } else {
-        Row({ space: 3 }) {
-          this.MaterialLevelBar(option, 1, 8)
-          this.MaterialLevelBar(option, 2, 12)
-          this.MaterialLevelBar(option, 3, 16)
-        }
-        .height(20)
-        .alignItems(VerticalAlign.Bottom)
-        .hitTestBehavior(HitTestMode.None)
+        this.MaterialLevelGlow(option.preference)
       }
     }
       .layoutWeight(1)
