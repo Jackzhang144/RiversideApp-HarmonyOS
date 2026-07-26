@@ -5,7 +5,8 @@ import {
   reactionAccessibilityLabel,
   reactionCount,
   reactionEmojiKey,
-  reactionEmojiUrl
+  reactionEmojiUrl,
+  shouldShowPositiveReactionCountInTrigger
 } from './TopicReadingPresentation';
 
 @Component
@@ -45,15 +46,26 @@ export struct TopicPostActionBar {
       Text(reaction.count.toString())
         .fontSize(12)
         .fontWeight(FontWeight.Medium)
-        .fontColor($r('app.color.text_link'))
+        .fontColor(this.isCurrentReaction(reaction.id)
+          ? $r('app.color.brand_primary')
+          : $r('app.color.text_link'))
     }
     .height(34)
     .padding({ left: 10, right: 10 })
-    .backgroundColor($r('sys.color.background_secondary'))
+    .backgroundColor(this.isCurrentReaction(reaction.id)
+      ? $r('app.color.brand_tint_surface')
+      : $r('sys.color.background_secondary'))
+    .border({
+      width: this.isCurrentReaction(reaction.id) ? 1 : 0,
+      color: this.isCurrentReaction(reaction.id) ? $r('app.color.brand_primary') : Color.Transparent
+    })
     .borderRadius(17)
     .margin({ right: 6 })
     .onClick((): void => this.onOpenReactionUsers(this.post.id))
-    .accessibilityText(`${reactionAccessibilityLabel(reaction.id)}回应，${reaction.count} 次`)
+    .accessibilityText(
+      `${reactionAccessibilityLabel(reaction.id)}回应，${reaction.count} 次` +
+      `${this.isCurrentReaction(reaction.id) ? '，已选择' : ''}`
+    )
   }
 
   @Builder
@@ -95,13 +107,10 @@ export struct TopicPostActionBar {
     return currentReaction.length > 0 ? currentReaction : null;
   }
 
-  private triggerReactionId(): string {
-    return this.currentReactionId() ?? '+1';
-  }
-
-  private hasCustomCurrentReaction(): boolean {
+  private isCurrentReaction(reactionId: string): boolean {
     const currentReaction: string | null = this.currentReactionId();
-    return currentReaction !== null && reactionEmojiKey(currentReaction) !== '+1';
+    return currentReaction !== null &&
+      reactionEmojiKey(currentReaction) === reactionEmojiKey(reactionId);
   }
 
   private hasPositiveCurrentReaction(): boolean {
@@ -112,7 +121,7 @@ export struct TopicPostActionBar {
   private reactionTriggerAccessibilityText(): string {
     const currentReaction: string | null = this.currentReactionId();
     if (currentReaction !== null && reactionEmojiKey(currentReaction) !== '+1') {
-      return `已选择${reactionAccessibilityLabel(currentReaction)}回应；点击取消，长按选择其他回应`;
+      return `已选择${reactionAccessibilityLabel(currentReaction)}回应；点击改为赞同，长按选择其他回应`;
     }
     const positiveCount: number = reactionCount('+1', this.post.reactions);
     if (this.hasPositiveCurrentReaction()) {
@@ -127,27 +136,20 @@ export struct TopicPostActionBar {
   private ReactionTrigger(): void {
     Button() {
       Row({ space: 4 }) {
-        if (this.hasCustomCurrentReaction()) {
-          Image(reactionEmojiUrl(this.triggerReactionId()))
-            .width(18)
-            .height(18)
-            .objectFit(ImageFit.Contain)
-        } else {
-          SymbolGlyph(reactionCount('+1', this.post.reactions) > 0
-            ? $r('sys.symbol.hand_thumbsup_fill')
-            : $r('sys.symbol.hand_thumbsup'))
-            .fontSize(18)
-            .fontColor([this.hasPositiveCurrentReaction()
+        SymbolGlyph(reactionCount('+1', this.post.reactions) > 0
+          ? $r('sys.symbol.hand_thumbsup_fill')
+          : $r('sys.symbol.hand_thumbsup'))
+          .fontSize(18)
+          .fontColor([this.hasPositiveCurrentReaction()
+            ? $r('app.color.reaction_liked')
+            : $r('sys.color.font_secondary')])
+        if (shouldShowPositiveReactionCountInTrigger(this.post.reactions)) {
+          Text(reactionCount('+1', this.post.reactions).toString())
+            .fontSize(12)
+            .fontWeight(FontWeight.Medium)
+            .fontColor(this.hasPositiveCurrentReaction()
               ? $r('app.color.reaction_liked')
-              : $r('sys.color.font_secondary')])
-          if (reactionCount('+1', this.post.reactions) > 0) {
-            Text(reactionCount('+1', this.post.reactions).toString())
-              .fontSize(12)
-              .fontWeight(FontWeight.Medium)
-              .fontColor(this.hasPositiveCurrentReaction()
-                ? $r('app.color.reaction_liked')
-                : $r('sys.color.font_secondary'))
-          }
+              : $r('sys.color.font_secondary'))
         }
       }
       .justifyContent(FlexAlign.Center)
@@ -158,7 +160,7 @@ export struct TopicPostActionBar {
     .height(34)
     .backgroundColor(Color.Transparent)
     .enabled(!this.actionState.busy)
-    .onClick((): void => this.onToggleReaction(this.post.id, this.triggerReactionId()))
+    .onClick((): void => this.onToggleReaction(this.post.id, '+1'))
     .bindContextMenu(this.ReactionPicker(), ResponseType.LongPress, {
       preview: MenuPreviewMode.NONE,
       enableArrow: true

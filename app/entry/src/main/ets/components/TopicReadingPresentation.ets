@@ -194,13 +194,25 @@ export function reactionCount(reactionId: string, reactions: Array<PostReaction>
 }
 
 export function displayedReactions(reactions: Array<PostReaction>): Array<PostReaction> {
+  const hasAlternativeReaction: boolean = reactions.some(
+    (reaction: PostReaction): boolean => {
+      return reaction.count > 0 && reactionEmojiKey(reaction.id) !== '+1';
+    }
+  );
+  if (!hasAlternativeReaction) {
+    return [];
+  }
   const displayed: Array<PostReaction> = [];
   for (const reaction of reactions) {
-    if (reaction.count > 0 && reactionEmojiKey(reaction.id) !== '+1') {
+    if (reaction.count > 0) {
       displayed.push(reaction);
     }
   }
   return displayed;
+}
+
+export function shouldShowPositiveReactionCountInTrigger(reactions: Array<PostReaction>): boolean {
+  return displayedReactions(reactions).length === 0 && reactionCount('+1', reactions) > 0;
 }
 
 export function selectedBookmarkPostIds(posts: Array<ForumPost>): Array<number> {

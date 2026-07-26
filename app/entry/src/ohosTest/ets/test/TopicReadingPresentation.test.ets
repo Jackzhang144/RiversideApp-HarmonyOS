@@ -14,6 +14,7 @@ import {
   reactionCount,
   reactionEmojiKey,
   reactionEmojiUrl,
+  shouldShowPositiveReactionCountInTrigger,
   PostFlagOption,
   postFlagOptions,
   selectedBookmarkPostIds,
@@ -60,18 +61,22 @@ export default function topicReadingPresentationTest(): void {
       expect(reactionAccessibilityLabel('future_reaction')).assertEqual('回应');
     });
 
-    it('shows only Reactions that already have server-proven counts', 0, () => {
-      const reactions: Array<PostReaction> = [
+    it('moves every Reaction to the left when a non-positive Reaction exists', 0, () => {
+      const mixedReactions: Array<PostReaction> = [
         new PostReaction('+1', 4),
         new PostReaction('heart', 2),
         new PostReaction('thinking', 0)
       ];
+      const positiveOnly: Array<PostReaction> = [new PostReaction('+1', 4)];
 
       expect(displayedReactions([]).length).assertEqual(0);
-      expect(displayedReactions(reactions).length).assertEqual(1);
-      expect(displayedReactions(reactions)[0].id).assertEqual('heart');
-      expect(displayedReactions(reactions)[0].count).assertEqual(2);
-      expect(reactionCount('+1', reactions)).assertEqual(4);
+      expect(displayedReactions(positiveOnly).length).assertEqual(0);
+      expect(displayedReactions(mixedReactions).length).assertEqual(2);
+      expect(displayedReactions(mixedReactions)[0].id).assertEqual('+1');
+      expect(displayedReactions(mixedReactions)[1].id).assertEqual('heart');
+      expect(shouldShowPositiveReactionCountInTrigger(positiveOnly)).assertTrue();
+      expect(shouldShowPositiveReactionCountInTrigger(mixedReactions)).assertFalse();
+      expect(reactionCount('+1', mixedReactions)).assertEqual(4);
     });
 
     it('projects only server-bookmarked Posts into observable selection state', 0, () => {
