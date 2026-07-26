@@ -1,4 +1,4 @@
-import { SymbolGlyphModifier } from '@kit.ArkUI';
+import { KeyboardAvoidMode, SymbolGlyphModifier } from '@kit.ArkUI';
 import { ChatComposerState, ChatConversationState, ChatStateKind } from '../app/ChatStateModels';
 import { RepositoryResult, RepositoryResultKind } from '../core/RepositoryResult';
 import { ComposerEdit } from '../models/AuthoringModels';
@@ -35,6 +35,8 @@ import {
 } from './ChatMessagePresentation';
 
 const CHAT_QUICK_REACTION_LIMIT: number = 5;
+const CHAT_MESSAGE_BUBBLE_MAX_WIDTH: number = 238;
+const CHAT_MESSAGE_CONTENT_MAX_WIDTH: number = 216;
 const CHAT_QUICK_REACTION_PREFERRED_NAMES: Array<string> = [
   'heart',
   '+1',
@@ -111,8 +113,11 @@ export struct ChatConversationPage {
   private historyAnchorMessageId: number = 0;
   private composerSelectionStart: number = 0;
   private composerSelectionEnd: number = 0;
+  private previousKeyboardAvoidMode: KeyboardAvoidMode | null = null;
 
   aboutToAppear(): void {
+    this.previousKeyboardAvoidMode = this.getUIContext().getKeyboardAvoidMode();
+    this.getUIContext().setKeyboardAvoidMode(KeyboardAvoidMode.RESIZE);
     this.synchronizeMessageViewport();
   }
 
@@ -122,6 +127,10 @@ export struct ChatConversationPage {
     this.cancelReadProgressTimer();
     this.flushReadProgress();
     this.mentionRequestGate.invalidate();
+    if (this.previousKeyboardAvoidMode !== null) {
+      this.getUIContext().setKeyboardAvoidMode(this.previousKeyboardAvoidMode);
+      this.previousKeyboardAvoidMode = null;
+    }
   }
 
   private cancelMentionTimer(): void {
@@ -781,7 +790,7 @@ export struct ChatConversationPage {
     .lineHeight(21)
     .fontColor(message.deleted ? $r('sys.color.font_tertiary') : $r('sys.color.font_primary'))
     .fontStyle(message.deleted ? FontStyle.Italic : FontStyle.Normal)
-    .width('100%')
+    .constraintSize({ maxWidth: CHAT_MESSAGE_CONTENT_MAX_WIDTH })
   }
 
   @Builder
@@ -803,7 +812,7 @@ export struct ChatConversationPage {
     .fontColor($r('sys.color.font_secondary'))
     .maxLines(2)
     .textOverflow({ overflow: TextOverflow.Ellipsis })
-    .width('100%')
+    .constraintSize({ maxWidth: CHAT_MESSAGE_CONTENT_MAX_WIDTH })
   }
 
   @Builder
@@ -852,50 +861,51 @@ export struct ChatConversationPage {
     if (visible) {
       if (message.avatarUrl.length > 0) {
         Image(message.avatarUrl)
-          .width(36)
-          .height(36)
+          .width(32)
+          .height(32)
           .objectFit(ImageFit.Cover)
-          .borderRadius($r('app.float.forum_author_avatar_corner_radius'))
+          .borderRadius(16)
           .onClick((): void => this.onOpenProfile(message.username))
           .accessibilityText(`查看用户 ${this.displayUsername(message)}`)
       } else {
         Text(this.avatarInitial(message))
-          .width(36)
-          .height(36)
-          .fontSize(13)
+          .width(32)
+          .height(32)
+          .fontSize(12)
           .fontWeight(FontWeight.Bold)
           .fontColor($r('app.color.brand_primary'))
           .textAlign(TextAlign.Center)
           .backgroundColor($r('app.color.brand_tint_surface'))
-          .borderRadius($r('app.float.forum_author_avatar_corner_radius'))
+          .borderRadius(16)
           .onClick((): void => this.onOpenProfile(message.username))
           .accessibilityText(`查看用户 ${this.displayUsername(message)}`)
       }
     } else {
-      Blank().width(36).height(1)
+      Blank().width(32).height(1)
     }
   }
 
   @Builder
-  private MessageBubbleSurface(message: ChatMessage, groupStart: boolean): void {
-    Column({ space: 7 }) {
-      if (groupStart) {
-        Row({ space: 8 }) {
-          Text(this.displayUsername(message))
-            .fontSize(13)
-            .fontWeight(FontWeight.Bold)
-            .fontColor($r('app.color.brand_primary'))
-            .maxLines(1)
-            .textOverflow({ overflow: TextOverflow.Ellipsis })
-          Text(formatChatMessageTimestamp(message.createdAt))
-            .fontSize(10)
-            .fontColor($r('sys.color.font_tertiary'))
-            .layoutWeight(1)
-            .textAlign(message.username === this.currentUsername ? TextAlign.End : TextAlign.Start)
-        }
-        .width('100%')
-      }
+  private MessageMetadata(message: ChatMessage): void {
+    Row({ space: 7 }) {
+      Text(this.displayUsername(message))
+        .fontSize(12)
+        .fontWeight(FontWeight.Medium)
+        .fontColor($r('sys.color.font_secondary'))
+        .maxLines(1)
+        .textOverflow({ overflow: TextOverflow.Ellipsis })
+      Text(formatChatMessageTimestamp(message.createdAt))
+        .fontSize(10)
+        .fontColor($r('sys.color.font_tertiary'))
+        .maxLines(1)
+    }
+    .constraintSize({ maxWidth: CHAT_MESSAGE_BUBBLE_MAX_WIDTH })
+    .justifyContent(message.username === this.currentUsername ? FlexAlign.End : FlexAlign.Start)
+  }
 
+  @Builder
+  private MessageBubbleSurface(message: ChatMessage): void {
+    Column({ space: 7 }) {
       if (message.replyTo !== null) {
         Column({ space: 3 }) {
           Text(`回复 ${message.replyTo.username}`)
@@ -916,8 +926,8 @@ export struct ChatConversationPage {
       if (!message.deleted && message.uploadUrls.length > 0) {
         ForEach(message.uploadUrls, (url: string): void => {
           Image(absoluteChatUrl(url))
-            .width('100%')
-            .height(180)
+            .width(CHAT_MESSAGE_CONTENT_MAX_WIDTH)
+            .height(164)
             .borderRadius(10)
             .objectFit(ImageFit.Contain)
             .backgroundColor($r('sys.color.background_secondary'))
@@ -932,15 +942,16 @@ export struct ChatConversationPage {
             this.ReactionChip(message, reaction)
           }, (reaction: ChatReaction): string => reaction.emoji)
         }
-        .width('100%')
+        .constraintSize({ maxWidth: CHAT_MESSAGE_CONTENT_MAX_WIDTH })
       }
     }
-    .width('100%')
-    .padding({ left: 11, right: 11, top: 9, bottom: 9 })
+    .constraintSize({ minWidth: 56, maxWidth: CHAT_MESSAGE_BUBBLE_MAX_WIDTH })
+    .alignItems(HorizontalAlign.Start)
+    .padding({ left: 11, right: 11, top: 8, bottom: 8 })
     .backgroundColor(message.username === this.currentUsername
-      ? $r('app.color.brand_tint_surface')
+      ? $r('app.color.brand_selected_surface')
       : $r('sys.color.comp_background_primary'))
-    .borderRadius($r('app.float.card_corner_radius'))
+    .borderRadius(16)
     .border({
       width: message.username === this.currentUsername ? 0 : 1,
       color: $r('sys.color.comp_divider')
@@ -949,10 +960,14 @@ export struct ChatConversationPage {
 
   @Builder
   private MessageBubble(message: ChatMessage, groupStart: boolean): void {
-    Column() {
-      this.MessageBubbleSurface(message, groupStart)
+    Column({ space: 4 }) {
+      if (groupStart) {
+        this.MessageMetadata(message)
+      }
+      this.MessageBubbleSurface(message)
     }
-    .layoutWeight(1)
+    .constraintSize({ maxWidth: CHAT_MESSAGE_BUBBLE_MAX_WIDTH })
+    .alignItems(message.username === this.currentUsername ? HorizontalAlign.End : HorizontalAlign.Start)
     .accessibilityText(`${this.displayUsername(message)}：${message.displayText()}，长按显示消息操作`)
   }
 
@@ -983,7 +998,7 @@ export struct ChatConversationPage {
           this.AuthorAvatar(message, groupStart)
         }
       }
-      .width('91%')
+      .width('88%')
       .alignItems(VerticalAlign.Top)
       .bindContextMenu(
         this.MessageContextMenu(message, this.messageContextCapabilities(message)),
@@ -1009,7 +1024,7 @@ export struct ChatConversationPage {
     }
     .width('100%')
     .justifyContent(message.username === this.currentUsername ? FlexAlign.End : FlexAlign.Start)
-    .margin({ top: groupStart ? 10 : 3 })
+    .margin({ top: groupStart ? 12 : 4 })
     .opacity(this.reactionSheetVisible && this.reactionMessageId !== message.id ? 0.32 : 1)
   }
 
@@ -1244,16 +1259,16 @@ export struct ChatConversationPage {
       }
       this.EmojiBar()
       this.MentionSuggestions()
-      Row({ space: 7 }) {
+      Row({ space: 4 }) {
         Button() {
           SymbolGlyph($r('sys.symbol.ohos_photo'))
             .fontSize(20)
-            .fontColor([$r('sys.color.font_primary')])
+            .fontColor([$r('sys.color.font_secondary')])
         }
           .width(40)
           .height(40)
           .borderRadius(20)
-          .backgroundColor($r('sys.color.background_secondary'))
+          .backgroundColor(Color.Transparent)
           .enabled(!this.composer.sending && this.canWrite())
           .onClick(this.onSelectImages).accessibilityText($r('app.string.chat_image_select_accessibility'))
         TextArea({
@@ -1263,8 +1278,7 @@ export struct ChatConversationPage {
         })
           .layoutWeight(1)
           .constraintSize({ minHeight: 42, maxHeight: 100 })
-          .backgroundColor($r('sys.color.background_secondary'))
-          .borderRadius(20)
+          .backgroundColor(Color.Transparent)
           .enabled(this.canWrite()).onChange((value: string): void => {
             this.handleDraftChange(value);
           })
@@ -1285,59 +1299,86 @@ export struct ChatConversationPage {
             .borderRadius(20)
             .backgroundColor(this.emojiPickerVisible
               ? $r('app.color.brand_selected_surface')
-              : $r('sys.color.background_secondary'))
+              : Color.Transparent)
             .enabled(this.canWrite())
             .onClick((): void => { this.emojiPickerVisible = !this.emojiPickerVisible; })
             .accessibilityText($r('app.string.chat_emoji_toggle_accessibility'))
         }
-        Button() { SymbolGlyph($r('sys.symbol.paperplane')).fontSize(20) }
+        Button() {
+          SymbolGlyph($r('sys.symbol.paperplane'))
+            .fontSize(19)
+            .fontColor([$r('app.color.on_accent')])
+        }
           .width(44)
           .height(44)
           .borderRadius(22)
+          .backgroundColor($r('app.color.brand_primary'))
           .enabled(this.canWrite() && !this.composer.sending &&
             (this.composer.draft.trim().length > 0 || this.composer.uploads.length > 0))
           .onClick(this.onSend).accessibilityText($r('app.string.chat_send_accessibility'))
       }
       .width('100%')
+      .padding(3)
+      .backgroundColor($r('sys.color.comp_background_primary'))
+      .border({ width: 1, color: $r('sys.color.comp_divider') })
+      .borderRadius(24)
       if (this.composer.message.length > 0) {
         Text(this.composer.message).fontSize(11)
           .fontColor(this.composer.sending ? $r('sys.color.font_secondary') : $r('app.color.status_error')).width('100%')
       }
     }
     .width('100%')
-    .padding({ left: 12, right: 12, top: 8, bottom: 10 })
-    .backgroundColor($r('sys.color.comp_background_primary'))
-    .border({ width: { top: 1 }, color: $r('sys.color.comp_divider') })
+    .padding({ left: 10, right: 10, top: 7, bottom: 18 })
+    .backgroundColor($r('sys.color.background_secondary'))
   }
 
   build() {
     Column() {
       if (this.state.channel !== null && !this.state.channel.isDirectMessage) {
-        Row({ space: 8 }) {
-          SymbolGlyph($r('sys.symbol.message'))
-            .fontSize(16)
-            .fontColor([$r('sys.color.font_secondary')])
-          Text(this.state.channel.subtitle)
-            .fontSize(12)
-            .fontColor($r('sys.color.font_secondary'))
+        Column() {
+          Row({ space: 10 }) {
+            SymbolGlyph($r('sys.symbol.message'))
+              .fontSize(17)
+              .fontColor([$r('app.color.brand_primary')])
+              .width(32)
+              .height(32)
+              .padding(7)
+              .backgroundColor($r('app.color.brand_tint_surface'))
+              .borderRadius(16)
+            Column({ space: 2 }) {
+              Text('聊天室')
+                .fontSize(12)
+                .fontWeight(FontWeight.Medium)
+                .fontColor($r('sys.color.font_primary'))
+              Text(this.state.channel.subtitle)
+                .fontSize(11)
+                .fontColor($r('sys.color.font_secondary'))
+                .maxLines(1)
+                .textOverflow({ overflow: TextOverflow.Ellipsis })
+            }
+            .alignItems(HorizontalAlign.Start)
             .layoutWeight(1)
-            .maxLines(1)
-            .textOverflow({ overflow: TextOverflow.Ellipsis })
-          Button() {
-            Text('···').fontSize(18).fontWeight(FontWeight.Bold)
+            Button() {
+              SymbolGlyph($r('sys.symbol.info_circle'))
+                .fontSize(19)
+                .fontColor([$r('sys.color.font_secondary')])
+            }
+            .width(34)
+            .height(34)
+            .borderRadius(17)
+            .backgroundColor(Color.Transparent)
+            .onClick((): void => this.showChannelActions())
+            .accessibilityText($r('app.string.chat_channel_actions_accessibility'))
           }
-          .width(36)
-          .height(32)
-          .borderRadius(16)
-          .backgroundColor(Color.Transparent)
-          .onClick((): void => this.showChannelActions())
-          .accessibilityText($r('app.string.chat_channel_actions_accessibility'))
+          .width('100%')
+          .height(48)
+          .padding({ left: 10, right: 8 })
+          .backgroundColor($r('sys.color.comp_background_primary'))
+          .border({ width: 1, color: $r('sys.color.comp_divider') })
+          .borderRadius(18)
         }
         .width('100%')
-        .height(42)
-        .padding({ left: 12, right: 8 })
-          .backgroundColor($r('sys.color.comp_background_primary'))
-          .border({ width: { bottom: 1 }, color: $r('sys.color.comp_divider') })
+        .padding({ left: 12, right: 12, top: 6, bottom: 4 })
       }
       if (this.state.channel?.userSilenced === true) {
         Text($r('app.string.chat_silenced_message'))
