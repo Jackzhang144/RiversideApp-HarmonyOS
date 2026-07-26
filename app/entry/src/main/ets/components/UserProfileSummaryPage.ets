@@ -12,6 +12,7 @@ import {
 } from './ProfileSummaryPresentation';
 import { isDiscourseFlairImage } from '../core/DiscourseFlair';
 import { UserAvatar } from './UserAvatar';
+import { UserStatusPill } from './UserStatusPill';
 
 @Component
 export struct UserProfileSummaryPage {
@@ -291,6 +292,12 @@ export struct UserProfileSummaryPage {
       .width('100%')
       .height(168)
       .clip(false)
+      if (profile.userStatus !== null) {
+        Row() {
+          UserStatusPill({ status: profile.userStatus })
+        }
+        .width('100%')
+      }
       this.IdentityPills(profile)
       this.ProfileActions(profile)
     }

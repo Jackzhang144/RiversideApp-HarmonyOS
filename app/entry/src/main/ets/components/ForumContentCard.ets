@@ -18,6 +18,7 @@ import { TopicPostActionState } from '../app/TopicReadingModels';
 import { RichPostContent } from './RichPostContent';
 import { TopicPostActionBar } from './TopicPostActionBar';
 import { UserAvatar } from './UserAvatar';
+import { UserStatusPill } from './UserStatusPill';
 
 @Component
 export struct ForumContentCard {
@@ -96,6 +97,9 @@ export struct ForumContentCard {
         Text(author.timestamp)
           .fontSize(11)
           .fontColor($r('sys.color.font_tertiary'))
+        if (author.userStatus !== null) {
+          UserStatusPill({ status: author.userStatus })
+        }
       }
       .alignItems(HorizontalAlign.Start)
       .layoutWeight(1)

@@ -11,6 +11,7 @@ import {
   UserProfileSummary,
   UserReplyItem
 } from '../models/ProfileModels';
+import { discourseUserStatusFromReader } from './UserStatusResponseParser';
 
 function numberOrZero(value: number | null): number {
   return typeof value === 'number' && Number.isFinite(value) ? value : 0;
@@ -313,7 +314,10 @@ export class ProfileResponseParser {
       canDirectMessage: booleanOrFalse(user.boolean('can_direct_message')) ||
         booleanOrFalse(user.boolean('can_send_private_messages')),
       canChatWithUser: booleanOrFalse(user.boolean('can_chat_user')) ||
-        booleanOrFalse(user.boolean('can_send_private_message_to_user'))
+        booleanOrFalse(user.boolean('can_send_private_message_to_user')),
+      userStatus: discourseUserStatusFromReader(
+        user.object('status') ?? user.object('user_status')
+      )
     });
   }
 

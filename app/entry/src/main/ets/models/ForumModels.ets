@@ -4,6 +4,7 @@ import {
   absoluteDiscourseFlairUrl,
   normalizedDiscourseFlairColor
 } from '../core/DiscourseFlair';
+import { DiscourseUserStatus } from './DiscourseUserStatus';
 
 export class Topic {
   public readonly id: number;
@@ -187,6 +188,7 @@ export class ForumPostMetadata {
   public readonly flairName: string;
   public readonly flairBackgroundColor: string;
   public readonly flairColor: string;
+  public readonly userStatus: DiscourseUserStatus | null;
 
   public constructor(
     userTitle: string = '',
@@ -209,7 +211,8 @@ export class ForumPostMetadata {
     replyCount: number = 0,
     flairName: string = '',
     flairBackgroundColor: string = '',
-    flairColor: string = ''
+    flairColor: string = '',
+    userStatus: DiscourseUserStatus | null = null
   ) {
     this.userTitle = userTitle;
     this.avatarUrl = avatarUrl;
@@ -232,6 +235,7 @@ export class ForumPostMetadata {
     this.flairName = flairName.trim();
     this.flairBackgroundColor = normalizedDiscourseFlairColor(flairBackgroundColor);
     this.flairColor = normalizedDiscourseFlairColor(flairColor);
+    this.userStatus = userStatus;
   }
 }
 
@@ -266,6 +270,7 @@ export class ForumPost {
   public readonly flairName: string;
   public readonly flairBackgroundColor: string;
   public readonly flairColor: string;
+  public readonly userStatus: DiscourseUserStatus | null;
 
   public constructor(
     id: number,
@@ -310,6 +315,7 @@ export class ForumPost {
     this.flairName = metadata.flairName;
     this.flairBackgroundColor = metadata.flairBackgroundColor;
     this.flairColor = metadata.flairColor;
+    this.userStatus = metadata.userStatus;
   }
 
   public isSystemAction(): boolean {
@@ -375,7 +381,8 @@ export class ForumPost {
         this.replyCount,
         this.flairName,
         this.flairBackgroundColor,
-        this.flairColor
+        this.flairColor,
+        this.userStatus
       )
     );
   }
@@ -411,7 +418,8 @@ export class ForumPost {
         this.replyCount,
         this.flairName,
         this.flairBackgroundColor,
-        this.flairColor
+        this.flairColor,
+        this.userStatus
       )
     );
   }
@@ -447,7 +455,8 @@ export class ForumPost {
         this.replyCount,
         this.flairName,
         this.flairBackgroundColor,
-        this.flairColor
+        this.flairColor,
+        this.userStatus
       )
     );
   }
@@ -483,7 +492,8 @@ export class ForumPost {
         this.replyCount,
         this.flairName,
         this.flairBackgroundColor,
-        this.flairColor
+        this.flairColor,
+        this.userStatus
       )
     );
   }

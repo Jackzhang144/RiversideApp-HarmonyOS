@@ -20,6 +20,7 @@ import {
   numberOrZero,
   textOrEmpty
 } from './ForumResponseDecoding';
+import { discourseUserStatusFromReader } from './UserStatusResponseParser';
 
 
 function forumPostFromReader(
@@ -69,7 +70,8 @@ function forumPostFromReader(
     numberOrZero(post.number('reply_count')),
     textOrEmpty(post.string('flair_name')),
     textOrEmpty(post.string('flair_bg_color')),
-    textOrEmpty(post.string('flair_color'))
+    textOrEmpty(post.string('flair_color')),
+    discourseUserStatusFromReader(post.object('user_status'))
   );
   return new ForumPost(
     id,

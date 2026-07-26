@@ -149,6 +149,29 @@ export default function jsonBoundaryTest(): void {
       expect(replyResult.data?.map((post: ForumPost): number => post.postNumber).join(',')).assertEqual('2,5');
     });
 
+    it('keeps active Post user status and preserves it across local Post updates', 0, () => {
+      const parser: TopicResponseParser = new TopicResponseParser();
+      const result: RepositoryResult<Array<ForumPost>> = parser.parseTopicPosts(
+        '{"post_stream":{"posts":[' +
+        '{"id":102728,"user_id":24,"username":"Co-admin","raw":"父 Post",' +
+        '"post_number":1,"created_at":"2026-01-27T14:46:08.722Z",' +
+        '"user_status":{"description":"正在图书馆","emoji":"books",' +
+        '"ends_at":"2099-08-01T08:00:00Z"}},' +
+        '{"id":102729,"user_id":25,"username":"expired","raw":"过期状态",' +
+        '"post_number":2,"created_at":"2026-01-27T14:47:08.722Z",' +
+        '"user_status":{"description":"已离开","emoji":"wave",' +
+        '"ends_at":"2000-01-01T00:00:00Z"}}' +
+        ']}}'
+      );
+
+      expect(result.kind).assertEqual(RepositoryResultKind.SUCCESS);
+      expect(result.data?.[0].userStatus?.description).assertEqual('正在图书馆');
+      expect(result.data?.[0].userStatus?.emoji).assertEqual('books');
+      expect(result.data?.[0].withBookmark(true, 88).userStatus?.description)
+        .assertEqual('正在图书馆');
+      expect(result.data?.[1].userStatus).assertNull();
+    });
+
     it('rejects malformed direct Reply arrays', 0, () => {
       const parser: TopicResponseParser = new TopicResponseParser();
 

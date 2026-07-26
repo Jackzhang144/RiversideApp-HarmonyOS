@@ -4,6 +4,7 @@ import {
   absoluteDiscourseFlairUrl,
   normalizedDiscourseFlairColor
 } from '../core/DiscourseFlair';
+import { DiscourseUserStatus } from './DiscourseUserStatus';
 const VERIFIED_GROUP_NAMES: Array<string> = [
   'verified_uestcer',
   'scuer',
@@ -90,6 +91,7 @@ export interface UserProfileAttributes {
   canChat?: boolean;
   canDirectMessage?: boolean;
   canChatWithUser?: boolean;
+  userStatus?: DiscourseUserStatus | null;
 }
 
 export class UserProfile {
@@ -132,6 +134,7 @@ export class UserProfile {
   public readonly canChat: boolean;
   public readonly canDirectMessage: boolean;
   public readonly canChatWithUser: boolean;
+  public readonly userStatus: DiscourseUserStatus | null;
 
   private constructor(id: number, username: string, attributes: UserProfileAttributes) {
     this.id = id;
@@ -197,6 +200,7 @@ export class UserProfile {
     this.canChat = attributes.canChat === true;
     this.canDirectMessage = attributes.canDirectMessage === true;
     this.canChatWithUser = attributes.canChatWithUser === true;
+    this.userStatus = attributes.userStatus ?? null;
   }
 
   public static create(id: number, username: string, attributes: UserProfileAttributes = {}): UserProfile | null {

@@ -27,6 +27,8 @@ export default function profileManagementTest(): void {
           '"primary_group_id":45,"flair_group_id":50,"flair_name":"rs_developer",' +
           '"flair_url":"/uploads/flair/developer.svg","flair_bg_color":"143C75",' +
           '"flair_color":"FFFFFF","trust_level":3,' +
+          '"status":{"description":"专注毕业论文","emoji":"memo",' +
+          '"ends_at":"2099-08-01T08:00:00Z"},' +
           '"groups":[{"id":45,"name":"scuer"},{"id":50,"name":"rs_developer"}],' +
           '"can_follow":true,"is_followed":true,"can_mute_user":true,"can_ignore_user":true,' +
           '"muted":false,"ignored":true,"can_upload_profile_header":true,' +
@@ -52,6 +54,8 @@ export default function profileManagementTest(): void {
         expect(result.data?.profileBackgroundUrl).assertEqual(
           'https://river-side.cc/uploads/default/original/profile.png'
         );
+        expect(result.data?.userStatus?.description).assertEqual('专注毕业论文');
+        expect(result.data?.userStatus?.emoji).assertEqual('memo');
         done();
       });
 

@@ -1,6 +1,7 @@
 import { Category, ForumPost, Topic, TopicDetail } from '../models/ForumModels';
 import { RichContentInlineFragment } from '../models/RichContentBlocks';
 import { parsePlainTextInlineEmojis } from '../models/RichContentParser';
+import { DiscourseUserStatus } from '../models/DiscourseUserStatus';
 
 export enum ForumCardMode {
   TOPIC_PREVIEW = 'topic-preview',
@@ -30,6 +31,7 @@ export class ForumCardAuthor {
   public readonly flairName: string;
   public readonly flairBackgroundColor: string;
   public readonly flairColor: string;
+  public readonly userStatus: DiscourseUserStatus | null;
 
   public constructor(
     name: string,
@@ -40,7 +42,8 @@ export class ForumCardAuthor {
     flairUrl: string = '',
     flairName: string = '',
     flairBackgroundColor: string = '',
-    flairColor: string = ''
+    flairColor: string = '',
+    userStatus: DiscourseUserStatus | null = null
   ) {
     this.name = name;
     this.initial = initial;
@@ -51,6 +54,7 @@ export class ForumCardAuthor {
     this.flairName = flairName.trim();
     this.flairBackgroundColor = flairBackgroundColor.trim();
     this.flairColor = flairColor.trim();
+    this.userStatus = userStatus;
   }
 }
 
@@ -123,7 +127,8 @@ function postAuthor(post: ForumPost): ForumCardAuthor {
     post.flairUrl,
     post.flairName,
     post.flairBackgroundColor,
-    post.flairColor
+    post.flairColor,
+    post.userStatus
   );
 }
 

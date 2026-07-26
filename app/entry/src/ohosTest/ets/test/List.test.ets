@@ -52,8 +52,10 @@ import userAvatarPresentationTest from './UserAvatarPresentation.test';
 import discourseFlairTest from './DiscourseFlair.test';
 import appBehaviorSettingsTest from './AppBehaviorSettings.test';
 import appCacheModelsTest from './AppCacheModels.test';
+import discourseUserStatusTest from './DiscourseUserStatus.test';
 
 export default function tests(): void {
+  discourseUserStatusTest();
   appCacheModelsTest();
   appBehaviorSettingsTest();
   discourseFlairTest();
