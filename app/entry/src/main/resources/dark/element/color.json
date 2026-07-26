@@ -65,6 +65,18 @@
       "value": "#111418"
     },
     {
+      "name": "image_viewer_control_surface",
+      "value": "#CC2A3038"
+    },
+    {
+      "name": "image_viewer_control_border",
+      "value": "#4DFFFFFF"
+    },
+    {
+      "name": "image_viewer_secondary_text",
+      "value": "#D9FFFFFF"
+    },
+    {
       "name": "on_accent",
       "value": "#FFFFFF"
     }

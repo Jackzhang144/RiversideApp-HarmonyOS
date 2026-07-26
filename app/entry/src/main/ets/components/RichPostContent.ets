@@ -6,6 +6,7 @@ import {
   RichContentListItem
 } from '../models/RichContentBlocks';
 import { parseRichPostContent } from '../models/RichContentParser';
+import { imageViewerTransitionId } from '../models/ImageViewerModels';
 import { RichEmbedProvider } from '../models/RichNavigationPolicy';
 
 class RichContentImageRatio {
@@ -22,6 +23,7 @@ class RichContentImageRatio {
 export struct RichPostContent {
   @Prop cooked: string = '';
   @Prop raw: string = '';
+  @Prop imageTransitionScope: string = '';
   @State revealedSpoilers: Array<number> = [];
   @State failedImages: Array<string> = [];
   @State imageRatios: Array<RichContentImageRatio> = [];
@@ -31,7 +33,11 @@ export struct RichPostContent {
     _provider: RichEmbedProvider,
     _title: string
   ): void => {};
-  onOpenImage: (url: string, title: string) => void = (_url: string, _title: string): void => {};
+  onOpenImage: (url: string, title: string, transitionId: string) => void = (
+    _url: string,
+    _title: string,
+    _transitionId: string
+  ): void => {};
 
   private blocks(): Array<RichContentBlock> {
     return parseRichPostContent(this.cooked, this.raw);
@@ -74,6 +80,10 @@ export struct RichPostContent {
     this.imageRatios = this.imageRatios
       .filter((imageRatio: RichContentImageRatio): boolean => imageRatio.url !== url)
       .concat([new RichContentImageRatio(url, ratio)]);
+  }
+
+  private imageTransitionId(index: number): string {
+    return imageViewerTransitionId(this.imageTransitionScope, index);
   }
 
   @Builder
@@ -285,7 +295,7 @@ export struct RichPostContent {
   }
 
   @Builder
-  private ImageBlock(block: RichContentBlock): void {
+  private ImageBlock(block: RichContentBlock, index: number): void {
     Column({ space: 6 }) {
       if (this.failedImages.includes(block.url)) {
         Row({ space: 8 }) {
@@ -309,13 +319,15 @@ export struct RichPostContent {
           .interpolation(ImageInterpolation.High)
           .borderRadius(8)
           .clip(true)
+          .geometryTransition(this.imageTransitionId(index))
+          .transition(TransitionEffect.OPACITY)
           .onComplete((event): void => {
             if (event !== undefined && event.loadingStatus === 1) {
               this.recordImageRatio(block.url, event.width, event.height);
             }
           })
           .onError((): void => this.recordImageFailure(block.url))
-          .onClick((): void => this.onOpenImage(block.url, block.title))
+          .onClick((): void => this.onOpenImage(block.url, block.title, this.imageTransitionId(index)))
           .accessibilityText(block.title)
       }
       if (block.title.length > 0) {
@@ -404,7 +416,7 @@ export struct RichPostContent {
     } else if (block.kind === RichContentBlockKind.TABLE) {
       this.TableBlock(block)
     } else if (block.kind === RichContentBlockKind.IMAGE) {
-      this.ImageBlock(block)
+      this.ImageBlock(block, index)
     } else if (block.kind === RichContentBlockKind.ONEBOX) {
       this.OneboxBlock(block)
     } else if (block.kind === RichContentBlockKind.VIDEO) {

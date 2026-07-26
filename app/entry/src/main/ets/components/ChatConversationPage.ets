@@ -26,6 +26,7 @@ import {
   ChatReactionUser
 } from '../models/ChatModels';
 import { MediaUploadResult, MediaUploadState, MediaUploadStateKind } from '../models/MediaModels';
+import { imageViewerTransitionId } from '../models/ImageViewerModels';
 import {
   ChatMessageContextCapabilities,
   ChatMessageFragment,
@@ -104,7 +105,10 @@ export struct ChatConversationPage {
   onCopyMessage: (message: string) => void = (_message: string): void => {};
   onCopyMessageLink: (channelId: number, channelSlug: string, messageId: number) => void =
     (_channelId: number, _channelSlug: string, _messageId: number): void => {};
-  onOpenImage: (url: string) => void = (_url: string): void => {};
+  onOpenImage: (url: string, transitionId: string) => void = (
+    _url: string,
+    _transitionId: string
+  ): void => {};
   onOpenProfile: (username: string) => void = (_username: string): void => {};
   onUpdateNotificationLevel: (level: ChatChannelNotificationLevel) => Promise<boolean> =
     async (_level: ChatChannelNotificationLevel): Promise<boolean> => false;
@@ -199,6 +203,10 @@ export struct ChatConversationPage {
     if (messageId > 0) {
       this.onReadProgress(messageId);
     }
+  }
+
+  private chatImageTransitionId(messageId: number, index: number): string {
+    return imageViewerTransitionId(`chat-message-${messageId}`, index);
   }
 
   private synchronizeMessageViewport(): void {
@@ -1432,16 +1440,21 @@ export struct ChatConversationPage {
       this.MessageBody(message)
 
       if (!message.deleted && message.uploadUrls.length > 0) {
-        ForEach(message.uploadUrls, (url: string): void => {
+        ForEach(message.uploadUrls, (url: string, index: number): void => {
           Image(absoluteChatUrl(url))
             .width(CHAT_MESSAGE_CONTENT_MAX_WIDTH)
             .height(164)
             .borderRadius(10)
             .objectFit(ImageFit.Contain)
             .backgroundColor($r('sys.color.background_secondary'))
-            .onClick((): void => this.onOpenImage(absoluteChatUrl(url)))
+            .geometryTransition(this.chatImageTransitionId(message.id, index))
+            .transition(TransitionEffect.OPACITY)
+            .onClick((): void => this.onOpenImage(
+              absoluteChatUrl(url),
+              this.chatImageTransitionId(message.id, index)
+            ))
             .accessibilityText($r('app.string.chat_image_open_accessibility'))
-        }, (url: string): string => url)
+        }, (url: string, index: number): string => `${index}-${url}`)
       }
 
       if (message.reactions.length > 0) {

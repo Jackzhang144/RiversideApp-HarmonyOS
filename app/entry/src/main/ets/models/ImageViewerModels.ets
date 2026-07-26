@@ -40,6 +40,14 @@ export function isSameHttpsOrigin(url: string, baseUrl: string): boolean {
   return urlOrigin.length > 0 && urlOrigin === httpsOrigin(baseUrl);
 }
 
+export function imageViewerTransitionId(scope: string, index: number): string {
+  const normalizedScope: string = scope.trim();
+  if (normalizedScope.length === 0 || index < 0) {
+    return '';
+  }
+  return `image-viewer-${normalizedScope}-${index}`;
+}
+
 export enum ImageViewerStateKind {
   PREPARING = 'preparing',
   READY = 'ready',
@@ -54,27 +62,44 @@ export class ImageViewerState {
   public readonly title: string;
   public readonly cachedMedia: CachedMedia | null;
   public readonly message: string;
+  public readonly transitionId: string;
 
   private constructor(
     kind: ImageViewerStateKind,
     remoteUrl: string,
     title: string,
     cachedMedia: CachedMedia | null,
-    message: string
+    message: string,
+    transitionId: string
   ) {
     this.kind = kind;
     this.remoteUrl = remoteUrl;
     this.title = title;
     this.cachedMedia = cachedMedia;
     this.message = message;
+    this.transitionId = transitionId;
   }
 
-  public static preparing(remoteUrl: string, title: string): ImageViewerState {
-    return new ImageViewerState(ImageViewerStateKind.PREPARING, remoteUrl, title, null, '');
+  public static preparing(remoteUrl: string, title: string, transitionId: string = ''): ImageViewerState {
+    return new ImageViewerState(
+      ImageViewerStateKind.PREPARING,
+      remoteUrl,
+      title,
+      null,
+      '',
+      transitionId
+    );
   }
 
   public ready(cachedMedia: CachedMedia): ImageViewerState {
-    return new ImageViewerState(ImageViewerStateKind.READY, this.remoteUrl, this.title, cachedMedia, '');
+    return new ImageViewerState(
+      ImageViewerStateKind.READY,
+      this.remoteUrl,
+      this.title,
+      cachedMedia,
+      '',
+      this.transitionId
+    );
   }
 
   public saving(): ImageViewerState {
@@ -83,7 +108,8 @@ export class ImageViewerState {
       this.remoteUrl,
       this.title,
       this.cachedMedia,
-      '正在保存图片'
+      '正在保存图片',
+      this.transitionId
     );
   }
 
@@ -93,7 +119,8 @@ export class ImageViewerState {
       this.remoteUrl,
       this.title,
       this.cachedMedia,
-      '图片已保存到系统相册'
+      '图片已保存到系统相册',
+      this.transitionId
     );
   }
 
@@ -104,7 +131,8 @@ export class ImageViewerState {
       this.remoteUrl,
       this.title,
       this.cachedMedia,
-      normalized.length > 0 ? normalized : '图片操作失败'
+      normalized.length > 0 ? normalized : '图片操作失败',
+      this.transitionId
     );
   }
 }

@@ -118,7 +118,11 @@ export struct TopicDetailPage {
     _provider: RichEmbedProvider,
     _title: string
   ): void => {};
-  onOpenImage: (url: string, title: string) => void = (_url: string, _title: string): void => {};
+  onOpenImage: (url: string, title: string, transitionId: string) => void = (
+    _url: string,
+    _title: string,
+    _transitionId: string
+  ): void => {};
   onOpenAuthor: (username: string) => void = (_username: string): void => {};
   onReadProgress: (postNumber: number) => void = (_postNumber: number): void => {};
   onJumpToPost: (postNumber: number) => Promise<boolean> = async (_postNumber: number): Promise<boolean> => false;
@@ -499,7 +503,8 @@ export struct TopicDetailPage {
         onOpenRichLink: (url: string): void => this.onOpenRichLink(url),
         onOpenRichEmbed: (url: string, provider: RichEmbedProvider, title: string): void =>
           this.onOpenRichEmbed(url, provider, title),
-        onOpenImage: (url: string, title: string): void => this.onOpenImage(url, title),
+        onOpenImage: (url: string, title: string, transitionId: string): void =>
+          this.onOpenImage(url, title, transitionId),
         onOpenAuthor: (username: string): void => this.onOpenAuthor(username),
         onReply: (postNumber: number | null): void => this.onOpenReply(postNumber),
         onOpenReplyTarget: (postNumber: number): void => {
@@ -683,7 +688,8 @@ export struct TopicDetailPage {
       onOpenRichLink: (url: string): void => this.onOpenRichLink(url),
       onOpenRichEmbed: (url: string, provider: RichEmbedProvider, title: string): void =>
         this.onOpenRichEmbed(url, provider, title),
-      onOpenImage: (url: string, title: string): void => this.onOpenImage(url, title),
+      onOpenImage: (url: string, title: string, transitionId: string): void =>
+        this.onOpenImage(url, title, transitionId),
       onOpenAuthor: (username: string): void => this.onOpenAuthor(username),
       onReply: (postNumber: number | null): void => this.onOpenReply(postNumber),
       onOpenReplyTarget: (postNumber: number): void => {

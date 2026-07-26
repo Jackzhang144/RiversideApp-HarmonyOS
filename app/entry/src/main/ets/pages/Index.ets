@@ -1558,14 +1558,20 @@ struct Index {
     });
   }
 
-  private async openImageViewer(url: string, title: string): Promise<void> {
+  private async openImageViewer(url: string, title: string, transitionId: string): Promise<void> {
     const normalizedUrl: string = normalizeRemoteImageUrl(url, RIVERSIDE_ORIGIN);
     if (normalizedUrl.length === 0) {
       this.showAuthenticationMessage('无法查看图片', '图片地址无效');
       return;
     }
-    this.imageViewerState = ImageViewerState.preparing(normalizedUrl, title);
-    this.pushSecondaryPath(IMAGE_VIEWER_ROUTE);
+    this.imageViewerState = ImageViewerState.preparing(normalizedUrl, title, transitionId);
+    this.restoreBrowseChrome();
+    this.getUIContext().animateTo({
+      duration: 280,
+      curve: Curve.EaseOut
+    }, (): void => {
+      this.pathStack.pushPath({ name: IMAGE_VIEWER_ROUTE }, false);
+    });
     const service: MediaGalleryService | null = this.mediaGalleryService;
     if (service === null) {
       this.imageViewerState = this.imageViewerState.failed('图片保存服务不可用');
@@ -1583,6 +1589,15 @@ struct Index {
     this.imageViewerState = result.isSuccess() && result.data !== null
       ? this.imageViewerState.ready(result.data)
       : this.imageViewerState.failed(result.message);
+  }
+
+  private closeImageViewer(): void {
+    this.getUIContext().animateTo({
+      duration: 240,
+      curve: Curve.EaseIn
+    }, (): void => {
+      this.pathStack.pop(false);
+    });
   }
 
   private async saveViewerImage(): Promise<void> {
@@ -2872,8 +2887,8 @@ struct Index {
           onOpenRichEmbed: (url: string, provider: RichEmbedProvider, title: string): void => {
             this.openRichEmbed(url, provider, title);
           },
-          onOpenImage: (url: string, title: string): void => {
-            this.openImageViewer(url, title);
+          onOpenImage: (url: string, title: string, transitionId: string): void => {
+            this.openImageViewer(url, title, transitionId);
           },
           onOpenAuthor: (username: string): void => {
             this.openUserProfile(username);
@@ -2989,7 +3004,9 @@ struct Index {
           onCopyMessageLink: (channelId: number, channelSlug: string, messageId: number): void => {
             this.copyChatMessageLink(channelId, channelSlug, messageId);
           },
-          onOpenImage: (url: string): void => { this.openImageViewer(url, APP_CHAT_IMAGE_TITLE); },
+          onOpenImage: (url: string, transitionId: string): void => {
+            this.openImageViewer(url, APP_CHAT_IMAGE_TITLE, transitionId);
+          },
           onOpenProfile: (username: string): void => { this.openUserProfile(username); },
           onUpdateNotificationLevel: (
             level: ChatChannelNotificationLevel
@@ -3010,7 +3027,10 @@ struct Index {
         backLabel: BACK_TO_TOPIC_LABEL,
         darkMode: this.usesDarkChrome(this.appThemeMode),
         scrollables: [this.profileScroller],
-        onBackPressed: (): boolean => false
+        onBackPressed: (): boolean => {
+          this.closeImageViewer();
+          return true;
+        }
       }) {
         UserProfileSummaryPage({
           scroller: this.profileScroller,

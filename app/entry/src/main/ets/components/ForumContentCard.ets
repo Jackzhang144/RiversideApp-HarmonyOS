@@ -41,7 +41,11 @@ export struct ForumContentCard {
     _provider: RichEmbedProvider,
     _title: string
   ): void => {};
-  onOpenImage: (url: string, title: string) => void = (_url: string, _title: string): void => {};
+  onOpenImage: (url: string, title: string, transitionId: string) => void = (
+    _url: string,
+    _title: string,
+    _transitionId: string
+  ): void => {};
   onOpenAuthor: (username: string) => void = (_username: string): void => {};
   onToggleReaction: (postId: number, reaction: string) => void = (
     _postId: number,
@@ -202,10 +206,12 @@ export struct ForumContentCard {
         RichPostContent({
           cooked: this.richCooked,
           raw: this.richRaw,
+          imageTransitionScope: `topic-${this.topicId}-post-${this.post?.id ?? 0}`,
           onOpenLink: (url: string): void => this.onOpenRichLink(url),
           onOpenEmbed: (url: string, provider: RichEmbedProvider, title: string): void =>
             this.onOpenRichEmbed(url, provider, title),
-          onOpenImage: (url: string, title: string): void => this.onOpenImage(url, title)
+          onOpenImage: (url: string, title: string, transitionId: string): void =>
+            this.onOpenImage(url, title, transitionId)
         })
       } else if (this.presentation.body.length > 0) {
         Text(this.presentation.body)

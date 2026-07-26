@@ -104,6 +104,9 @@ export class NavigationChrome {
     const backgroundColor: ResourceColor = surface === PageSurface.MEDIA
       ? $r('app.color.image_viewer_surface')
       : $r('sys.color.background_secondary');
+    const contentColor: ResourceColor = surface === PageSurface.MEDIA
+      ? $r('app.color.on_accent')
+      : $r('sys.color.font_primary');
     return {
       avoidLayoutSafeArea: true,
       enableComponentSafeArea: true,
@@ -132,10 +135,10 @@ export class NavigationChrome {
           },
           contentStyle: {
             backIconStyle: {
-              iconColor: $r('sys.color.font_primary')
+              iconColor: contentColor
             },
             subIconStyle: {
-              textColor: $r('sys.color.font_primary')
+              textColor: contentColor
             }
           }
         },
@@ -147,10 +150,10 @@ export class NavigationChrome {
           },
           contentStyle: {
             backIconStyle: {
-              iconColor: $r('sys.color.font_primary')
+              iconColor: contentColor
             },
             subIconStyle: {
-              textColor: $r('sys.color.font_primary')
+              textColor: contentColor
             }
           }
         }
