@@ -8,6 +8,7 @@ import {
 } from './ForumComposerPresentation';
 import { ForumCardPresentation } from './ForumCardPresentation';
 import { ForumContentCard } from './ForumContentCard';
+import { PostReplyThreadSheet } from './PostReplyThreadSheet';
 import {
   Category,
   ForumPost,
@@ -62,6 +63,13 @@ export struct TopicDetailPage {
   @State topicNotificationSaving: boolean = false;
   @State topicNotificationMessage: string = '';
   @State pendingTopicNotificationLevel: TopicNotificationLevel | null = null;
+  @State replyThreadSheetVisible: boolean = false;
+  @State replyThreadParent: ForumPost | null = null;
+  @State replyThreadPosts: Array<ForumPost> = [];
+  @State replyThreadLoading: boolean = false;
+  @State replyThreadLoadingMore: boolean = false;
+  @State replyThreadHasMore: boolean = false;
+  @State replyThreadMessage: string = '';
   onRetry: () => void = (): void => {};
   onRefresh: () => void = (): void => {};
   onLoadMore: () => void = (): void => {};
@@ -73,6 +81,15 @@ export struct TopicDetailPage {
     _reaction: string
   ): void => {};
   onOpenReactionUsers: (postId: number) => void = (_postId: number): void => {};
+  onLoadPostReplies: (
+    postId: number,
+    afterPostNumber: number
+  ) => Promise<RepositoryResult<Array<ForumPost>>> = async (
+    _postId: number,
+    _afterPostNumber: number
+  ): Promise<RepositoryResult<Array<ForumPost>>> => {
+    return RepositoryResult.unavailable<Array<ForumPost>>('Reply 线程不可用');
+  };
   onToggleBookmark: (postId: number) => void = (_postId: number): void => {};
   onDeletePost: (postId: number) => void = (_postId: number): void => {};
   onSubmitPostFlag: (postId: number, typeId: number, message: string | null) => void = (
@@ -134,6 +151,7 @@ export struct TopicDetailPage {
   @State private floorInputMessage: string = '';
   private synchronizedJumpTopicId: number = 0;
   private synchronizedJumpPostNumber: number = 0;
+  private replyThreadRequestVersion: number = 0;
 
   aboutToDisappear(): void {
     if (this.readProgressTimer >= 0) {
@@ -179,6 +197,90 @@ export struct TopicDetailPage {
     this.currentPostNumber = focusedPostNumber;
     this.selectedFloor = focusedPostNumber;
     this.floorInput = focusedPostNumber.toString();
+  }
+
+  private mergeReplyThreadPosts(
+    current: Array<ForumPost>,
+    incoming: Array<ForumPost>
+  ): Array<ForumPost> {
+    const merged: Array<ForumPost> = [];
+    const seenIds: Set<number> = new Set<number>();
+    for (const post of current.concat(incoming)) {
+      if (!seenIds.has(post.id)) {
+        seenIds.add(post.id);
+        merged.push(post);
+      }
+    }
+    merged.sort((left: ForumPost, right: ForumPost): number => left.postNumber - right.postNumber);
+    return merged;
+  }
+
+  private openReplyThread(post: ForumPost): void {
+    this.replyThreadRequestVersion += 1;
+    this.replyThreadParent = post;
+    this.replyThreadPosts = [];
+    this.replyThreadLoading = true;
+    this.replyThreadLoadingMore = false;
+    this.replyThreadHasMore = false;
+    this.replyThreadMessage = '';
+    this.replyThreadSheetVisible = true;
+    this.loadReplyThreadPage(true);
+  }
+
+  private async loadReplyThreadPage(reset: boolean): Promise<void> {
+    const parent: ForumPost | null = this.replyThreadParent;
+    if (
+      parent === null ||
+      (reset ? this.replyThreadLoadingMore : (this.replyThreadLoading || this.replyThreadLoadingMore))
+    ) {
+      return;
+    }
+    const requestVersion: number = ++this.replyThreadRequestVersion;
+    const cursor: number = reset
+      ? parent.postNumber
+      : this.replyThreadPosts[this.replyThreadPosts.length - 1]?.postNumber ?? parent.postNumber;
+    if (reset) {
+      this.replyThreadLoading = true;
+      this.replyThreadPosts = [];
+    } else {
+      this.replyThreadLoadingMore = true;
+    }
+    this.replyThreadMessage = '';
+    const result: RepositoryResult<Array<ForumPost>> =
+      await this.onLoadPostReplies(parent.id, cursor);
+    if (requestVersion !== this.replyThreadRequestVersion || this.replyThreadParent?.id !== parent.id) {
+      return;
+    }
+    this.replyThreadLoading = false;
+    this.replyThreadLoadingMore = false;
+    if (!result.isSuccess() || result.data === null) {
+      if (result.isUnauthorized()) {
+        this.replyThreadSheetVisible = false;
+        this.onLoginForPostAction();
+        return;
+      }
+      this.replyThreadMessage = result.message.length > 0 ? result.message : '直接回复加载失败';
+      return;
+    }
+    const merged: Array<ForumPost> = this.mergeReplyThreadPosts(
+      reset ? [] : this.replyThreadPosts,
+      result.data
+    );
+    this.replyThreadPosts = merged;
+    this.replyThreadHasMore = result.data.length >= 20 && merged.length < parent.replyCount;
+  }
+
+  private async openReplyThreadPost(postNumber: number): Promise<void> {
+    this.replyThreadRequestVersion += 1;
+    this.replyThreadSheetVisible = false;
+    await this.onJumpToPost(postNumber);
+  }
+
+  private replyThreadSubtitle(): string {
+    const parent: ForumPost | null = this.replyThreadParent;
+    return parent === null
+      ? '查看直接回复'
+      : `@${parent.username} · Post #${parent.postNumber} · ${parent.replyCount} 条`;
   }
 
   private scheduleReadProgress(postNumber: number): void {
@@ -411,6 +513,7 @@ export struct TopicDetailPage {
         },
         onToggleReaction: (postId: number, reaction: string): void => this.onToggleReaction(postId, reaction),
         onOpenReactionUsers: (postId: number): void => this.onOpenReactionUsers(postId),
+        onOpenReplies: (target: ForumPost): void => this.openReplyThread(target),
         onToggleBookmark: (postId: number): void => this.onToggleBookmark(postId),
         onToggleAcceptedAnswer: (postId: number): void => this.onToggleAcceptedAnswer(postId),
         onCopyPostLink: (topicId: number, postNumber: number): void => this.onCopyPostLink(topicId, postNumber),
@@ -678,6 +781,7 @@ export struct TopicDetailPage {
       },
       onToggleReaction: (postId: number, reaction: string): void => this.onToggleReaction(postId, reaction),
       onOpenReactionUsers: (postId: number): void => this.onOpenReactionUsers(postId),
+      onOpenReplies: (target: ForumPost): void => this.openReplyThread(target),
       onToggleBookmark: (postId: number): void => this.onToggleBookmark(postId),
       onToggleAcceptedAnswer: (postId: number): void => this.onToggleAcceptedAnswer(postId),
       onCopyPostLink: (topicId: number, postNumber: number): void => this.onCopyPostLink(topicId, postNumber),
@@ -809,6 +913,27 @@ export struct TopicDetailPage {
     .width('100%')
     .padding({ left: 20, right: 20, top: 8, bottom: 20 })
     .alignItems(HorizontalAlign.Start)
+  }
+
+  @Builder
+  private ReplyThreadSheet(): void {
+    PostReplyThreadSheet({
+      parentPost: this.replyThreadParent,
+      replies: this.replyThreadPosts,
+      loading: this.replyThreadLoading,
+      loadingMore: this.replyThreadLoadingMore,
+      hasMore: this.replyThreadHasMore,
+      message: this.replyThreadMessage,
+      onRetry: (): void => {
+        this.loadReplyThreadPage(true);
+      },
+      onLoadMore: (): void => {
+        this.loadReplyThreadPage(false);
+      },
+      onOpenReply: (postNumber: number): void => {
+        this.openReplyThreadPost(postNumber);
+      }
+    })
   }
 
   private openPostFlag(post: ForumPost): void {
@@ -1177,23 +1302,42 @@ export struct TopicDetailPage {
   private ReadingContent(): void {
     Stack() {
       Column() {
-        Refresh({ refreshing: this.state.isRefreshing }) {
-          this.ReadingList()
+        Stack() {
+          Refresh({ refreshing: this.state.isRefreshing }) {
+            this.ReadingList()
+          }
+          .width('100%')
+          .height('100%')
+          .clip(false)
+          .backgroundColor($r('sys.color.background_secondary'))
+          .refreshOffset(64)
+          .pullToRefresh(true)
+          .pullUpToCancelRefresh(false)
+          .onRefreshing(this.onRefresh)
+          .bindSheet($$this.reactionUsersSheetVisible, this.ReactionUsersSheet(), {
+            detents: [SheetSize.MEDIUM, SheetSize.LARGE],
+            detentSelection: SheetSize.MEDIUM,
+            showClose: true,
+            dragBar: true,
+            title: { title: '回应用户', subtitle: '点击头像查看用户资料' }
+          })
         }
         .width('100%')
         .height('100%')
         .clip(false)
-        .backgroundColor($r('sys.color.background_secondary'))
-        .refreshOffset(64)
-        .pullToRefresh(true)
-        .pullUpToCancelRefresh(false)
-        .onRefreshing(this.onRefresh)
-        .bindSheet($$this.reactionUsersSheetVisible, this.ReactionUsersSheet(), {
+        .bindSheet($$this.replyThreadSheetVisible, this.ReplyThreadSheet(), {
           detents: [SheetSize.MEDIUM, SheetSize.LARGE],
-          detentSelection: SheetSize.MEDIUM,
+          detentSelection: SheetSize.LARGE,
           showClose: true,
           dragBar: true,
-          title: { title: '回应用户', subtitle: '点击头像查看用户资料' }
+          title: {
+            title: '回复线程',
+            subtitle: this.replyThreadSubtitle()
+          },
+          shouldDismiss: (sheetDismiss: SheetDismiss): void => {
+            this.replyThreadRequestVersion += 1;
+            sheetDismiss.dismiss();
+          }
         })
       }
       .width('100%')

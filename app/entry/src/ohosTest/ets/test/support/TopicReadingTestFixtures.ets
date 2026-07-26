@@ -74,6 +74,7 @@ export class TopicReadingRepository implements ForumRepository {
   public topicNotificationResults: Array<RepositoryResult<boolean>> = [];
   public reactionResults: Array<RepositoryResult<ForumPost>> = [];
   public reactionUsersResults: Array<RepositoryResult<Array<PostReactionUsers>>> = [];
+  public postReplyResults: Array<RepositoryResult<Array<ForumPost>>> = [];
   public createBookmarkResults: Array<RepositoryResult<number>> = [];
   public deleteBookmarkResults: Array<RepositoryResult<boolean>> = [];
   public deletePostResults: Array<RepositoryResult<boolean>> = [];
@@ -95,6 +96,7 @@ export class TopicReadingRepository implements ForumRepository {
   public requestedTopicNotifications: Array<string> = [];
   public requestedReactions: Array<string> = [];
   public requestedReactionUserPostIds: Array<number> = [];
+  public requestedPostReplies: Array<string> = [];
   public requestedBookmarkPostIds: Array<number> = [];
   public requestedDeleteBookmarkIds: Array<number> = [];
   public requestedDeletePostIds: Array<number> = [];
@@ -171,10 +173,11 @@ export class TopicReadingRepository implements ForumRepository {
   }
 
   public async loadPostReplies(
-    _postId: number,
-    _afterPostNumber: number = 1
+    postId: number,
+    afterPostNumber: number = 1
   ): Promise<RepositoryResult<Array<ForumPost>>> {
-    return RepositoryResult.success<Array<ForumPost>>([]);
+    this.requestedPostReplies.push(`${postId}:${afterPostNumber}`);
+    return this.postReplyResults.shift() ?? RepositoryResult.success<Array<ForumPost>>([]);
   }
 
   public async loadTopicSuggestions(topicId: number): Promise<RepositoryResult<Array<Topic>>> {

@@ -196,6 +196,28 @@ export default function topicPostInteractionTest(): void {
       done();
     });
 
+    it('loads direct Reply pages only for Posts in the active Topic', 0, async (done: Function) => {
+      const repository: TopicReadingRepository = new TopicReadingRepository();
+      repository.topicDetailResults.push(RepositoryResult.success<TopicDetail>(new TopicDetail(
+        2725, 'Reply thread Topic', 10, 1, 0, false, false, true, [102728], [firstPost()]
+      )));
+      repository.postReplyResults.push(RepositoryResult.success<Array<ForumPost>>([secondPost()]));
+      const model: AppShellModel = new AppShellModel(
+        repository, new MemoryCategoryCache(), CategoryCacheScope.anonymous()
+      );
+      await model.openTopic(topic());
+
+      const result: RepositoryResult<Array<ForumPost>> = await model.loadPostReplies(102728, 1);
+      const missing: RepositoryResult<Array<ForumPost>> = await model.loadPostReplies(999999, 1);
+
+      expect(result.isSuccess()).assertTrue();
+      expect(result.data?.[0].postNumber).assertEqual(2);
+      expect(repository.requestedPostReplies.join(',')).assertEqual('102728:1');
+      expect(missing.isSuccess()).assertFalse();
+      expect(missing.message).assertEqual('Post 不在当前 Topic 中');
+      done();
+    });
+
     it('keeps bookmark state unchanged on failure and mutates only after success', 0, async (done: Function) => {
       const repository: TopicReadingRepository = new TopicReadingRepository();
       repository.topicDetailResults.push(RepositoryResult.success<TopicDetail>(new TopicDetail(

@@ -725,6 +725,30 @@ export class AppShellModel {
       : BrowseState.content<PostReactionUsers>(result.data);
   }
 
+  public async loadPostReplies(
+    postId: number,
+    afterPostNumber: number
+  ): Promise<RepositoryResult<Array<ForumPost>>> {
+    const topicId: number = this.topicState.topicId;
+    const postVisible: boolean = this.topicState.posts.some(
+      (post: ForumPost): boolean => post.id === postId
+    );
+    if (topicId <= 0 || !postVisible) {
+      return RepositoryResult.unavailable<Array<ForumPost>>('Post 不在当前 Topic 中');
+    }
+    const requestVersion: number = this.topicRequestVersion;
+    const result: RepositoryResult<Array<ForumPost>> =
+      await this.repository.loadPostReplies(postId, afterPostNumber);
+    if (requestVersion !== this.topicRequestVersion || this.topicState.topicId !== topicId) {
+      return RepositoryResult.cancelled<Array<ForumPost>>('Topic 已切换');
+    }
+    if (result.isUnauthorized()) {
+      this.requiresAuthentication = true;
+      await this.notifyUnauthorized(true);
+    }
+    return result;
+  }
+
   public async togglePostAcceptedAnswer(postId: number): Promise<void> {
     const detail: TopicDetail | null = this.topicState.detail;
     const post: ForumPost | undefined = this.topicState.posts.find(

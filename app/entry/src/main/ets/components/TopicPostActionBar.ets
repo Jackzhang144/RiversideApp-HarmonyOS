@@ -23,6 +23,7 @@ export struct TopicPostActionBar {
     _reaction: string
   ): void => {};
   onOpenReactionUsers: (postId: number) => void = (_postId: number): void => {};
+  onOpenReplies: (post: ForumPost) => void = (_post: ForumPost): void => {};
   onToggleBookmark: (postId: number) => void = (_postId: number): void => {};
   onToggleAcceptedAnswer: (postId: number) => void = (_postId: number): void => {};
   onCopyPostLink: (topicId: number, postNumber: number) => void = (
@@ -53,6 +54,26 @@ export struct TopicPostActionBar {
     .margin({ right: 6 })
     .onClick((): void => this.onOpenReactionUsers(this.post.id))
     .accessibilityText(`${reactionAccessibilityLabel(reaction.id)}回应，${reaction.count} 次`)
+  }
+
+  @Builder
+  private ReplySummary(): void {
+    Row({ space: 5 }) {
+      SymbolGlyph($r('sys.symbol.message'))
+        .fontSize(15)
+        .fontColor([$r('app.color.text_link')])
+      Text(this.post.replyCount.toString())
+        .fontSize(12)
+        .fontWeight(FontWeight.Medium)
+        .fontColor($r('app.color.text_link'))
+    }
+    .height(34)
+    .padding({ left: 10, right: 10 })
+    .backgroundColor($r('sys.color.background_secondary'))
+    .borderRadius(17)
+    .margin({ right: 6 })
+    .onClick((): void => this.onOpenReplies(this.post))
+    .accessibilityText(`查看 ${this.post.replyCount} 条直接回复`)
   }
 
   @Builder
@@ -284,8 +305,15 @@ export struct TopicPostActionBar {
   build() {
     Column({ space: 7 }) {
       Row({ space: 6 }) {
-        if (this.post.acceptedAnswer || displayedReactions(this.post.reactions).length > 0) {
+        if (
+          this.post.replyCount > 0 ||
+          this.post.acceptedAnswer ||
+          displayedReactions(this.post.reactions).length > 0
+        ) {
           Flex({ direction: FlexDirection.Row, wrap: FlexWrap.Wrap, justifyContent: FlexAlign.Start }) {
+            if (this.post.replyCount > 0) {
+              this.ReplySummary()
+            }
             if (this.post.acceptedAnswer) {
               Text($r('app.string.topic_accepted_answer'))
                 .height(34)

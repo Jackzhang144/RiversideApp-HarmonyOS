@@ -31,6 +31,7 @@ export struct ForumContentCard {
   @Prop editable: boolean = false;
   @Prop validReactions: Array<string> = [];
   onOpenTopic: () => void = (): void => {};
+  onOpenCard: () => void = (): void => {};
   onReply: (postNumber: number | null) => void = (_postNumber: number | null): void => {};
   onOpenReplyTarget: (postNumber: number) => void = (_postNumber: number): void => {};
   onOpenRichLink: (url: string) => void = (_url: string): void => {};
@@ -46,6 +47,7 @@ export struct ForumContentCard {
     _reaction: string
   ): void => {};
   onOpenReactionUsers: (postId: number) => void = (_postId: number): void => {};
+  onOpenReplies: (post: ForumPost) => void = (_post: ForumPost): void => {};
   onToggleBookmark: (postId: number) => void = (_postId: number): void => {};
   onToggleAcceptedAnswer: (postId: number) => void = (_postId: number): void => {};
   onCopyPostLink: (topicId: number, postNumber: number) => void = (
@@ -309,6 +311,7 @@ export struct ForumContentCard {
       replyAvailable: this.presentation.replyAction !== null,
       onToggleReaction: this.onToggleReaction,
       onOpenReactionUsers: this.onOpenReactionUsers,
+      onOpenReplies: this.onOpenReplies,
       onToggleBookmark: this.onToggleBookmark,
       onToggleAcceptedAnswer: this.onToggleAcceptedAnswer,
       onCopyPostLink: this.onCopyPostLink,
@@ -346,6 +349,8 @@ export struct ForumContentCard {
     .onClick((): void => {
       if (this.presentation.mode === ForumCardMode.TOPIC_PREVIEW) {
         this.onOpenTopic();
+      } else {
+        this.onOpenCard();
       }
     })
     .accessibilityText(this.presentation.accessibilityText)

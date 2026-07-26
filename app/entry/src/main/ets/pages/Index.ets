@@ -1698,6 +1698,17 @@ struct Index {
       model.topicState.posts.some((post: ForumPost): boolean => post.postNumber === postNumber);
   }
 
+  private async loadPostReplies(
+    postId: number,
+    afterPostNumber: number
+  ): Promise<RepositoryResult<Array<ForumPost>>> {
+    const model: AppShellModel | null = this.model;
+    if (model === null) {
+      return RepositoryResult.unavailable<Array<ForumPost>>('Reply 线程不可用');
+    }
+    return await model.loadPostReplies(postId, afterPostNumber);
+  }
+
   private async retryTopicPostJump(): Promise<boolean> {
     const model: AppShellModel | null = this.model;
     if (model === null) {
@@ -2747,6 +2758,12 @@ struct Index {
           },
           onOpenReactionUsers: (postId: number): void => {
             this.openPostReactionUsers(postId);
+          },
+          onLoadPostReplies: (
+            postId: number,
+            afterPostNumber: number
+          ): Promise<RepositoryResult<Array<ForumPost>>> => {
+            return this.loadPostReplies(postId, afterPostNumber);
           },
           onToggleBookmark: (postId: number): void => {
             this.togglePostBookmark(postId);

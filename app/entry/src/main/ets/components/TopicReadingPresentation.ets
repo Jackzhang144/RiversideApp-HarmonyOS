@@ -135,7 +135,8 @@ export function topicPostRenderKey(post: ForumPost): string {
     post.bookmarked ? '1' : '0',
     post.acceptedAnswer ? '1' : '0',
     post.canEdit ? '1' : '0',
-    post.canDelete ? '1' : '0'
+    post.canDelete ? '1' : '0',
+    post.replyCount.toString()
   ].join('|');
 }
 

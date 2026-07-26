@@ -142,6 +142,22 @@ export default function topicReadingPresentationTest(): void {
       expect(topicPostRenderKey(original) !== topicPostRenderKey(reacted)).assertTrue();
     });
 
+    it('changes the card render key when the direct Reply count changes', 0, () => {
+      const original: ForumPost = new ForumPost(
+        102, 1, 'admin', '', '原始正文', 2, null, '',
+        new ForumPostMetadata()
+      );
+      const replied: ForumPost = new ForumPost(
+        102, 1, 'admin', '', '原始正文', 2, null, '',
+        new ForumPostMetadata(
+          '', '', '', null, null, 0, [], null, false, false, false, false,
+          false, false, null, 1, '', 2
+        )
+      );
+
+      expect(topicPostRenderKey(original) !== topicPostRenderKey(replied)).assertTrue();
+    });
+
     it('offers the six frozen Flutter flag reasons with explicit message requirements', 0, () => {
       const options: Array<PostFlagOption> = postFlagOptions('river_user');
 
