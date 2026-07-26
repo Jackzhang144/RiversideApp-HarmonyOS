@@ -31,10 +31,12 @@ import {
   APP_PROFILE_TITLE,
   APP_SEARCH_TITLE,
   APP_SETTINGS_TITLE,
+  APP_STORAGE_TITLE,
   APP_TOPIC_DETAIL_TITLE,
   APP_UNAVAILABLE_PAGE_TITLE,
   BACK_LABEL,
   BACK_TO_ACCOUNT_LABEL,
+  BACK_TO_SETTINGS_LABEL,
   BACK_TO_CATEGORY_LABEL,
   BACK_TO_CHAT_LIST_LABEL,
   BACK_TO_HOME_LABEL,
@@ -58,6 +60,7 @@ import {
   PROFILE_EDITOR_ROUTE,
   RICH_EMBED_ROUTE,
   SEARCH_ROUTE,
+  STORAGE_DIAGNOSTICS_ROUTE,
   TOPIC_COMPOSER_ROUTE,
   TOPIC_ROUTE,
   USER_PROFILE_ROUTE
@@ -120,6 +123,7 @@ import { RepositoryFailureCode, RepositoryResult } from '../core/RepositoryResul
 import { RIVERSIDE_ABOUT_URL, RIVERSIDE_ORIGIN } from '../core/RiversideEnvironment';
 import { AccountPage } from '../components/AccountPage';
 import { AppSettingsPage } from '../components/AppSettingsPage';
+import { StorageDiagnosticsPage } from '../components/StorageDiagnosticsPage';
 import { AboutPage } from '../components/AboutPage';
 import { AppMetadata } from '../core/AppMetadata';
 import { CategoryBrowsePage } from '../components/CategoryBrowsePage';
@@ -221,6 +225,7 @@ import {
   AppMaterialPreference
 } from '../settings/AppBehaviorSettings';
 import { appMaterialEffect } from '../settings/AppMaterialPolicy';
+import { AppCacheManager } from '../storage/AppCacheManager';
 
 const ROOT_TAB_SELECTED_COLOR: ResourceColor = $r('app.color.brand_primary');
 const HOME_TOPIC_COMPOSER_ANIMATION_DURATION: number = 220;
@@ -237,6 +242,7 @@ struct Index {
   private readonly notificationScroller: Scroller = new Scroller();
   private readonly accountScroller: Scroller = new Scroller();
   private readonly settingsScroller: Scroller = new Scroller();
+  private readonly storageDiagnosticsScroller: Scroller = new Scroller();
   private readonly categoryTopicsScroller: Scroller = new Scroller();
   private readonly searchScroller: Scroller = new Scroller();
   private readonly topicScroller: Scroller = new Scroller();
@@ -260,6 +266,7 @@ struct Index {
   private forumRepository: DiscourseForumRepository | null = null;
   private appThemeSettingsStore: AppThemeSettingsStore | null = null;
   private appBehaviorSettingsStore: AppBehaviorSettingsStore | null = null;
+  private cacheManager: AppCacheManager | null = null;
   private presenceHeartbeat: PresenceHeartbeat | null = null;
   private foregroundVisible: boolean = false;
 
@@ -434,6 +441,7 @@ struct Index {
     this.appThemeSettingsStore = dependencies.appThemeSettingsStore;
     this.appThemeMode = await dependencies.appThemeSettingsStore.read();
     this.appBehaviorSettingsStore = dependencies.appBehaviorSettingsStore;
+    this.cacheManager = dependencies.cacheManager;
     const behaviorSettings: AppBehaviorSettings = await dependencies.appBehaviorSettingsStore.read();
     this.immersiveBrowsingEnabled = behaviorSettings.immersiveBrowsingEnabled;
     this.confirmExternalLinks = behaviorSettings.confirmExternalLinks;
@@ -2708,7 +2716,23 @@ struct Index {
           },
           onHidePresenceChange: (hidden: boolean): void => {
             this.setHidePresence(hidden);
+          },
+          onOpenStorageDiagnostics: (): void => {
+            this.pushSecondaryPath(STORAGE_DIAGNOSTICS_ROUTE);
           }
+        })
+      }
+    } else if (name === STORAGE_DIAGNOSTICS_ROUTE) {
+      DestinationPageShell({
+        title: APP_STORAGE_TITLE,
+        backLabel: BACK_TO_SETTINGS_LABEL,
+        darkMode: this.usesDarkChrome(this.appThemeMode),
+        scrollables: [this.storageDiagnosticsScroller],
+        onBackPressed: (): boolean => false
+      }) {
+        StorageDiagnosticsPage({
+          scroller: this.storageDiagnosticsScroller,
+          manager: this.cacheManager
         })
       }
     } else if (name === ABOUT_ROUTE) {

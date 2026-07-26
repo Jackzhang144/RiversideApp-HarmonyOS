@@ -4,6 +4,7 @@ export const LOGIN_ROUTE: string = 'login';
 export const SEARCH_ROUTE: string = 'search';
 export const ABOUT_ROUTE: string = 'about';
 export const APP_SETTINGS_ROUTE: string = 'app-settings';
+export const STORAGE_DIAGNOSTICS_ROUTE: string = 'storage-diagnostics';
 export const TOPIC_COMPOSER_ROUTE: string = 'topic-composer';
 export const USER_PROFILE_ROUTE: string = 'user-profile';
 export const PROFILE_EDITOR_ROUTE: string = 'profile-editor';

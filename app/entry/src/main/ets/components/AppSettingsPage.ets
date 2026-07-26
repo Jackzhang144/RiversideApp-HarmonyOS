@@ -245,6 +245,7 @@ export struct AppSettingsPage {
   onSelectMaterialPreference: (preference: AppMaterialPreference) => void =
     (_preference: AppMaterialPreference): void => {};
   onHidePresenceChange: (hidden: boolean) => void = (_hidden: boolean): void => {};
+  onOpenStorageDiagnostics: () => void = (): void => {};
 
   @Builder
   private SectionLabel(icon: Resource, label: ResourceStr, topMargin: number = 0): void {
@@ -492,6 +493,41 @@ export struct AppSettingsPage {
         .backgroundColor($r('sys.color.comp_background_primary'))
         .borderRadius(14)
         .border({ width: 1, color: $r('sys.color.comp_divider') })
+
+        this.SectionLabel($r('sys.symbol.folder'), '存储与诊断', 8)
+        Row({ space: 12 }) {
+          Stack() {
+            SymbolGlyph($r('sys.symbol.doc_plaintext_and_pencil'))
+              .fontSize(20)
+              .fontColor([$r('app.color.brand_primary')])
+          }
+          .width(36)
+          .height(36)
+          .borderRadius(11)
+          .backgroundColor($r('app.color.brand_tint_surface'))
+          Column({ space: 4 }) {
+            Text('缓存与日志')
+              .fontSize(16)
+              .fontWeight(FontWeight.Medium)
+              .fontColor($r('sys.color.font_primary'))
+            Text('查看占用空间，按类别清理并检查最近运行记录')
+              .fontSize(12)
+              .fontColor($r('sys.color.font_secondary'))
+          }
+          .alignItems(HorizontalAlign.Start)
+          .layoutWeight(1)
+          SymbolGlyph($r('sys.symbol.chevron_right'))
+            .fontSize(16)
+            .fontColor([$r('sys.color.font_tertiary')])
+        }
+        .width('100%')
+        .height(76)
+        .padding({ left: 16, right: 16, top: 10, bottom: 10 })
+        .backgroundColor($r('sys.color.comp_background_primary'))
+        .borderRadius(14)
+        .border({ width: 1, color: $r('sys.color.comp_divider') })
+        .onClick(this.onOpenStorageDiagnostics)
+        .accessibilityText('打开缓存与日志管理')
 
         Text('首页频道、外观与浏览偏好保存在本机；隐身模式同步到 RiverSide 账号。')
           .fontSize(12)

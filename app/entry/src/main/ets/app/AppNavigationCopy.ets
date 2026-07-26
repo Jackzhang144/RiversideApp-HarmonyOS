@@ -1,5 +1,6 @@
 export const APP_PRODUCT_TITLE: string = 'Riverside';
 export const APP_SETTINGS_TITLE: string = '应用设置';
+export const APP_STORAGE_TITLE: string = '缓存与日志';
 export const APP_ABOUT_TITLE: string = '关于 RiverSide';
 export const APP_SEARCH_TITLE: string = '搜索论坛';
 export const APP_TOPIC_DETAIL_TITLE: string = 'Topic 详情';
@@ -14,6 +15,7 @@ export const APP_CHAT_IMAGE_TITLE: string = 'Chat 图片';
 export const APP_UNAVAILABLE_PAGE_TITLE: string = '页面不可用';
 
 export const BACK_TO_ACCOUNT_LABEL: string = '返回我的';
+export const BACK_TO_SETTINGS_LABEL: string = '返回设置';
 export const BACK_TO_HOME_LABEL: string = '返回首页';
 export const BACK_TO_CATEGORY_LABEL: string = '返回分类';
 export const BACK_TO_TOPIC_LIST_LABEL: string = '返回 Topic 列表';

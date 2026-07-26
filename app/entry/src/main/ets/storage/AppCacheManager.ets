@@ -83,17 +83,11 @@ export class AppCacheManager {
   }
 
   private async pageResourceSize(): Promise<number> {
-    let total: number = 0;
-    try {
-      const entries: Array<string> = await fileIo.listFile(this.context.cacheDir);
-      for (const entry of entries) {
-        if (entry === MEDIA_DIRECTORY_NAME || entry === LOG_DIRECTORY_NAME) {
-          continue;
-        }
-        total += await this.directorySize(`${this.context.cacheDir}/${entry}`);
-      }
-    } catch (_) {
-      return total;
+    const moduleCacheDir: string = this.context.cacheDir;
+    const applicationCacheDir: string = this.context.getApplicationContext().cacheDir;
+    let total: number = await this.unmanagedCacheSize(moduleCacheDir);
+    if (applicationCacheDir !== moduleCacheDir) {
+      total += await this.directorySize(applicationCacheDir);
     }
     return total;
   }
@@ -103,13 +97,42 @@ export class AppCacheManager {
       webview.WebviewController.removeAllCache(true);
     } catch (_) {
     }
+    const moduleCacheDir: string = this.context.cacheDir;
+    const applicationCacheDir: string = this.context.getApplicationContext().cacheDir;
+    await this.clearUnmanagedCache(moduleCacheDir);
+    if (applicationCacheDir !== moduleCacheDir) {
+      await this.clearDirectoryContents(applicationCacheDir, false);
+    }
+  }
+
+  private async unmanagedCacheSize(directory: string): Promise<number> {
+    let total: number = 0;
     try {
-      const entries: Array<string> = await fileIo.listFile(this.context.cacheDir);
+      const entries: Array<string> = await fileIo.listFile(directory);
       for (const entry of entries) {
         if (entry === MEDIA_DIRECTORY_NAME || entry === LOG_DIRECTORY_NAME) {
           continue;
         }
-        await this.removePath(`${this.context.cacheDir}/${entry}`);
+        total += await this.directorySize(`${directory}/${entry}`);
+      }
+    } catch (_) {
+      return total;
+    }
+    return total;
+  }
+
+  private async clearUnmanagedCache(directory: string): Promise<void> {
+    await this.clearDirectoryContents(directory, true);
+  }
+
+  private async clearDirectoryContents(directory: string, preserveManaged: boolean): Promise<void> {
+    try {
+      const entries: Array<string> = await fileIo.listFile(directory);
+      for (const entry of entries) {
+        if (preserveManaged && (entry === MEDIA_DIRECTORY_NAME || entry === LOG_DIRECTORY_NAME)) {
+          continue;
+        }
+        await this.removePath(`${directory}/${entry}`);
       }
     } catch (_) {
     }
