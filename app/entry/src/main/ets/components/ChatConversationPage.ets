@@ -1026,7 +1026,7 @@ export struct ChatConversationPage {
       .width('100%')
       .height('100%')
       .padding({ left: 12, right: 12, top: 10, bottom: 10 })
-      .clip(false)
+      .clip(true)
       .cachedCount(3, true)
       .backgroundColor($r('sys.color.background_secondary'))
       .edgeEffect(EdgeEffect.Spring)
