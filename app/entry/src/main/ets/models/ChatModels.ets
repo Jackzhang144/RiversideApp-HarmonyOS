@@ -83,6 +83,9 @@ export class ChatChannel {
   public readonly canDeleteOthers: boolean;
   public readonly notificationLevel: ChatChannelNotificationLevel;
   public readonly muted: boolean;
+  public readonly pinnedMessagesCount: number;
+  public readonly canManagePins: boolean;
+  public readonly hasUnseenPins: boolean;
 
   public constructor(
     id: number,
@@ -99,7 +102,10 @@ export class ChatChannel {
     canDeleteSelf: boolean = false,
     canDeleteOthers: boolean = false,
     notificationLevel: ChatChannelNotificationLevel = ChatChannelNotificationLevel.MENTION,
-    muted: boolean = false
+    muted: boolean = false,
+    pinnedMessagesCount: number = 0,
+    canManagePins: boolean = false,
+    hasUnseenPins: boolean = false
   ) {
     this.id = id;
     this.title = title;
@@ -116,6 +122,9 @@ export class ChatChannel {
     this.canDeleteOthers = canDeleteOthers;
     this.notificationLevel = notificationLevel;
     this.muted = muted;
+    this.pinnedMessagesCount = nonNegativeInteger(pinnedMessagesCount);
+    this.canManagePins = canManagePins;
+    this.hasUnseenPins = hasUnseenPins;
   }
 
   public withUnreadCount(unreadCount: number): ChatChannel {
@@ -134,7 +143,10 @@ export class ChatChannel {
       this.canDeleteSelf,
       this.canDeleteOthers,
       this.notificationLevel,
-      this.muted
+      this.muted,
+      this.pinnedMessagesCount,
+      this.canManagePins,
+      this.hasUnseenPins
     );
   }
 
@@ -154,7 +166,33 @@ export class ChatChannel {
       this.canDeleteSelf,
       this.canDeleteOthers,
       settings.notificationLevel,
-      settings.muted
+      settings.muted,
+      this.pinnedMessagesCount,
+      this.canManagePins,
+      this.hasUnseenPins
+    );
+  }
+
+  public withPinSummary(pinnedMessagesCount: number, hasUnseenPins: boolean): ChatChannel {
+    return new ChatChannel(
+      this.id,
+      this.title,
+      this.subtitle,
+      this.preview,
+      this.lastMessageAt,
+      this.isDirectMessage,
+      this.unreadCount,
+      this.lastMessageId,
+      this.lastMessageUsername,
+      this.slug,
+      this.userSilenced,
+      this.canDeleteSelf,
+      this.canDeleteOthers,
+      this.notificationLevel,
+      this.muted,
+      pinnedMessagesCount,
+      this.canManagePins,
+      hasUnseenPins
     );
   }
 }
@@ -206,6 +244,7 @@ export class ChatMessage {
   public readonly replyTo: ChatReplyPreview | null;
   public readonly createdAt: string;
   public readonly deleted: boolean;
+  public readonly pinned: boolean;
 
   public constructor(
     id: number,
@@ -217,7 +256,8 @@ export class ChatMessage {
     reactions: Array<ChatReaction>,
     replyTo: ChatReplyPreview | null,
     createdAt: string,
-    deleted: boolean
+    deleted: boolean,
+    pinned: boolean = false
   ) {
     this.id = id;
     this.username = username;
@@ -229,6 +269,7 @@ export class ChatMessage {
     this.replyTo = replyTo;
     this.createdAt = createdAt;
     this.deleted = deleted;
+    this.pinned = pinned;
   }
 
   public displayText(): string {
@@ -236,6 +277,63 @@ export class ChatMessage {
       return '消息已删除';
     }
     return this.message === '\u200B' ? '' : this.message;
+  }
+
+  public withPinned(pinned: boolean): ChatMessage {
+    return new ChatMessage(
+      this.id,
+      this.username,
+      this.avatarUrl,
+      this.message,
+      this.cooked,
+      this.uploadUrls,
+      this.reactions,
+      this.replyTo,
+      this.createdAt,
+      this.deleted,
+      pinned
+    );
+  }
+}
+
+export class ChatPinnedMessage {
+  public readonly id: number;
+  public readonly chatMessageId: number;
+  public readonly pinnedAt: string;
+  public readonly pinnedByUsername: string;
+  public readonly pinnedByAvatarUrl: string;
+  public readonly message: ChatMessage;
+
+  public constructor(
+    id: number,
+    chatMessageId: number,
+    pinnedAt: string,
+    pinnedByUsername: string,
+    pinnedByAvatarUrl: string,
+    message: ChatMessage
+  ) {
+    this.id = id;
+    this.chatMessageId = chatMessageId;
+    this.pinnedAt = pinnedAt;
+    this.pinnedByUsername = pinnedByUsername;
+    this.pinnedByAvatarUrl = pinnedByAvatarUrl;
+    this.message = message;
+  }
+}
+
+export class ChatPinnedMessagePage {
+  public readonly pinnedMessages: Array<ChatPinnedMessage>;
+  public readonly hasUnseenPins: boolean;
+  public readonly lastViewedPinsAt: string;
+
+  public constructor(
+    pinnedMessages: Array<ChatPinnedMessage>,
+    hasUnseenPins: boolean,
+    lastViewedPinsAt: string
+  ) {
+    this.pinnedMessages = pinnedMessages;
+    this.hasUnseenPins = hasUnseenPins;
+    this.lastViewedPinsAt = lastViewedPinsAt;
   }
 }
 

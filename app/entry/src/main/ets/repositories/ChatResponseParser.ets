@@ -9,6 +9,8 @@ import {
   ChatEmoji,
   ChatMessage,
   ChatMessagePage,
+  ChatPinnedMessage,
+  ChatPinnedMessagePage,
   ChatReaction,
   ChatReactionUser,
   ChatReplyPreview,
@@ -115,7 +117,10 @@ function parseChannel(reader: JsonObjectReader): ChatChannel | null {
     meta?.boolean('can_delete_self') === true,
     meta?.boolean('can_delete_others') === true,
     settings.notificationLevel,
-    settings.muted
+    settings.muted,
+    nonNegativeInteger(reader.number('pinned_messages_count')),
+    meta?.boolean('can_manage_pins') === true,
+    membership?.boolean('has_unseen_pins') === true
   );
 }
 
@@ -335,7 +340,8 @@ function parseMessage(reader: JsonObjectReader): ChatMessage | null {
     reactions,
     replyTo,
     firstString(reader, ['created_at']),
-    deleted
+    deleted,
+    reader.boolean('pinned') === true
   );
 }
 
@@ -379,6 +385,43 @@ export function parseChatMessageResponse(text: string): ChatMessage | null {
   }
   const message: JsonObjectReader = envelope.object('message') ?? envelope.object('chat_message') ?? envelope;
   return parseMessage(message);
+}
+
+export function parseChatPinnedMessages(text: string): ChatPinnedMessagePage | null {
+  const envelope: JsonObjectReader | null = JsonObjectReader.parse(text);
+  if (envelope === null || !envelope.has('pinned_messages')) {
+    return null;
+  }
+  const values: Array<Object | null> | null = envelope.array('pinned_messages');
+  if (values === null) {
+    return null;
+  }
+  const pinnedMessages: Array<ChatPinnedMessage> = [];
+  for (const value of values) {
+    const pin: JsonObjectReader | null = JsonObjectReader.fromValue(value);
+    const messageReader: JsonObjectReader | null = pin?.object('message') ?? null;
+    const message: ChatMessage | null = messageReader === null ? null : parseMessage(messageReader);
+    if (pin === null || message === null) {
+      return null;
+    }
+    const pinnedBy: JsonObjectReader | null = pin.object('pinned_by');
+    const avatarTemplate: string = pinnedBy === null ? '' : firstString(pinnedBy, ['avatar_template']);
+    const responseMessageId: number = nonNegativeInteger(pin.number('chat_message_id'));
+    pinnedMessages.push(new ChatPinnedMessage(
+      nonNegativeInteger(pin.number('id')),
+      responseMessageId > 0 ? responseMessageId : message.id,
+      firstString(pin, ['pinned_at']),
+      pinnedBy === null ? '' : firstString(pinnedBy, ['username']),
+      avatarTemplate.length === 0 ? '' : absoluteChatUrl(avatarTemplate.replace('{size}', '96')),
+      message.pinned ? message : message.withPinned(true)
+    ));
+  }
+  const membership: JsonObjectReader | null = envelope.object('membership');
+  return new ChatPinnedMessagePage(
+    pinnedMessages,
+    membership?.boolean('has_unseen_pins') === true,
+    membership === null ? '' : firstString(membership, ['last_viewed_pins_at'])
+  );
 }
 
 export function parseChatSendConfirmation(text: string): ChatSendConfirmation | null {

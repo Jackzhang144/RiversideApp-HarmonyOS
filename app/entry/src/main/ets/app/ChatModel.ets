@@ -11,6 +11,8 @@ import {
   ChatMessage,
   ChatMessagePage,
   ChatMessageQuery,
+  ChatPinnedMessage,
+  ChatPinnedMessagePage,
   ChatReactionAction,
   ChatSendConfirmation,
   ChatSendRequest
@@ -27,6 +29,7 @@ import {
   ChatChannelState,
   ChatComposerState,
   ChatConversationState,
+  ChatPinnedMessageState,
   ChatStateKind
 } from './ChatStateModels';
 import { MediaUploadCoordinator } from './MediaUploadCoordinator';
@@ -75,6 +78,7 @@ export class DefaultChatMetadataProvider implements ChatMetadataProvider {
 export class ChatModel {
   public channelState: ChatChannelState = ChatChannelState.initial();
   public conversationState: ChatConversationState = ChatConversationState.initial();
+  public pinnedMessageState: ChatPinnedMessageState = ChatPinnedMessageState.initial();
   public composerState: ChatComposerState = new ChatComposerState();
   public readonly search: ChatSearchCoordinator;
   public emojis: Array<ChatEmoji> = [];
@@ -85,6 +89,7 @@ export class ChatModel {
   private readonly metadataProvider: ChatMetadataProvider;
   private channelRequestVersion: number = 0;
   private conversationRequestVersion: number = 0;
+  private pinnedMessageRequestVersion: number = 0;
   private activeConversationRefresh: Promise<void> | null = null;
   private activeConversationRefreshVersion: number | null = null;
   private readProgressChannelId: number = 0;
@@ -177,6 +182,122 @@ export class ChatModel {
     return true;
   }
 
+  public async loadPinnedMessages(): Promise<boolean> {
+    const channel: ChatChannel | null = this.conversationState.channel;
+    if (channel === null) {
+      return false;
+    }
+    this.pinnedMessageRequestVersion += 1;
+    const pinnedRequestVersion: number = this.pinnedMessageRequestVersion;
+    const conversationRequestVersion: number = this.conversationRequestVersion;
+    const existing: Array<ChatPinnedMessage> = this.pinnedMessageState.pinnedMessages;
+    this.pinnedMessageState = ChatPinnedMessageState.loading(existing);
+    const result: RepositoryResult<ChatPinnedMessagePage> =
+      await this.repository.loadPinnedChatMessages(channel.id);
+    if (
+      pinnedRequestVersion !== this.pinnedMessageRequestVersion ||
+      !this.isCurrentConversation(conversationRequestVersion, channel.id)
+    ) {
+      return false;
+    }
+    if (!result.isSuccess() || result.data === null) {
+      this.pinnedMessageState = ChatPinnedMessageState.failure(existing, result.message);
+      if (result.isUnauthorized()) {
+        await this.notifyUnauthorized();
+      }
+      return false;
+    }
+    this.pinnedMessageState = ChatPinnedMessageState.fromPage(result.data);
+    const pinnedMessageIds: Array<number> = result.data.pinnedMessages.map(
+      (item: ChatPinnedMessage): number => item.chatMessageId
+    );
+    this.conversationState = this.conversationState.withMessages(
+      this.conversationState.messages.map((message: ChatMessage): ChatMessage =>
+        message.withPinned(pinnedMessageIds.includes(message.id))
+      )
+    );
+    this.updateCurrentChannelPinSummary(result.data.pinnedMessages.length, result.data.hasUnseenPins);
+    const markedRead: RepositoryResult<boolean> = await this.repository.markChatPinsRead(channel.id);
+    if (
+      pinnedRequestVersion === this.pinnedMessageRequestVersion &&
+      this.isCurrentConversation(conversationRequestVersion, channel.id) &&
+      markedRead.isSuccess() && markedRead.data === true
+    ) {
+      this.updateCurrentChannelPinSummary(result.data.pinnedMessages.length, false);
+    } else if (markedRead.isUnauthorized()) {
+      await this.notifyUnauthorized();
+    }
+    return true;
+  }
+
+  public async setMessagePinned(messageId: number, pinned: boolean): Promise<boolean> {
+    const channel: ChatChannel | null = this.conversationState.channel;
+    const message: ChatMessage | null = this.conversationState.messages.find(
+      (candidate: ChatMessage): boolean => candidate.id === messageId
+    ) ?? null;
+    if (
+      channel === null ||
+      !channel.canManagePins ||
+      message === null ||
+      message.deleted ||
+      message.pinned === pinned
+    ) {
+      return false;
+    }
+    const conversationRequestVersion: number = this.conversationRequestVersion;
+    const result: RepositoryResult<boolean> = pinned
+      ? await this.repository.pinChatMessage(channel.id, messageId)
+      : await this.repository.unpinChatMessage(channel.id, messageId);
+    if (!this.isCurrentConversation(conversationRequestVersion, channel.id)) {
+      return false;
+    }
+    if (!result.isSuccess() || result.data !== true) {
+      this.conversationState = this.conversationState.withMessages(
+        this.conversationState.messages,
+        this.conversationState.canLoadMorePast,
+        this.conversationState.canLoadMoreFuture,
+        result.message
+      );
+      if (result.isUnauthorized()) {
+        await this.notifyUnauthorized();
+      }
+      return false;
+    }
+    this.conversationState = this.conversationState.withMessages(
+      this.conversationState.messages.map((candidate: ChatMessage): ChatMessage =>
+        candidate.id === messageId ? candidate.withPinned(pinned) : candidate
+      )
+    );
+    const nextCount: number = pinned
+      ? channel.pinnedMessagesCount + 1
+      : Math.max(0, channel.pinnedMessagesCount - 1);
+    this.updateCurrentChannelPinSummary(nextCount, channel.hasUnseenPins);
+    if (!pinned && this.pinnedMessageState.kind !== ChatStateKind.INITIAL) {
+      this.pinnedMessageState = ChatPinnedMessageState.fromPage(new ChatPinnedMessagePage(
+        this.pinnedMessageState.pinnedMessages.filter(
+          (item: ChatPinnedMessage): boolean => item.chatMessageId !== messageId
+        ),
+        false,
+        ''
+      ));
+    } else if (this.pinnedMessageState.kind !== ChatStateKind.INITIAL) {
+      await this.loadPinnedMessages();
+    }
+    return true;
+  }
+
+  private updateCurrentChannelPinSummary(pinnedMessagesCount: number, hasUnseenPins: boolean): void {
+    const channel: ChatChannel | null = this.conversationState.channel;
+    if (channel === null) {
+      return;
+    }
+    const updatedChannel: ChatChannel = channel.withPinSummary(pinnedMessagesCount, hasUnseenPins);
+    this.conversationState = this.conversationState.withChannel(updatedChannel);
+    this.channelState = ChatChannelState.fromChannels(this.channelState.channels.map(
+      (candidate: ChatChannel): ChatChannel => candidate.id === updatedChannel.id ? updatedChannel : candidate
+    ));
+  }
+
   public async refreshActiveConversationIncrementally(): Promise<void> {
     const requestVersion: number = this.conversationRequestVersion;
     const existingRefresh: Promise<void> | null = this.activeConversationRefresh;
@@ -266,9 +387,11 @@ export class ChatModel {
   private async openChannelWithQuery(channel: ChatChannel, query: ChatMessageQuery): Promise<void> {
     this.cancelUpload();
     this.conversationRequestVersion += 1;
+    this.pinnedMessageRequestVersion += 1;
     const requestVersion: number = this.conversationRequestVersion;
     this.resetReadProgress(channel.id);
     this.conversationState = ChatConversationState.loading(channel);
+    this.pinnedMessageState = ChatPinnedMessageState.initial();
     this.composerState = new ChatComposerState();
     const result: RepositoryResult<ChatMessagePage> = await this.repository.loadChatMessages(
       channel.id,
@@ -297,8 +420,10 @@ export class ChatModel {
       !this.conversationState.messages.some((message: ChatMessage): boolean => message.id > 0);
     this.cancelUpload();
     this.conversationRequestVersion += 1;
+    this.pinnedMessageRequestVersion += 1;
     this.resetReadProgress(0);
     this.conversationState = ChatConversationState.initial();
+    this.pinnedMessageState = ChatPinnedMessageState.initial();
     this.composerState = new ChatComposerState();
     if (shouldCleanupEmptyDirectMessage && channel !== null) {
       await this.leaveEmptyDirectMessageBestEffort(channel.id);
@@ -324,9 +449,11 @@ export class ChatModel {
     this.cancelUpload();
     this.channelRequestVersion += 1;
     this.conversationRequestVersion += 1;
+    this.pinnedMessageRequestVersion += 1;
     this.resetReadProgress(0);
     this.channelState = ChatChannelState.initial();
     this.conversationState = ChatConversationState.initial();
+    this.pinnedMessageState = ChatPinnedMessageState.initial();
     this.composerState = new ChatComposerState();
     this.search.reset();
     this.emojis = [];

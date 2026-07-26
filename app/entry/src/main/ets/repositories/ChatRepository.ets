@@ -7,6 +7,7 @@ import {
   ChatMessage,
   ChatMessagePage,
   ChatMessageQuery,
+  ChatPinnedMessagePage,
   ChatReactionAction,
   ChatSearchResult,
   ChatSendConfirmation,
@@ -34,6 +35,14 @@ export interface ChatRepository {
   deleteChatMessage(channelId: number, messageId: number): Promise<RepositoryResult<boolean>>;
 
   restoreChatMessage(channelId: number, messageId: number): Promise<RepositoryResult<boolean>>;
+
+  loadPinnedChatMessages(channelId: number): Promise<RepositoryResult<ChatPinnedMessagePage>>;
+
+  markChatPinsRead(channelId: number): Promise<RepositoryResult<boolean>>;
+
+  pinChatMessage(channelId: number, messageId: number): Promise<RepositoryResult<boolean>>;
+
+  unpinChatMessage(channelId: number, messageId: number): Promise<RepositoryResult<boolean>>;
 
   loadChatEmojis(): Promise<RepositoryResult<Array<ChatEmoji>>>;
 

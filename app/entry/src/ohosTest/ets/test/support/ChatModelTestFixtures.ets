@@ -14,6 +14,7 @@ import {
   ChatMessage,
   ChatMessagePage,
   ChatMessageQuery,
+  ChatPinnedMessagePage,
   ChatReaction,
   ChatReactionAction,
   ChatSearchResult,
@@ -42,6 +43,7 @@ export class StubChatRepository implements ChatRepository {
   public sendTasks: Array<Promise<RepositoryResult<ChatSendConfirmation>>> = [];
   public booleanResults: Array<RepositoryResult<boolean>> = [];
   public notificationSettingsResults: Array<RepositoryResult<ChatChannelNotificationSettings>> = [];
+  public pinnedMessageResults: Array<RepositoryResult<ChatPinnedMessagePage>> = [];
   public emojiResults: Array<RepositoryResult<Array<ChatEmoji>>> = [];
   public searchResults: Array<RepositoryResult<Array<ChatSearchResult>>> = [];
   public messageChannelIds: Array<number> = [];
@@ -51,6 +53,10 @@ export class StubChatRepository implements ChatRepository {
   public markReadIds: Array<number> = [];
   public leaveChannelIds: Array<number> = [];
   public notificationUpdates: Array<ChatChannelNotificationUpdate> = [];
+  public pinnedMessageChannelIds: Array<number> = [];
+  public markedPinChannelIds: Array<number> = [];
+  public pinnedMessageIds: Array<number> = [];
+  public unpinnedMessageIds: Array<number> = [];
 
   public async loadChatChannels(): Promise<RepositoryResult<Array<ChatChannel>>> {
     return this.channelResults.shift() ?? RepositoryResult.unknown<Array<ChatChannel>>('missing channel result');
@@ -105,6 +111,27 @@ export class StubChatRepository implements ChatRepository {
 
   public async restoreChatMessage(_channelId: number, _messageId: number): Promise<RepositoryResult<boolean>> {
     return this.booleanResults.shift() ?? RepositoryResult.unknown<boolean>('missing restore result');
+  }
+
+  public async loadPinnedChatMessages(channelId: number): Promise<RepositoryResult<ChatPinnedMessagePage>> {
+    this.pinnedMessageChannelIds.push(channelId);
+    return this.pinnedMessageResults.shift() ??
+      RepositoryResult.unknown<ChatPinnedMessagePage>('missing pinned message result');
+  }
+
+  public async markChatPinsRead(channelId: number): Promise<RepositoryResult<boolean>> {
+    this.markedPinChannelIds.push(channelId);
+    return this.booleanResults.shift() ?? RepositoryResult.unknown<boolean>('missing mark pins read result');
+  }
+
+  public async pinChatMessage(_channelId: number, messageId: number): Promise<RepositoryResult<boolean>> {
+    this.pinnedMessageIds.push(messageId);
+    return this.booleanResults.shift() ?? RepositoryResult.unknown<boolean>('missing pin result');
+  }
+
+  public async unpinChatMessage(_channelId: number, messageId: number): Promise<RepositoryResult<boolean>> {
+    this.unpinnedMessageIds.push(messageId);
+    return this.booleanResults.shift() ?? RepositoryResult.unknown<boolean>('missing unpin result');
   }
 
   public async loadChatEmojis(): Promise<RepositoryResult<Array<ChatEmoji>>> {

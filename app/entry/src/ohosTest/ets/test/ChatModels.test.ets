@@ -6,11 +6,13 @@ import {
   chatChannelNotificationLevelLabel,
   ChatMessage,
   ChatMessagePage,
+  ChatPinnedMessagePage,
   chatMessagePermalink
 } from '../../../main/ets/models/ChatModels';
 import {
   parseChatChannels,
-  parseChatMessagePage
+  parseChatMessagePage,
+  parseChatPinnedMessages
 } from '../../../main/ets/repositories/ChatResponseParser';
 
 export default function chatModelsTest(): void {
@@ -67,8 +69,9 @@ export default function chatModelsTest(): void {
     it('preserves custom Emoji text and server channel permissions', 0, () => {
       const channels: Array<ChatChannel> | null = parseChatChannels(
         '{"channels":[{"id":5,"title":"只读频道","meta":{"user_silenced":true,' +
-          '"can_delete_self":true,"can_delete_others":false},' +
-          '"current_user_membership":{"notification_level":"always","muted":true}}]}'
+          '"can_delete_self":true,"can_delete_others":false,"can_manage_pins":true},' +
+          '"pinned_messages_count":2,"current_user_membership":{"notification_level":"always",' +
+          '"muted":true,"has_unseen_pins":true}}]}'
       );
       const page: ChatMessagePage | null = parseChatMessagePage(
         '{"messages":[{"id":4,"created_at":"2026-07-12T07:00:00Z",' +
@@ -81,6 +84,9 @@ export default function chatModelsTest(): void {
       expect(channels?.[0].canDeleteOthers).assertFalse();
       expect(channels?.[0].notificationLevel).assertEqual(ChatChannelNotificationLevel.ALWAYS);
       expect(channels?.[0].muted).assertTrue();
+      expect(channels?.[0].pinnedMessagesCount).assertEqual(2);
+      expect(channels?.[0].canManagePins).assertTrue();
+      expect(channels?.[0].hasUnseenPins).assertTrue();
       expect(chatChannelNotificationLevelLabel(ChatChannelNotificationLevel.MENTION))
         .assertEqual('仅提及我时');
       expect(page?.messages[0].displayText()).assertEqual(':riverside:');
@@ -112,6 +118,31 @@ export default function chatModelsTest(): void {
       expect(page?.messages[0].reactions[0].reacted).assertTrue();
       expect(page?.canLoadMorePast).assertTrue();
       expect(page?.canLoadMoreFuture).assertFalse();
+    });
+
+    it('parses the Discourse pinned message envelope and membership state', 0, () => {
+      const page: ChatPinnedMessagePage | null = parseChatPinnedMessages(
+        '{"pinned_messages":[{"id":81,"chat_message_id":9,' +
+          '"pinned_at":"2026-07-26T10:00:00Z",' +
+          '"pinned_by":{"username":"admin",' +
+            '"avatar_template":"/user_avatar/river-side.cc/admin/{size}/1.png"},' +
+          '"message":{"id":9,"created_at":"2026-07-26T09:00:00Z",' +
+            '"user":{"username":"member"},"message":"频道公告","pinned":true}}],' +
+          '"membership":{"has_unseen_pins":true,' +
+            '"last_viewed_pins_at":"2026-07-25T08:00:00Z"}}'
+      );
+
+      expect(page === null).assertFalse();
+      expect(page?.pinnedMessages.length).assertEqual(1);
+      expect(page?.pinnedMessages[0].id).assertEqual(81);
+      expect(page?.pinnedMessages[0].chatMessageId).assertEqual(9);
+      expect(page?.pinnedMessages[0].message.pinned).assertTrue();
+      expect(page?.pinnedMessages[0].pinnedByUsername).assertEqual('admin');
+      expect(page?.pinnedMessages[0].pinnedByAvatarUrl).assertEqual(
+        'https://river-side.cc/user_avatar/river-side.cc/admin/96/1.png'
+      );
+      expect(page?.hasUnseenPins).assertTrue();
+      expect(page?.lastViewedPinsAt).assertEqual('2026-07-25T08:00:00Z');
     });
 
     it('keeps deleted messages as recoverable server tombstones', 0, () => {

@@ -2,6 +2,8 @@ import {
   ChatChannel,
   ChatMessage,
   ChatMessagePage,
+  ChatPinnedMessage,
+  ChatPinnedMessagePage,
   ChatSearchResult
 } from '../models/ChatModels';
 import { MediaUploadResult } from '../models/MediaModels';
@@ -166,6 +168,46 @@ export class ChatConversationState {
       this.loadingPast,
       this.loadingFuture,
       this.message
+    );
+  }
+}
+
+export class ChatPinnedMessageState {
+  public readonly kind: ChatStateKind;
+  public readonly pinnedMessages: Array<ChatPinnedMessage>;
+  public readonly message: string;
+
+  private constructor(
+    kind: ChatStateKind,
+    pinnedMessages: Array<ChatPinnedMessage>,
+    message: string
+  ) {
+    this.kind = kind;
+    this.pinnedMessages = pinnedMessages;
+    this.message = message;
+  }
+
+  public static initial(): ChatPinnedMessageState {
+    return new ChatPinnedMessageState(ChatStateKind.INITIAL, [], '');
+  }
+
+  public static loading(existing: Array<ChatPinnedMessage> = []): ChatPinnedMessageState {
+    return new ChatPinnedMessageState(ChatStateKind.LOADING, existing, '');
+  }
+
+  public static fromPage(page: ChatPinnedMessagePage): ChatPinnedMessageState {
+    return new ChatPinnedMessageState(
+      page.pinnedMessages.length === 0 ? ChatStateKind.EMPTY : ChatStateKind.CONTENT,
+      page.pinnedMessages,
+      ''
+    );
+  }
+
+  public static failure(existing: Array<ChatPinnedMessage>, message: string): ChatPinnedMessageState {
+    return new ChatPinnedMessageState(
+      existing.length === 0 ? ChatStateKind.ERROR : ChatStateKind.CONTENT,
+      existing,
+      message
     );
   }
 }

@@ -9,6 +9,7 @@ import {
   ChatMessage,
   ChatMessagePage,
   ChatMessageQuery,
+  ChatPinnedMessagePage,
   ChatReactionAction,
   ChatSearchResult,
   ChatSendConfirmation,
@@ -225,6 +226,39 @@ export default function chatRepositoryTest(): void {
         expect(levelResult.data?.notificationLevel).assertEqual(ChatChannelNotificationLevel.ALWAYS);
         expect(levelResult.data?.muted).assertFalse();
         expect(mutedResult.data?.muted).assertTrue();
+        done();
+      });
+
+    it('loads, reads, pins and unpins messages through the Discourse channel pins contract', 0,
+      async (done: Function) => {
+        const client: StubForumHttpClient = new StubForumHttpClient();
+        client.results.push(HttpTextResult.success(200,
+          '{"pinned_messages":[{"id":81,"chat_message_id":20,' +
+          '"pinned_at":"2026-07-26T10:00:00Z","pinned_by":{"username":"admin"},' +
+          '"message":{"id":20,"created_at":"2026-07-26T09:00:00Z",' +
+          '"user":{"username":"member"},"message":"置顶内容","pinned":true}}],' +
+          '"membership":{"has_unseen_pins":true}}'
+        ));
+        client.putResults.push(HttpTextResult.success(200, '{"success":"OK"}'));
+        client.formResults.push(HttpTextResult.success(200, '{"success":"OK"}'));
+        client.deleteResults.push(HttpTextResult.success(200, '{"success":"OK"}'));
+        const repository: DiscourseChatRepository = new DiscourseChatRepository(client);
+
+        const pins: RepositoryResult<ChatPinnedMessagePage> =
+          await repository.loadPinnedChatMessages(71);
+        const read: RepositoryResult<boolean> = await repository.markChatPinsRead(71);
+        const pinned: RepositoryResult<boolean> = await repository.pinChatMessage(71, 20);
+        const unpinned: RepositoryResult<boolean> = await repository.unpinChatMessage(71, 20);
+
+        expect(client.paths[0]).assertEqual('/chat/api/channels/71/pins');
+        expect(client.putPaths[0]).assertEqual('/chat/api/channels/71/pins/read');
+        expect(client.formRequests[0]).assertEqual('/chat/api/channels/71/messages/20/pin|');
+        expect(client.deletePaths[0]).assertEqual('/chat/api/channels/71/messages/20/pin');
+        expect(pins.data?.pinnedMessages[0].message.displayText()).assertEqual('置顶内容');
+        expect(pins.data?.hasUnseenPins).assertTrue();
+        expect(read.data).assertTrue();
+        expect(pinned.data).assertTrue();
+        expect(unpinned.data).assertTrue();
         done();
       });
   });

@@ -6,6 +6,7 @@ import {
   ChatEmoji,
   ChatMessagePage,
   ChatMessageQuery,
+  ChatPinnedMessagePage,
   ChatReactionAction,
   ChatSearchResult,
   ChatSendConfirmation,
@@ -17,6 +18,7 @@ import {
   parseChatChannels,
   parseChatEmojis,
   parseChatMessagePage,
+  parseChatPinnedMessages,
   parseChatSearchResults,
   parseChatSendConfirmation
 } from './ChatResponseParser';
@@ -148,6 +150,50 @@ export class DiscourseChatRepository implements ChatRepository {
     }
     return this.booleanWriteResult(
       await this.client.put(`/chat/api/channels/${channelId}/messages/${messageId}/restore`)
+    );
+  }
+
+  public async loadPinnedChatMessages(channelId: number): Promise<RepositoryResult<ChatPinnedMessagePage>> {
+    if (!Number.isSafeInteger(channelId) || channelId <= 0) {
+      return RepositoryResult.invalidInput<ChatPinnedMessagePage>('聊天频道标识无效');
+    }
+    const response: HttpTextResult = await this.client.get(`/chat/api/channels/${channelId}/pins`);
+    if (response.kind === HttpTextResultKind.UNAUTHORIZED) {
+      return RepositoryResult.unauthorized<ChatPinnedMessagePage>();
+    }
+    if (!response.isSuccess()) {
+      return response.asRepositoryFailure<ChatPinnedMessagePage>();
+    }
+    const page: ChatPinnedMessagePage | null = parseChatPinnedMessages(response.body);
+    return page === null
+      ? RepositoryResult.invalidResponse<ChatPinnedMessagePage>('置顶消息响应无效')
+      : RepositoryResult.success<ChatPinnedMessagePage>(page);
+  }
+
+  public async markChatPinsRead(channelId: number): Promise<RepositoryResult<boolean>> {
+    if (!Number.isSafeInteger(channelId) || channelId <= 0) {
+      return RepositoryResult.invalidInput<boolean>('聊天频道标识无效');
+    }
+    return this.booleanWriteResult(
+      await this.client.put(`/chat/api/channels/${channelId}/pins/read`)
+    );
+  }
+
+  public async pinChatMessage(channelId: number, messageId: number): Promise<RepositoryResult<boolean>> {
+    if (!this.validMessageIdentity(channelId, messageId)) {
+      return RepositoryResult.invalidInput<boolean>('聊天置顶请求无效');
+    }
+    return this.booleanWriteResult(
+      await this.client.postForm(`/chat/api/channels/${channelId}/messages/${messageId}/pin`, '')
+    );
+  }
+
+  public async unpinChatMessage(channelId: number, messageId: number): Promise<RepositoryResult<boolean>> {
+    if (!this.validMessageIdentity(channelId, messageId)) {
+      return RepositoryResult.invalidInput<boolean>('聊天取消置顶请求无效');
+    }
+    return this.booleanWriteResult(
+      await this.client.delete(`/chat/api/channels/${channelId}/messages/${messageId}/pin`)
     );
   }
 

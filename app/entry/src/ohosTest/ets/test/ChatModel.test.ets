@@ -15,6 +15,8 @@ import {
   ChatMessage,
   ChatMessagePage,
   ChatMessageQuery,
+  ChatPinnedMessage,
+  ChatPinnedMessagePage,
   ChatReaction,
   ChatReactionAction,
   ChatSearchResult,
@@ -614,6 +616,110 @@ export default function chatModelTest(): void {
           .assertEqual('notifications_settings[notification_level]=always');
         expect(repository.notificationUpdates[2].formBody())
           .assertEqual('notifications_settings[muted]=true');
+        done();
+      });
+
+    it('loads pinned messages, marks them read and synchronizes the active channel', 0,
+      async (done: Function) => {
+        const repository: StubChatRepository = new StubChatRepository();
+        const pinnableChannel: ChatChannel = new ChatChannel(
+          55,
+          '测试频道',
+          '频道',
+          '',
+          '2026-07-26T09:00:00Z',
+          false,
+          0,
+          9,
+          'member',
+          'test',
+          false,
+          true,
+          true,
+          ChatChannelNotificationLevel.MENTION,
+          false,
+          1,
+          true,
+          true
+        );
+        repository.channelResults.push(RepositoryResult.success<Array<ChatChannel>>([pinnableChannel]));
+        repository.messageResults.push(RepositoryResult.success<ChatMessagePage>(
+          new ChatMessagePage([message(9, '公告', '2026-07-26T09:00:00Z')], false, false)
+        ));
+        repository.pinnedMessageResults.push(RepositoryResult.success<ChatPinnedMessagePage>(
+          new ChatPinnedMessagePage([
+            new ChatPinnedMessage(
+              81,
+              9,
+              '2026-07-26T10:00:00Z',
+              'admin',
+              '',
+              message(9, '公告', '2026-07-26T09:00:00Z').withPinned(true)
+            )
+          ], true, '2026-07-25T08:00:00Z')
+        ));
+        repository.booleanResults.push(RepositoryResult.success<boolean>(true));
+        const model: ChatModel = new ChatModel(repository);
+        await model.loadChannels();
+        await model.openChannel(pinnableChannel);
+
+        expect(await model.loadPinnedMessages()).assertTrue();
+
+        expect(repository.pinnedMessageChannelIds[0]).assertEqual(55);
+        expect(repository.markedPinChannelIds[0]).assertEqual(55);
+        expect(model.pinnedMessageState.kind).assertEqual(ChatStateKind.CONTENT);
+        expect(model.pinnedMessageState.pinnedMessages[0].chatMessageId).assertEqual(9);
+        expect(model.conversationState.messages[0].pinned).assertTrue();
+        expect(model.conversationState.channel?.pinnedMessagesCount).assertEqual(1);
+        expect(model.conversationState.channel?.hasUnseenPins).assertFalse();
+        expect(model.channelState.channels[0].hasUnseenPins).assertFalse();
+        done();
+      });
+
+    it('changes a pin only after the server confirms the message transition', 0,
+      async (done: Function) => {
+        const repository: StubChatRepository = new StubChatRepository();
+        const pinnableChannel: ChatChannel = new ChatChannel(
+          55,
+          '测试频道',
+          '频道',
+          '',
+          '2026-07-26T09:00:00Z',
+          false,
+          0,
+          9,
+          'member',
+          'test',
+          false,
+          true,
+          true,
+          ChatChannelNotificationLevel.MENTION,
+          false,
+          0,
+          true,
+          false
+        );
+        repository.messageResults.push(RepositoryResult.success<ChatMessagePage>(
+          new ChatMessagePage([message(9, '公告', '2026-07-26T09:00:00Z')], false, false)
+        ));
+        repository.booleanResults.push(
+          RepositoryResult.unknown<boolean>('置顶失败'),
+          RepositoryResult.success<boolean>(true),
+          RepositoryResult.success<boolean>(true)
+        );
+        const model: ChatModel = new ChatModel(repository);
+        await model.openChannel(pinnableChannel);
+
+        expect(await model.setMessagePinned(9, true)).assertFalse();
+        expect(model.conversationState.messages[0].pinned).assertFalse();
+        expect(await model.setMessagePinned(9, true)).assertTrue();
+        expect(model.conversationState.messages[0].pinned).assertTrue();
+        expect(model.conversationState.channel?.pinnedMessagesCount).assertEqual(1);
+        expect(await model.setMessagePinned(9, false)).assertTrue();
+        expect(model.conversationState.messages[0].pinned).assertFalse();
+        expect(model.conversationState.channel?.pinnedMessagesCount).assertEqual(0);
+        expect(repository.pinnedMessageIds.join(',')).assertEqual('9,9');
+        expect(repository.unpinnedMessageIds.join(',')).assertEqual('9');
         done();
       });
 
