@@ -170,6 +170,13 @@ export class TopicReadingRepository implements ForumRepository {
     return result ?? RepositoryResult.unknown<TopicPostBatch>('missing Post result');
   }
 
+  public async loadPostReplies(
+    _postId: number,
+    _afterPostNumber: number = 1
+  ): Promise<RepositoryResult<Array<ForumPost>>> {
+    return RepositoryResult.success<Array<ForumPost>>([]);
+  }
+
   public async loadTopicSuggestions(topicId: number): Promise<RepositoryResult<Array<Topic>>> {
     this.requestedSuggestionTopicIds.push(topicId);
     const result: RepositoryResult<Array<Topic>> | undefined = this.topicSuggestionResults.shift();

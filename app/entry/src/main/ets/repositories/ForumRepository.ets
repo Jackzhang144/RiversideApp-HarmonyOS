@@ -43,6 +43,8 @@ export interface ForumRepository {
 
   loadTopicPosts(topicId: number, postIds: Array<number>): Promise<RepositoryResult<TopicPostBatch>>;
 
+  loadPostReplies(postId: number, afterPostNumber?: number): Promise<RepositoryResult<Array<ForumPost>>>;
+
   loadTopicSuggestions(topicId: number): Promise<RepositoryResult<Array<Topic>>>;
 
   setTopicNotificationLevel(

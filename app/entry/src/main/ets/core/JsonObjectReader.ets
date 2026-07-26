@@ -16,6 +16,15 @@ export class JsonObjectReader {
     }
   }
 
+  public static parseArray(text: string): Array<Object | null> | null {
+    try {
+      const value: Object | null = ArkJSON.parse(text);
+      return Array.isArray(value) ? Array.from<Object | null>(value) : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
   public static fromValue(value: Object | null): JsonObjectReader | null {
     if (value === null || Array.isArray(value) || typeof value !== 'object') {
       return null;

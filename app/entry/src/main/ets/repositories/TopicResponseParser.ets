@@ -65,7 +65,8 @@ function forumPostFromReader(
     booleanOrFalse(post.boolean('bookmarked')),
     post.number('bookmark_id'),
     post.number('post_type') ?? 1,
-    textOrEmpty(post.string('action_code'))
+    textOrEmpty(post.string('action_code')),
+    numberOrZero(post.number('reply_count'))
   );
   return new ForumPost(
     id,
@@ -385,6 +386,27 @@ export class TopicResponseParser {
     return posts === null
       ? RepositoryResult.invalidResponse<Array<ForumPost>>('服务器响应缺少 Post 列表')
       : RepositoryResult.success<Array<ForumPost>>(posts);
+  }
+
+  public parsePostReplies(text: string): RepositoryResult<Array<ForumPost>> {
+    const values: Array<Object | null> | null = JsonObjectReader.parseArray(text);
+    if (values === null) {
+      return RepositoryResult.invalidResponse<Array<ForumPost>>('服务器响应缺少 Reply 列表');
+    }
+    const replies: Array<ForumPost> = [];
+    const seenIds: Set<number> = new Set<number>();
+    for (const value of values) {
+      const reader: JsonObjectReader | null = JsonObjectReader.fromValue(value);
+      const reply: ForumPost | null = reader === null ? null : decodePostReader(reader);
+      if (reply === null) {
+        return RepositoryResult.invalidResponse<Array<ForumPost>>('服务器响应缺少 Reply 列表');
+      }
+      if (!seenIds.has(reply.id)) {
+        seenIds.add(reply.id);
+        replies.push(reply);
+      }
+    }
+    return RepositoryResult.success<Array<ForumPost>>(replies);
   }
 
   public parseTopicPostBatch(text: string): RepositoryResult<TopicPostBatch> {

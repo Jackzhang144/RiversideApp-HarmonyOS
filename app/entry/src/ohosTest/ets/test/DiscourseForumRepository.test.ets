@@ -352,6 +352,34 @@ export default function discourseForumRepositoryTest(): void {
       done();
     });
 
+    it('loads direct Reply pages from the canonical Post path', 0, async (done: Function) => {
+      const client: StubForumHttpClient = new StubForumHttpClient();
+      client.results.push(HttpTextResult.success(200,
+        '[{"id":102729,"user_id":1,"username":"admin","raw":"第一条直接 Reply",' +
+        '"post_number":2,"reply_to_post_number":1,"created_at":"2026-01-28T00:00:00Z"}]'
+      ));
+      const repository: DiscourseForumRepository = new DiscourseForumRepository(client);
+
+      const result: RepositoryResult<Array<ForumPost>> = await repository.loadPostReplies(102728, 4);
+
+      expect(client.paths[0]).assertEqual('/posts/102728/replies.json?after=4');
+      expect(result.kind).assertEqual(RepositoryResultKind.SUCCESS);
+      expect(result.data?.[0].replyToPostNumber).assertEqual(1);
+      done();
+    });
+
+    it('rejects invalid direct Reply cursors before network access', 0, async (done: Function) => {
+      const client: StubForumHttpClient = new StubForumHttpClient();
+      const repository: DiscourseForumRepository = new DiscourseForumRepository(client);
+
+      const result: RepositoryResult<Array<ForumPost>> = await repository.loadPostReplies(102728, 0);
+
+      expect(result.kind).assertEqual(RepositoryResultKind.FAILURE);
+      expect(result.failureCode).assertEqual(RepositoryFailureCode.INVALID_INPUT);
+      expect(client.paths.length).assertEqual(0);
+      done();
+    });
+
     it('loads suggested Topics from the untracked full Topic fallback', 0, async (done: Function) => {
       const client: StubForumHttpClient = new StubForumHttpClient();
       client.results.push(HttpTextResult.success(200,

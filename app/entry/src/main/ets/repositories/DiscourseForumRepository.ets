@@ -218,6 +218,27 @@ export class DiscourseForumRepository implements ForumRepository {
     return this.topicParser.parseTopicPostBatch(response.body);
   }
 
+  public async loadPostReplies(
+    postId: number,
+    afterPostNumber: number = 1
+  ): Promise<RepositoryResult<Array<ForumPost>>> {
+    if (!Number.isSafeInteger(postId) || postId <= 0) {
+      return RepositoryResult.invalidInput<Array<ForumPost>>('Post 标识无效');
+    }
+    if (!Number.isSafeInteger(afterPostNumber) || afterPostNumber < 1) {
+      return RepositoryResult.invalidInput<Array<ForumPost>>('Reply 游标无效');
+    }
+    const response: HttpTextResult =
+      await this.client.get(`/posts/${postId}/replies.json?after=${afterPostNumber}`);
+    if (response.kind === HttpTextResultKind.UNAUTHORIZED) {
+      return RepositoryResult.unauthorized<Array<ForumPost>>();
+    }
+    if (!response.isSuccess()) {
+      return response.asRepositoryFailure<Array<ForumPost>>();
+    }
+    return this.topicParser.parsePostReplies(response.body);
+  }
+
   public async loadTopicSuggestions(topicId: number): Promise<RepositoryResult<Array<Topic>>> {
     if (!Number.isInteger(topicId) || topicId <= 0) {
       return RepositoryResult.invalidInput<Array<Topic>>('Topic 标识无效');

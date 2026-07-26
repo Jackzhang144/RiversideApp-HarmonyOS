@@ -128,6 +128,38 @@ export default function jsonBoundaryTest(): void {
       expect(result.data.canReply).assertFalse();
     });
 
+    it('decodes Reply counts and direct Reply arrays', 0, () => {
+      const parser: TopicResponseParser = new TopicResponseParser();
+      const topicResult: RepositoryResult<Array<ForumPost>> = parser.parseTopicPosts(
+        '{"post_stream":{"posts":[{' +
+        '"id":102728,"user_id":24,"username":"Co-admin","raw":"父 Post",' +
+        '"post_number":1,"reply_count":2,"created_at":"2026-01-27T14:46:08.722Z"' +
+        '}]}}'
+      );
+      const replyResult: RepositoryResult<Array<ForumPost>> = parser.parsePostReplies(
+        '[{"id":102729,"user_id":1,"username":"admin","raw":"第一条直接 Reply",' +
+        '"post_number":2,"reply_to_post_number":1,"created_at":"2026-01-28T00:00:00Z"},' +
+        '{"id":102730,"user_id":24,"username":"Co-admin","raw":"第二条直接 Reply",' +
+        '"post_number":5,"reply_to_post_number":1,"created_at":"2026-01-28T00:01:00Z"}]'
+      );
+
+      expect(topicResult.kind).assertEqual(RepositoryResultKind.SUCCESS);
+      expect(topicResult.data?.[0].replyCount).assertEqual(2);
+      expect(replyResult.kind).assertEqual(RepositoryResultKind.SUCCESS);
+      expect(replyResult.data?.map((post: ForumPost): number => post.postNumber).join(',')).assertEqual('2,5');
+    });
+
+    it('rejects malformed direct Reply arrays', 0, () => {
+      const parser: TopicResponseParser = new TopicResponseParser();
+
+      const result: RepositoryResult<Array<ForumPost>> = parser.parsePostReplies(
+        '[{"id":102729,"username":"admin","raw":"缺少楼层"}]'
+      );
+
+      expect(result.kind).assertEqual(RepositoryResultKind.FAILURE);
+      expect(result.data).assertNull();
+    });
+
     it('decodes a Post window and removes duplicate Post ids', 0, () => {
       const parser: TopicResponseParser = new TopicResponseParser();
       const result: RepositoryResult<Array<ForumPost>> = parser.parseTopicPosts(

@@ -179,6 +179,7 @@ export class ForumPostMetadata {
   public readonly bookmarkId: number | null;
   public readonly postType: number;
   public readonly actionCode: string;
+  public readonly replyCount: number;
 
   public constructor(
     userTitle: string = '',
@@ -197,7 +198,8 @@ export class ForumPostMetadata {
     bookmarked: boolean = false,
     bookmarkId: number | null = null,
     postType: number = 1,
-    actionCode: string = ''
+    actionCode: string = '',
+    replyCount: number = 0
   ) {
     this.userTitle = userTitle;
     this.avatarUrl = avatarUrl;
@@ -216,6 +218,7 @@ export class ForumPostMetadata {
     this.bookmarkId = bookmarkId;
     this.postType = postType;
     this.actionCode = actionCode;
+    this.replyCount = Math.max(0, replyCount);
   }
 }
 
@@ -246,6 +249,7 @@ export class ForumPost {
   public readonly bookmarkId: number | null;
   public readonly postType: number;
   public readonly actionCode: string;
+  public readonly replyCount: number;
 
   public constructor(
     id: number,
@@ -286,6 +290,7 @@ export class ForumPost {
     this.bookmarkId = metadata.bookmarkId;
     this.postType = metadata.postType;
     this.actionCode = metadata.actionCode;
+    this.replyCount = metadata.replyCount;
   }
 
   public isSystemAction(): boolean {
@@ -347,7 +352,8 @@ export class ForumPost {
         this.bookmarked,
         this.bookmarkId,
         this.postType,
-        this.actionCode
+        this.actionCode,
+        this.replyCount
       )
     );
   }
@@ -379,7 +385,8 @@ export class ForumPost {
         bookmarked,
         bookmarkId,
         this.postType,
-        this.actionCode
+        this.actionCode,
+        this.replyCount
       )
     );
   }
@@ -411,7 +418,8 @@ export class ForumPost {
         this.bookmarked,
         this.bookmarkId,
         this.postType,
-        this.actionCode
+        this.actionCode,
+        this.replyCount
       )
     );
   }
@@ -443,7 +451,8 @@ export class ForumPost {
         this.bookmarked,
         this.bookmarkId,
         this.postType,
-        this.actionCode
+        this.actionCode,
+        this.replyCount
       )
     );
   }
