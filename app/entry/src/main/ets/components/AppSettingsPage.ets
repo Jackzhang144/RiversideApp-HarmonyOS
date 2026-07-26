@@ -87,24 +87,14 @@ struct AppMaterialLevelPicker {
     this.dragPreviewIndex = -1;
   }
 
-  private materialLevelDotSize(preference: AppMaterialPreference): number {
-    if (preference === AppMaterialPreference.EXQUISITE) {
-      return 18;
-    }
-    if (preference === AppMaterialPreference.GENTLE) {
-      return 13;
-    }
-    return 8;
-  }
-
   private materialLevelDotOpacity(preference: AppMaterialPreference): number {
     if (preference === AppMaterialPreference.EXQUISITE) {
       return 1;
     }
     if (preference === AppMaterialPreference.GENTLE) {
-      return 0.68;
+      return 0.64;
     }
-    return 0.4;
+    return 0.3;
   }
 
   @Builder
@@ -112,29 +102,37 @@ struct AppMaterialLevelPicker {
     Button() {
       if (option.preference === AppMaterialPreference.SYSTEM) {
         SymbolGlyph($r('sys.symbol.gearshape'))
-          .fontSize(20)
+          .fontSize(18)
           .fontColor([option.index === this.activeIndex()
-            ? Color.White
-            : $r('app.color.brand_primary')])
+            ? $r('app.color.brand_primary')
+            : $r('sys.color.font_secondary')])
           .hitTestBehavior(HitTestMode.None)
       } else if (option.preference === AppMaterialPreference.OFF) {
         SymbolGlyph($r('sys.symbol.xmark_circle_fill'))
-          .fontSize(19)
+          .fontSize(18)
           .fontColor([option.index === this.activeIndex()
-            ? Color.White
+            ? $r('app.color.brand_primary')
             : $r('sys.color.font_tertiary')])
           .hitTestBehavior(HitTestMode.None)
       } else {
-        Circle()
-          .width(this.materialLevelDotSize(option.preference))
-          .height(this.materialLevelDotSize(option.preference))
-          .fill(option.index === this.activeIndex()
-            ? Color.White
-            : $r('app.color.brand_primary'))
-          .opacity(option.index === this.activeIndex()
-            ? 1
-            : this.materialLevelDotOpacity(option.preference))
-          .hitTestBehavior(HitTestMode.None)
+        Stack() {
+          if (option.index === this.activeIndex()) {
+            Circle()
+              .width(22)
+              .height(22)
+              .fill($r('app.color.brand_primary'))
+              .opacity(0.12)
+              .hitTestBehavior(HitTestMode.None)
+          }
+          Circle()
+            .width(11)
+            .height(11)
+            .fill($r('app.color.brand_primary'))
+            .opacity(this.materialLevelDotOpacity(option.preference))
+            .hitTestBehavior(HitTestMode.None)
+        }
+        .width(24)
+        .height(24)
       }
     }
       .layoutWeight(1)
@@ -151,17 +149,13 @@ struct AppMaterialLevelPicker {
 
   build() {
     Column({ space: 12 }) {
-      Column({ space: 4 }) {
-        Text(appMaterialPreferenceLabel(this.activePreference()))
-          .fontSize(17)
-          .fontWeight(FontWeight.Medium)
-          .fontColor($r('sys.color.font_primary'))
-        Text(appMaterialPreferenceDescription(this.activePreference()))
-          .fontSize(12)
-          .fontColor($r('sys.color.font_secondary'))
-      }
+      Text(appMaterialPreferenceDescription(this.activePreference()))
+        .fontSize(13)
+        .lineHeight(19)
+        .fontColor($r('sys.color.font_secondary'))
+        .height(38)
+        .textAlign(TextAlign.Start)
       .width('100%')
-      .alignItems(HorizontalAlign.Start)
 
       Stack({ alignContent: Alignment.Start }) {
         Row()
@@ -169,7 +163,9 @@ struct AppMaterialLevelPicker {
           .height(MATERIAL_SELECTOR_HEIGHT - MATERIAL_SELECTOR_INSET * 2)
           .position({ x: this.indicatorOffset(), y: MATERIAL_SELECTOR_INSET })
           .borderRadius((MATERIAL_SELECTOR_HEIGHT - MATERIAL_SELECTOR_INSET * 2) / 2)
-          .backgroundColor($r('app.color.brand_primary'))
+          .backgroundColor($r('sys.color.comp_background_primary'))
+          .border({ width: 1, color: $r('app.color.brand_primary') })
+          .shadow(ShadowStyle.OUTER_DEFAULT_XS)
           .animation({ duration: 160, curve: Curve.EaseOut })
 
         Row() {
@@ -186,9 +182,8 @@ struct AppMaterialLevelPicker {
       }
       .width('100%')
       .height(MATERIAL_SELECTOR_HEIGHT)
-      .padding(MATERIAL_SELECTOR_INSET)
       .borderRadius(MATERIAL_SELECTOR_HEIGHT / 2)
-      .backgroundColor($r('app.color.brand_tint_surface'))
+      .backgroundColor($r('sys.color.comp_background_secondary'))
       .border({ width: 1, color: $r('sys.color.comp_divider') })
       .clip(true)
       .onAreaChange((_oldValue: Area, newValue: Area): void => {

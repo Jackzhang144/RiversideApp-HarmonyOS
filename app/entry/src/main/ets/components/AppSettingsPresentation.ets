@@ -44,16 +44,16 @@ export function appMaterialPreferenceLabel(preference: AppMaterialPreference): s
 
 export function appMaterialPreferenceDescription(preference: AppMaterialPreference): string {
   if (preference === AppMaterialPreference.SYSTEM) {
-    return '推荐：系统根据设备性能自动选择效果';
+    return '根据设备性能自动选择光感等级';
   }
   if (preference === AppMaterialPreference.EXQUISITE) {
-    return '更细腻的光感，性能开销较高';
+    return '高等级，呈现更细腻的光感';
   }
   if (preference === AppMaterialPreference.GENTLE) {
-    return '光感与性能之间取得平衡';
+    return '中等级，平衡光感与性能';
   }
   if (preference === AppMaterialPreference.SMOOTH) {
-    return '降低材质开销，保持流畅';
+    return '低等级，优先保持界面流畅';
   }
   return '不使用沉浸光感材质';
 }
