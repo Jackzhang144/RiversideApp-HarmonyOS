@@ -16,6 +16,7 @@ import {
   PostReactionUsers,
   Topic,
   TopicDetail,
+  TopicNotificationLevel,
   TopicPostBatch
 } from '../../../main/ets/models/ForumModels';
 import {
@@ -113,6 +114,13 @@ class StubForumRepository implements ForumRepository {
 
   public async loadTopicSuggestions(_topicId: number): Promise<RepositoryResult<Array<Topic>>> {
     return RepositoryResult.success<Array<Topic>>([]);
+  }
+
+  public async setTopicNotificationLevel(
+    _topicId: number,
+    _notificationLevel: TopicNotificationLevel
+  ): Promise<RepositoryResult<boolean>> {
+    return RepositoryResult.unknown<boolean>('missing Topic notification result');
   }
 
   public async togglePostReaction(_postId: number, _reaction: string): Promise<RepositoryResult<ForumPost>> {

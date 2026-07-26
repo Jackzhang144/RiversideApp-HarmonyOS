@@ -11,6 +11,7 @@ import {
   PostReactionUsers,
   Topic,
   TopicDetail,
+  TopicNotificationLevel,
   TopicPostBatch
 } from '../../../main/ets/models/ForumModels';
 import { ForumSearchResult, HomeChannel } from '../../../main/ets/models/DiscoveryModels';
@@ -252,7 +253,8 @@ export default function discourseForumRepositoryTest(): void {
           '{"id":2725,"title":"完整阅读","category_id":111,"views":20,"posts_count":2,"like_count":3,' +
           '"closed":false,"archived":false,"can_edit":true,"last_read_post_number":1,' +
           '"highest_post_number":2,"valid_reactions":["heart","+1"],' +
-          '"details":{"can_create_post":false,"created_by":{"username":"admin"}},' +
+          '"details":{"can_create_post":false,"created_by":{"username":"admin"},' +
+          '"notification_level":2,"notifications_reason_id":8},' +
           '"users":[{"id":88,"username":"主题作者","avatar_template":"/user_avatar/river-side.cc/author/{size}/1_2.png"}],' +
           '"suggested_topics":[{"id":2800,"title":"推荐 Topic","category_id":111,"posts_count":4,' +
           '"last_poster_username":"最后回复者","posters":[{"user_id":88,"extras":"original"}]}],' +
@@ -277,6 +279,8 @@ export default function discourseForumRepositoryTest(): void {
         expect(result.data?.authorUsername).assertEqual('admin');
         expect(result.data?.validReactions.join(',')).assertEqual('heart,+1');
         expect(result.data?.lastReadPostNumber).assertEqual(1);
+        expect(result.data?.notificationLevel).assertEqual(TopicNotificationLevel.TRACKING);
+        expect(result.data?.notificationReasonId).assertEqual(8);
         expect(result.data?.suggestedTopics[0].id).assertEqual(2800);
         expect(result.data?.suggestedTopics[0].username).assertEqual('主题作者');
         expect(result.data?.suggestedTopics[0].avatarUrl).assertEqual(
@@ -292,6 +296,21 @@ export default function discourseForumRepositoryTest(): void {
           'https://river-side.cc/user_avatar/river-side.cc/co-admin/64/1_2.png'
         );
         expect(result.data?.posts[1].isSystemAction()).assertTrue();
+      done();
+    });
+
+    it('updates a Topic notification level through the canonical Discourse endpoint', 0,
+      async (done: Function) => {
+        const client: StubForumHttpClient = new StubForumHttpClient();
+        client.formResults.push(HttpTextResult.success(200, '{"success":"OK"}'));
+        const repository: DiscourseForumRepository = new DiscourseForumRepository(client);
+
+        const result: RepositoryResult<boolean> =
+          await repository.setTopicNotificationLevel(2725, TopicNotificationLevel.WATCHING);
+
+        expect(result.kind).assertEqual(RepositoryResultKind.SUCCESS);
+        expect(result.data).assertTrue();
+        expect(client.formRequests[0]).assertEqual('/t/2725/notifications|notification_level=3');
         done();
       });
 

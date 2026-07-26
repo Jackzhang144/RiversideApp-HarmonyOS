@@ -25,6 +25,7 @@ import {
   Topic,
   TopicDetail,
   TopicDetailMetadata,
+  TopicNotificationLevel,
   TopicPostBatch
 } from '../../../main/ets/models/ForumModels';
 import { ForumSearchResult, HomeChannel } from '../../../main/ets/models/DiscoveryModels';
@@ -242,6 +243,55 @@ export default function topicReadingTest(): void {
       model.closeSecondary();
       expect(model.activeDestination).assertEqual(SecondaryDestination.NONE);
       expect(model.selectedRoot).assertEqual(RootDestination.CATEGORY);
+      done();
+    });
+
+    it('updates Topic notification state only after the server confirms it', 0, async (done: Function) => {
+      const repository: TopicReadingRepository = new TopicReadingRepository();
+      repository.topicDetailResults.push(RepositoryResult.success<TopicDetail>(new TopicDetail(
+        2725,
+        '站务管理区重要主题导航',
+        1959,
+        1,
+        4,
+        false,
+        false,
+        true,
+        [102728],
+        [firstPost()],
+        1,
+        new TopicDetailMetadata(
+          111,
+          false,
+          'Co-admin',
+          [],
+          [],
+          0,
+          TopicNotificationLevel.TRACKING,
+          8
+        )
+      )));
+      repository.topicNotificationResults.push(
+        RepositoryResult.success<boolean>(true),
+        RepositoryResult.server<boolean>('通知设置失败')
+      );
+      const model: AppShellModel = new AppShellModel(
+        repository,
+        new MemoryCategoryCache(),
+        CategoryCacheScope.anonymous()
+      );
+
+      await model.openTopic(topic());
+      const saved: RepositoryResult<boolean> =
+        await model.setTopicNotificationLevel(TopicNotificationLevel.WATCHING);
+      const failed: RepositoryResult<boolean> =
+        await model.setTopicNotificationLevel(TopicNotificationLevel.MUTED);
+
+      expect(saved.data).assertTrue();
+      expect(failed.isSuccess()).assertFalse();
+      expect(repository.requestedTopicNotifications.join(',')).assertEqual('2725:3,2725:0');
+      expect(model.topicState.detail?.notificationLevel).assertEqual(TopicNotificationLevel.WATCHING);
+      expect(model.topicState.detail?.notificationReasonId === null).assertTrue();
       done();
     });
 

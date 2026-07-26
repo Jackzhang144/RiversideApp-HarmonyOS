@@ -6,6 +6,7 @@ import {
   PostReactionUsers,
   Topic,
   TopicDetail,
+  TopicNotificationLevel,
   TopicPostBatch
 } from '../models/ForumModels';
 import { ForumSearchResult, HomeChannel, homeChannelPath } from '../models/DiscoveryModels';
@@ -229,6 +230,24 @@ export class DiscourseForumRepository implements ForumRepository {
       return response.asRepositoryFailure<Array<Topic>>();
     }
     return this.topicParser.parseTopicSuggestions(response.body);
+  }
+
+  public async setTopicNotificationLevel(
+    topicId: number,
+    notificationLevel: TopicNotificationLevel
+  ): Promise<RepositoryResult<boolean>> {
+    const supportedLevel: boolean =
+      notificationLevel === TopicNotificationLevel.MUTED ||
+      notificationLevel === TopicNotificationLevel.REGULAR ||
+      notificationLevel === TopicNotificationLevel.TRACKING ||
+      notificationLevel === TopicNotificationLevel.WATCHING;
+    if (!Number.isInteger(topicId) || topicId <= 0 || !supportedLevel) {
+      return RepositoryResult.invalidInput<boolean>('Topic 通知级别无效');
+    }
+    return this.booleanWriteResult(await this.client.postForm(
+      `/t/${topicId}/notifications`,
+      `notification_level=${notificationLevel}`
+    ));
   }
 
   public async togglePostReaction(postId: number, reaction: string): Promise<RepositoryResult<ForumPost>> {

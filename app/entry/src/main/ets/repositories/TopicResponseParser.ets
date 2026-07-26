@@ -9,6 +9,7 @@ import {
   Topic,
   TopicDetail,
   TopicDetailMetadata,
+  topicNotificationLevelFromId,
   TopicPostBatch
 } from '../models/ForumModels';
 import { ServerDraft } from '../models/AuthoringModels';
@@ -345,6 +346,7 @@ export class TopicResponseParser {
     }
     const closed: boolean = envelope.boolean('closed') === true;
     const archived: boolean = envelope.boolean('archived') === true;
+    const details: JsonObjectReader | null = envelope.object('details');
     const detail: TopicDetail = new TopicDetail(
       id,
       title,
@@ -353,19 +355,21 @@ export class TopicResponseParser {
       numberOrZero(envelope.number('like_count')),
       closed,
       archived,
-      firstReplyPermission(envelope, envelope.object('details')),
+      firstReplyPermission(envelope, details),
       postIds,
       posts,
       numberOrZero(envelope.number('highest_post_number')),
       new TopicDetailMetadata(
         numberOrZero(envelope.number('category_id')),
         booleanOrFalse(envelope.boolean('can_edit')) ||
-          booleanOrFalse(envelope.object('details')?.boolean('can_edit') ?? null),
-        textOrEmpty(envelope.object('details')?.object('created_by')?.string('username') ??
+          booleanOrFalse(details?.boolean('can_edit') ?? null),
+        textOrEmpty(details?.object('created_by')?.string('username') ??
           (posts.length > 0 ? posts[0].username : '')),
         decodeStrings(envelope, 'valid_reactions'),
         decodeSuggestedTopics(envelope),
-        numberOrZero(envelope.number('last_read_post_number'))
+        numberOrZero(envelope.number('last_read_post_number')),
+        topicNotificationLevelFromId(details?.number('notification_level') ?? null),
+        details?.number('notifications_reason_id') ?? null
       )
     );
     return RepositoryResult.success<TopicDetail>(detail);

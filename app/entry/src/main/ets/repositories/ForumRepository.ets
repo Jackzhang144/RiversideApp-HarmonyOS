@@ -6,6 +6,7 @@ import {
   PostReactionUsers,
   Topic,
   TopicDetail,
+  TopicNotificationLevel,
   TopicPostBatch
 } from '../models/ForumModels';
 import { ForumSearchResult, HomeChannel } from '../models/DiscoveryModels';
@@ -43,6 +44,11 @@ export interface ForumRepository {
   loadTopicPosts(topicId: number, postIds: Array<number>): Promise<RepositoryResult<TopicPostBatch>>;
 
   loadTopicSuggestions(topicId: number): Promise<RepositoryResult<Array<Topic>>>;
+
+  setTopicNotificationLevel(
+    topicId: number,
+    notificationLevel: TopicNotificationLevel
+  ): Promise<RepositoryResult<boolean>>;
 
   togglePostReaction(postId: number, reaction: string): Promise<RepositoryResult<ForumPost>>;
 

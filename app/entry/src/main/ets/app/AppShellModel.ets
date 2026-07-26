@@ -9,6 +9,7 @@ import {
   Topic,
   TopicDetail,
   TopicDetailMetadata,
+  TopicNotificationLevel,
   TopicPostBatch
 } from '../models/ForumModels';
 import { DiscoverySettingsStore } from '../settings/DiscoverySettingsStore';
@@ -547,6 +548,39 @@ export class AppShellModel {
       return;
     }
     this.topicState = TopicReadState.withDetail(this.topicState, detail.withSuggestedTopics(result.data));
+  }
+
+  public async setTopicNotificationLevel(
+    notificationLevel: TopicNotificationLevel
+  ): Promise<RepositoryResult<boolean>> {
+    const detail: TopicDetail | null = this.topicState.detail;
+    if (detail === null) {
+      return RepositoryResult.invalidInput<boolean>('Topic 尚未加载');
+    }
+    if (detail.notificationLevel === notificationLevel) {
+      return RepositoryResult.success<boolean>(true);
+    }
+    const requestVersion: number = this.topicRequestVersion;
+    const result: RepositoryResult<boolean> =
+      await this.repository.setTopicNotificationLevel(detail.id, notificationLevel);
+    if (requestVersion !== this.topicRequestVersion || this.topicState.topicId !== detail.id) {
+      return RepositoryResult.cancelled<boolean>('Topic 已切换');
+    }
+    if (result.isUnauthorized()) {
+      this.requiresAuthentication = true;
+      await this.notifyUnauthorized(true);
+      return result;
+    }
+    if (result.isSuccess() && result.data === true) {
+      const currentDetail: TopicDetail | null = this.topicState.detail;
+      if (currentDetail !== null && currentDetail.id === detail.id) {
+        this.topicState = TopicReadState.withDetail(
+          this.topicState,
+          currentDetail.withNotificationLevel(notificationLevel)
+        );
+      }
+    }
+    return result;
   }
 
   public async togglePostReaction(postId: number, reaction: string): Promise<number | null> {
@@ -1466,7 +1500,9 @@ export class AppShellModel {
         detail.authorUsername,
         detail.validReactions,
         detail.suggestedTopics,
-        detail.lastReadPostNumber
+        detail.lastReadPostNumber,
+        detail.notificationLevel,
+        detail.notificationReasonId
       )
     );
     const visiblePosts: Array<ForumPost> = uniquePosts(this.topicState.posts.concat([post]));

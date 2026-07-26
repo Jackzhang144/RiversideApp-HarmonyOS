@@ -24,6 +24,7 @@ import {
   Topic,
   TopicDetail,
   TopicDetailMetadata,
+  TopicNotificationLevel,
   TopicPostBatch
 } from '../../../../main/ets/models/ForumModels';
 import { ForumSearchResult, HomeChannel } from '../../../../main/ets/models/DiscoveryModels';
@@ -70,6 +71,7 @@ export class TopicReadingRepository implements ForumRepository {
   public topicPostResults: Array<RepositoryResult<TopicPostBatch>> = [];
   public topicPostTasks: Array<Promise<RepositoryResult<TopicPostBatch>>> = [];
   public topicSuggestionResults: Array<RepositoryResult<Array<Topic>>> = [];
+  public topicNotificationResults: Array<RepositoryResult<boolean>> = [];
   public reactionResults: Array<RepositoryResult<ForumPost>> = [];
   public reactionUsersResults: Array<RepositoryResult<Array<PostReactionUsers>>> = [];
   public createBookmarkResults: Array<RepositoryResult<number>> = [];
@@ -90,6 +92,7 @@ export class TopicReadingRepository implements ForumRepository {
   public requestedPostIds: Array<Array<number>> = [];
   public requestedTopicPostNumbers: Array<number | null> = [];
   public requestedSuggestionTopicIds: Array<number> = [];
+  public requestedTopicNotifications: Array<string> = [];
   public requestedReactions: Array<string> = [];
   public requestedReactionUserPostIds: Array<number> = [];
   public requestedBookmarkPostIds: Array<number> = [];
@@ -171,6 +174,15 @@ export class TopicReadingRepository implements ForumRepository {
     this.requestedSuggestionTopicIds.push(topicId);
     const result: RepositoryResult<Array<Topic>> | undefined = this.topicSuggestionResults.shift();
     return result ?? RepositoryResult.success<Array<Topic>>([]);
+  }
+
+  public async setTopicNotificationLevel(
+    topicId: number,
+    notificationLevel: TopicNotificationLevel
+  ): Promise<RepositoryResult<boolean>> {
+    this.requestedTopicNotifications.push(`${topicId}:${notificationLevel}`);
+    return this.topicNotificationResults.shift() ??
+      RepositoryResult.unknown<boolean>('missing Topic notification result');
   }
 
   public async togglePostReaction(postId: number, reaction: string): Promise<RepositoryResult<ForumPost>> {

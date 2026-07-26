@@ -69,6 +69,26 @@ export class Category {
   }
 }
 
+export enum TopicNotificationLevel {
+  MUTED = 0,
+  REGULAR = 1,
+  TRACKING = 2,
+  WATCHING = 3
+}
+
+export function topicNotificationLevelFromId(value: number | null): TopicNotificationLevel {
+  if (value === TopicNotificationLevel.MUTED) {
+    return TopicNotificationLevel.MUTED;
+  }
+  if (value === TopicNotificationLevel.TRACKING) {
+    return TopicNotificationLevel.TRACKING;
+  }
+  if (value === TopicNotificationLevel.WATCHING) {
+    return TopicNotificationLevel.WATCHING;
+  }
+  return TopicNotificationLevel.REGULAR;
+}
+
 export class PostReaction {
   public readonly id: string;
   public readonly count: number;
@@ -436,6 +456,8 @@ export class TopicDetailMetadata {
   public readonly validReactions: Array<string>;
   public readonly suggestedTopics: Array<Topic>;
   public readonly lastReadPostNumber: number;
+  public readonly notificationLevel: TopicNotificationLevel;
+  public readonly notificationReasonId: number | null;
 
   public constructor(
     categoryId: number = 0,
@@ -443,7 +465,9 @@ export class TopicDetailMetadata {
     authorUsername: string = '',
     validReactions: Array<string> = [],
     suggestedTopics: Array<Topic> = [],
-    lastReadPostNumber: number = 0
+    lastReadPostNumber: number = 0,
+    notificationLevel: TopicNotificationLevel = TopicNotificationLevel.REGULAR,
+    notificationReasonId: number | null = null
   ) {
     this.categoryId = categoryId;
     this.canEdit = canEdit;
@@ -451,6 +475,8 @@ export class TopicDetailMetadata {
     this.validReactions = validReactions;
     this.suggestedTopics = suggestedTopics;
     this.lastReadPostNumber = Math.max(0, lastReadPostNumber);
+    this.notificationLevel = notificationLevel;
+    this.notificationReasonId = notificationReasonId;
   }
 }
 
@@ -482,6 +508,8 @@ export class TopicDetail {
   public readonly validReactions: Array<string>;
   public readonly suggestedTopics: Array<Topic>;
   public readonly lastReadPostNumber: number;
+  public readonly notificationLevel: TopicNotificationLevel;
+  public readonly notificationReasonId: number | null;
 
   public constructor(
     id: number,
@@ -513,6 +541,8 @@ export class TopicDetail {
     this.validReactions = metadata.validReactions;
     this.suggestedTopics = metadata.suggestedTopics;
     this.lastReadPostNumber = metadata.lastReadPostNumber;
+    this.notificationLevel = metadata.notificationLevel;
+    this.notificationReasonId = metadata.notificationReasonId;
     let observedHighestPostNumber: number = Math.max(postCount, highestPostNumber);
     for (const post of posts) {
       observedHighestPostNumber = Math.max(observedHighestPostNumber, post.postNumber);
@@ -539,7 +569,9 @@ export class TopicDetail {
         this.authorUsername,
         this.validReactions,
         suggestedTopics,
-        this.lastReadPostNumber
+        this.lastReadPostNumber,
+        this.notificationLevel,
+        this.notificationReasonId
       )
     );
   }
@@ -567,7 +599,9 @@ export class TopicDetail {
         this.authorUsername,
         this.validReactions,
         this.suggestedTopics,
-        this.lastReadPostNumber
+        this.lastReadPostNumber,
+        this.notificationLevel,
+        this.notificationReasonId
       )
     );
   }
@@ -591,7 +625,35 @@ export class TopicDetail {
         this.authorUsername,
         this.validReactions,
         this.suggestedTopics,
-        lastReadPostNumber
+        lastReadPostNumber,
+        this.notificationLevel,
+        this.notificationReasonId
+      )
+    );
+  }
+
+  public withNotificationLevel(notificationLevel: TopicNotificationLevel): TopicDetail {
+    return new TopicDetail(
+      this.id,
+      this.title,
+      this.viewCount,
+      this.postCount,
+      this.likeCount,
+      this.closed,
+      this.archived,
+      this.canReply,
+      this.postIds,
+      this.posts,
+      this.highestPostNumber,
+      new TopicDetailMetadata(
+        this.categoryId,
+        this.canEdit,
+        this.authorUsername,
+        this.validReactions,
+        this.suggestedTopics,
+        this.lastReadPostNumber,
+        notificationLevel,
+        null
       )
     );
   }
@@ -623,7 +685,9 @@ export class TopicDetail {
         this.authorUsername,
         this.validReactions,
         this.suggestedTopics,
-        this.lastReadPostNumber
+        this.lastReadPostNumber,
+        this.notificationLevel,
+        this.notificationReasonId
       )
     );
   }
