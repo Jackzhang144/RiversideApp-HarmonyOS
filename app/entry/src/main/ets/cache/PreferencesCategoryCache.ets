@@ -1,5 +1,6 @@
 import { common } from '@kit.AbilityKit';
 import { preferences } from '@kit.ArkData';
+import { fileIo } from '@kit.CoreFileKit';
 import { JsonObjectReader } from '../core/JsonObjectReader';
 import { Category } from '../models/ForumModels';
 import { CategoryCache, CategoryCacheScope } from './CategoryCache';
@@ -120,6 +121,25 @@ export class PreferencesCategoryCache implements CategoryCache {
       await store.flush();
     } catch (_) {
       // Cache writes are best effort and never invalidate fresh network content.
+    }
+  }
+
+  public async sizeBytes(): Promise<number> {
+    try {
+      const path: string = `${this.context.preferencesDir}/${PREFERENCES_NAME}`;
+      if (!await fileIo.access(path)) {
+        return 0;
+      }
+      return Math.max(0, Math.trunc((await fileIo.stat(path)).size));
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  public async clearAll(): Promise<void> {
+    try {
+      await preferences.deletePreferences(this.context, PREFERENCES_NAME);
+    } catch (_) {
     }
   }
 

@@ -51,8 +51,10 @@ import browseChromeScrollBehaviorTest from './BrowseChromeScrollBehavior.test';
 import userAvatarPresentationTest from './UserAvatarPresentation.test';
 import discourseFlairTest from './DiscourseFlair.test';
 import appBehaviorSettingsTest from './AppBehaviorSettings.test';
+import appCacheModelsTest from './AppCacheModels.test';
 
 export default function tests(): void {
+  appCacheModelsTest();
   appBehaviorSettingsTest();
   discourseFlairTest();
   userAvatarPresentationTest();

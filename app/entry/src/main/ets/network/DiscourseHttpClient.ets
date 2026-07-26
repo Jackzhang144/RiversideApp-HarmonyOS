@@ -5,6 +5,7 @@ import { RIVERSIDE_ORIGIN } from '../core/RiversideEnvironment';
 import { AppMetadata } from '../core/AppMetadata';
 import { JsonObjectReader } from '../core/JsonObjectReader';
 import { RepositoryFailureCode, RepositoryResult } from '../core/RepositoryResult';
+import { AppLogger } from '../logging/DiagnosticLogStore';
 import { ReplyRequest } from '../models/ReplyModels';
 
 const HTTP_LOG_DOMAIN: number = 0x0000;
@@ -395,6 +396,7 @@ export class DiscourseHttpClient implements ForumHttpClient {
     contentType: string | null
   ): Promise<HttpTextResult> {
     if (!path.startsWith('/')) {
+      AppLogger.warning('Network', `${method} rejected an invalid request path`);
       return HttpTextResult.invalidInput('请求路径无效');
     }
 
@@ -421,9 +423,14 @@ export class DiscourseHttpClient implements ForumHttpClient {
       const response: rcp.Response = await session.fetch(request);
       const statusCode: number = response.statusCode;
       if (statusCode === 401) {
+        AppLogger.warning('Network', `${method} ${this.diagnosticPath(path)} returned 401`);
         return HttpTextResult.unauthorized();
       }
       if (statusCode < 200 || statusCode >= 300) {
+        AppLogger.warning(
+          'Network',
+          `${method} ${this.diagnosticPath(path)} returned ${statusCode}`
+        );
         return HttpTextResult.failure(statusCode, `服务器返回 ${statusCode}`);
       }
       return httpTextResultForSuccessfulResponse(
@@ -439,7 +446,16 @@ export class DiscourseHttpClient implements ForumHttpClient {
         'HTTP request failed with code %{public}d',
         errorCode ?? 0
       );
+      AppLogger.warning(
+        'Network',
+        `${method} ${this.diagnosticPath(path)} failed with code ${errorCode ?? 0}`
+      );
       return httpFailureForErrorCode(errorCode);
     }
+  }
+
+  private diagnosticPath(path: string): string {
+    const queryStart: number = path.indexOf('?');
+    return queryStart >= 0 ? path.slice(0, queryStart) : path;
   }
 }

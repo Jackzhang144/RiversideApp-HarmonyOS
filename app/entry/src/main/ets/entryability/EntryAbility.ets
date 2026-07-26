@@ -17,6 +17,7 @@ import { AbilityConstant, ConfigurationConstant, UIAbility, Want } from '@kit.Ab
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { window } from '@kit.ArkUI';
 import { AbilityContextRegistry } from '../core/AbilityContextRegistry';
+import { AppLogger } from '../logging/DiagnosticLogStore';
 import {
   AppSystemBarPalette,
   AppThemeMode,
@@ -32,6 +33,8 @@ export default class EntryAbility extends UIAbility {
 
   onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {
     AbilityContextRegistry.initialize(this.context);
+    AppLogger.initialize(this.context);
+    AppLogger.info('Ability', 'Application created');
     this.themeRestore = this.restoreThemeMode();
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onCreate');
   }
@@ -47,6 +50,7 @@ export default class EntryAbility extends UIAbility {
   }
 
   onDestroy(): void {
+    AppLogger.info('Ability', 'Application destroyed');
     AbilityContextRegistry.clear();
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onDestroy');
   }
@@ -61,6 +65,7 @@ export default class EntryAbility extends UIAbility {
     await this.themeRestore;
     windowStage.loadContent('pages/Index', async (err): Promise<void> => {
       if (err.code) {
+        AppLogger.error('Ability', 'Failed to load main content');
         hilog.error(DOMAIN, 'testTag', 'Failed to load the content. Cause: %{public}s', JSON.stringify(err));
         return;
       }
@@ -82,8 +87,10 @@ export default class EntryAbility extends UIAbility {
             : AppSystemBarPalette.lightNavigationContent
         };
         await mainWindow.setWindowSystemBarProperties(systemBarProperties);
+        AppLogger.info('Ability', 'Main content and immersive window ready');
         hilog.info(DOMAIN, 'testTag', 'Succeeded in enabling immersive main-window layout.');
       } catch (err) {
+        AppLogger.error('Ability', 'Failed to configure the main window');
         hilog.error(DOMAIN, 'testTag', 'Failed to configure the main window. Cause: %{public}s', JSON.stringify(err));
       }
       hilog.info(DOMAIN, 'testTag', 'Succeeded in loading the content.');
@@ -97,11 +104,13 @@ export default class EntryAbility extends UIAbility {
 
   onForeground(): void {
     // Ability has brought to foreground
+    AppLogger.info('Ability', 'Application entered foreground');
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onForeground');
   }
 
   onBackground(): void {
     // Ability has back to background
+    AppLogger.info('Ability', 'Application entered background');
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onBackground');
   }
 }

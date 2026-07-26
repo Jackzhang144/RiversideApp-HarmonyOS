@@ -7,6 +7,7 @@ import { RsaAuthorizationCryptoFactory } from '../auth/RsaAuthorizationCrypto';
 import { PreferencesCategoryCache } from '../cache/PreferencesCategoryCache';
 import { AbilityContextRegistry } from '../core/AbilityContextRegistry';
 import { MediaGalleryService } from '../media/MediaGalleryService';
+import { AppLogger, DiagnosticLogStore } from '../logging/DiagnosticLogStore';
 import { AuthenticatedSessionProvider, DiscourseHttpClient } from '../network/DiscourseHttpClient';
 import { DiscourseMediaTransport } from '../network/ForumMediaTransport';
 import { DiscourseChatRepository } from '../repositories/DiscourseChatRepository';
@@ -18,6 +19,7 @@ import { PreferencesAppThemeSettingsStore } from '../settings/PreferencesAppThem
 import { PreferencesAppBehaviorSettingsStore } from '../settings/PreferencesAppBehaviorSettingsStore';
 import { PreferencesDiscoverySettingsStore } from '../settings/PreferencesDiscoverySettingsStore';
 import { RIVERSIDE_ORIGIN } from '../core/RiversideEnvironment';
+import { AppCacheManager } from '../storage/AppCacheManager';
 import { DiscoursePresenceUpdater, PresenceHeartbeat } from './PresenceHeartbeat';
 
 class RepositorySessionProvider implements AuthenticatedSessionProvider {
@@ -45,9 +47,11 @@ export class AppDependencyGraph {
   public readonly appThemeSettingsStore: PreferencesAppThemeSettingsStore;
   public readonly appBehaviorSettingsStore: PreferencesAppBehaviorSettingsStore;
   public readonly mediaGalleryService: MediaGalleryService | null;
+  public readonly cacheManager: AppCacheManager;
   public readonly presenceHeartbeat: PresenceHeartbeat;
 
   public constructor(context: common.Context, onAuthenticationChanged: () => void) {
+    const diagnosticLogStore: DiagnosticLogStore = AppLogger.initialize(context);
     this.appThemeSettingsStore = new PreferencesAppThemeSettingsStore(context);
     this.appBehaviorSettingsStore = new PreferencesAppBehaviorSettingsStore(context);
     this.authRepository = new AuthRepository(
@@ -68,6 +72,7 @@ export class AppDependencyGraph {
       new DiscourseMediaTransport(RIVERSIDE_ORIGIN, sessionProvider)
     );
     this.categoryCache = new PreferencesCategoryCache(context);
+    this.cacheManager = new AppCacheManager(context, this.categoryCache, diagnosticLogStore);
     this.discoverySettingsStore = new PreferencesDiscoverySettingsStore(context);
     const abilityContext: common.UIAbilityContext | null = AbilityContextRegistry.current();
     this.mediaGalleryService = abilityContext === null
