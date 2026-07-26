@@ -14,7 +14,9 @@ import {
   RichContentInlineFragmentKind
 } from '../models/RichContentBlocks';
 import { ForumPost } from '../models/ForumModels';
+import { ForumPoll, ForumPollVote, removeDiscoursePollMarkup } from '../models/PollModels';
 import { TopicPostActionState } from '../app/TopicReadingModels';
+import { PostPollCard } from './PostPollCard';
 import { RichPostContent } from './RichPostContent';
 import { TopicPostActionBar } from './TopicPostActionBar';
 import { UserAvatar } from './UserAvatar';
@@ -32,6 +34,7 @@ export struct ForumContentCard {
   @Prop bookmarked: boolean = false;
   @Prop editable: boolean = false;
   @Prop validReactions: Array<string> = [];
+  @Prop authenticated: boolean = false;
   onOpenTopic: () => void = (): void => {};
   onOpenCard: () => void = (): void => {};
   onReply: (postNumber: number | null) => void = (_postNumber: number | null): void => {};
@@ -63,6 +66,16 @@ export struct ForumContentCard {
   onReport: (post: ForumPost) => void = (_post: ForumPost): void => {};
   onEdit: (postId: number) => void = (_postId: number): void => {};
   onDelete: (postId: number) => void = (_postId: number): void => {};
+  onVotePoll: (postId: number, pollName: string, vote: ForumPollVote) => void = (
+    _postId: number,
+    _pollName: string,
+    _vote: ForumPollVote
+  ): void => {};
+  onRemovePollVote: (postId: number, pollName: string) => void = (
+    _postId: number,
+    _pollName: string
+  ): void => {};
+  onLoginForPostAction: () => void = (): void => {};
 
   @Builder
   private Badge(badge: ForumCardBadge): void {
@@ -208,7 +221,9 @@ export struct ForumContentCard {
       }
       if (this.richCooked.length > 0 || this.richRaw.length > 0) {
         RichPostContent({
-          cooked: this.richCooked,
+          cooked: this.post !== null && this.post.polls.length > 0
+            ? removeDiscoursePollMarkup(this.richCooked)
+            : this.richCooked,
           raw: this.richRaw,
           imageTransitionScope: `topic-${this.topicId}-post-${this.post?.id ?? 0}`,
           onOpenLink: (url: string): void => this.onOpenRichLink(url),
@@ -224,6 +239,26 @@ export struct ForumContentCard {
           .fontColor($r('sys.color.font_primary'))
           .width('100%')
       }
+    }
+  }
+
+  @Builder
+  private PostPolls(post: ForumPost): void {
+    if (post.polls.length > 0) {
+      Column({ space: 10 }) {
+        ForEach(post.polls, (poll: ForumPoll) => {
+          PostPollCard({
+            postId: post.id,
+            poll: poll,
+            actionState: this.postActionState,
+            authenticated: this.authenticated,
+            onVote: this.onVotePoll,
+            onRemoveVote: this.onRemovePollVote,
+            onLogin: this.onLoginForPostAction
+          })
+        }, (poll: ForumPoll): string => poll.name)
+      }
+      .width('100%')
     }
   }
 
@@ -335,6 +370,9 @@ export struct ForumContentCard {
         this.ReplyTarget(this.post, this.post.replyToPostNumber)
       }
       this.Content()
+      if (this.post !== null) {
+        this.PostPolls(this.post)
+      }
       if (this.post === null && (this.presentation.footerBadge !== null || this.presentation.statistics.length > 0 ||
         this.presentation.replyAction !== null)) {
         this.Footer()

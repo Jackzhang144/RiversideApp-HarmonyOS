@@ -188,6 +188,7 @@ import {
 import { CurrentUser } from '../models/ReplyModels';
 import { ComposerEdit, ServerDraft } from '../models/AuthoringModels';
 import { ComposerMentionUser } from '../models/ComposerMentionModels';
+import { ForumPollVote } from '../models/PollModels';
 import {
   ProfileNotificationLevel,
   ProfileUpdateRequest,
@@ -1836,6 +1837,32 @@ struct Index {
     this.topicReactionUsersState = model.topicReactionUsersState;
   }
 
+  private async votePoll(
+    postId: number,
+    pollName: string,
+    vote: ForumPollVote
+  ): Promise<void> {
+    const model: AppShellModel | null = this.model;
+    if (model === null) {
+      return;
+    }
+    const task: Promise<void> = model.votePoll(postId, pollName, vote);
+    this.synchronizeTopicState(model);
+    await task;
+    this.synchronizeTopicState(model);
+  }
+
+  private async removePollVote(postId: number, pollName: string): Promise<void> {
+    const model: AppShellModel | null = this.model;
+    if (model === null) {
+      return;
+    }
+    const task: Promise<void> = model.removePollVote(postId, pollName);
+    this.synchronizeTopicState(model);
+    await task;
+    this.synchronizeTopicState(model);
+  }
+
   private async togglePostBookmark(postId: number): Promise<void> {
     const model: AppShellModel | null = this.model;
     if (model === null) {
@@ -2894,6 +2921,12 @@ struct Index {
           },
           onToggleReaction: (postId: number, reaction: string): void => {
             this.togglePostReaction(postId, reaction);
+          },
+          onVotePoll: (postId: number, pollName: string, vote: ForumPollVote): void => {
+            this.votePoll(postId, pollName, vote);
+          },
+          onRemovePollVote: (postId: number, pollName: string): void => {
+            this.removePollVote(postId, pollName);
           },
           onOpenReactionUsers: (postId: number): void => {
             this.openPostReactionUsers(postId);

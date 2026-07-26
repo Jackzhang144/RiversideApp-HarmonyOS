@@ -75,6 +75,8 @@ export class TopicReadingRepository implements ForumRepository {
   public topicNotificationResults: Array<RepositoryResult<boolean>> = [];
   public reactionResults: Array<RepositoryResult<ForumPost>> = [];
   public reactionUsersResults: Array<RepositoryResult<Array<PostReactionUsers>>> = [];
+  public pollVoteResults: Array<RepositoryResult<ForumPoll>> = [];
+  public pollRemoveResults: Array<RepositoryResult<ForumPoll>> = [];
   public postReplyResults: Array<RepositoryResult<Array<ForumPost>>> = [];
   public createBookmarkResults: Array<RepositoryResult<number>> = [];
   public deleteBookmarkResults: Array<RepositoryResult<boolean>> = [];
@@ -97,6 +99,8 @@ export class TopicReadingRepository implements ForumRepository {
   public requestedTopicNotifications: Array<string> = [];
   public requestedReactions: Array<string> = [];
   public requestedReactionUserPostIds: Array<number> = [];
+  public requestedPollVotes: Array<string> = [];
+  public requestedPollRemovals: Array<string> = [];
   public requestedPostReplies: Array<string> = [];
   public requestedBookmarkPostIds: Array<number> = [];
   public requestedDeleteBookmarkIds: Array<number> = [];
@@ -208,18 +212,24 @@ export class TopicReadingRepository implements ForumRepository {
   }
 
   public async votePoll(
-    _postId: number,
-    _pollName: string,
-    _vote: ForumPollVote
+    postId: number,
+    pollName: string,
+    vote: ForumPollVote
   ): Promise<RepositoryResult<ForumPoll>> {
-    return RepositoryResult.unavailable<ForumPoll>('Poll 测试仓储未配置');
+    this.requestedPollVotes.push(
+      `${postId}:${pollName}:${vote.optionIds.join(',')}:${vote.rankedVotes.length}`
+    );
+    return this.pollVoteResults.shift() ??
+      RepositoryResult.unknown<ForumPoll>('missing Poll vote result');
   }
 
   public async removePollVote(
-    _postId: number,
-    _pollName: string
+    postId: number,
+    pollName: string
   ): Promise<RepositoryResult<ForumPoll>> {
-    return RepositoryResult.unavailable<ForumPoll>('Poll 测试仓储未配置');
+    this.requestedPollRemovals.push(`${postId}:${pollName}`);
+    return this.pollRemoveResults.shift() ??
+      RepositoryResult.unknown<ForumPoll>('missing Poll removal result');
   }
 
   public async createPostBookmark(postId: number): Promise<RepositoryResult<number>> {

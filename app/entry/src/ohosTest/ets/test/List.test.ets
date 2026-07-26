@@ -54,8 +54,10 @@ import appBehaviorSettingsTest from './AppBehaviorSettings.test';
 import appCacheModelsTest from './AppCacheModels.test';
 import discourseUserStatusTest from './DiscourseUserStatus.test';
 import pollModelsTest from './PollModels.test';
+import pollPresentationTest from './PollPresentation.test';
 
 export default function tests(): void {
+  pollPresentationTest();
   pollModelsTest();
   discourseUserStatusTest();
   appCacheModelsTest();

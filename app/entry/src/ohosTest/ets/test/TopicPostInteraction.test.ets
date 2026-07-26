@@ -5,7 +5,10 @@ import {
   ReplyComposerStateKind,
   TopicComposerStateKind
 } from '../../../main/ets/app/ComposerModels';
-import { TopicReadStateKind } from '../../../main/ets/app/TopicReadingModels';
+import {
+  TopicPostActionKind,
+  TopicReadStateKind
+} from '../../../main/ets/app/TopicReadingModels';
 import { BrowseStateKind } from '../../../main/ets/app/BrowseModels';
 import { AuthenticationLifecycle } from '../../../main/ets/app/AuthenticationLifecycle';
 import {
@@ -43,6 +46,14 @@ import {
   ReplyRequest,
   ReplySubmitResult
 } from '../../../main/ets/models/ReplyModels';
+import {
+  ForumPoll,
+  ForumPollOption,
+  ForumPollResultsVisibility,
+  ForumPollStatus,
+  ForumPollType,
+  ForumPollVote
+} from '../../../main/ets/models/PollModels';
 import { ForumRepository } from '../../../main/ets/repositories/ForumRepository';
 import { MemoryCategoryCache } from './support/MemoryCategoryCache';
 import {
@@ -62,8 +73,128 @@ import {
   topicWithId
 } from './support/TopicReadingTestFixtures';
 
+function pollFixture(vote: ForumPollVote = ForumPollVote.empty(), voters: number = 3): ForumPoll {
+  return new ForumPoll(
+    'poll',
+    '更喜欢哪种客户端体验？',
+    ForumPollType.REGULAR,
+    ForumPollStatus.OPEN,
+    ForumPollResultsVisibility.ALWAYS,
+    false,
+    1,
+    1,
+    [
+      new ForumPollOption('native', '原生体验', 2),
+      new ForumPollOption('web', '网页体验', 1)
+    ],
+    voters,
+    null,
+    vote
+  );
+}
+
+function postWithPoll(poll: ForumPoll): ForumPost {
+  return new ForumPost(
+    102728,
+    24,
+    'Co-admin',
+    '<p>请选择：</p><div class="poll"><div>服务器 Poll 占位</div></div>',
+    '请选择：\n\n[poll]\n- 原生体验\n- 网页体验\n[/poll]',
+    1,
+    null,
+    '2026-01-27T14:46:08.722Z',
+    new ForumPostMetadata(
+      '',
+      '',
+      '',
+      null,
+      null,
+      0,
+      [],
+      null,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      null,
+      1,
+      '',
+      0,
+      '',
+      '',
+      '',
+      null,
+      [poll]
+    )
+  );
+}
+
 export default function topicPostInteractionTest(): void {
   describe('AppShell Topic post interaction', () => {
+    it('applies a successful Poll vote to the visible Post only', 0, async (done: Function) => {
+      const repository: TopicReadingRepository = new TopicReadingRepository();
+      const initialPoll: ForumPoll = pollFixture();
+      const updatedPoll: ForumPoll = pollFixture(ForumPollVote.options(['native']), 4);
+      repository.topicDetailResults.push(RepositoryResult.success<TopicDetail>(new TopicDetail(
+        2725, 'Poll Topic', 10, 1, 0, false, false, true, [102728], [postWithPoll(initialPoll)]
+      )));
+      repository.pollVoteResults.push(RepositoryResult.success<ForumPoll>(updatedPoll));
+      const model: AppShellModel = new AppShellModel(
+        repository, new MemoryCategoryCache(), CategoryCacheScope.anonymous()
+      );
+      await model.openTopic(topic());
+
+      await model.votePoll(102728, 'poll', ForumPollVote.options(['native']));
+
+      expect(repository.requestedPollVotes[0]).assertEqual('102728:poll:native:0');
+      expect(model.topicState.posts[0].polls[0].vote.optionIds.join(',')).assertEqual('native');
+      expect(model.topicState.posts[0].polls[0].voters).assertEqual(4);
+      expect(model.topicState.postActionState.kind).assertEqual(TopicPostActionKind.NONE);
+      done();
+    });
+
+    it('keeps Poll state unchanged when voting fails', 0, async (done: Function) => {
+      const repository: TopicReadingRepository = new TopicReadingRepository();
+      repository.topicDetailResults.push(RepositoryResult.success<TopicDetail>(new TopicDetail(
+        2725, 'Poll Topic', 10, 1, 0, false, false, true, [102728], [postWithPoll(pollFixture())]
+      )));
+      repository.pollVoteResults.push(RepositoryResult.network<ForumPoll>('投票暂时失败'));
+      const model: AppShellModel = new AppShellModel(
+        repository, new MemoryCategoryCache(), CategoryCacheScope.anonymous()
+      );
+      await model.openTopic(topic());
+
+      await model.votePoll(102728, 'poll', ForumPollVote.options(['native']));
+
+      expect(model.topicState.posts[0].polls[0].hasSavedVote()).assertFalse();
+      expect(model.topicState.postActionState.kind).assertEqual(TopicPostActionKind.POLL);
+      expect(model.topicState.postActionState.message).assertEqual('投票暂时失败');
+      done();
+    });
+
+    it('removes a saved Poll vote and applies the server result', 0, async (done: Function) => {
+      const repository: TopicReadingRepository = new TopicReadingRepository();
+      const savedPoll: ForumPoll = pollFixture(ForumPollVote.options(['web']));
+      const removedPoll: ForumPoll = pollFixture();
+      repository.topicDetailResults.push(RepositoryResult.success<TopicDetail>(new TopicDetail(
+        2725, 'Poll Topic', 10, 1, 0, false, false, true, [102728], [postWithPoll(savedPoll)]
+      )));
+      repository.pollRemoveResults.push(RepositoryResult.success<ForumPoll>(removedPoll));
+      const model: AppShellModel = new AppShellModel(
+        repository, new MemoryCategoryCache(), CategoryCacheScope.anonymous()
+      );
+      await model.openTopic(topic());
+
+      await model.removePollVote(102728, 'poll');
+
+      expect(repository.requestedPollRemovals[0]).assertEqual('102728:poll');
+      expect(model.topicState.posts[0].polls[0].hasSavedVote()).assertFalse();
+      expect(model.topicState.postActionState.kind).assertEqual(TopicPostActionKind.NONE);
+      done();
+    });
+
     it('applies a successful Reaction response to local state immediately', 0, async (done: Function) => {
       const repository: TopicReadingRepository = new TopicReadingRepository();
       repository.topicDetailResults.push(RepositoryResult.success<TopicDetail>(new TopicDetail(

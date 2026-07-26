@@ -345,7 +345,8 @@ export struct TopicPostActionBar {
       if (
         this.actionState.postId === this.post.id &&
         this.actionState.busy &&
-        this.actionState.kind !== TopicPostActionKind.REACTION
+        this.actionState.kind !== TopicPostActionKind.REACTION &&
+        this.actionState.kind !== TopicPostActionKind.POLL
       ) {
         Row({ space: 6 }) {
           LoadingProgress()
@@ -355,7 +356,11 @@ export struct TopicPostActionBar {
             .fontSize(12)
             .fontColor($r('sys.color.font_secondary'))
         }
-      } else if (this.actionState.postId === this.post.id && this.actionState.message.length > 0) {
+      } else if (
+        this.actionState.postId === this.post.id &&
+        this.actionState.kind !== TopicPostActionKind.POLL &&
+        this.actionState.message.length > 0
+      ) {
         Text(this.actionState.message)
           .fontSize(12)
           .fontColor($r('app.color.status_error'))

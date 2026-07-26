@@ -44,6 +44,7 @@ export enum TopicReadStateKind {
 export enum TopicPostActionKind {
   NONE = 'none',
   REACTION = 'reaction',
+  POLL = 'poll',
   BOOKMARK = 'bookmark',
   DELETE = 'delete',
   FLAG = 'flag',

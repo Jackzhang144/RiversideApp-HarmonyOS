@@ -25,6 +25,7 @@ import { MediaUploadState } from '../models/MediaModels';
 import { ChatEmoji } from '../models/ChatModels';
 import { RepositoryResult } from '../core/RepositoryResult';
 import { ComposerMentionUser } from '../models/ComposerMentionModels';
+import { ForumPollVote } from '../models/PollModels';
 import {
   categoryLabel,
   PostFlagOption,
@@ -80,6 +81,15 @@ export struct TopicDetailPage {
   onToggleReaction: (postId: number, reaction: string) => void = (
     _postId: number,
     _reaction: string
+  ): void => {};
+  onVotePoll: (postId: number, pollName: string, vote: ForumPollVote) => void = (
+    _postId: number,
+    _pollName: string,
+    _vote: ForumPollVote
+  ): void => {};
+  onRemovePollVote: (postId: number, pollName: string) => void = (
+    _postId: number,
+    _pollName: string
   ): void => {};
   onOpenReactionUsers: (postId: number) => void = (_postId: number): void => {};
   onLoadPostReplies: (
@@ -500,6 +510,7 @@ export struct TopicDetailPage {
         bookmarked: post === null ? false : this.bookmarkedPostIds.includes(post.id),
         editable: post === null ? false : this.canEditPost(post),
         validReactions: this.state.detail?.validReactions ?? [],
+        authenticated: this.authenticated,
         onOpenRichLink: (url: string): void => this.onOpenRichLink(url),
         onOpenRichEmbed: (url: string, provider: RichEmbedProvider, title: string): void =>
           this.onOpenRichEmbed(url, provider, title),
@@ -511,6 +522,9 @@ export struct TopicDetailPage {
           this.onJumpToPost(postNumber);
         },
         onToggleReaction: (postId: number, reaction: string): void => this.onToggleReaction(postId, reaction),
+        onVotePoll: this.onVotePoll,
+        onRemovePollVote: this.onRemovePollVote,
+        onLoginForPostAction: this.onLoginForPostAction,
         onOpenReactionUsers: (postId: number): void => this.onOpenReactionUsers(postId),
         onOpenReplies: (target: ForumPost): void => this.openReplyThread(target),
         onToggleBookmark: (postId: number): void => this.onToggleBookmark(postId),
@@ -685,6 +699,7 @@ export struct TopicDetailPage {
       bookmarked: this.bookmarkedPostIds.includes(post.id),
       editable: this.canEditPost(post),
       validReactions: this.state.detail?.validReactions ?? [],
+      authenticated: this.authenticated,
       onOpenRichLink: (url: string): void => this.onOpenRichLink(url),
       onOpenRichEmbed: (url: string, provider: RichEmbedProvider, title: string): void =>
         this.onOpenRichEmbed(url, provider, title),
@@ -696,6 +711,9 @@ export struct TopicDetailPage {
         this.onJumpToPost(postNumber);
       },
       onToggleReaction: (postId: number, reaction: string): void => this.onToggleReaction(postId, reaction),
+      onVotePoll: this.onVotePoll,
+      onRemovePollVote: this.onRemovePollVote,
+      onLoginForPostAction: this.onLoginForPostAction,
       onOpenReactionUsers: (postId: number): void => this.onOpenReactionUsers(postId),
       onOpenReplies: (target: ForumPost): void => this.openReplyThread(target),
       onToggleBookmark: (postId: number): void => this.onToggleBookmark(postId),

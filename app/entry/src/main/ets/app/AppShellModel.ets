@@ -70,6 +70,7 @@ import { MediaUploadStateListener } from './MediaUploadCoordinator';
 import { DiscoveryCoordinator } from './DiscoveryCoordinator';
 import { CategoryBrowseCoordinator } from './CategoryBrowseCoordinator';
 import { TopicAuthoringCoordinator } from './TopicAuthoringCoordinator';
+import { ForumPoll, ForumPollVote } from '../models/PollModels';
 
 const REACTION_INITIAL_SYNC_DELAY_MS: number = 750;
 const REACTION_CONFIRMATION_DELAY_MS: number = 1250;
@@ -723,6 +724,99 @@ export class AppShellModel {
     this.topicReactionUsersState = result.data.length === 0
       ? BrowseState.empty<PostReactionUsers>()
       : BrowseState.content<PostReactionUsers>(result.data);
+  }
+
+  public async votePoll(
+    postId: number,
+    pollName: string,
+    vote: ForumPollVote
+  ): Promise<void> {
+    const detail: TopicDetail | null = this.topicState.detail;
+    const post: ForumPost | undefined = this.topicState.posts.find(
+      (candidate: ForumPost): boolean => candidate.id === postId
+    );
+    const poll: ForumPoll | undefined = post?.polls.find(
+      (candidate: ForumPoll): boolean => candidate.name === pollName
+    );
+    if (
+      detail === null ||
+      post === undefined ||
+      poll === undefined ||
+      this.topicState.postActionState.busy ||
+      !poll.canSubmit(vote)
+    ) {
+      return;
+    }
+
+    const requestVersion: number = this.topicRequestVersion;
+    this.topicState = TopicReadState.withPostAction(
+      this.topicState,
+      TopicPostActionState.loading(TopicPostActionKind.POLL, post.id)
+    );
+    const result: RepositoryResult<ForumPoll> =
+      await this.repository.votePoll(post.id, poll.name, vote);
+    if (requestVersion !== this.topicRequestVersion || this.topicState.topicId !== detail.id) {
+      return;
+    }
+    if (!result.isSuccess() || result.data === null) {
+      this.requiresAuthentication = result.isUnauthorized();
+      this.topicState = TopicReadState.withPostAction(
+        this.topicState,
+        TopicPostActionState.error(TopicPostActionKind.POLL, post.id, result.message)
+      );
+      await this.notifyUnauthorized(result.isUnauthorized());
+      return;
+    }
+    this.topicState = TopicReadState.withPosts(
+      this.topicState,
+      replacePost(this.topicState.posts, post.withPoll(result.data))
+    );
+    this.topicState = TopicReadState.withPostAction(this.topicState, TopicPostActionState.idle());
+  }
+
+  public async removePollVote(postId: number, pollName: string): Promise<void> {
+    const detail: TopicDetail | null = this.topicState.detail;
+    const post: ForumPost | undefined = this.topicState.posts.find(
+      (candidate: ForumPost): boolean => candidate.id === postId
+    );
+    const poll: ForumPoll | undefined = post?.polls.find(
+      (candidate: ForumPoll): boolean => candidate.name === pollName
+    );
+    if (
+      detail === null ||
+      post === undefined ||
+      poll === undefined ||
+      !poll.hasSavedVote() ||
+      poll.isClosed() ||
+      this.topicState.postActionState.busy
+    ) {
+      return;
+    }
+
+    const requestVersion: number = this.topicRequestVersion;
+    this.topicState = TopicReadState.withPostAction(
+      this.topicState,
+      TopicPostActionState.loading(TopicPostActionKind.POLL, post.id)
+    );
+    const result: RepositoryResult<ForumPoll> =
+      await this.repository.removePollVote(post.id, poll.name);
+    if (requestVersion !== this.topicRequestVersion || this.topicState.topicId !== detail.id) {
+      return;
+    }
+    if (!result.isSuccess() || result.data === null) {
+      this.requiresAuthentication = result.isUnauthorized();
+      this.topicState = TopicReadState.withPostAction(
+        this.topicState,
+        TopicPostActionState.error(TopicPostActionKind.POLL, post.id, result.message)
+      );
+      await this.notifyUnauthorized(result.isUnauthorized());
+      return;
+    }
+    this.topicState = TopicReadState.withPosts(
+      this.topicState,
+      replacePost(this.topicState.posts, post.withPoll(result.data))
+    );
+    this.topicState = TopicReadState.withPostAction(this.topicState, TopicPostActionState.idle());
   }
 
   public async loadPostReplies(
