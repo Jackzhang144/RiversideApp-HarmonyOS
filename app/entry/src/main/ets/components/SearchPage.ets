@@ -54,6 +54,7 @@ export struct SearchPage {
   private submit(): void {
     const query: string = this.queryInput.trim();
     if (query.length > 0) {
+      this.getUIContext().getFocusController().clearFocus();
       this.onLoadSuggestions('');
       this.onSearch(query);
     }
@@ -61,8 +62,18 @@ export struct SearchPage {
 
   private selectSuggestion(suggestion: string): void {
     this.queryInput = suggestion;
+    this.getUIContext().getFocusController().clearFocus();
     this.onLoadSuggestions('');
     this.onSearch(suggestion);
+  }
+
+  private clearQuery(): void {
+    this.queryInput = '';
+    this.onLoadSuggestions('');
+    if (this.suggestionTimer >= 0) {
+      clearTimeout(this.suggestionTimer);
+      this.suggestionTimer = -1;
+    }
   }
 
   @Builder
@@ -73,63 +84,78 @@ export struct SearchPage {
         Text($r('app.string.search_suggestion_loading')).fontSize(12).fontColor($r('sys.color.font_secondary'))
       }
       .width('100%')
-      .padding({ left: 14, right: 14, top: 8, bottom: 10 })
+      .height(42)
+      .padding({ left: 4, right: 4 })
     } else if (this.suggestionState.kind === SearchSuggestionStateKind.CONTENT) {
       Column() {
+        Divider().color($r('sys.color.comp_divider'))
         ForEach(this.suggestionState.items, (suggestion: string) => {
           Row({ space: 10 }) {
             SymbolGlyph($r('sys.symbol.magnifyingglass'))
               .fontSize(16)
-              .fontColor([$r('sys.color.font_tertiary')])
+              .fontColor([$r('app.color.brand_primary')])
             Text(suggestion)
               .fontSize(14)
               .fontColor($r('sys.color.font_primary'))
               .layoutWeight(1)
               .maxLines(1)
               .textOverflow({ overflow: TextOverflow.Ellipsis })
+            SymbolGlyph($r('sys.symbol.arrow_right'))
+              .fontSize(14)
+              .fontColor([$r('sys.color.font_tertiary')])
           }
           .width('100%')
-          .height(42)
-          .padding({ left: 14, right: 14 })
+          .height(44)
+          .padding({ left: 4, right: 4 })
           .onClick((): void => this.selectSuggestion(suggestion))
           .accessibilityText(`搜索建议 ${suggestion}`)
         }, (suggestion: string): string => suggestion)
       }
       .width('100%')
-      .backgroundColor($r('sys.color.comp_background_primary'))
-      .border({ width: 1, color: $r('sys.color.comp_divider') })
-      .borderRadius(10)
-      .margin({ left: 12, right: 12, bottom: 10 })
     } else if (this.suggestionState.kind === SearchSuggestionStateKind.EMPTY) {
-      Text($r('app.string.search_suggestion_empty'))
-        .fontSize(12)
-        .fontColor($r('sys.color.font_secondary'))
-        .width('100%')
-        .padding({ left: 14, right: 14, top: 8, bottom: 10 })
-    } else if (this.suggestionState.kind === SearchSuggestionStateKind.ERROR) {
-      Row({ space: 8 }) {
-        Text(this.suggestionState.message)
+      Column() {
+        Divider().color($r('sys.color.comp_divider'))
+        Text($r('app.string.search_suggestion_empty'))
           .fontSize(12)
-          .fontColor($r('app.color.status_error'))
-          .layoutWeight(1)
-        Button($r('app.string.common_retry'))
-          .height(30)
-          .fontSize(12)
-          .onClick((): void => this.onLoadSuggestions(this.queryInput))
+          .fontColor($r('sys.color.font_secondary'))
+          .width('100%')
+          .height(42)
+          .padding({ left: 4, right: 4 })
       }
       .width('100%')
-      .padding({ left: 14, right: 14, top: 6, bottom: 10 })
+    } else if (this.suggestionState.kind === SearchSuggestionStateKind.ERROR) {
+      Column() {
+        Divider().color($r('sys.color.comp_divider'))
+        Row({ space: 8 }) {
+          Text(this.suggestionState.message)
+            .fontSize(12)
+            .fontColor($r('app.color.status_error'))
+            .layoutWeight(1)
+          Button($r('app.string.common_retry'))
+            .height(30)
+            .fontSize(12)
+            .backgroundColor($r('app.color.brand_tint_surface'))
+            .fontColor($r('app.color.brand_primary'))
+            .onClick((): void => this.onLoadSuggestions(this.queryInput))
+        }
+        .width('100%')
+        .height(44)
+      }
+      .width('100%')
     }
   }
 
   @Builder
   private SearchInput(): void {
-    Column() {
+    Column({ space: 0 }) {
       Row({ space: 8 }) {
+        SymbolGlyph($r('sys.symbol.magnifyingglass'))
+          .fontSize(20)
+          .fontColor([$r('app.color.brand_primary')])
         TextInput({ text: this.queryInput, placeholder: $r('app.string.search_placeholder') })
-          .height(44)
+          .height(46)
           .layoutWeight(1)
-          .backgroundColor($r('sys.color.background_secondary'))
+          .backgroundColor(Color.Transparent)
           .enterKeyType(EnterKeyType.Search)
           .onChange((value: string): void => {
             this.queryInput = value;
@@ -137,38 +163,89 @@ export struct SearchPage {
           })
           .onSubmit((): void => this.submit())
           .accessibilityText($r('app.string.search_keyword_accessibility'))
-        Button($r('app.string.search_action'))
-          .height(44)
+        if (this.queryInput.length > 0) {
+          Button() {
+            SymbolGlyph($r('sys.symbol.xmark_circle_fill'))
+              .fontSize(18)
+              .fontColor([$r('sys.color.font_tertiary')])
+          }
+          .width(34)
+          .height(34)
+          .backgroundColor(Color.Transparent)
+          .onClick((): void => this.clearQuery())
+          .accessibilityText('清除搜索内容')
+        }
+        Button() {
+          SymbolGlyph($r('sys.symbol.arrow_right'))
+            .fontSize(18)
+            .fontWeight(FontWeight.Bold)
+            .fontColor([Color.White])
+        }
+          .width(40)
+          .height(40)
+          .borderRadius(14)
+          .backgroundColor($r('app.color.brand_primary'))
           .enabled(this.queryInput.trim().length > 0 && this.state.kind !== SearchStateKind.LOADING)
           .onClick((): void => this.submit())
           .accessibilityText($r('app.string.search_action_accessibility'))
       }
       .width('100%')
-      .padding({ left: 12, right: 12, top: 12, bottom: 10 })
+      .padding({ left: 12, right: 7 })
       this.Suggestions()
     }
     .width('100%')
+    .padding({ left: 8, right: 8, top: 6, bottom: 6 })
     .backgroundColor($r('sys.color.comp_background_primary'))
+    .borderRadius(20)
+    .border({ width: 1, color: $r('sys.color.comp_divider') })
+    .shadow({
+      radius: 14,
+      color: $r('sys.color.comp_divider'),
+      offsetX: 0,
+      offsetY: 5
+    })
+    .margin({ left: 12, right: 12, top: 12, bottom: 10 })
   }
 
   @Builder
-  private MessageState(title: ResourceStr, message: ResourceStr, retryable: boolean): void {
-    Column({ space: 14 }) {
+  private MessageState(
+    icon: Resource,
+    title: ResourceStr,
+    message: ResourceStr,
+    retryable: boolean
+  ): void {
+    Column({ space: 12 }) {
+      Stack() {
+        SymbolGlyph(icon)
+          .fontSize(34)
+          .fontColor([$r('app.color.brand_primary')])
+      }
+      .width(68)
+      .height(68)
+      .borderRadius(22)
+      .backgroundColor($r('app.color.brand_tint_surface'))
       Text(title)
-        .fontSize(22)
+        .fontSize(20)
         .fontWeight(FontWeight.Bold)
+        .fontColor($r('sys.color.font_primary'))
       Text(message)
-        .fontSize(14)
+        .fontSize(13)
+        .lineHeight(19)
         .fontColor($r('sys.color.font_secondary'))
         .textAlign(TextAlign.Center)
       if (retryable) {
         Button($r('app.string.common_retry'))
+          .height(40)
+          .borderRadius(14)
           .onClick(this.onRetry)
       }
     }
-    .width('100%')
-    .layoutWeight(1)
-    .padding(32)
+    .width('calc(100% - 24vp)')
+    .padding({ left: 28, right: 28, top: 34, bottom: 34 })
+    .backgroundColor($r('sys.color.comp_background_primary'))
+    .borderRadius(22)
+    .border({ width: 1, color: $r('sys.color.comp_divider') })
+    .margin({ left: 12, right: 12, top: 12 })
     .justifyContent(FlexAlign.Center)
   }
 
@@ -181,15 +258,30 @@ export struct SearchPage {
         .layoutWeight(1)
       Text(count.toString())
         .fontSize(12)
-        .fontColor($r('sys.color.font_tertiary'))
+        .fontWeight(FontWeight.Medium)
+        .fontColor($r('app.color.brand_primary'))
+        .height(26)
+        .padding({ left: 9, right: 9 })
+        .backgroundColor($r('app.color.brand_tint_surface'))
+        .borderRadius(13)
     }
     .width('100%')
-    .padding({ left: 4, right: 4, top: 12, bottom: 2 })
+    .padding({ left: 4, right: 4, top: 14, bottom: 4 })
   }
 
   @Builder
   private SearchPostRow(post: SearchPost): void {
-    Column({ space: 7 }) {
+    Row({ space: 11 }) {
+      Stack() {
+        SymbolGlyph($r('sys.symbol.message'))
+          .fontSize(20)
+          .fontColor([$r('app.color.brand_primary')])
+      }
+      .width(42)
+      .height(42)
+      .borderRadius(13)
+      .backgroundColor($r('app.color.brand_tint_surface'))
+      Column({ space: 7 }) {
       Row() {
         Text(post.username.length > 0 ? `${post.username} 回复了` : 'Post 命中')
           .fontSize(12)
@@ -213,12 +305,17 @@ export struct SearchPage {
           .textOverflow({ overflow: TextOverflow.Ellipsis })
           .width('100%')
       }
+      }
+      .alignItems(HorizontalAlign.Start)
+      .layoutWeight(1)
+      SymbolGlyph($r('sys.symbol.chevron_right'))
+        .fontSize(15)
+        .fontColor([$r('sys.color.font_tertiary')])
     }
-    .alignItems(HorizontalAlign.Start)
     .width('100%')
-    .padding($r('app.float.card_content_padding'))
+    .padding(14)
     .backgroundColor($r('sys.color.comp_background_primary'))
-    .borderRadius($r('app.float.card_corner_radius'))
+    .borderRadius(18)
     .border({ width: 1, color: $r('sys.color.comp_divider') })
     .onClick((): void => this.onOpenPost(post))
     .accessibilityText(`${post.topic.title}，第 ${post.postNumber} 条 Post`)
@@ -247,11 +344,14 @@ export struct SearchPage {
       }
       .alignItems(HorizontalAlign.Start)
       .layoutWeight(1)
+      SymbolGlyph($r('sys.symbol.chevron_right'))
+        .fontSize(15)
+        .fontColor([$r('sys.color.font_tertiary')])
     }
     .width('100%')
-    .padding($r('app.float.card_content_padding'))
+    .padding(14)
     .backgroundColor($r('sys.color.comp_background_primary'))
-    .borderRadius($r('app.float.card_corner_radius'))
+    .borderRadius(18)
     .border({ width: 1, color: $r('sys.color.comp_divider') })
     .onClick((): void => this.onOpenUser(user))
     .accessibilityText(`用户 ${user.displayName}，${user.username}`)
@@ -409,6 +509,9 @@ export struct SearchPage {
     .cachedCount(3, true)
     .backgroundColor($r('sys.color.background_secondary'))
     .edgeEffect(EdgeEffect.Spring)
+    .onScrollStart((): void => {
+      this.getUIContext().getFocusController().clearFocus();
+    })
     .onReachEnd(this.onLoadMore)
   }
 
@@ -417,6 +520,7 @@ export struct SearchPage {
       this.SearchInput()
       if (this.state.kind === SearchStateKind.INITIAL) {
         this.MessageState(
+          $r('sys.symbol.magnifyingglass'),
           $r('app.string.search_initial_title'),
           $r('app.string.search_initial_message'),
           false
@@ -430,13 +534,23 @@ export struct SearchPage {
             .fontSize(14)
             .fontColor($r('sys.color.font_secondary'))
         }
-        .width('100%')
-        .layoutWeight(1)
+        .width('calc(100% - 24vp)')
+        .height(180)
+        .backgroundColor($r('sys.color.comp_background_primary'))
+        .borderRadius(22)
+        .border({ width: 1, color: $r('sys.color.comp_divider') })
+        .margin({ left: 12, right: 12, top: 12 })
         .justifyContent(FlexAlign.Center)
       } else if (this.state.kind === SearchStateKind.ERROR) {
-        this.MessageState($r('app.string.search_failed'), this.state.message, true)
+        this.MessageState(
+          $r('sys.symbol.magnifyingglass'),
+          $r('app.string.search_failed'),
+          this.state.message,
+          true
+        )
       } else if (this.state.kind === SearchStateKind.EMPTY) {
         this.MessageState(
+          $r('sys.symbol.magnifyingglass'),
           $r('app.string.search_empty_title'),
           `没有与“${this.state.query}”匹配的结果。`,
           false
