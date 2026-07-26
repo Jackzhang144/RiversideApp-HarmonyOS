@@ -36,6 +36,7 @@ export class ChatMessageContextCapabilities {
   public readonly canReact: boolean;
   public readonly canDelete: boolean;
   public readonly canRestore: boolean;
+  public readonly canPin: boolean;
 
   public constructor(
     canReply: boolean,
@@ -43,7 +44,8 @@ export class ChatMessageContextCapabilities {
     canMention: boolean,
     canReact: boolean,
     canDelete: boolean,
-    canRestore: boolean
+    canRestore: boolean,
+    canPin: boolean
   ) {
     this.canReply = canReply;
     this.canCopyLink = canCopyLink;
@@ -51,6 +53,7 @@ export class ChatMessageContextCapabilities {
     this.canReact = canReact;
     this.canDelete = canDelete;
     this.canRestore = canRestore;
+    this.canPin = canPin;
   }
 }
 
@@ -70,7 +73,8 @@ export function resolveChatMessageContextCapabilities(
     !message.deleted && canWrite && message.username.length > 0,
     !message.deleted && canWrite && hasEmojis,
     !message.deleted && canModerate,
-    message.deleted && canModerate
+    message.deleted && canModerate,
+    !message.deleted && channel?.canManagePins === true
   );
 }
 

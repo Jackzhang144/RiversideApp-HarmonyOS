@@ -1,5 +1,10 @@
 import { KeyboardAvoidMode, SymbolGlyphModifier } from '@kit.ArkUI';
-import { ChatComposerState, ChatConversationState, ChatStateKind } from '../app/ChatStateModels';
+import {
+  ChatComposerState,
+  ChatConversationState,
+  ChatPinnedMessageState,
+  ChatStateKind
+} from '../app/ChatStateModels';
 import { RepositoryResult, RepositoryResultKind } from '../core/RepositoryResult';
 import { ComposerEdit } from '../models/AuthoringModels';
 import { applyChatComposerMention, findChatComposerMention } from '../models/ChatComposerEditing';
@@ -15,6 +20,7 @@ import {
   chatChannelNotificationLevelLabel,
   ChatEmoji,
   ChatMessage,
+  ChatPinnedMessage,
   ChatReaction,
   ChatReactionAction,
   ChatReactionUser
@@ -52,6 +58,7 @@ const CHAT_QUICK_REACTION_PREFERRED_NAMES: Array<string> = [
 export struct ChatConversationPage {
   @Prop @Watch('synchronizeMessageViewport') state: ChatConversationState = ChatConversationState.initial();
   @Prop composer: ChatComposerState = new ChatComposerState();
+  @Prop pinnedMessageState: ChatPinnedMessageState = ChatPinnedMessageState.initial();
   @Prop emojis: Array<ChatEmoji> = [];
   @Prop uploadState: MediaUploadState | null = null;
   @Prop currentUsername: string = '';
@@ -65,6 +72,8 @@ export struct ChatConversationPage {
   @State channelSettingsVisible: boolean = false;
   @State channelSettingsSaving: boolean = false;
   @State channelSettingsMessage: string = '';
+  @State pinnedPanelActive: boolean = false;
+  @State pinnedMessageSavingId: number = 0;
   @State mentionUsers: Array<ComposerMentionUser> = [];
   @State mentionLoading: boolean = false;
   @State mentionMessage: string = '';
@@ -100,6 +109,10 @@ export struct ChatConversationPage {
     async (_level: ChatChannelNotificationLevel): Promise<boolean> => false;
   onSetChannelMuted: (muted: boolean) => Promise<boolean> =
     async (_muted: boolean): Promise<boolean> => false;
+  onLoadPinnedMessages: () => void = (): void => {};
+  onOpenPinnedMessage: (messageId: number) => void = (_messageId: number): void => {};
+  onSetMessagePinned: (messageId: number, pinned: boolean) => Promise<boolean> =
+    async (_messageId: number, _pinned: boolean): Promise<boolean> => false;
   onLeaveChannel: () => void = (): void => {};
   private readonly composerController: TextAreaController = new TextAreaController();
   private readonly mentionRequestGate: ComposerMentionRequestGate = new ComposerMentionRequestGate();
@@ -590,6 +603,77 @@ export struct ChatConversationPage {
     }
   }
 
+  private showPinnedMessages(): void {
+    this.onLoadPinnedMessages();
+    this.pinnedPanelActive = true;
+  }
+
+  private async togglePinnedMessage(message: ChatMessage): Promise<void> {
+    if (this.pinnedMessageSavingId > 0) {
+      return;
+    }
+    this.pinnedMessageSavingId = message.id;
+    await this.onSetMessagePinned(message.id, !message.pinned);
+    this.pinnedMessageSavingId = 0;
+  }
+
+  private pinnedByText(item: ChatPinnedMessage): string {
+    if (item.pinnedByUsername.length === 0) {
+      return '已置顶';
+    }
+    return item.pinnedByUsername === this.currentUsername
+      ? '由你置顶'
+      : `由 ${item.pinnedByUsername} 置顶`;
+  }
+
+  @Builder
+  private PinnedMessagesEntry(): void {
+    Row({ space: 12 }) {
+      Stack({ alignContent: Alignment.TopEnd }) {
+        SymbolGlyph($r('sys.symbol.pin_fill'))
+          .fontSize(21)
+          .fontColor([$r('app.color.brand_primary')])
+          .width(38)
+          .height(38)
+          .padding(8)
+          .backgroundColor($r('app.color.brand_tint_surface'))
+          .borderRadius(19)
+        if (this.state.channel?.hasUnseenPins === true) {
+          Circle()
+            .width(9)
+            .height(9)
+            .fill($r('app.color.status_error'))
+            .stroke($r('sys.color.comp_background_primary'))
+            .strokeWidth(2)
+        }
+      }
+      .width(40)
+      .height(40)
+      Column({ space: 3 }) {
+        Text('置顶消息')
+          .fontSize(15)
+          .fontWeight(FontWeight.Medium)
+          .fontColor($r('sys.color.font_primary'))
+        Text(`${this.state.channel?.pinnedMessagesCount ?? 0} 条频道置顶`)
+          .fontSize(12)
+          .fontColor($r('sys.color.font_secondary'))
+      }
+      .alignItems(HorizontalAlign.Start)
+      .layoutWeight(1)
+      SymbolGlyph($r('sys.symbol.chevron_forward'))
+        .fontSize(16)
+        .fontColor([$r('sys.color.font_tertiary')])
+    }
+    .width('100%')
+    .height(68)
+    .padding({ left: 12, right: 14 })
+    .backgroundColor($r('sys.color.comp_background_primary'))
+    .borderRadius(18)
+    .border({ width: 1, color: $r('sys.color.comp_divider') })
+    .onClick((): void => this.showPinnedMessages())
+    .accessibilityText(`置顶消息，${this.state.channel?.pinnedMessagesCount ?? 0} 条`)
+  }
+
   @Builder
   private NotificationLevelRow(level: ChatChannelNotificationLevel): void {
     Row({ space: 12 }) {
@@ -675,6 +759,14 @@ export struct ChatConversationPage {
       }
       .width('100%')
 
+      if (
+        this.state.channel?.pinningEnabled === true ||
+        (this.state.channel?.pinnedMessagesCount ?? 0) > 0 ||
+        this.state.channel?.canManagePins === true
+      ) {
+        this.PinnedMessagesEntry()
+      }
+
       Text('消息提醒')
         .fontSize(13)
         .fontWeight(FontWeight.Medium)
@@ -759,6 +851,212 @@ export struct ChatConversationPage {
     }
     .width('100%')
     .padding({ left: 16, right: 16, top: 8, bottom: 28 })
+  }
+
+  @Builder
+  private PinnedMessageCard(item: ChatPinnedMessage): void {
+    Column({ space: 9 }) {
+      Row({ space: 8 }) {
+        SymbolGlyph($r('sys.symbol.pin_fill'))
+          .fontSize(15)
+          .fontColor([$r('app.color.brand_primary')])
+        Text(this.pinnedByText(item))
+          .fontSize(12)
+          .fontWeight(FontWeight.Medium)
+          .fontColor($r('app.color.text_link'))
+          .layoutWeight(1)
+        Text(formatChatMessageTimestamp(item.pinnedAt))
+          .fontSize(10)
+          .fontColor($r('sys.color.font_tertiary'))
+      }
+      .width('100%')
+      Row({ space: 9 }) {
+        if (item.message.avatarUrl.length > 0) {
+          Image(item.message.avatarUrl)
+            .width(32)
+            .height(32)
+            .objectFit(ImageFit.Cover)
+            .borderRadius(16)
+        } else {
+          Text(this.avatarInitial(item.message))
+            .width(32)
+            .height(32)
+            .fontSize(12)
+            .fontWeight(FontWeight.Bold)
+            .fontColor($r('app.color.brand_primary'))
+            .textAlign(TextAlign.Center)
+            .backgroundColor($r('app.color.brand_tint_surface'))
+            .borderRadius(16)
+        }
+        Column({ space: 5 }) {
+          Text(this.displayUsername(item.message))
+            .fontSize(12)
+            .fontWeight(FontWeight.Medium)
+            .fontColor($r('sys.color.font_secondary'))
+          this.MessageBody(item.message)
+        }
+        .alignItems(HorizontalAlign.Start)
+        .layoutWeight(1)
+      }
+      .width('100%')
+      if (item.message.uploadUrls.length > 0) {
+        Image(absoluteChatUrl(item.message.uploadUrls[0]))
+          .width('100%')
+          .height(132)
+          .objectFit(ImageFit.Cover)
+          .borderRadius(12)
+          .backgroundColor($r('sys.color.background_secondary'))
+      }
+    }
+    .width('100%')
+    .padding(13)
+    .backgroundColor($r('sys.color.comp_background_primary'))
+    .borderRadius(18)
+    .border({ width: 1, color: $r('sys.color.comp_divider') })
+    .onClick((): void => {
+      this.channelSettingsVisible = false;
+      this.pinnedPanelActive = false;
+      this.onOpenPinnedMessage(item.chatMessageId);
+    })
+    .accessibilityText(`${this.pinnedByText(item)}，${item.message.displayText()}`)
+  }
+
+  @Builder
+  private PinnedMessagesSheet(): void {
+    Column({ space: 12 }) {
+      Row({ space: 10 }) {
+        Button() {
+          SymbolGlyph($r('sys.symbol.chevron_backward'))
+            .fontSize(18)
+            .fontColor([$r('sys.color.font_primary')])
+        }
+        .width(40)
+        .height(40)
+        .borderRadius(20)
+        .backgroundColor($r('sys.color.comp_background_primary'))
+        .onClick((): void => {
+          this.pinnedPanelActive = false;
+        })
+        .accessibilityText('返回聊天设置')
+        SymbolGlyph($r('sys.symbol.pin_fill'))
+          .fontSize(21)
+          .fontColor([$r('app.color.brand_primary')])
+          .width(42)
+          .height(42)
+          .padding(10)
+          .backgroundColor($r('app.color.brand_tint_surface'))
+          .borderRadius(21)
+        Column({ space: 2 }) {
+          Text('置顶消息')
+            .fontSize(19)
+            .fontWeight(FontWeight.Bold)
+            .fontColor($r('sys.color.font_primary'))
+          Text(this.state.channel?.title ?? '当前频道')
+            .fontSize(12)
+            .fontColor($r('sys.color.font_secondary'))
+            .maxLines(1)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
+        }
+        .alignItems(HorizontalAlign.Start)
+        .layoutWeight(1)
+        if (
+          this.pinnedMessageState.kind === ChatStateKind.LOADING &&
+          this.pinnedMessageState.pinnedMessages.length > 0
+        ) {
+          LoadingProgress().width(24).height(24)
+        }
+      }
+      .width('100%')
+
+      if (
+        this.pinnedMessageState.kind === ChatStateKind.LOADING &&
+        this.pinnedMessageState.pinnedMessages.length === 0
+      ) {
+        Column({ space: 10 }) {
+          LoadingProgress().width(34).height(34)
+          Text('正在加载置顶消息')
+            .fontSize(13)
+            .fontColor($r('sys.color.font_secondary'))
+        }
+        .width('100%')
+        .layoutWeight(1)
+        .justifyContent(FlexAlign.Center)
+      } else if (
+        this.pinnedMessageState.kind === ChatStateKind.EMPTY ||
+        this.pinnedMessageState.kind === ChatStateKind.INITIAL
+      ) {
+        Column({ space: 10 }) {
+          SymbolGlyph($r('sys.symbol.pin'))
+            .fontSize(32)
+            .fontColor([$r('sys.color.font_tertiary')])
+          Text('此频道暂无置顶消息')
+            .fontSize(14)
+            .fontColor($r('sys.color.font_secondary'))
+        }
+        .width('100%')
+        .layoutWeight(1)
+        .justifyContent(FlexAlign.Center)
+      } else if (
+        this.pinnedMessageState.kind === ChatStateKind.ERROR &&
+        this.pinnedMessageState.pinnedMessages.length === 0
+      ) {
+        Column({ space: 10 }) {
+          Text(this.pinnedMessageState.message)
+            .fontSize(13)
+            .fontColor($r('app.color.status_error'))
+            .textAlign(TextAlign.Center)
+          Button('重新加载')
+            .height(40)
+            .backgroundColor($r('app.color.brand_primary'))
+            .fontColor($r('app.color.on_accent'))
+            .onClick((): void => this.onLoadPinnedMessages())
+        }
+        .width('100%')
+        .layoutWeight(1)
+        .justifyContent(FlexAlign.Center)
+      } else {
+        List({ space: 10 }) {
+          ForEach(this.pinnedMessageState.pinnedMessages, (item: ChatPinnedMessage): void => {
+            ListItem() {
+              this.PinnedMessageCard(item)
+            }
+          }, (item: ChatPinnedMessage): string => item.id.toString())
+        }
+        .width('100%')
+        .layoutWeight(1)
+        .edgeEffect(EdgeEffect.Spring)
+      }
+    }
+    .width('100%')
+    .height('100%')
+    .padding({ left: 16, right: 16, top: 6, bottom: 22 })
+    .backgroundColor($r('sys.color.background_secondary'))
+  }
+
+  @Builder
+  private ChannelPanelSheet(): void {
+    Stack() {
+      Column() {
+        this.ChannelSettingsSheet()
+      }
+      .width('100%')
+      .height('100%')
+      .opacity(this.pinnedPanelActive ? 0 : 1)
+      .translate({ x: this.pinnedPanelActive ? -28 : 0 })
+      .hitTestBehavior(this.pinnedPanelActive ? HitTestMode.None : HitTestMode.Default)
+      .animation({ duration: 220, curve: Curve.EaseOut })
+      Column() {
+        this.PinnedMessagesSheet()
+      }
+      .width('100%')
+      .height('100%')
+      .opacity(this.pinnedPanelActive ? 1 : 0)
+      .translate({ x: this.pinnedPanelActive ? 0 : 28 })
+      .hitTestBehavior(this.pinnedPanelActive ? HitTestMode.Default : HitTestMode.None)
+      .animation({ duration: 220, curve: Curve.EaseOut })
+    }
+    .width('100%')
+    .height('100%')
   }
 
   @Builder
@@ -849,6 +1147,18 @@ export struct ChatConversationPage {
             content: `@${message.username}`
           })
             .onClick((): void => this.onMention(message.username))
+        }
+        if (capabilities.canPin) {
+          MenuItem({
+            symbolStartIcon: new SymbolGlyphModifier(message.pinned
+              ? $r('sys.symbol.pin_slash')
+              : $r('sys.symbol.pin')),
+            content: message.pinned ? '取消置顶' : '置顶消息'
+          })
+            .enabled(this.pinnedMessageSavingId === 0)
+            .onClick((): void => {
+              this.togglePinnedMessage(message);
+            })
         }
         if (capabilities.canDelete || capabilities.canRestore) {
           MenuItem({
@@ -1115,6 +1425,21 @@ export struct ChatConversationPage {
   @Builder
   private MessageBubbleSurface(message: ChatMessage): void {
     Column({ space: 7 }) {
+      if (message.pinned) {
+        Row({ space: 5 }) {
+          SymbolGlyph($r('sys.symbol.pin_fill'))
+            .fontSize(13)
+            .fontColor([$r('app.color.brand_primary')])
+          Text('已置顶')
+            .fontSize(10)
+            .fontWeight(FontWeight.Medium)
+            .fontColor($r('app.color.text_link'))
+        }
+        .height(20)
+        .padding({ left: 7, right: 7 })
+        .backgroundColor($r('app.color.brand_tint_surface'))
+        .borderRadius(10)
+      }
       if (message.replyTo !== null) {
         Column({ space: 3 }) {
           Text(`回复 ${message.replyTo.username}`)
@@ -1625,9 +1950,9 @@ export struct ChatConversationPage {
         this.reactionEmojiGroup = '';
       }
     })
-    .bindSheet($$this.channelSettingsVisible, this.ChannelSettingsSheet(), {
-      detents: [SheetSize.MEDIUM],
-      detentSelection: SheetSize.MEDIUM,
+    .bindSheet($$this.channelSettingsVisible, this.ChannelPanelSheet(), {
+      detents: [SheetSize.LARGE],
+      detentSelection: SheetSize.LARGE,
       preferType: SheetType.BOTTOM,
       showClose: true,
       dragBar: true,
@@ -1637,6 +1962,7 @@ export struct ChatConversationPage {
       onDisappear: (): void => {
         this.channelSettingsVisible = false;
         this.channelSettingsMessage = '';
+        this.pinnedPanelActive = false;
       }
     })
   }

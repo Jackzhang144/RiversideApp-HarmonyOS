@@ -120,7 +120,8 @@ function parseChannel(reader: JsonObjectReader): ChatChannel | null {
     settings.muted,
     nonNegativeInteger(reader.number('pinned_messages_count')),
     meta?.boolean('can_manage_pins') === true,
-    membership?.boolean('has_unseen_pins') === true
+    membership?.boolean('has_unseen_pins') === true,
+    reader.has('pinned_messages_count')
   );
 }
 

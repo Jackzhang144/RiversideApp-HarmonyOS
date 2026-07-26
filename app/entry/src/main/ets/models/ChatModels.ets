@@ -86,6 +86,7 @@ export class ChatChannel {
   public readonly pinnedMessagesCount: number;
   public readonly canManagePins: boolean;
   public readonly hasUnseenPins: boolean;
+  public readonly pinningEnabled: boolean;
 
   public constructor(
     id: number,
@@ -105,7 +106,8 @@ export class ChatChannel {
     muted: boolean = false,
     pinnedMessagesCount: number = 0,
     canManagePins: boolean = false,
-    hasUnseenPins: boolean = false
+    hasUnseenPins: boolean = false,
+    pinningEnabled: boolean = false
   ) {
     this.id = id;
     this.title = title;
@@ -125,6 +127,7 @@ export class ChatChannel {
     this.pinnedMessagesCount = nonNegativeInteger(pinnedMessagesCount);
     this.canManagePins = canManagePins;
     this.hasUnseenPins = hasUnseenPins;
+    this.pinningEnabled = pinningEnabled;
   }
 
   public withUnreadCount(unreadCount: number): ChatChannel {
@@ -146,7 +149,8 @@ export class ChatChannel {
       this.muted,
       this.pinnedMessagesCount,
       this.canManagePins,
-      this.hasUnseenPins
+      this.hasUnseenPins,
+      this.pinningEnabled
     );
   }
 
@@ -169,7 +173,8 @@ export class ChatChannel {
       settings.muted,
       this.pinnedMessagesCount,
       this.canManagePins,
-      this.hasUnseenPins
+      this.hasUnseenPins,
+      this.pinningEnabled
     );
   }
 
@@ -192,7 +197,8 @@ export class ChatChannel {
       this.muted,
       pinnedMessagesCount,
       this.canManagePins,
-      hasUnseenPins
+      hasUnseenPins,
+      this.pinningEnabled
     );
   }
 }

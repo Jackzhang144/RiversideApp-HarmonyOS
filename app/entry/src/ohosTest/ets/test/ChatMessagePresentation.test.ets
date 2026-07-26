@@ -13,7 +13,12 @@ import {
   selectQuickChatEmojis,
   visibleChatMessageId
 } from '../../../main/ets/components/ChatMessagePresentation';
-import { ChatChannel, ChatEmoji, ChatMessage } from '../../../main/ets/models/ChatModels';
+import {
+  ChatChannel,
+  ChatChannelNotificationLevel,
+  ChatEmoji,
+  ChatMessage
+} from '../../../main/ets/models/ChatModels';
 
 function message(body: string): ChatMessage {
   return new ChatMessage(1, 'member', '', body, '', [], [], null, '2026-07-15T00:00:00Z', false);
@@ -23,7 +28,12 @@ function conversationMessage(id: number, username: string, createdAt: string): C
   return new ChatMessage(id, username, '', `消息 ${id}`, '', [], [], null, createdAt, false);
 }
 
-function channel(userSilenced: boolean, canDeleteSelf: boolean, canDeleteOthers: boolean): ChatChannel {
+function channel(
+  userSilenced: boolean,
+  canDeleteSelf: boolean,
+  canDeleteOthers: boolean,
+  canManagePins: boolean = false
+): ChatChannel {
   return new ChatChannel(
     1,
     'general',
@@ -37,7 +47,11 @@ function channel(userSilenced: boolean, canDeleteSelf: boolean, canDeleteOthers:
     'general',
     userSilenced,
     canDeleteSelf,
-    canDeleteOthers
+    canDeleteOthers,
+    ChatChannelNotificationLevel.MENTION,
+    false,
+    0,
+    canManagePins
   );
 }
 
@@ -91,6 +105,18 @@ export default function chatMessagePresentationTest(): void {
       expect(capabilities.canReact).assertTrue();
       expect(capabilities.canDelete).assertTrue();
       expect(capabilities.canRestore).assertFalse();
+      expect(capabilities.canPin).assertFalse();
+    });
+
+    it('exposes pinning only when the server grants channel pin management', 0, () => {
+      const capabilities: ChatMessageContextCapabilities = resolveChatMessageContextCapabilities(
+        conversationMessage(1, 'member', '2026-07-15T00:00:00Z'),
+        channel(false, false, false, true),
+        'member',
+        true
+      );
+
+      expect(capabilities.canPin).assertTrue();
     });
 
     it('keeps deleted messages read-only while exposing permitted restore', 0, () => {

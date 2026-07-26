@@ -87,6 +87,7 @@ export default function chatModelsTest(): void {
       expect(channels?.[0].pinnedMessagesCount).assertEqual(2);
       expect(channels?.[0].canManagePins).assertTrue();
       expect(channels?.[0].hasUnseenPins).assertTrue();
+      expect(channels?.[0].pinningEnabled).assertTrue();
       expect(chatChannelNotificationLevelLabel(ChatChannelNotificationLevel.MENTION))
         .assertEqual('仅提及我时');
       expect(page?.messages[0].displayText()).assertEqual(':riverside:');

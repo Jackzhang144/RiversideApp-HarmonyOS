@@ -89,6 +89,7 @@ import {
   ChatChannelState,
   ChatComposerState,
   ChatConversationState,
+  ChatPinnedMessageState,
   ChatSearchState
 } from '../app/ChatStateModels';
 import { ChatModel } from '../app/ChatModel';
@@ -280,6 +281,7 @@ struct Index {
   @State searchSuggestionState: SearchSuggestionState = SearchSuggestionState.initial();
   @State chatChannelState: ChatChannelState = ChatChannelState.initial();
   @State chatConversationState: ChatConversationState = ChatConversationState.initial();
+  @State chatPinnedMessageState: ChatPinnedMessageState = ChatPinnedMessageState.initial();
   @State chatComposerState: ChatComposerState = new ChatComposerState();
   @State chatSearchState: ChatSearchState = new ChatSearchState();
   @State chatEmojis: Array<ChatEmoji> = [];
@@ -842,6 +844,7 @@ struct Index {
     }
     this.chatChannelState = model.channelState;
     this.chatConversationState = model.conversationState;
+    this.chatPinnedMessageState = model.pinnedMessageState;
     this.chatComposerState = model.composerState;
     this.chatSearchState = model.search.state;
     this.chatEmojis = model.emojis;
@@ -1191,6 +1194,36 @@ struct Index {
     const model: ChatModel | null = this.chatModel;
     if (model === null) return;
     await model.restoreMessage(messageId);
+    this.synchronizeChatState();
+  }
+
+  private async loadPinnedChatMessages(): Promise<void> {
+    const model: ChatModel | null = this.chatModel;
+    if (model === null) return;
+    const task: Promise<boolean> = model.loadPinnedMessages();
+    this.synchronizeChatState();
+    await task;
+    this.synchronizeChatState();
+  }
+
+  private async setChatMessagePinned(messageId: number, pinned: boolean): Promise<boolean> {
+    const model: ChatModel | null = this.chatModel;
+    if (model === null) return false;
+    const task: Promise<boolean> = model.setMessagePinned(messageId, pinned);
+    this.synchronizeChatState();
+    const succeeded: boolean = await task;
+    this.synchronizeChatState();
+    return succeeded;
+  }
+
+  private async openPinnedChatMessage(messageId: number): Promise<void> {
+    const model: ChatModel | null = this.chatModel;
+    const channel: ChatChannel | null = this.chatConversationState.channel;
+    if (model === null || channel === null) return;
+    this.chatConversationFocusMessageId = messageId;
+    const task: Promise<void> = model.openChannelAt(channel, messageId);
+    this.synchronizeChatState();
+    await task;
     this.synchronizeChatState();
   }
 
@@ -2750,6 +2783,7 @@ struct Index {
           messageScroller: this.chatConversationScroller,
           state: this.chatConversationState,
           composer: this.chatComposerState,
+          pinnedMessageState: this.chatPinnedMessageState,
           emojis: this.chatEmojis,
           uploadState: this.chatUploadState,
           currentUsername: this.currentChatUsername(),
@@ -2790,6 +2824,12 @@ struct Index {
             level: ChatChannelNotificationLevel
           ): Promise<boolean> => this.updateChatChannelNotificationLevel(level),
           onSetChannelMuted: (muted: boolean): Promise<boolean> => this.setChatChannelMuted(muted),
+          onLoadPinnedMessages: (): void => { this.loadPinnedChatMessages(); },
+          onOpenPinnedMessage: (messageId: number): void => { this.openPinnedChatMessage(messageId); },
+          onSetMessagePinned: (
+            messageId: number,
+            pinned: boolean
+          ): Promise<boolean> => this.setChatMessagePinned(messageId, pinned),
           onLeaveChannel: (): void => { this.confirmLeaveChatChannel(); }
         })
       }
