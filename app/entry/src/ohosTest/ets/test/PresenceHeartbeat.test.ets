@@ -5,7 +5,8 @@ import {
   DiscoursePresenceUpdater,
   PresenceHeartbeat,
   PresenceScheduler,
-  PresenceUpdater
+  PresenceUpdater,
+  shouldRunPresenceHeartbeat
 } from '../../../main/ets/app/PresenceHeartbeat';
 
 class StubPresenceScheduler implements PresenceScheduler {
@@ -97,6 +98,13 @@ async function flushPromises(): Promise<void> {
 
 export default function presenceHeartbeatTest(): void {
   describe('Foreground Presence heartbeat', () => {
+    it('runs only for an authenticated foreground session with a default network', 0, () => {
+      expect(shouldRunPresenceHeartbeat(true, true, true)).assertTrue();
+      expect(shouldRunPresenceHeartbeat(false, true, true)).assertFalse();
+      expect(shouldRunPresenceHeartbeat(true, false, true)).assertFalse();
+      expect(shouldRunPresenceHeartbeat(true, true, false)).assertFalse();
+    });
+
     it('posts immediately and installs only one 28-second repeating timer', 0, async (done: Function) => {
       const scheduler: StubPresenceScheduler = new StubPresenceScheduler();
       const updater: StubPresenceUpdater = new StubPresenceUpdater();

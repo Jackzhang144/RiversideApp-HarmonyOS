@@ -84,7 +84,7 @@ import {
   RootDestination,
   SecondaryDestination
 } from '../app/ShellNavigationModels';
-import { PresenceHeartbeat } from '../app/PresenceHeartbeat';
+import { PresenceHeartbeat, shouldRunPresenceHeartbeat } from '../app/PresenceHeartbeat';
 import {
   BrowseChromeScrollBehavior,
   BrowseChromeScrollIntent
@@ -102,6 +102,7 @@ import {
   ChatConversationPollingController,
   SystemChatPollingTimer
 } from '../app/ChatConversationPollingController';
+import { NetworkStatusMonitor } from '../network/NetworkStatusMonitor';
 import {
   NotificationCentreModel,
   NotificationCentreState,
@@ -268,7 +269,9 @@ struct Index {
   private appBehaviorSettingsStore: AppBehaviorSettingsStore | null = null;
   private cacheManager: AppCacheManager | null = null;
   private presenceHeartbeat: PresenceHeartbeat | null = null;
+  private networkStatusMonitor: NetworkStatusMonitor | null = null;
   private foregroundVisible: boolean = false;
+  private networkAvailable: boolean = true;
 
   @Env(SystemProperties.WINDOW_AVOID_AREA) avoidAreasVp: window.UIEnvWindowAvoidAreaInfoVP;
   @State selectedRoot: RootDestination = RootDestination.HOME;
@@ -427,6 +430,8 @@ struct Index {
     this.foregroundVisible = false;
     this.restoreBrowseChrome();
     this.presenceHeartbeat?.dispose();
+    this.networkStatusMonitor?.stop();
+    this.networkStatusMonitor = null;
     this.chatPollingController?.destroy();
     this.chatPollingController = null;
   }
@@ -438,6 +443,11 @@ struct Index {
         this.synchronizeAuthentication(true);
       }
     );
+    this.networkStatusMonitor = dependencies.networkStatusMonitor;
+    this.networkAvailable = dependencies.networkStatusMonitor.isNetworkAvailable();
+    dependencies.networkStatusMonitor.start((available: boolean): void => {
+      this.handleNetworkAvailabilityChanged(available);
+    });
     this.appThemeSettingsStore = dependencies.appThemeSettingsStore;
     this.appThemeMode = await dependencies.appThemeSettingsStore.read();
     this.appBehaviorSettingsStore = dependencies.appBehaviorSettingsStore;
@@ -584,7 +594,11 @@ struct Index {
     if (heartbeat === null) {
       return;
     }
-    if (this.foregroundVisible && this.authState.kind === AuthStateKind.AUTHENTICATED) {
+    if (shouldRunPresenceHeartbeat(
+      this.foregroundVisible,
+      this.authState.kind === AuthStateKind.AUTHENTICATED,
+      this.networkAvailable
+    )) {
       heartbeat.start();
       return;
     }
@@ -929,9 +943,20 @@ struct Index {
     }
     controller.setForeground(this.appForeground);
     controller.setAuthenticated(this.canUseChat());
+    controller.setNetworkAvailable(this.networkAvailable);
     controller.setActiveConversation(
       this.chatConversationVisible && (this.chatModel?.conversationState.channel ?? null) !== null
     );
+  }
+
+  private handleNetworkAvailabilityChanged(available: boolean): void {
+    const changed: boolean = this.networkAvailable !== available;
+    this.networkAvailable = available;
+    this.synchronizePresenceHeartbeat();
+    this.synchronizeChatPolling();
+    if (changed && available && this.foregroundVisible) {
+      this.refreshForegroundData();
+    }
   }
 
   private synchronizeNotificationState(): void {
@@ -1032,7 +1057,7 @@ struct Index {
   }
 
   private refreshForegroundData(): void {
-    if (this.authState.kind !== AuthStateKind.AUTHENTICATED) return;
+    if (!this.networkAvailable || this.authState.kind !== AuthStateKind.AUTHENTICATED) return;
     this.loadNotificationCentre(true);
     if (this.canUseChat()) {
       this.refreshChatForForeground();

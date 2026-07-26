@@ -9,6 +9,14 @@ const PRESENCE_INTERVAL_MS: number = 28000;
 const PRESENCE_UPDATE_PATH: string = '/presence/update.json';
 const PRESENCE_CHANNEL: string = '/whos-online/online';
 
+export function shouldRunPresenceHeartbeat(
+  foreground: boolean,
+  authenticated: boolean,
+  networkAvailable: boolean
+): boolean {
+  return foreground && authenticated && networkAvailable;
+}
+
 export interface PresenceUpdater {
   updatePresence(): Promise<HttpTextResult>;
 }

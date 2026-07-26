@@ -3,6 +3,7 @@ import { AuthenticatedSession } from '../../../main/ets/auth/AuthModels';
 import { AppMetadata } from '../../../main/ets/core/AppMetadata';
 import {
   AuthenticatedSessionProvider,
+  DiscourseHttpClient,
   DiscourseHeaders,
   DiscourseRequestHeadersFactory,
   DiscourseRequestPolicy,
@@ -12,6 +13,7 @@ import {
   httpFailureForErrorCode,
   httpTextResultForSuccessfulResponse
 } from '../../../main/ets/network/DiscourseHttpClient';
+import { NetworkAvailabilityProvider } from '../../../main/ets/network/NetworkStatusMonitor';
 import { RepositoryFailureCode } from '../../../main/ets/core/RepositoryResult';
 
 const CLIENT_ID: string = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
@@ -21,6 +23,12 @@ class StubSessionProvider implements AuthenticatedSessionProvider {
 
   public currentSession(): AuthenticatedSession | null {
     return this.session;
+  }
+}
+
+class OfflineNetworkProvider implements NetworkAvailabilityProvider {
+  public isNetworkAvailable(): boolean {
+    return false;
   }
 }
 
@@ -82,6 +90,21 @@ export default function discourseHttpHeadersTest(): void {
       expect(result.isSuccess()).assertFalse();
       expect(result.message).assertEqual('服务器响应格式无效');
     });
+
+    it('fails fast without opening a request when the system has no default network', 0,
+      async (done: Function) => {
+        const client: DiscourseHttpClient = new DiscourseHttpClient(
+          'https://offline.invalid',
+          null,
+          new OfflineNetworkProvider()
+        );
+
+        const result: HttpTextResult = await client.get('/latest.json');
+
+        expect(result.failureCode).assertEqual(RepositoryFailureCode.NETWORK);
+        expect(result.message).assertEqual('当前没有可用网络');
+        done();
+      });
 
     it('retries an idempotent Topic GET once after an operation timeout', 0, async (done: Function) => {
       const results: Array<HttpTextResult> = [

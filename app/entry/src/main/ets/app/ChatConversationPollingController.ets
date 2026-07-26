@@ -34,6 +34,7 @@ export class ChatConversationPollingController {
   private foreground: boolean = false;
   private authenticated: boolean = false;
   private activeConversation: boolean = false;
+  private networkAvailable: boolean = true;
   private destroyed: boolean = false;
   private refreshing: boolean = false;
   private intervalHandle: number | null = null;
@@ -58,6 +59,11 @@ export class ChatConversationPollingController {
     this.reconcileTimer();
   }
 
+  public setNetworkAvailable(networkAvailable: boolean): void {
+    this.networkAvailable = networkAvailable;
+    this.reconcileTimer();
+  }
+
   public destroy(): void {
     this.destroyed = true;
     this.stopTimer();
@@ -75,7 +81,11 @@ export class ChatConversationPollingController {
   }
 
   private canPoll(): boolean {
-    return !this.destroyed && this.foreground && this.authenticated && this.activeConversation;
+    return !this.destroyed &&
+      this.foreground &&
+      this.authenticated &&
+      this.activeConversation &&
+      this.networkAvailable;
   }
 
   private async poll(): Promise<void> {

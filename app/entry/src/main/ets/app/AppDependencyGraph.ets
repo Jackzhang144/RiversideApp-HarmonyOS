@@ -9,6 +9,7 @@ import { AbilityContextRegistry } from '../core/AbilityContextRegistry';
 import { MediaGalleryService } from '../media/MediaGalleryService';
 import { AppLogger, DiagnosticLogStore } from '../logging/DiagnosticLogStore';
 import { AuthenticatedSessionProvider, DiscourseHttpClient } from '../network/DiscourseHttpClient';
+import { NetworkStatusMonitor, SystemNetworkStatusMonitor } from '../network/NetworkStatusMonitor';
 import { DiscourseMediaTransport } from '../network/ForumMediaTransport';
 import { DiscourseChatRepository } from '../repositories/DiscourseChatRepository';
 import { DiscourseForumRepository } from '../repositories/DiscourseForumRepository';
@@ -49,6 +50,7 @@ export class AppDependencyGraph {
   public readonly mediaGalleryService: MediaGalleryService | null;
   public readonly cacheManager: AppCacheManager;
   public readonly presenceHeartbeat: PresenceHeartbeat;
+  public readonly networkStatusMonitor: NetworkStatusMonitor;
 
   public constructor(context: common.Context, onAuthenticationChanged: () => void) {
     const diagnosticLogStore: DiagnosticLogStore = AppLogger.initialize(context);
@@ -63,7 +65,12 @@ export class AppDependencyGraph {
       this.authRepository,
       onAuthenticationChanged
     );
-    const httpClient: DiscourseHttpClient = new DiscourseHttpClient(RIVERSIDE_ORIGIN, sessionProvider);
+    this.networkStatusMonitor = new SystemNetworkStatusMonitor();
+    const httpClient: DiscourseHttpClient = new DiscourseHttpClient(
+      RIVERSIDE_ORIGIN,
+      sessionProvider,
+      this.networkStatusMonitor
+    );
     this.forumRepository = new DiscourseForumRepository(httpClient);
     this.chatRepository = new DiscourseChatRepository(httpClient);
     this.notificationRepository = new DiscourseNotificationRepository(httpClient);

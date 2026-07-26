@@ -90,6 +90,24 @@ export default function chatConversationPollingControllerTest(): void {
       expect(timer.delays.length).assertEqual(4);
     });
 
+    it('stops polling while offline and resumes when the default network returns', 0, () => {
+      const timer: FakeChatPollingTimer = new FakeChatPollingTimer();
+      const controller: ChatConversationPollingController = new ChatConversationPollingController(
+        timer,
+        async (): Promise<void> => {}
+      );
+      controller.setForeground(true);
+      controller.setAuthenticated(true);
+      controller.setActiveConversation(true);
+
+      controller.setNetworkAvailable(false);
+      controller.setNetworkAvailable(false);
+      controller.setNetworkAvailable(true);
+
+      expect(timer.clearCalls.join(',')).assertEqual('1');
+      expect(timer.delays.length).assertEqual(2);
+    });
+
     it('suppresses overlapping refreshes and resumes after the active refresh completes', 0,
       async (done: Function) => {
         const timer: FakeChatPollingTimer = new FakeChatPollingTimer();

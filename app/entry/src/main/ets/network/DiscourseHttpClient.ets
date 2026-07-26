@@ -7,6 +7,10 @@ import { JsonObjectReader } from '../core/JsonObjectReader';
 import { RepositoryFailureCode, RepositoryResult } from '../core/RepositoryResult';
 import { AppLogger } from '../logging/DiagnosticLogStore';
 import { ReplyRequest } from '../models/ReplyModels';
+import {
+  AlwaysAvailableNetworkProvider,
+  NetworkAvailabilityProvider
+} from './NetworkStatusMonitor';
 
 const HTTP_LOG_DOMAIN: number = 0x0000;
 const HTTP_LOG_TAG: string = 'DiscourseHttp';
@@ -338,14 +342,17 @@ export class DiscourseHttpClient implements ForumHttpClient {
   private readonly baseUrl: string;
   private readonly headersFactory: DiscourseRequestHeadersFactory;
   private readonly requestPolicy: DiscourseRequestPolicy;
+  private readonly networkAvailability: NetworkAvailabilityProvider;
 
   public constructor(
     baseUrl: string = RIVERSIDE_ORIGIN,
-    sessionProvider: AuthenticatedSessionProvider | null = null
+    sessionProvider: AuthenticatedSessionProvider | null = null,
+    networkAvailability: NetworkAvailabilityProvider = new AlwaysAvailableNetworkProvider()
   ) {
     this.baseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
     this.headersFactory = new DiscourseRequestHeadersFactory(sessionProvider);
     this.requestPolicy = new DiscourseRequestPolicy();
+    this.networkAvailability = networkAvailability;
   }
 
   public async get(path: string): Promise<HttpTextResult> {
@@ -398,6 +405,10 @@ export class DiscourseHttpClient implements ForumHttpClient {
     if (!path.startsWith('/')) {
       AppLogger.warning('Network', `${method} rejected an invalid request path`);
       return HttpTextResult.invalidInput('请求路径无效');
+    }
+    if (!this.networkAvailability.isNetworkAvailable()) {
+      AppLogger.info('Network', `${method} ${this.diagnosticPath(path)} skipped while offline`);
+      return HttpTextResult.failure(0, '当前没有可用网络');
     }
 
     const requestHeaders: rcp.RequestHeaders =
