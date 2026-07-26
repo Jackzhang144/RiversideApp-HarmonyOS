@@ -10,6 +10,7 @@ import {
   ProfileSummaryPresentation,
   profileSummaryPresentationFor
 } from './ProfileSummaryPresentation';
+import { isDiscourseFlairImage } from '../core/DiscourseFlair';
 import { UserAvatar } from './UserAvatar';
 
 @Component
@@ -30,6 +31,35 @@ export struct UserProfileSummaryPage {
       const name: string = group.name.toLowerCase();
       return !name.startsWith('trust_level_') && name !== 'everyone';
     });
+  }
+
+  @Builder
+  private SectionHeader(icon: Resource, title: ResourceStr, subtitle: ResourceStr = ''): void {
+    Row({ space: 10 }) {
+      Stack() {
+        SymbolGlyph(icon)
+          .fontSize(18)
+          .fontColor([$r('app.color.brand_primary')])
+      }
+      .width(34)
+      .height(34)
+      .borderRadius(11)
+      .backgroundColor($r('app.color.brand_tint_surface'))
+      Column({ space: 2 }) {
+        Text(title)
+          .fontSize(17)
+          .fontWeight(FontWeight.Bold)
+          .fontColor($r('sys.color.font_primary'))
+        if (subtitle.toString().length > 0) {
+          Text(subtitle)
+            .fontSize(11)
+            .fontColor($r('sys.color.font_secondary'))
+        }
+      }
+      .alignItems(HorizontalAlign.Start)
+      .layoutWeight(1)
+    }
+    .width('100%')
   }
 
   @Builder
@@ -64,27 +94,22 @@ export struct UserProfileSummaryPage {
   @Builder
   private SummaryCard(presentation: ProfileSummaryPresentation): void {
     Column({ space: 14 }) {
-      Text($r('app.string.profile_activity_summary'))
-        .fontSize(17)
-        .fontWeight(FontWeight.Bold)
-        .fontColor($r('sys.color.font_primary'))
-        .width('100%')
+      this.SectionHeader(
+        $r('sys.symbol.checkmark_circle_fill'),
+        $r('app.string.profile_activity_summary'),
+        '社区参与与贡献'
+      )
       if (presentation.available) {
         this.SummaryMetricRow(presentation.metrics.slice(0, 3))
         this.SummaryMetricRow(presentation.metrics.slice(3, 6))
         if (presentation.badges.length > 0) {
           Divider()
             .color($r('sys.color.comp_divider'))
-          Row({ space: 7 }) {
-            SymbolGlyph($r('sys.symbol.checkmark_circle_fill'))
-              .fontSize(18)
-              .fontColor([$r('app.color.brand_primary')])
-            Text($r('app.string.profile_badges'))
-              .fontSize(14)
-              .fontWeight(FontWeight.Medium)
-              .fontColor($r('sys.color.font_primary'))
-          }
-          .width('100%')
+          this.SectionHeader(
+            $r('sys.symbol.checkmark_circle_fill'),
+            $r('app.string.profile_badges'),
+            `${presentation.badges.length} 枚`
+          )
           Flex({ direction: FlexDirection.Row, wrap: FlexWrap.Wrap, justifyContent: FlexAlign.Start }) {
             ForEach(presentation.badges.slice(0, 12), (badge: ProfileBadge): void => {
               this.BadgePill(badge)
@@ -196,75 +221,122 @@ export struct UserProfileSummaryPage {
 
   @Builder
   private ProfileHeaderCard(profile: UserProfile): void {
-    Column({ space: 14 }) {
-      if (profile.profileBackgroundUrl.length > 0) {
-        Image(profile.profileBackgroundUrl)
+    Column({ space: 12 }) {
+      Stack({ alignContent: Alignment.TopStart }) {
+        if (profile.profileBackgroundUrl.length > 0) {
+          Image(profile.profileBackgroundUrl)
+            .width('100%')
+            .height(112)
+            .objectFit(ImageFit.Cover)
+            .accessibilityText(`${profile.displayName} 的个人页背景`)
+        } else {
+          Stack() {
+            SymbolGlyph($r('sys.symbol.person_crop_circle_fill_1'))
+              .fontSize(58)
+              .fontColor([$r('app.color.brand_primary')])
+              .opacity(0.2)
+          }
           .width('100%')
           .height(112)
-          .borderRadius(14)
-          .objectFit(ImageFit.Cover)
-          .accessibilityText(`${profile.displayName} 的个人页背景`)
-      }
-      Row({ space: 14 }) {
-        UserAvatar({
-          avatarUrl: profile.avatarUrl,
-          displayName: profile.displayName,
-          avatarSize: 76,
-          avatarAccessibilityText: `${profile.displayName} 的头像`,
-          flairUrl: profile.flairUrl,
-          flairName: profile.flairGroupName,
-          flairBackgroundColor: profile.flairBackgroundColor,
-          flairColor: profile.flairColor
-        })
-
-        Column({ space: 5 }) {
-          Text(profile.displayName)
-            .fontSize(21)
-            .fontWeight(FontWeight.Bold)
-            .fontColor($r('sys.color.font_primary'))
-            .maxLines(1)
-            .textOverflow({ overflow: TextOverflow.Ellipsis })
-          Text(`@${profile.username}`)
-            .fontSize(13)
-            .fontColor($r('sys.color.font_secondary'))
-          if (profile.title.length > 0) {
-            Text(profile.title)
+          .backgroundColor($r('app.color.brand_tint_surface'))
+        }
+        Row({ space: 13 }) {
+          UserAvatar({
+            avatarUrl: profile.avatarUrl,
+            displayName: profile.displayName,
+            avatarSize: 76,
+            avatarAccessibilityText: `${profile.displayName} 的头像`,
+            flairUrl: profile.flairUrl,
+            flairName: profile.flairGroupName,
+            flairBackgroundColor: profile.flairBackgroundColor,
+            flairColor: profile.flairColor
+          })
+          Column({ space: 4 }) {
+            Text(profile.displayName)
+              .fontSize(21)
+              .fontWeight(FontWeight.Bold)
+              .fontColor($r('sys.color.font_primary'))
+              .maxLines(1)
+              .textOverflow({ overflow: TextOverflow.Ellipsis })
+            Text(`@${profile.username}`)
               .fontSize(13)
               .fontColor($r('sys.color.font_secondary'))
               .maxLines(1)
               .textOverflow({ overflow: TextOverflow.Ellipsis })
+            if (profile.title.length > 0) {
+              Text(profile.title)
+                .fontSize(12)
+                .fontColor($r('sys.color.font_secondary'))
+                .maxLines(1)
+                .textOverflow({ overflow: TextOverflow.Ellipsis })
+            }
           }
+          .alignItems(HorizontalAlign.Start)
+          .layoutWeight(1)
         }
-        .alignItems(HorizontalAlign.Start)
-        .layoutWeight(1)
+        .width('calc(100% - 28vp)')
+        .height(96)
+        .padding({ left: 12, right: 12 })
+        .margin({ left: 14, right: 14, top: 64 })
+        .backgroundColor($r('sys.color.comp_background_primary'))
+        .borderRadius(18)
+        .border({ width: 1, color: $r('sys.color.comp_divider') })
+        .shadow({
+          radius: 10,
+          color: $r('sys.color.comp_divider'),
+          offsetX: 0,
+          offsetY: 4
+        })
       }
       .width('100%')
+      .height(168)
+      .clip(false)
       this.IdentityPills(profile)
       this.ProfileActions(profile)
     }
     .width('100%')
-    .padding(16)
+    .padding({ left: 14, right: 14, bottom: 14 })
     .backgroundColor($r('sys.color.comp_background_primary'))
-    .borderRadius(18)
+    .borderRadius(22)
     .border({ width: 1, color: $r('sys.color.comp_divider') })
+    .clip(true)
   }
 
   @Builder
   private ProfileActions(profile: UserProfile): void {
     if (this.ownProfile) {
-      Button($r('app.string.profile_edit_action'), { type: ButtonType.Normal })
+      Button({ type: ButtonType.Normal }) {
+        Row({ space: 8 }) {
+          SymbolGlyph($r('sys.symbol.square_and_pencil'))
+            .fontSize(18)
+            .fontColor([$r('app.color.brand_primary')])
+          Text($r('app.string.profile_edit_action'))
+            .fontSize(14)
+            .fontWeight(FontWeight.Medium)
+            .fontColor($r('app.color.brand_primary'))
+        }
+      }
         .width('100%')
         .height(44)
-        .fontColor($r('app.color.brand_primary'))
-        .backgroundColor($r('sys.color.comp_background_primary'))
-        .border({ width: 1, color: $r('app.color.brand_primary') })
+        .backgroundColor($r('app.color.brand_tint_surface'))
         .borderRadius(14)
         .onClick(this.onEdit)
     } else {
       if (profile.canStartDirectChat()) {
-        Button($r('app.string.profile_direct_chat'), { type: ButtonType.Normal })
+        Button({ type: ButtonType.Normal }) {
+          Row({ space: 8 }) {
+            SymbolGlyph($r('sys.symbol.message'))
+              .fontSize(18)
+              .fontColor([Color.White])
+            Text($r('app.string.profile_direct_chat'))
+              .fontSize(14)
+              .fontWeight(FontWeight.Medium)
+              .fontColor(Color.White)
+          }
+        }
           .width('100%')
           .height(42)
+          .backgroundColor($r('app.color.brand_primary'))
           .borderRadius(14)
           .enabled(!this.state.busy)
           .onClick((): void => this.onOpenDirectChat(profile.username))
@@ -312,11 +384,11 @@ export struct UserProfileSummaryPage {
   @Builder
   private AboutCard(profile: UserProfile): void {
     Column({ space: 10 }) {
-      Text('个人简介')
-        .fontSize(17)
-        .fontWeight(FontWeight.Bold)
-        .fontColor($r('sys.color.font_primary'))
-        .width('100%')
+      this.SectionHeader(
+        $r('sys.symbol.person_text_rectangle'),
+        '个人简介',
+        '关于这位社区成员'
+      )
       if (profile.bioExcerpt.length > 0) {
         Text(profile.bioExcerpt)
           .fontSize(14)
@@ -325,10 +397,16 @@ export struct UserProfileSummaryPage {
           .width('100%')
       }
       if (profile.location.length > 0) {
-        Text(`所在地  ·  ${profile.location}`)
-          .fontSize(13)
-          .fontColor($r('sys.color.font_secondary'))
-          .width('100%')
+        Row({ space: 6 }) {
+          Text('所在地')
+            .fontSize(11)
+            .fontColor($r('sys.color.font_tertiary'))
+          Text(profile.location)
+            .fontSize(13)
+            .fontColor($r('sys.color.font_secondary'))
+            .layoutWeight(1)
+        }
+        .width('100%')
       }
       if (profile.website.length > 0) {
         Text(profile.website)
@@ -353,9 +431,15 @@ export struct UserProfileSummaryPage {
     action: () => void
   ): void {
     Row({ space: 12 }) {
-      SymbolGlyph(icon)
-        .fontSize(21)
-        .fontColor([$r('app.color.brand_primary')])
+      Stack() {
+        SymbolGlyph(icon)
+          .fontSize(19)
+          .fontColor([$r('app.color.brand_primary')])
+      }
+      .width(36)
+      .height(36)
+      .borderRadius(11)
+      .backgroundColor($r('app.color.brand_tint_surface'))
       Text(label)
         .fontSize(15)
         .fontWeight(FontWeight.Medium)
@@ -374,14 +458,18 @@ export struct UserProfileSummaryPage {
 
   @Builder
   private ActivityNavigationCard(profile: UserProfile): void {
-    Column() {
+    Column({ space: 2 }) {
+      Row() {
+        this.SectionHeader($r('sys.symbol.folder'), '社区内容', '浏览公开内容')
+      }
+      .padding({ left: 16, right: 16, top: 14, bottom: 4 })
       this.ProfileNavigationRow(
         this.ownProfile ? '我的 Topic' : 'TA 的 Topic',
         $r('sys.symbol.folder'),
         (): void => this.onOpenTopics(profile.username)
       )
       Divider()
-        .margin({ left: 49 })
+        .margin({ left: 64 })
         .color($r('sys.color.comp_divider'))
       this.ProfileNavigationRow(
         this.ownProfile ? '我的 Reply' : 'TA 的 Reply',
@@ -398,19 +486,23 @@ export struct UserProfileSummaryPage {
   @Builder
   private GroupsCard(groups: Array<ProfileGroup>): void {
     Column({ space: 10 }) {
-      Text($r('app.string.profile_groups'))
-        .fontSize(17)
-        .fontWeight(FontWeight.Bold)
-        .fontColor($r('sys.color.font_primary'))
-        .width('100%')
+      this.SectionHeader(
+        $r('sys.symbol.person_2'),
+        $r('app.string.profile_groups'),
+        `${groups.length} 个公开群组`
+      )
       Flex({ direction: FlexDirection.Row, wrap: FlexWrap.Wrap, justifyContent: FlexAlign.Start }) {
         ForEach(groups, (group: ProfileGroup): void => {
           Row({ space: 6 }) {
-            if (group.flairUrl.length > 0) {
+            if (isDiscourseFlairImage(group.flairUrl)) {
               Image(group.flairUrl)
                 .width(18)
                 .height(18)
                 .objectFit(ImageFit.Contain)
+            } else if (group.flairUrl.length > 0) {
+              SymbolGlyph($r('sys.symbol.checkmark_circle_fill'))
+                .fontSize(16)
+                .fontColor([$r('app.color.brand_primary')])
             }
             Text(group.displayName.length > 0 ? group.displayName : group.name)
               .fontSize(12)
