@@ -21,6 +21,7 @@ import {
   textOrEmpty
 } from './ForumResponseDecoding';
 import { discourseUserStatusFromReader } from './UserStatusResponseParser';
+import { forumPollsFromPostReader } from './PollResponseParser';
 
 
 function forumPostFromReader(
@@ -71,7 +72,8 @@ function forumPostFromReader(
     textOrEmpty(post.string('flair_name')),
     textOrEmpty(post.string('flair_bg_color')),
     textOrEmpty(post.string('flair_color')),
-    discourseUserStatusFromReader(post.object('user_status'))
+    discourseUserStatusFromReader(post.object('user_status')),
+    forumPollsFromPostReader(post)
   );
   return new ForumPost(
     id,

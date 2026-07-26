@@ -5,6 +5,7 @@ import {
   normalizedDiscourseFlairColor
 } from '../core/DiscourseFlair';
 import { DiscourseUserStatus } from './DiscourseUserStatus';
+import { ForumPoll } from './PollModels';
 
 export class Topic {
   public readonly id: number;
@@ -189,6 +190,7 @@ export class ForumPostMetadata {
   public readonly flairBackgroundColor: string;
   public readonly flairColor: string;
   public readonly userStatus: DiscourseUserStatus | null;
+  public readonly polls: Array<ForumPoll>;
 
   public constructor(
     userTitle: string = '',
@@ -212,7 +214,8 @@ export class ForumPostMetadata {
     flairName: string = '',
     flairBackgroundColor: string = '',
     flairColor: string = '',
-    userStatus: DiscourseUserStatus | null = null
+    userStatus: DiscourseUserStatus | null = null,
+    polls: Array<ForumPoll> = []
   ) {
     this.userTitle = userTitle;
     this.avatarUrl = avatarUrl;
@@ -236,6 +239,7 @@ export class ForumPostMetadata {
     this.flairBackgroundColor = normalizedDiscourseFlairColor(flairBackgroundColor);
     this.flairColor = normalizedDiscourseFlairColor(flairColor);
     this.userStatus = userStatus;
+    this.polls = polls;
   }
 }
 
@@ -271,6 +275,7 @@ export class ForumPost {
   public readonly flairBackgroundColor: string;
   public readonly flairColor: string;
   public readonly userStatus: DiscourseUserStatus | null;
+  public readonly polls: Array<ForumPoll>;
 
   public constructor(
     id: number,
@@ -316,6 +321,7 @@ export class ForumPost {
     this.flairBackgroundColor = metadata.flairBackgroundColor;
     this.flairColor = metadata.flairColor;
     this.userStatus = metadata.userStatus;
+    this.polls = metadata.polls;
   }
 
   public isSystemAction(): boolean {
@@ -382,7 +388,8 @@ export class ForumPost {
         this.flairName,
         this.flairBackgroundColor,
         this.flairColor,
-        this.userStatus
+        this.userStatus,
+        this.polls
       )
     );
   }
@@ -419,7 +426,8 @@ export class ForumPost {
         this.flairName,
         this.flairBackgroundColor,
         this.flairColor,
-        this.userStatus
+        this.userStatus,
+        this.polls
       )
     );
   }
@@ -456,7 +464,8 @@ export class ForumPost {
         this.flairName,
         this.flairBackgroundColor,
         this.flairColor,
-        this.userStatus
+        this.userStatus,
+        this.polls
       )
     );
   }
@@ -493,7 +502,49 @@ export class ForumPost {
         this.flairName,
         this.flairBackgroundColor,
         this.flairColor,
-        this.userStatus
+        this.userStatus,
+        this.polls
+      )
+    );
+  }
+
+  public withPoll(updatedPoll: ForumPoll): ForumPost {
+    const updatedPolls: Array<ForumPoll> = this.polls.map((poll: ForumPoll): ForumPoll => {
+      return poll.name === updatedPoll.name ? updatedPoll : poll;
+    });
+    return new ForumPost(
+      this.id,
+      this.userId,
+      this.username,
+      this.cooked,
+      this.raw,
+      this.postNumber,
+      this.replyToPostNumber,
+      this.createdAt,
+      new ForumPostMetadata(
+        this.userTitle,
+        this.avatarUrl,
+        this.flairUrl,
+        this.replyToUsername,
+        this.replyToAvatarUrl,
+        this.likeCount,
+        this.reactions,
+        this.currentUserReaction,
+        this.canEdit,
+        this.canDelete,
+        this.acceptedAnswer,
+        this.canAcceptAnswer,
+        this.canUnacceptAnswer,
+        this.bookmarked,
+        this.bookmarkId,
+        this.postType,
+        this.actionCode,
+        this.replyCount,
+        this.flairName,
+        this.flairBackgroundColor,
+        this.flairColor,
+        this.userStatus,
+        updatedPolls
       )
     );
   }

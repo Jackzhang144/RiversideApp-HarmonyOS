@@ -53,8 +53,10 @@ import discourseFlairTest from './DiscourseFlair.test';
 import appBehaviorSettingsTest from './AppBehaviorSettings.test';
 import appCacheModelsTest from './AppCacheModels.test';
 import discourseUserStatusTest from './DiscourseUserStatus.test';
+import pollModelsTest from './PollModels.test';
 
 export default function tests(): void {
+  pollModelsTest();
   discourseUserStatusTest();
   appCacheModelsTest();
   appBehaviorSettingsTest();
