@@ -7,8 +7,9 @@ import {
   NotificationItem,
   notificationActionText,
   notificationBucketLabel,
-  notificationTimeText
 } from '../models/NotificationModels';
+import { compactActivityTime } from './ActivityTimePresentation';
+import { SegmentedCapsule, SegmentedCapsuleItem } from './SegmentedCapsule';
 import { UserAvatar } from './UserAvatar';
 
 const NOTIFICATION_BUCKETS: Array<NotificationBucket> = [
@@ -37,48 +38,49 @@ export struct NotificationCentrePage {
     return $r('sys.symbol.at');
   }
 
-  @Builder
-  private FilterButton(bucket: NotificationBucket): void {
-    Button() {
-      Row({ space: 6 }) {
-        SymbolGlyph(this.bucketIcon(bucket))
-          .fontSize(17)
-          .fontColor([this.state.bucket === bucket ? $r('app.color.brand_selected_text') : $r('sys.color.font_secondary')])
-        Text(notificationBucketLabel(bucket))
-          .fontSize(13)
-          .fontColor(this.state.bucket === bucket ? $r('app.color.brand_selected_text') : $r('sys.color.font_primary'))
-      }
-      .justifyContent(FlexAlign.Center)
+  private filterItems(): Array<SegmentedCapsuleItem> {
+    return NOTIFICATION_BUCKETS.map((bucket: NotificationBucket): SegmentedCapsuleItem => {
+      return new SegmentedCapsuleItem(
+        bucket,
+        notificationBucketLabel(bucket),
+        this.bucketIcon(bucket)
+      );
+    });
+  }
+
+  private selectBucket(id: string): void {
+    const bucket: NotificationBucket | undefined = NOTIFICATION_BUCKETS.find(
+      (candidate: NotificationBucket): boolean => candidate === id
+    );
+    if (bucket !== undefined) {
+      this.onSelectBucket(bucket);
     }
-    .height(34)
-    .layoutWeight(1)
-    .backgroundColor(this.state.bucket === bucket ? $r('app.color.brand_selected_surface') : Color.Transparent)
-    .borderRadius(14)
-    .animation({ duration: 180, curve: Curve.EaseOut })
-    .onClick((): void => this.onSelectBucket(bucket))
-    .accessibilityText(
-      `${notificationBucketLabel(bucket)}${this.state.bucket === bucket ? '，已选择' : ''}`
-    )
+  }
+
+  private actionLabel(bucket: NotificationBucket, item: NotificationItem): string {
+    if (bucket === NotificationBucket.PRIVATE_MESSAGES) {
+      return '发来私信';
+    }
+    if (bucket === NotificationBucket.REPLIES) {
+      return '回复了';
+    }
+    if (bucket === NotificationBucket.MENTIONS) {
+      return '提及了你';
+    }
+    return `回应了${item.reaction.length > 0 ? ` ${item.reaction}` : ''}`;
   }
 
   @Builder
   private Filters(): void {
     Column() {
-      Row({ space: 4 }) {
-        ForEach(NOTIFICATION_BUCKETS, (bucket: NotificationBucket): void => {
-          this.FilterButton(bucket)
-        }, (bucket: NotificationBucket): string => bucket)
-      }
-      .width('100%')
-      .height(40)
-      .padding(3)
-      .backgroundColor($r('sys.color.comp_background_primary'))
-      .borderRadius(18)
-      .border({ width: 1, color: $r('sys.color.comp_divider') })
-      .clip(true)
+      SegmentedCapsule({
+        items: this.filterItems(),
+        selectedId: this.state.bucket,
+        onSelect: (id: string): void => this.selectBucket(id)
+      })
     }
     .width('100%')
-    .padding({ left: 12, right: 12, top: 10, bottom: 8 })
+    .padding({ left: 12, right: 12, top: 10, bottom: 10 })
     .backgroundColor($r('sys.color.background_secondary'))
   }
 
@@ -100,39 +102,44 @@ export struct NotificationCentrePage {
       UserAvatar({
         avatarUrl: item.avatarUrl,
         displayName: item.actorDisplayName(),
-        avatarSize: 36,
+        avatarSize: 38,
         avatarAccessibilityText: `${item.actorDisplayName()} 的头像`,
         flairUrl: item.flairUrl
       })
-      Column({ space: 4 }) {
+      Column({ space: 3 }) {
         Row({ space: 8 }) {
-          Text(notificationActionText(this.state.bucket, item))
-            .fontSize(13)
-            .fontWeight(FontWeight.Medium)
+          Text(item.actorDisplayName())
+            .fontSize(14)
+            .fontWeight(FontWeight.Bold)
             .fontColor($r('sys.color.font_primary'))
             .layoutWeight(1)
             .maxLines(1)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
           if (item.createdAt.length > 0) {
-            Text(notificationTimeText(item.createdAt))
+            Text(compactActivityTime(item.createdAt))
               .fontSize(11)
               .fontColor($r('sys.color.font_tertiary'))
               .maxLines(1)
           }
         }
         .width('100%')
+        Text(this.actionLabel(this.state.bucket, item))
+          .fontSize(11)
+          .fontWeight(FontWeight.Medium)
+          .fontColor($r('app.color.text_link'))
+          .width('100%')
         if (item.title.length > 0) {
           Text(item.title)
             .fontSize(14)
             .fontWeight(FontWeight.Medium)
-            .fontColor($r('sys.color.font_secondary'))
+            .fontColor($r('sys.color.font_primary'))
             .width('100%')
             .maxLines(1)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
         }
         if (item.excerpt.length > 0) {
           Text(item.excerpt)
-            .fontSize(13)
+            .fontSize(12)
             .fontColor($r('sys.color.font_secondary'))
             .width('100%')
             .maxLines(2)
@@ -148,8 +155,8 @@ export struct NotificationCentrePage {
       }
     }
     .width('100%')
-    .constraintSize({ minHeight: 76 })
-    .padding({ left: 14, right: 14, top: 11, bottom: 11 })
+    .constraintSize({ minHeight: 92 })
+    .padding({ left: 14, right: 14, top: 12, bottom: 12 })
     .enabled(item.topicId > 0)
     .onClick((): void => this.onOpenItem(item))
     .accessibilityText(

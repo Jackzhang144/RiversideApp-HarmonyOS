@@ -13,6 +13,7 @@ import {
   selectQuickChatEmojis,
   visibleChatMessageId
 } from '../../../main/ets/components/ChatMessagePresentation';
+import { compactActivityTime } from '../../../main/ets/components/ActivityTimePresentation';
 import {
   ChatChannel,
   ChatChannelNotificationLevel,
@@ -75,6 +76,13 @@ export default function chatMessagePresentationTest(): void {
     it('formats message timestamps to minutes without exposing seconds', 0, () => {
       expect(formatChatMessageTimestamp('2026-06-30T04:57:16Z')).assertEqual('2026-06-30 04:57');
       expect(formatChatMessageTimestamp('')).assertEqual('');
+      const now: number = Date.parse('2026-07-27T04:00:00Z');
+      expect(compactActivityTime('2026-07-27T03:10:00Z', now, 480)).assertEqual('11:10');
+      expect(compactActivityTime('2026-07-26T10:17:00Z', now, 480)).assertEqual('昨天 18:17');
+      expect(compactActivityTime('2026-07-23T10:00:00Z', now, 480)).assertEqual('周四 18:00');
+      expect(compactActivityTime('2026-06-30T04:57:16Z', now, 480)).assertEqual('06-30');
+      expect(compactActivityTime('2025-06-30T04:57:16Z', now, 480)).assertEqual('2025-06-30');
+      expect(compactActivityTime('invalid', now, 480)).assertEqual('invalid');
     });
 
     it('groups only consecutive messages from the same author within five minutes', 0, () => {

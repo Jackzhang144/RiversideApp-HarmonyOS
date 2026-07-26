@@ -1,10 +1,12 @@
 import { ChatChannelState, ChatSearchState, ChatStateKind } from '../app/ChatStateModels';
 import { ChatChannel, ChatSearchResult } from '../models/ChatModels';
+import { compactActivityTime } from './ActivityTimePresentation';
+import { SegmentedCapsule, SegmentedCapsuleItem } from './SegmentedCapsule';
 
 enum ChatRootSection {
-  CHANNELS = 0,
-  DIRECT_MESSAGES = 1,
-  SEARCH = 2
+  CHANNELS = 'channels',
+  DIRECT_MESSAGES = 'direct-messages',
+  SEARCH = 'search'
 }
 
 @Component
@@ -35,12 +37,22 @@ export struct ChatRootPage {
     );
   }
 
-  private channelTimeText(value: string): string {
-    const normalized: string = value.trim();
-    if (normalized.length >= 16 && normalized.includes('T')) {
-      return normalized.slice(5, 16).replace('T', ' ');
+  private sectionItems(): Array<SegmentedCapsuleItem> {
+    return [
+      new SegmentedCapsuleItem(ChatRootSection.CHANNELS, '频道', $r('sys.symbol.message')),
+      new SegmentedCapsuleItem(ChatRootSection.DIRECT_MESSAGES, '直接消息', $r('sys.symbol.envelope')),
+      new SegmentedCapsuleItem(ChatRootSection.SEARCH, '搜索', $r('sys.symbol.magnifyingglass'))
+    ];
+  }
+
+  private selectSection(id: string): void {
+    if (id === ChatRootSection.CHANNELS) {
+      this.section = ChatRootSection.CHANNELS;
+    } else if (id === ChatRootSection.DIRECT_MESSAGES) {
+      this.section = ChatRootSection.DIRECT_MESSAGES;
+    } else if (id === ChatRootSection.SEARCH) {
+      this.section = ChatRootSection.SEARCH;
     }
-    return normalized;
   }
 
   private unreadText(count: number): string {
@@ -48,47 +60,16 @@ export struct ChatRootPage {
   }
 
   @Builder
-  private SectionButton(label: string, icon: Resource, section: ChatRootSection): void {
-    Button() {
-      Row({ space: 6 }) {
-        SymbolGlyph(icon)
-          .fontSize(17)
-          .fontColor([this.section === section ? $r('app.color.brand_selected_text') : $r('sys.color.font_secondary')])
-        Text(label)
-          .fontSize(13)
-          .fontColor(this.section === section ? $r('app.color.brand_selected_text') : $r('sys.color.font_primary'))
-      }
-      .justifyContent(FlexAlign.Center)
-    }
-      .layoutWeight(1)
-      .height(34)
-      .borderRadius(14)
-      .backgroundColor(this.section === section ? $r('app.color.brand_selected_surface') : Color.Transparent)
-      .animation({ duration: 180, curve: Curve.EaseOut })
-      .onClick((): void => {
-        this.section = section;
-      })
-      .accessibilityText(`${label}${this.section === section ? '，已选择' : ''}`)
-  }
-
-  @Builder
   private SectionSwitcher(): void {
     Column() {
-      Row({ space: 4 }) {
-        this.SectionButton('频道', $r('sys.symbol.message'), ChatRootSection.CHANNELS)
-        this.SectionButton('直接消息', $r('sys.symbol.envelope'), ChatRootSection.DIRECT_MESSAGES)
-        this.SectionButton('搜索', $r('sys.symbol.magnifyingglass'), ChatRootSection.SEARCH)
-      }
-      .width('100%')
-      .height(40)
-      .padding(3)
-      .backgroundColor($r('sys.color.comp_background_primary'))
-      .borderRadius(18)
-      .border({ width: 1, color: $r('sys.color.comp_divider') })
-      .clip(true)
+      SegmentedCapsule({
+        items: this.sectionItems(),
+        selectedId: this.section,
+        onSelect: (id: string): void => this.selectSection(id)
+      })
     }
     .width('100%')
-    .padding({ left: 12, right: 12, top: 10, bottom: 8 })
+    .padding({ left: 12, right: 12, top: 10, bottom: 10 })
     .backgroundColor($r('sys.color.background_secondary'))
   }
 
@@ -130,7 +111,7 @@ export struct ChatRootPage {
         .height(40)
         .padding(9)
         .backgroundColor($r('app.color.brand_tint_surface'))
-        .borderRadius(20)
+        .borderRadius(12)
       Column({ space: 4 }) {
         Row({ space: 8 }) {
           Text(channel.title)
@@ -165,7 +146,7 @@ export struct ChatRootPage {
             .textOverflow({ overflow: TextOverflow.Ellipsis })
             .layoutWeight(1)
           if (channel.lastMessageAt.length > 0) {
-            Text(this.channelTimeText(channel.lastMessageAt))
+            Text(compactActivityTime(channel.lastMessageAt))
               .fontSize(11)
               .fontColor($r('sys.color.font_tertiary'))
               .maxLines(1)

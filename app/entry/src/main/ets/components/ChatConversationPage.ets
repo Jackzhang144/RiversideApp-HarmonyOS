@@ -33,7 +33,6 @@ import {
   ChatMessageFragmentKind,
   chatEmojiGroups,
   filterChatReactionEmojis,
-  formatChatMessageTimestamp,
   initialChatMessageIndex,
   isChatMessageGroupStart,
   presentChatMessageBody,
@@ -42,6 +41,7 @@ import {
   selectQuickChatEmojis,
   visibleChatMessageId
 } from './ChatMessagePresentation';
+import { compactActivityTime } from './ActivityTimePresentation';
 import { UserAvatar } from './UserAvatar';
 
 const CHAT_QUICK_REACTION_LIMIT: number = 5;
@@ -444,6 +444,12 @@ export struct ChatConversationPage {
 
   private canWrite(): boolean {
     return this.state.channel !== null && !this.state.channel.userSilenced;
+  }
+
+  private canSend(): boolean {
+    return this.canWrite() &&
+      !this.composer.sending &&
+      (this.composer.draft.trim().length > 0 || this.composer.uploads.length > 0);
   }
 
   private messageContextCapabilities(message: ChatMessage): ChatMessageContextCapabilities {
@@ -869,7 +875,7 @@ export struct ChatConversationPage {
           .fontWeight(FontWeight.Medium)
           .fontColor($r('app.color.text_link'))
           .layoutWeight(1)
-        Text(formatChatMessageTimestamp(item.pinnedAt))
+        Text(compactActivityTime(item.pinnedAt))
           .fontSize(10)
           .fontColor($r('sys.color.font_tertiary'))
       }
@@ -1395,7 +1401,7 @@ export struct ChatConversationPage {
         .fontColor($r('sys.color.font_secondary'))
         .maxLines(1)
         .textOverflow({ overflow: TextOverflow.Ellipsis })
-      Text(formatChatMessageTimestamp(message.createdAt))
+      Text(compactActivityTime(message.createdAt))
         .fontSize(10)
         .fontColor($r('sys.color.font_tertiary'))
         .maxLines(1)
@@ -1718,13 +1724,17 @@ export struct ChatConversationPage {
           this.ReplyPreviewText(reply.displayText())
         }
         .layoutWeight(1)
-        Button('×', { type: ButtonType.Normal })
-          .width(28)
-          .height(28)
-          .fontSize(18)
-          .backgroundColor(Color.Transparent)
-          .onClick(this.onCancelReply)
-          .accessibilityText($r('app.string.action_cancel'))
+        Button({ type: ButtonType.Normal }) {
+          SymbolGlyph($r('sys.symbol.xmark'))
+            .fontSize(15)
+            .fontColor([$r('sys.color.font_secondary')])
+        }
+        .width(28)
+        .height(28)
+        .borderRadius(14)
+        .backgroundColor(Color.Transparent)
+        .onClick(this.onCancelReply)
+        .accessibilityText($r('app.string.action_cancel'))
       }
       .width('100%')
       .padding({ left: 10, right: 6, top: 7, bottom: 7 })
@@ -1747,13 +1757,17 @@ export struct ChatConversationPage {
                 .height(64)
                 .objectFit(ImageFit.Cover)
                 .borderRadius(8)
-              Button('×', { type: ButtonType.Normal })
-                .width(24)
-                .height(24)
-                .fontSize(14)
-                .backgroundColor($r('sys.color.comp_background_primary'))
-                .onClick((): void => this.onRemoveUpload(upload.id))
-                .accessibilityText(`移除图片 ${upload.originalFilename}`)
+              Button({ type: ButtonType.Normal }) {
+                SymbolGlyph($r('sys.symbol.xmark'))
+                  .fontSize(13)
+                  .fontColor([$r('sys.color.font_primary')])
+              }
+              .width(24)
+              .height(24)
+              .borderRadius(12)
+              .backgroundColor($r('sys.color.comp_background_primary'))
+              .onClick((): void => this.onRemoveUpload(upload.id))
+              .accessibilityText(`移除图片 ${upload.originalFilename}`)
             }
             .width(64)
             .height(64)
@@ -1786,9 +1800,9 @@ export struct ChatConversationPage {
             .fontSize(20)
             .fontColor([$r('sys.color.font_secondary')])
         }
-          .width(40)
-          .height(40)
-          .borderRadius(20)
+          .width(36)
+          .height(36)
+          .borderRadius(18)
           .backgroundColor(Color.Transparent)
           .enabled(!this.composer.sending && this.canWrite())
           .onClick(this.onSelectImages).accessibilityText($r('app.string.chat_image_select_accessibility'))
@@ -1815,9 +1829,9 @@ export struct ChatConversationPage {
               .height(20)
               .objectFit(ImageFit.Contain)
           }
-            .width(40)
-            .height(40)
-            .borderRadius(20)
+            .width(36)
+            .height(36)
+            .borderRadius(18)
             .backgroundColor(this.emojiPickerVisible
               ? $r('app.color.brand_selected_surface')
               : Color.Transparent)
@@ -1828,18 +1842,23 @@ export struct ChatConversationPage {
         Button() {
           SymbolGlyph($r('sys.symbol.paperplane'))
             .fontSize(19)
-            .fontColor([$r('app.color.on_accent')])
+            .fontColor([
+              this.canSend()
+                ? $r('app.color.on_accent')
+                : $r('sys.color.font_tertiary')
+            ])
         }
-          .width(44)
-          .height(44)
-          .borderRadius(22)
-          .backgroundColor($r('app.color.brand_primary'))
-          .enabled(this.canWrite() && !this.composer.sending &&
-            (this.composer.draft.trim().length > 0 || this.composer.uploads.length > 0))
+          .width(40)
+          .height(40)
+          .borderRadius(20)
+          .backgroundColor(this.canSend()
+            ? $r('app.color.brand_primary')
+            : Color.Transparent)
+          .enabled(this.canSend())
           .onClick(this.onSend).accessibilityText($r('app.string.chat_send_accessibility'))
       }
       .width('100%')
-      .padding(3)
+      .padding({ left: 5, right: 4, top: 3, bottom: 3 })
       .backgroundColor($r('sys.color.comp_background_primary'))
       .border({ width: 1, color: $r('sys.color.comp_divider') })
       .borderRadius(24)
@@ -1849,7 +1868,7 @@ export struct ChatConversationPage {
       }
     }
     .width('100%')
-    .padding({ left: 10, right: 10, top: 7, bottom: 18 })
+    .padding({ left: 10, right: 10, top: 7, bottom: 14 })
     .backgroundColor($r('sys.color.background_secondary'))
   }
 
@@ -1857,30 +1876,26 @@ export struct ChatConversationPage {
     Column() {
       if (this.state.channel !== null) {
         Column() {
-          Row({ space: 10 }) {
+          Row({ space: 9 }) {
             SymbolGlyph(this.state.channel.isDirectMessage
               ? $r('sys.symbol.envelope')
               : $r('sys.symbol.message'))
-              .fontSize(17)
+              .fontSize(16)
               .fontColor([$r('app.color.brand_primary')])
-              .width(32)
-              .height(32)
+              .width(30)
+              .height(30)
               .padding(7)
               .backgroundColor($r('app.color.brand_tint_surface'))
-              .borderRadius(16)
-            Column({ space: 2 }) {
-              Text(this.state.channel.isDirectMessage ? '直接消息' : '聊天室')
-                .fontSize(12)
-                .fontWeight(FontWeight.Medium)
-                .fontColor($r('sys.color.font_primary'))
-              Text(this.state.channel.subtitle)
-                .fontSize(11)
-                .fontColor($r('sys.color.font_secondary'))
-                .maxLines(1)
-                .textOverflow({ overflow: TextOverflow.Ellipsis })
-            }
-            .alignItems(HorizontalAlign.Start)
-            .layoutWeight(1)
+              .borderRadius(10)
+            Text(this.state.channel.isDirectMessage
+              ? '直接消息'
+              : `频道 · ${this.state.channel.subtitle}`)
+              .fontSize(12)
+              .fontWeight(FontWeight.Medium)
+              .fontColor($r('sys.color.font_secondary'))
+              .maxLines(1)
+              .textOverflow({ overflow: TextOverflow.Ellipsis })
+              .layoutWeight(1)
             Button() {
               SymbolGlyph($r('sys.symbol.info_circle'))
                 .fontSize(19)
@@ -1894,14 +1909,14 @@ export struct ChatConversationPage {
             .accessibilityText($r('app.string.chat_channel_actions_accessibility'))
           }
           .width('100%')
-          .height(48)
-          .padding({ left: 10, right: 8 })
+          .height(42)
+          .padding({ left: 8, right: 5 })
           .backgroundColor($r('sys.color.comp_background_primary'))
           .border({ width: 1, color: $r('sys.color.comp_divider') })
-          .borderRadius(18)
+          .borderRadius(16)
         }
         .width('100%')
-        .padding({ left: 12, right: 12, top: 6, bottom: 4 })
+        .padding({ left: 12, right: 12, top: 5, bottom: 3 })
       }
       if (this.state.channel?.userSilenced === true) {
         Text($r('app.string.chat_silenced_message'))
