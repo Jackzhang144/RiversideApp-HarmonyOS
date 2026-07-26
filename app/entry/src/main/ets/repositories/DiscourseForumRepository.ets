@@ -32,6 +32,8 @@ import { ForumListingResponseParser } from './ForumListingResponseParser';
 import { TopicResponseParser } from './TopicResponseParser';
 import { ProfileResponseParser } from './ProfileResponseParser';
 import { ComposerMentionUser } from '../models/ComposerMentionModels';
+import { ForumPoll, ForumPollRankedVote, ForumPollVote } from '../models/PollModels';
+import { PollResponseParser } from './PollResponseParser';
 
 interface DraftSavePayload {
   draft_key: string;
@@ -45,19 +47,22 @@ export class DiscourseForumRepository implements ForumRepository {
   private readonly topicParser: TopicResponseParser;
   private readonly discoveryParser: DiscoveryResponseParser;
   private readonly profileParser: ProfileResponseParser;
+  private readonly pollParser: PollResponseParser;
 
   public constructor(
     client: ForumHttpClient,
     listingParser: ForumListingResponseParser = new ForumListingResponseParser(),
     topicParser: TopicResponseParser = new TopicResponseParser(),
     discoveryParser: DiscoveryResponseParser = new DiscoveryResponseParser(),
-    profileParser: ProfileResponseParser = new ProfileResponseParser()
+    profileParser: ProfileResponseParser = new ProfileResponseParser(),
+    pollParser: PollResponseParser = new PollResponseParser()
   ) {
     this.client = client;
     this.listingParser = listingParser;
     this.topicParser = topicParser;
     this.discoveryParser = discoveryParser;
     this.profileParser = profileParser;
+    this.pollParser = pollParser;
   }
 
   public async loadLatestTopics(): Promise<RepositoryResult<Array<Topic>>> {
@@ -302,6 +307,73 @@ export class DiscourseForumRepository implements ForumRepository {
       return response.asRepositoryFailure<Array<PostReactionUsers>>();
     }
     return this.topicParser.parsePostReactionUsers(response.body);
+  }
+
+  public async votePoll(
+    postId: number,
+    pollName: string,
+    vote: ForumPollVote
+  ): Promise<RepositoryResult<ForumPoll>> {
+    const normalizedPollName: string = pollName.trim();
+    if (
+      !Number.isInteger(postId) ||
+      postId <= 0 ||
+      normalizedPollName.length === 0 ||
+      !vote.hasSelection()
+    ) {
+      return RepositoryResult.invalidInput<ForumPoll>('Poll 投票请求无效');
+    }
+    const body: string = this.pollVoteFormBody(postId, normalizedPollName, vote);
+    const response: HttpTextResult = await this.client.putForm('/polls/vote', body);
+    if (response.kind === HttpTextResultKind.UNAUTHORIZED) {
+      return RepositoryResult.unauthorized<ForumPoll>();
+    }
+    if (!response.isSuccess()) {
+      return response.asRepositoryFailure<ForumPoll>();
+    }
+    return this.pollParser.parseMutation(response.body, normalizedPollName);
+  }
+
+  public async removePollVote(
+    postId: number,
+    pollName: string
+  ): Promise<RepositoryResult<ForumPoll>> {
+    const normalizedPollName: string = pollName.trim();
+    if (!Number.isInteger(postId) || postId <= 0 || normalizedPollName.length === 0) {
+      return RepositoryResult.invalidInput<ForumPoll>('Poll 撤票请求无效');
+    }
+    const body: string = `post_id=${postId}&poll_name=${encodeURIComponent(normalizedPollName)}`;
+    const response: HttpTextResult = await this.client.deleteForm('/polls/vote', body);
+    if (response.kind === HttpTextResultKind.UNAUTHORIZED) {
+      return RepositoryResult.unauthorized<ForumPoll>();
+    }
+    if (!response.isSuccess()) {
+      return response.asRepositoryFailure<ForumPoll>();
+    }
+    return this.pollParser.parseMutation(response.body, normalizedPollName, true);
+  }
+
+  private pollVoteFormBody(
+    postId: number,
+    pollName: string,
+    vote: ForumPollVote
+  ): string {
+    const parts: Array<string> = [
+      `post_id=${postId}`,
+      `poll_name=${encodeURIComponent(pollName)}`
+    ];
+    if (vote.rankedVotes.length > 0) {
+      for (let index: number = 0; index < vote.rankedVotes.length; index += 1) {
+        const rankedVote: ForumPollRankedVote = vote.rankedVotes[index];
+        parts.push(`options[${index}][digest]=${encodeURIComponent(rankedVote.digest)}`);
+        parts.push(`options[${index}][rank]=${rankedVote.rank}`);
+      }
+    } else {
+      for (const optionId of vote.optionIds) {
+        parts.push(`options[]=${encodeURIComponent(optionId)}`);
+      }
+    }
+    return parts.join('&');
   }
 
   public async createPostBookmark(postId: number): Promise<RepositoryResult<number>> {

@@ -34,6 +34,11 @@ import {
 } from '../../../main/ets/models/ReplyModels';
 import { ForumHttpClient, HttpTextResult } from '../../../main/ets/network/DiscourseHttpClient';
 import { DiscourseForumRepository } from '../../../main/ets/repositories/DiscourseForumRepository';
+import {
+  ForumPoll,
+  ForumPollRankedVote,
+  ForumPollVote
+} from '../../../main/ets/models/PollModels';
 
 export class StubForumHttpClient implements ForumHttpClient {
   public results: Array<HttpTextResult> = [];
@@ -136,6 +141,67 @@ export default function discourseForumMutationRepositoryTest(): void {
       expect(result.data?.[0].users[0].username).assertEqual('river_user');
       expect(invalid.kind).assertEqual(RepositoryResultKind.FAILURE);
       expect(unauthorized.kind).assertEqual(RepositoryResultKind.UNAUTHORIZED);
+      done();
+    });
+
+    it('casts and removes ordinary Poll votes through the Discourse form contract', 0,
+      async (done: Function) => {
+        const client: StubForumHttpClient = new StubForumHttpClient();
+        client.formPutResults.push(HttpTextResult.success(200,
+          '{"poll":{"name":"lunch","type":"multiple","status":"open","results":"always",' +
+          '"voters":4,"options":[{"id":"rice","html":"米饭","votes":3},' +
+          '{"id":"noodle","html":"面条","votes":2}]},"vote":["rice","noodle"]}'
+        ));
+        client.formDeleteResults.push(HttpTextResult.success(200,
+          '{"poll":{"name":"lunch","type":"multiple","status":"open","results":"always",' +
+          '"voters":3,"options":[{"id":"rice","html":"米饭","votes":2},' +
+          '{"id":"noodle","html":"面条","votes":1}]}}'
+        ));
+        const repository: DiscourseForumRepository = new DiscourseForumRepository(client);
+
+        const cast: RepositoryResult<ForumPoll> = await repository.votePoll(
+          102728,
+          'lunch',
+          ForumPollVote.options(['rice', 'noodle'])
+        );
+        const removed: RepositoryResult<ForumPoll> =
+          await repository.removePollVote(102728, 'lunch');
+
+        expect(client.formPutRequests[0]).assertEqual(
+          '/polls/vote|post_id=102728&poll_name=lunch&options[]=rice&options[]=noodle'
+        );
+        expect(cast.data?.vote.optionIds.join(',')).assertEqual('rice,noodle');
+        expect(cast.data?.voters).assertEqual(4);
+        expect(client.formDeleteRequests[0])
+          .assertEqual('/polls/vote|post_id=102728&poll_name=lunch');
+        expect(removed.data?.vote.hasSelection()).assertFalse();
+        done();
+      });
+
+    it('serializes every ranked-choice candidate with its explicit rank', 0, async (done: Function) => {
+      const client: StubForumHttpClient = new StubForumHttpClient();
+      client.formPutResults.push(HttpTextResult.success(200,
+        '{"poll":{"name":"priority","type":"ranked_choice","status":"open","results":"on_close",' +
+        '"voters":2,"options":[{"id":"a","html":"甲"},{"id":"b","html":"乙"}]},' +
+        '"vote":[{"digest":"a","rank":1},{"digest":"b","rank":0}]}'
+      ));
+      const repository: DiscourseForumRepository = new DiscourseForumRepository(client);
+
+      const result: RepositoryResult<ForumPoll> = await repository.votePoll(
+        102729,
+        'priority',
+        ForumPollVote.ranked([
+          new ForumPollRankedVote('a', 1),
+          new ForumPollRankedVote('b', 0)
+        ])
+      );
+
+      expect(client.formPutRequests[0]).assertEqual(
+        '/polls/vote|post_id=102729&poll_name=priority&' +
+        'options[0][digest]=a&options[0][rank]=1&' +
+        'options[1][digest]=b&options[1][rank]=0'
+      );
+      expect(result.data?.vote.rankFor('a')).assertEqual(1);
       done();
     });
 

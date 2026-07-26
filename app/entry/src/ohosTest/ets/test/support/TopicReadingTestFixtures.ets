@@ -45,6 +45,7 @@ import {
 } from '../../../../main/ets/models/ReplyModels';
 import { ForumRepository } from '../../../../main/ets/repositories/ForumRepository';
 import { MemoryCategoryCache } from './MemoryCategoryCache';
+import { ForumPoll, ForumPollVote } from '../../../../main/ets/models/PollModels';
 
 export class PendingRepositoryResult<T> {
   public readonly promise: Promise<RepositoryResult<T>>;
@@ -204,6 +205,21 @@ export class TopicReadingRepository implements ForumRepository {
     this.requestedReactionUserPostIds.push(postId);
     return this.reactionUsersResults.shift() ??
       RepositoryResult.unknown<Array<PostReactionUsers>>('missing Reaction users result');
+  }
+
+  public async votePoll(
+    _postId: number,
+    _pollName: string,
+    _vote: ForumPollVote
+  ): Promise<RepositoryResult<ForumPoll>> {
+    return RepositoryResult.unavailable<ForumPoll>('Poll 测试仓储未配置');
+  }
+
+  public async removePollVote(
+    _postId: number,
+    _pollName: string
+  ): Promise<RepositoryResult<ForumPoll>> {
+    return RepositoryResult.unavailable<ForumPoll>('Poll 测试仓储未配置');
   }
 
   public async createPostBookmark(postId: number): Promise<RepositoryResult<number>> {

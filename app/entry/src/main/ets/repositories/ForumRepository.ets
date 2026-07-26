@@ -25,6 +25,7 @@ import {
   ReplyRequest,
   ReplySubmitResult
 } from '../models/ReplyModels';
+import { ForumPoll, ForumPollVote } from '../models/PollModels';
 
 export interface ForumRepository {
   loadLatestTopics(): Promise<RepositoryResult<Array<Topic>>>;
@@ -55,6 +56,14 @@ export interface ForumRepository {
   togglePostReaction(postId: number, reaction: string): Promise<RepositoryResult<ForumPost>>;
 
   loadPostReactionUsers(postId: number): Promise<RepositoryResult<Array<PostReactionUsers>>>;
+
+  votePoll(
+    postId: number,
+    pollName: string,
+    vote: ForumPollVote
+  ): Promise<RepositoryResult<ForumPoll>>;
+
+  removePollVote(postId: number, pollName: string): Promise<RepositoryResult<ForumPoll>>;
 
   createPostBookmark(postId: number): Promise<RepositoryResult<number>>;
 

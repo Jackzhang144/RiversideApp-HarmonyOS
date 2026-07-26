@@ -52,6 +52,7 @@ import {
 } from '../../../main/ets/network/ForumMediaTransport';
 import { HttpTextResult } from '../../../main/ets/network/DiscourseHttpClient';
 import { MemoryCategoryCache } from './support/MemoryCategoryCache';
+import { ForumPoll, ForumPollVote } from '../../../main/ets/models/PollModels';
 
 class StubForumRepository implements ForumRepository {
   public latestResults: Array<RepositoryResult<Array<Topic>>> = [];
@@ -136,6 +137,21 @@ class StubForumRepository implements ForumRepository {
 
   public async loadPostReactionUsers(_postId: number): Promise<RepositoryResult<Array<PostReactionUsers>>> {
     return RepositoryResult.unknown<Array<PostReactionUsers>>('missing Reaction users result');
+  }
+
+  public async votePoll(
+    _postId: number,
+    _pollName: string,
+    _vote: ForumPollVote
+  ): Promise<RepositoryResult<ForumPoll>> {
+    return RepositoryResult.unavailable<ForumPoll>('Poll 测试仓储未配置');
+  }
+
+  public async removePollVote(
+    _postId: number,
+    _pollName: string
+  ): Promise<RepositoryResult<ForumPoll>> {
+    return RepositoryResult.unavailable<ForumPoll>('Poll 测试仓储未配置');
   }
 
   public async createPostBookmark(_postId: number): Promise<RepositoryResult<number>> {
