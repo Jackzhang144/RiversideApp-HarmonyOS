@@ -39,20 +39,21 @@ export struct NotificationCentrePage {
   @Builder
   private FilterButton(bucket: NotificationBucket): void {
     Button() {
-      Row({ space: 5 }) {
+      Row({ space: 6 }) {
         SymbolGlyph(this.bucketIcon(bucket))
-          .fontSize(16)
+          .fontSize(17)
           .fontColor([this.state.bucket === bucket ? $r('app.color.brand_selected_text') : $r('sys.color.font_secondary')])
         Text(notificationBucketLabel(bucket))
-          .fontSize(12)
+          .fontSize(13)
           .fontColor(this.state.bucket === bucket ? $r('app.color.brand_selected_text') : $r('sys.color.font_primary'))
       }
       .justifyContent(FlexAlign.Center)
     }
-    .height(40)
+    .height(34)
     .layoutWeight(1)
-    .backgroundColor(this.state.bucket === bucket ? $r('app.color.brand_selected_surface') : $r('sys.color.comp_background_primary'))
-    .borderRadius(10)
+    .backgroundColor(this.state.bucket === bucket ? $r('app.color.brand_selected_surface') : Color.Transparent)
+    .borderRadius(14)
+    .animation({ duration: 180, curve: Curve.EaseOut })
     .onClick((): void => this.onSelectBucket(bucket))
     .accessibilityText(
       `${notificationBucketLabel(bucket)}${this.state.bucket === bucket ? '，已选择' : ''}`
@@ -61,13 +62,22 @@ export struct NotificationCentrePage {
 
   @Builder
   private Filters(): void {
-    Row({ space: 6 }) {
-      ForEach(NOTIFICATION_BUCKETS, (bucket: NotificationBucket): void => {
-        this.FilterButton(bucket)
-      }, (bucket: NotificationBucket): string => bucket)
+    Column() {
+      Row({ space: 4 }) {
+        ForEach(NOTIFICATION_BUCKETS, (bucket: NotificationBucket): void => {
+          this.FilterButton(bucket)
+        }, (bucket: NotificationBucket): string => bucket)
+      }
+      .width('100%')
+      .height(40)
+      .padding(3)
+      .backgroundColor($r('sys.color.comp_background_primary'))
+      .borderRadius(18)
+      .border({ width: 1, color: $r('sys.color.comp_divider') })
+      .clip(true)
     }
     .width('100%')
-    .padding({ left: 12, right: 12, top: 12, bottom: 8 })
+    .padding({ left: 12, right: 12, top: 10, bottom: 8 })
     .backgroundColor($r('sys.color.background_secondary'))
   }
 
@@ -84,8 +94,8 @@ export struct NotificationCentrePage {
   }
 
   @Builder
-  private ItemCard(item: NotificationItem): void {
-    Row({ space: 10 }) {
+  private ItemRow(item: NotificationItem): void {
+    Row({ space: 12 }) {
       Stack() {
         Text(item.actorDisplayName().substring(0, 1))
           .fontSize(13)
@@ -106,11 +116,12 @@ export struct NotificationCentrePage {
       }
       .width(36)
       .height(36)
-      Column({ space: 5 }) {
+      Column({ space: 4 }) {
         Row({ space: 8 }) {
           Text(notificationActionText(this.state.bucket, item))
             .fontSize(13)
-            .fontColor($r('sys.color.font_secondary'))
+            .fontWeight(FontWeight.Medium)
+            .fontColor($r('sys.color.font_primary'))
             .layoutWeight(1)
             .maxLines(1)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
@@ -124,8 +135,9 @@ export struct NotificationCentrePage {
         .width('100%')
         if (item.title.length > 0) {
           Text(item.title)
-            .fontSize(15)
-            .fontWeight(FontWeight.Bold)
+            .fontSize(14)
+            .fontWeight(FontWeight.Medium)
+            .fontColor($r('sys.color.font_secondary'))
             .width('100%')
             .maxLines(1)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
@@ -141,12 +153,15 @@ export struct NotificationCentrePage {
       }
       .alignItems(HorizontalAlign.Start)
       .layoutWeight(1)
+      if (item.topicId > 0) {
+        SymbolGlyph($r('sys.symbol.chevron_right'))
+          .fontSize(15)
+          .fontColor([$r('sys.color.font_tertiary')])
+      }
     }
     .width('100%')
-    .padding($r('app.float.card_content_padding'))
-    .backgroundColor($r('sys.color.comp_background_primary'))
-    .borderRadius($r('app.float.card_corner_radius'))
-    .border({ width: 1, color: $r('sys.color.comp_divider') })
+    .constraintSize({ minHeight: 76 })
+    .padding({ left: 14, right: 14, top: 11, bottom: 11 })
     .enabled(item.topicId > 0)
     .onClick((): void => this.onOpenItem(item))
     .accessibilityText(
@@ -154,6 +169,58 @@ export struct NotificationCentrePage {
         ? `，第 ${item.postNumber} 楼`
         : ''}`
     )
+  }
+
+  @Builder
+  private NotificationGroup(): void {
+    Column({ space: 8 }) {
+      Row({ space: 8 }) {
+        Text(`${notificationBucketLabel(this.state.bucket)}动态`)
+          .fontSize(14)
+          .fontWeight(FontWeight.Medium)
+          .fontColor($r('sys.color.font_secondary'))
+        Text(this.state.items.length.toString())
+          .fontSize(11)
+          .fontColor($r('sys.color.font_tertiary'))
+          .height(20)
+          .constraintSize({ minWidth: 20 })
+          .padding({ left: 6, right: 6 })
+          .textAlign(TextAlign.Center)
+          .backgroundColor($r('sys.color.comp_background_primary'))
+          .borderRadius(10)
+        Blank()
+        if (this.unreadCount > 0) {
+          Text(`${this.unreadCount > 99 ? '99+' : this.unreadCount.toString()} 条未读`)
+            .fontSize(11)
+            .fontWeight(FontWeight.Medium)
+            .fontColor($r('app.color.brand_selected_text'))
+            .height(22)
+            .padding({ left: 8, right: 8 })
+            .textAlign(TextAlign.Center)
+            .backgroundColor($r('app.color.brand_selected_surface'))
+            .borderRadius(11)
+        }
+      }
+      .width('100%')
+      .padding({ left: 8, right: 8 })
+
+      Column() {
+        ForEach(this.state.items, (item: NotificationItem, index: number): void => {
+          this.ItemRow(item)
+          if (index < this.state.items.length - 1) {
+            Divider()
+              .margin({ left: 62, right: 14 })
+              .color($r('sys.color.comp_divider'))
+          }
+        }, (item: NotificationItem): string => `${item.kind}-${item.id}-${item.topicId}-${item.postNumber}`)
+      }
+      .width('100%')
+      .backgroundColor($r('sys.color.comp_background_primary'))
+      .borderRadius(18)
+      .border({ width: 1, color: $r('sys.color.comp_divider') })
+      .clip(true)
+    }
+    .width('100%')
   }
 
   @Builder
@@ -198,17 +265,32 @@ export struct NotificationCentrePage {
       }
         .width('100%').height('100%').justifyContent(FlexAlign.Center)
     } else {
-      List({ space: 10, scroller: this.scroller }) {
-        ForEach(this.state.items, (item: NotificationItem): void => {
-          ListItem() { this.ItemCard(item) }
-        }, (item: NotificationItem): string => `${item.kind}-${item.id}-${item.topicId}-${item.postNumber}`)
-        ListItem() { this.PaginationFooter() }
+      Refresh({ refreshing: this.state.refreshing }) {
+        List({ scroller: this.scroller }) {
+          ListItem() {
+            this.NotificationGroup()
+          }
+          ListItem() {
+            this.PaginationFooter()
+          }
+        }
+        .width('100%')
+        .height('100%')
+        .padding({ left: 12, right: 12, top: 8, bottom: 124 })
+        .clip(true)
+        .cachedCount(3, true)
+        .backgroundColor($r('sys.color.background_secondary'))
+        .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
+        .onReachEnd(this.onLoadMore)
       }
-      .width('100%').height('100%')
-      .padding({ left: 12, right: 12, top: 8, bottom: 124 })
-      .clip(false).cachedCount(3, true)
-      .backgroundColor($r('sys.color.background_secondary')).edgeEffect(EdgeEffect.Spring)
-      .onReachEnd(this.onLoadMore)
+      .width('100%')
+      .height('100%')
+      .refreshOffset(64)
+      .pullToRefresh(true)
+      .pullUpToCancelRefresh(false)
+      .onRefreshing((): void => {
+        this.onRefresh();
+      })
     }
   }
 
