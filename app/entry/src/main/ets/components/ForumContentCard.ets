@@ -35,6 +35,7 @@ export struct ForumContentCard {
   @Prop editable: boolean = false;
   @Prop validReactions: Array<string> = [];
   @Prop authenticated: boolean = false;
+  @Prop cardActionAvailable: boolean = false;
   onOpenTopic: () => void = (): void => {};
   onOpenCard: () => void = (): void => {};
   onReply: (postNumber: number | null) => void = (_postNumber: number | null): void => {};
@@ -76,7 +77,6 @@ export struct ForumContentCard {
     _pollName: string
   ): void => {};
   onLoginForPostAction: () => void = (): void => {};
-
   @Builder
   private Badge(badge: ForumCardBadge): void {
     Text(badge.label)
@@ -361,7 +361,8 @@ export struct ForumContentCard {
     })
   }
 
-  build() {
+  @Builder
+  private CardSurface(): void {
     Column({ space: 10 }) {
       if (this.presentation.author !== null) {
         this.AuthorRow(this.presentation.author)
@@ -388,13 +389,24 @@ export struct ForumContentCard {
     .backgroundColor($r('sys.color.comp_background_primary'))
     .borderRadius($r('app.float.card_corner_radius'))
     .border({ width: 1, color: $r('sys.color.comp_divider') })
-    .onClick((): void => {
-      if (this.presentation.mode === ForumCardMode.TOPIC_PREVIEW) {
-        this.onOpenTopic();
-      } else {
-        this.onOpenCard();
-      }
-    })
     .accessibilityText(this.presentation.accessibilityText)
+  }
+
+  build() {
+    if (this.presentation.mode === ForumCardMode.TOPIC_PREVIEW || this.cardActionAvailable) {
+      Stack() {
+        this.CardSurface()
+      }
+      .width('100%')
+      .onClick((): void => {
+        if (this.presentation.mode === ForumCardMode.TOPIC_PREVIEW) {
+          this.onOpenTopic();
+        } else {
+          this.onOpenCard();
+        }
+      }, 8)
+    } else {
+      this.CardSurface()
+    }
   }
 }

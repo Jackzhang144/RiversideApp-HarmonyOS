@@ -274,6 +274,7 @@ export struct TopicReadingProgressRail {
         width: this.previewCardVisible() ? 246 : PROGRESS_RAIL_WIDTH,
         height: this.previewCardVisible() ? 220 : PROGRESS_RAIL_HEIGHT
       })
+      .hitTestBehavior(HitTestMode.Transparent)
     }
   }
 }

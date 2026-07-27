@@ -1280,6 +1280,7 @@ export struct TopicDetailPage {
       })
         .margin({ right: 6 })
         .zIndex(20)
+        .hitTestBehavior(HitTestMode.Transparent)
     }
     .width('100%')
     .height('100%')

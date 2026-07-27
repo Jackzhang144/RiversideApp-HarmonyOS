@@ -8,16 +8,12 @@ import {
 import { parseRichPostContent } from '../models/RichContentParser';
 import { imageViewerTransitionId } from '../models/ImageViewerModels';
 import { RichEmbedProvider } from '../models/RichNavigationPolicy';
-
-class RichContentImageRatio {
-  public readonly url: string;
-  public readonly ratio: number;
-
-  public constructor(url: string, ratio: number) {
-    this.url = url;
-    this.ratio = ratio;
-  }
-}
+import {
+  ImageAspectRatio,
+  resolveImageAspectRatio,
+  updateImageAspectRatios
+} from '../models/ImageAspectRatioModels';
+import { RemoteContentImage } from './RemoteContentImage';
 
 @Component
 export struct RichPostContent {
@@ -26,7 +22,7 @@ export struct RichPostContent {
   @Prop imageTransitionScope: string = '';
   @State revealedSpoilers: Array<number> = [];
   @State failedImages: Array<string> = [];
-  @State imageRatios: Array<RichContentImageRatio> = [];
+  @State imageRatios: Array<ImageAspectRatio> = [];
   onOpenLink: (url: string) => void = (_url: string): void => {};
   onOpenEmbed: (url: string, provider: RichEmbedProvider, title: string) => void = (
     _url: string,
@@ -56,30 +52,16 @@ export struct RichPostContent {
   }
 
   private imageAspectRatio(block: RichContentBlock): number {
-    for (const imageRatio of this.imageRatios) {
-      if (imageRatio.url === block.url) {
-        return imageRatio.ratio;
-      }
-    }
-    if (block.sourceWidth > 0 && block.sourceHeight > 0) {
-      return block.sourceWidth / block.sourceHeight;
-    }
-    return 4 / 3;
+    return resolveImageAspectRatio(
+      this.imageRatios,
+      block.url,
+      block.sourceWidth,
+      block.sourceHeight
+    );
   }
 
   private recordImageRatio(url: string, width: number, height: number): void {
-    if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
-      return;
-    }
-    const ratio: number = width / height;
-    for (const imageRatio of this.imageRatios) {
-      if (imageRatio.url === url && Math.abs(imageRatio.ratio - ratio) < 0.001) {
-        return;
-      }
-    }
-    this.imageRatios = this.imageRatios
-      .filter((imageRatio: RichContentImageRatio): boolean => imageRatio.url !== url)
-      .concat([new RichContentImageRatio(url, ratio)]);
+    this.imageRatios = updateImageAspectRatios(this.imageRatios, url, width, height);
   }
 
   private imageTransitionId(index: number): string {
@@ -297,39 +279,23 @@ export struct RichPostContent {
   @Builder
   private ImageBlock(block: RichContentBlock, index: number): void {
     Column({ space: 6 }) {
-      if (this.failedImages.includes(block.url)) {
-        Row({ space: 8 }) {
-          SymbolGlyph($r('sys.symbol.ohos_photo'))
-            .fontSize(18)
-            .fontColor([$r('sys.color.font_tertiary')])
-          Text($r('app.string.rich_post_image_failed'))
-            .fontSize(13)
-            .fontColor($r('sys.color.font_secondary'))
-        }
-        .width('100%')
-        .height(72)
-        .justifyContent(FlexAlign.Center)
-        .backgroundColor($r('sys.color.background_secondary'))
-        .borderRadius(8)
-      } else {
-        Image(block.url)
-          .width('100%')
-          .aspectRatio(this.imageAspectRatio(block))
-          .objectFit(ImageFit.Cover)
-          .interpolation(ImageInterpolation.High)
-          .borderRadius(8)
-          .clip(true)
-          .geometryTransition(this.imageTransitionId(index))
-          .transition(TransitionEffect.OPACITY)
-          .onComplete((event): void => {
-            if (event !== undefined && event.loadingStatus === 1) {
-              this.recordImageRatio(block.url, event.width, event.height);
-            }
-          })
-          .onError((): void => this.recordImageFailure(block.url))
-          .onClick((): void => this.onOpenImage(block.url, block.title, this.imageTransitionId(index)))
-          .accessibilityText(block.title)
-      }
+      RemoteContentImage({
+        url: block.url,
+        imageAspectRatio: this.imageAspectRatio(block),
+        transitionId: this.imageTransitionId(index),
+        failed: this.failedImages.includes(block.url),
+        failureText: $r('app.string.rich_post_image_failed'),
+        onLoaded: (width: number, height: number): void => {
+          this.recordImageRatio(block.url, width, height);
+        },
+        onError: (): void => this.recordImageFailure(block.url),
+        onOpen: (): void => this.onOpenImage(
+          block.url,
+          block.title,
+          this.imageTransitionId(index)
+        )
+      })
+        .accessibilityText(block.title)
       if (block.title.length > 0) {
         Text(block.title)
           .fontSize(11)

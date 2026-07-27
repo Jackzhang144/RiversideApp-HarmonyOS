@@ -16,6 +16,11 @@ import {
   RichNavigationKind,
   YOUTUBE_URL_TRUST_LIST
 } from '../../../main/ets/models/RichNavigationPolicy';
+import {
+  ImageAspectRatio,
+  resolveImageAspectRatio,
+  updateImageAspectRatios
+} from '../../../main/ets/models/ImageAspectRatioModels';
 
 function blocksOfKind(blocks: Array<RichContentBlock>, kind: RichContentBlockKind): Array<RichContentBlock> {
   return blocks.filter((block: RichContentBlock): boolean => block.kind === kind);
@@ -23,6 +28,28 @@ function blocksOfKind(blocks: Array<RichContentBlock>, kind: RichContentBlockKin
 
 export default function richContentTest(): void {
   describe('RichContent', () => {
+    it('shares loaded image aspect ratios across rich-content surfaces', 0, () => {
+      const initial: Array<ImageAspectRatio> = [];
+      const loaded: Array<ImageAspectRatio> = updateImageAspectRatios(
+        initial,
+        'https://river-side.cc/uploads/portrait.png',
+        900,
+        1600
+      );
+
+      expect(resolveImageAspectRatio(loaded, 'https://river-side.cc/uploads/portrait.png'))
+        .assertEqual(900 / 1600);
+      expect(resolveImageAspectRatio(
+        loaded,
+        'https://river-side.cc/uploads/wide.png',
+        1200,
+        800
+      )).assertEqual(1.5);
+      expect(resolveImageAspectRatio(loaded, 'https://river-side.cc/uploads/unknown.png'))
+        .assertEqual(4 / 3);
+      expect(updateImageAspectRatios(loaded, 'invalid', 0, 0)).assertEqual(loaded);
+    });
+
     it('parses supported cooked HTML into native rich-content blocks', 0, () => {
       const blocks: Array<RichContentBlock> = parseRichPostContent(
         '<h2>标题</h2>' +

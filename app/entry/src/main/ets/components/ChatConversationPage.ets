@@ -28,6 +28,12 @@ import {
 import { MediaUploadResult, MediaUploadState, MediaUploadStateKind } from '../models/MediaModels';
 import { imageViewerTransitionId } from '../models/ImageViewerModels';
 import {
+  ImageAspectRatio,
+  resolveImageAspectRatio,
+  updateImageAspectRatios
+} from '../models/ImageAspectRatioModels';
+import { RemoteContentImage } from './RemoteContentImage';
+import {
   ChatMessageContextCapabilities,
   ChatMessageFragment,
   ChatMessageFragmentKind,
@@ -79,6 +85,7 @@ export struct ChatConversationPage {
   @State mentionUsers: Array<ComposerMentionUser> = [];
   @State mentionLoading: boolean = false;
   @State mentionMessage: string = '';
+  @State imageRatios: Array<ImageAspectRatio> = [];
   onRetry: () => void = (): void => {};
   onLoadOlder: () => void = (): void => {};
   onLoadNewer: () => void = (): void => {};
@@ -207,6 +214,14 @@ export struct ChatConversationPage {
 
   private chatImageTransitionId(messageId: number, index: number): string {
     return imageViewerTransitionId(`chat-message-${messageId}`, index);
+  }
+
+  private chatImageAspectRatio(url: string): number {
+    return resolveImageAspectRatio(this.imageRatios, url);
+  }
+
+  private recordChatImageRatio(url: string, width: number, height: number): void {
+    this.imageRatios = updateImageAspectRatios(this.imageRatios, url, width, height);
   }
 
   private synchronizeMessageViewport(): void {
@@ -1447,18 +1462,21 @@ export struct ChatConversationPage {
 
       if (!message.deleted && message.uploadUrls.length > 0) {
         ForEach(message.uploadUrls, (url: string, index: number): void => {
-          Image(absoluteChatUrl(url))
-            .width(CHAT_MESSAGE_CONTENT_MAX_WIDTH)
-            .height(164)
-            .borderRadius(10)
-            .objectFit(ImageFit.Contain)
-            .backgroundColor($r('sys.color.background_secondary'))
-            .geometryTransition(this.chatImageTransitionId(message.id, index))
-            .transition(TransitionEffect.OPACITY)
-            .onClick((): void => this.onOpenImage(
+          RemoteContentImage({
+            url: absoluteChatUrl(url),
+            imageAspectRatio: this.chatImageAspectRatio(absoluteChatUrl(url)),
+            displayWidth: CHAT_MESSAGE_CONTENT_MAX_WIDTH,
+            cornerRadius: 10,
+            transitionId: this.chatImageTransitionId(message.id, index),
+            failureText: $r('app.string.rich_post_image_failed'),
+            onLoaded: (width: number, height: number): void => {
+              this.recordChatImageRatio(absoluteChatUrl(url), width, height);
+            },
+            onOpen: (): void => this.onOpenImage(
               absoluteChatUrl(url),
               this.chatImageTransitionId(message.id, index)
-            ))
+            )
+          })
             .accessibilityText($r('app.string.chat_image_open_accessibility'))
         }, (url: string, index: number): string => `${index}-${url}`)
       }

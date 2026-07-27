@@ -84,6 +84,7 @@ export struct PostReplyThreadSheet {
   private ReplyCard(post: ForumPost): void {
     ForumContentCard({
       presentation: ForumCardPresentation.reply(post, false),
+      cardActionAvailable: true,
       onOpenCard: (): void => this.onOpenReply(post.postNumber)
     })
   }
