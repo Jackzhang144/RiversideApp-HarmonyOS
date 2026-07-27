@@ -74,7 +74,7 @@ export default function chatMessagePresentationTest(): void {
     });
 
     it('formats message timestamps to minutes without exposing seconds', 0, () => {
-      expect(formatChatMessageTimestamp('2026-06-30T04:57:16Z')).assertEqual('2026-06-30 04:57');
+      expect(formatChatMessageTimestamp('2026-06-30T04:57:16Z', 480)).assertEqual('2026-06-30 12:57');
       expect(formatChatMessageTimestamp('')).assertEqual('');
       const now: number = Date.parse('2026-07-27T04:00:00Z');
       expect(compactActivityTime('2026-07-27T03:10:00Z', now, 480)).assertEqual('11:10');

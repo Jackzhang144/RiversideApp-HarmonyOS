@@ -1,12 +1,10 @@
+import { localCalendarDate } from '../models/LocalTimeModels';
+
 const MILLISECONDS_PER_MINUTE: number = 60 * 1000;
 const MILLISECONDS_PER_DAY: number = 24 * 60 * MILLISECONDS_PER_MINUTE;
 
 function twoDigit(value: number): string {
   return value < 10 ? `0${value}` : value.toString();
-}
-
-function localDate(timestamp: number, offsetMinutes: number): Date {
-  return new Date(timestamp + offsetMinutes * MILLISECONDS_PER_MINUTE);
 }
 
 function localDayNumber(value: Date): number {
@@ -32,9 +30,8 @@ export function compactActivityTime(
   if (!Number.isFinite(timestamp) || !Number.isFinite(nowMilliseconds)) {
     return normalized;
   }
-  const offsetMinutes: number = timezoneOffsetMinutes ?? -new Date(nowMilliseconds).getTimezoneOffset();
-  const target: Date = localDate(timestamp, offsetMinutes);
-  const now: Date = localDate(nowMilliseconds, offsetMinutes);
+  const target: Date = localCalendarDate(timestamp, timezoneOffsetMinutes);
+  const now: Date = localCalendarDate(nowMilliseconds, timezoneOffsetMinutes);
   const dayDifference: number = localDayNumber(now) - localDayNumber(target);
   const time: string = `${twoDigit(target.getUTCHours())}:${twoDigit(target.getUTCMinutes())}`;
   if (dayDifference === 0) {

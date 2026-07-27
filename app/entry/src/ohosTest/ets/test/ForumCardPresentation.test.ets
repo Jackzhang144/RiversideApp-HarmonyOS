@@ -33,7 +33,7 @@ export default function forumCardPresentationTest(): void {
         new Category(10, '校内事务', '00AA88', '', 1, null, [])
       ];
 
-      const presentation: ForumCardPresentation = ForumCardPresentation.topicPreview(topic, categories);
+      const presentation: ForumCardPresentation = ForumCardPresentation.topicPreview(topic, categories, 480);
 
       expect(presentation.mode).assertEqual(ForumCardMode.TOPIC_PREVIEW);
       expect(presentation.author?.name).assertEqual('李同学');
@@ -42,7 +42,7 @@ export default function forumCardPresentationTest(): void {
       expect(presentation.author?.avatarUrl).assertEqual(
         'https://river-side.cc/user_avatar/river-side.cc/student/64/1.png'
       );
-      expect(presentation.author?.timestamp).assertEqual('2026-07-11 14:32');
+      expect(presentation.author?.timestamp).assertEqual('2026-07-11 22:32');
       expect(presentation.title).assertEqual('图书馆座位预约系统使用体验优化建议');
       expect(presentation.body).assertEqual('完整摘要 :joy: 内容');
       expect(presentation.bodyInlineFragments.length).assertEqual(3);
@@ -90,7 +90,9 @@ export default function forumCardPresentationTest(): void {
       const presentation: ForumCardPresentation = ForumCardPresentation.topicStarter(
         detail,
         starter,
-        '未提交草稿'
+        '未提交草稿',
+        true,
+        480
       );
 
       expect(presentation.mode).assertEqual(ForumCardMode.TOPIC_STARTER);
@@ -144,12 +146,12 @@ export default function forumCardPresentationTest(): void {
         '2026-07-11T15:02:00Z'
       );
 
-      const presentation: ForumCardPresentation = ForumCardPresentation.reply(post, true);
+      const presentation: ForumCardPresentation = ForumCardPresentation.reply(post, true, 480);
 
       expect(presentation.mode).assertEqual(ForumCardMode.REPLY);
       expect(presentation.author?.name).assertEqual('图书馆小助手');
       expect(presentation.author?.username).assertEqual('图书馆小助手');
-      expect(presentation.author?.timestamp).assertEqual('2026-07-11 15:02');
+      expect(presentation.author?.timestamp).assertEqual('2026-07-11 23:02');
       expect(presentation.title).assertEqual('');
       expect(presentation.body).assertEqual('感谢同学提出的宝贵建议！');
       expect(presentation.headerBadge?.label).assertEqual('#3');

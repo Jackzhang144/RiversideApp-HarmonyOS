@@ -1,4 +1,5 @@
 import { ChatChannel, ChatEmoji, ChatMessage } from '../models/ChatModels';
+import { formatLocalDateTime } from '../models/LocalTimeModels';
 
 const CHAT_MESSAGE_GROUP_WINDOW_MILLISECONDS: number = 5 * 60 * 1000;
 
@@ -198,12 +199,11 @@ export function presentChatMessageBody(
   return presentChatText(message.displayText(), emojis);
 }
 
-export function formatChatMessageTimestamp(value: string): string {
-  const normalized: string = value.trim();
-  if (normalized.length >= 16 && normalized.includes('T')) {
-    return normalized.slice(0, 16).replace('T', ' ');
-  }
-  return normalized;
+export function formatChatMessageTimestamp(
+  value: string,
+  timezoneOffsetMinutes: number | null = null
+): string {
+  return formatLocalDateTime(value, timezoneOffsetMinutes);
 }
 
 export function isChatMessageGroupStart(messages: Array<ChatMessage>, index: number): boolean {

@@ -1,4 +1,5 @@
 import { Category, ForumPost, Topic, TopicDetail } from '../models/ForumModels';
+import { formatLocalDateTime } from '../models/LocalTimeModels';
 import { RichContentInlineFragment } from '../models/RichContentBlocks';
 import { parsePlainTextInlineEmojis } from '../models/RichContentParser';
 import { DiscourseUserStatus } from '../models/DiscourseUserStatus';
@@ -96,12 +97,9 @@ function displayAuthor(username: string, avatarUrl: string = ''): ForumCardAutho
   return new ForumCardAuthor(name, initial, '', name === '匿名' ? '' : username, avatarUrl);
 }
 
-function displayTimestamp(timestamp: string): string {
-  const normalized: string = timestamp.trim();
-  if (normalized.length >= 16 && normalized.includes('T')) {
-    return normalized.slice(0, 16).replace('T', ' ');
-  }
-  return normalized.length > 0 ? normalized : '时间未知';
+function displayTimestamp(timestamp: string, timezoneOffsetMinutes: number | null = null): string {
+  const localTimestamp: string = formatLocalDateTime(timestamp, timezoneOffsetMinutes);
+  return localTimestamp.length > 0 ? localTimestamp : '时间未知';
 }
 
 function topicCategoryName(topic: Topic, categories: Array<Category>): string {
@@ -113,7 +111,7 @@ function topicCategoryName(topic: Topic, categories: Array<Category>): string {
   return topic.categoryId > 0 ? `Category #${topic.categoryId}` : 'Category';
 }
 
-function postAuthor(post: ForumPost): ForumCardAuthor {
+function postAuthor(post: ForumPost, timezoneOffsetMinutes: number | null = null): ForumCardAuthor {
   const authorBase: ForumCardAuthor = displayAuthor(post.username, post.avatarUrl);
   const displayName: string = post.userTitle.trim().length > 0
     ? `${authorBase.name} · ${post.userTitle.trim()}`
@@ -121,7 +119,7 @@ function postAuthor(post: ForumPost): ForumCardAuthor {
   return new ForumCardAuthor(
     displayName,
     authorBase.initial,
-    displayTimestamp(post.createdAt),
+    displayTimestamp(post.createdAt, timezoneOffsetMinutes),
     authorBase.username,
     authorBase.avatarUrl,
     post.flairUrl,
@@ -181,13 +179,17 @@ export class ForumCardPresentation {
     this.accessibilityText = accessibilityText;
   }
 
-  public static topicPreview(topic: Topic, categories: Array<Category>): ForumCardPresentation {
+  public static topicPreview(
+    topic: Topic,
+    categories: Array<Category>,
+    timezoneOffsetMinutes: number | null = null
+  ): ForumCardPresentation {
     const categoryName: string = topicCategoryName(topic, categories);
     const authorBase: ForumCardAuthor = displayAuthor(topic.username, topic.avatarUrl);
     const author: ForumCardAuthor = new ForumCardAuthor(
       authorBase.name,
       authorBase.initial,
-      displayTimestamp(topic.lastPostedAt),
+      displayTimestamp(topic.lastPostedAt, timezoneOffsetMinutes),
       authorBase.username,
       authorBase.avatarUrl
     );
@@ -216,7 +218,8 @@ export class ForumCardPresentation {
     detail: TopicDetail,
     post: ForumPost | null,
     replyDraft: string,
-    canReply: boolean = detail.canReply
+    canReply: boolean = detail.canReply,
+    timezoneOffsetMinutes: number | null = null
   ): ForumCardPresentation {
     let author: ForumCardAuthor | null = null;
     const replyCount: number = Math.max(detail.postCount - 1, 0);
@@ -234,7 +237,7 @@ export class ForumCardPresentation {
     let accessibilityText: string = `${detail.title}，${replyCount} 条 Reply，${detail.viewCount} 浏览，` +
       `${detail.likeCount} 赞${restrictionDescription}`;
     if (post !== null) {
-      const starterAuthor: ForumCardAuthor = postAuthor(post);
+      const starterAuthor: ForumCardAuthor = postAuthor(post, timezoneOffsetMinutes);
       author = starterAuthor;
       accessibilityText = `${detail.title}，${starterAuthor.name} 的第 ${post.postNumber} 条 Post，` +
         `${replyCount} 条 Reply，${detail.viewCount} 浏览，${detail.likeCount} 赞${restrictionDescription}`;
@@ -257,8 +260,12 @@ export class ForumCardPresentation {
     );
   }
 
-  public static reply(post: ForumPost, canReply: boolean): ForumCardPresentation {
-    const author: ForumCardAuthor = postAuthor(post);
+  public static reply(
+    post: ForumPost,
+    canReply: boolean,
+    timezoneOffsetMinutes: number | null = null
+  ): ForumCardPresentation {
+    const author: ForumCardAuthor = postAuthor(post, timezoneOffsetMinutes);
     const replyAction: ForumCardReplyAction | null = canReply
       ? new ForumCardReplyAction('Reply', post.postNumber, `回复第 ${post.postNumber} 条 Post`)
       : null;
