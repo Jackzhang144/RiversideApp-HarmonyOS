@@ -156,7 +156,7 @@ export struct UserProfileSummaryPage {
     .layoutWeight(1)
     .height(66)
     .justifyContent(FlexAlign.Center)
-    .backgroundColor($r('sys.color.background_secondary'))
+    .backgroundColor($r('sys.color.comp_background_secondary'))
     .borderRadius(12)
   }
 
@@ -206,7 +206,7 @@ export struct UserProfileSummaryPage {
           .fontColor($r('app.color.verified_identity'))
           .padding({ left: 10, right: 10, top: 5, bottom: 5 })
           .margin({ right: 7, bottom: 6 })
-          .backgroundColor($r('sys.color.background_secondary'))
+          .backgroundColor($r('sys.color.comp_background_secondary'))
           .borderRadius(14)
       }
       Text(`TL ${profile.trustLevel}`)
@@ -214,97 +214,92 @@ export struct UserProfileSummaryPage {
         .fontColor($r('sys.color.font_secondary'))
         .padding({ left: 10, right: 10, top: 5, bottom: 5 })
         .margin({ right: 7, bottom: 6 })
-        .backgroundColor($r('sys.color.background_secondary'))
+        .backgroundColor($r('sys.color.comp_background_secondary'))
         .borderRadius(14)
     }
     .width('100%')
+    .padding({ left: 16, right: 16 })
   }
 
   @Builder
   private ProfileHeaderCard(profile: UserProfile): void {
-    Column({ space: 12 }) {
-      Stack({ alignContent: Alignment.TopStart }) {
+    Column({ space: 0 }) {
+      Stack({ alignContent: Alignment.Center }) {
         if (profile.profileBackgroundUrl.length > 0) {
           Image(profile.profileBackgroundUrl)
             .width('100%')
-            .height(112)
+            .height(104)
             .objectFit(ImageFit.Cover)
             .accessibilityText(`${profile.displayName} 的个人页背景`)
         } else {
           Stack() {
             SymbolGlyph($r('sys.symbol.person_crop_circle_fill_1'))
-              .fontSize(58)
+              .fontSize(52)
               .fontColor([$r('app.color.brand_primary')])
-              .opacity(0.2)
+              .opacity(0.18)
           }
           .width('100%')
-          .height(112)
+          .height(104)
           .backgroundColor($r('app.color.brand_tint_surface'))
         }
-        Row({ space: 13 }) {
-          UserAvatar({
-            avatarUrl: profile.avatarUrl,
-            displayName: profile.displayName,
-            avatarSize: 76,
-            avatarAccessibilityText: `${profile.displayName} 的头像`,
-            flairUrl: profile.flairUrl,
-            flairName: profile.flairGroupName,
-            flairBackgroundColor: profile.flairBackgroundColor,
-            flairColor: profile.flairColor
-          })
-          Column({ space: 4 }) {
-            Text(profile.displayName)
-              .fontSize(21)
-              .fontWeight(FontWeight.Bold)
-              .fontColor($r('sys.color.font_primary'))
-              .maxLines(1)
-              .textOverflow({ overflow: TextOverflow.Ellipsis })
-            Text(`@${profile.username}`)
-              .fontSize(13)
+      }
+      .width('100%')
+      .height(104)
+      Row({ space: 13 }) {
+        UserAvatar({
+          avatarUrl: profile.avatarUrl,
+          displayName: profile.displayName,
+          avatarSize: 68,
+          avatarAccessibilityText: `${profile.displayName} 的头像`,
+          flairUrl: profile.flairUrl,
+          flairName: profile.flairGroupName,
+          flairBackgroundColor: profile.flairBackgroundColor,
+          flairColor: profile.flairColor
+        })
+        Column({ space: 3 }) {
+          Text(profile.displayName)
+            .fontSize(20)
+            .fontWeight(FontWeight.Bold)
+            .fontColor($r('sys.color.font_primary'))
+            .maxLines(1)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
+          Text(`@${profile.username}`)
+            .fontSize(13)
+            .fontColor($r('sys.color.font_secondary'))
+            .maxLines(1)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
+          if (profile.title.length > 0) {
+            Text(profile.title)
+              .fontSize(12)
               .fontColor($r('sys.color.font_secondary'))
               .maxLines(1)
               .textOverflow({ overflow: TextOverflow.Ellipsis })
-            if (profile.title.length > 0) {
-              Text(profile.title)
-                .fontSize(12)
-                .fontColor($r('sys.color.font_secondary'))
-                .maxLines(1)
-                .textOverflow({ overflow: TextOverflow.Ellipsis })
-            }
           }
-          .alignItems(HorizontalAlign.Start)
-          .layoutWeight(1)
         }
-        .width('calc(100% - 28vp)')
-        .height(96)
-        .padding({ left: 12, right: 12 })
-        .margin({ left: 14, right: 14, top: 64 })
-        .backgroundColor($r('sys.color.comp_background_primary'))
-        .borderRadius(18)
-        .border({ width: 1, color: $r('sys.color.comp_divider') })
-        .shadow({
-          radius: 10,
-          color: $r('sys.color.comp_divider'),
-          offsetX: 0,
-          offsetY: 4
-        })
+        .alignItems(HorizontalAlign.Start)
+        .layoutWeight(1)
       }
       .width('100%')
-      .height(168)
-      .clip(false)
+      .height(96)
+      .padding({ left: 16, right: 16 })
+      .backgroundColor($r('sys.color.comp_background_primary'))
       if (profile.userStatus !== null) {
         Row() {
           UserStatusPill({ status: profile.userStatus })
         }
         .width('100%')
+        .padding({ left: 16, right: 16, bottom: 8 })
       }
       this.IdentityPills(profile)
-      this.ProfileActions(profile)
+      Column({ space: 8 }) {
+        this.ProfileActions(profile)
+      }
+      .width('100%')
+      .padding({ left: 16, right: 16, top: 6, bottom: 16 })
     }
     .width('100%')
-    .padding({ left: 14, right: 14, bottom: 14 })
     .backgroundColor($r('sys.color.comp_background_primary'))
-    .borderRadius(22)
+    .borderRadius(18)
     .border({ width: 1, color: $r('sys.color.comp_divider') })
     .clip(true)
   }
@@ -518,7 +513,7 @@ export struct UserProfileSummaryPage {
           .height(34)
           .padding({ left: 10, right: 10 })
           .margin({ right: 8, bottom: 8 })
-          .backgroundColor($r('sys.color.background_secondary'))
+          .backgroundColor($r('sys.color.comp_background_secondary'))
           .borderRadius(17)
         }, (group: ProfileGroup): string => group.id.toString())
       }
