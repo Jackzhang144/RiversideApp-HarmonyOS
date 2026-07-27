@@ -1089,10 +1089,10 @@ export struct TopicDetailPage {
           .width('100%')
         ForEach(detail.suggestedTopics, (topic: Topic) => {
           ForumContentCard({
-            presentation: ForumCardPresentation.topicPreview(topic, this.categories),
+            presentation: ForumCardPresentation.topicPreview(topic, this.categories, null, this.emojis),
             onOpenTopic: (): void => this.onOpenSuggestedTopic(topic)
           })
-        }, (topic: Topic): string => topic.id.toString())
+        }, (topic: Topic): string => `${topic.id}-emoji-${this.emojis.length}`)
       }
       .width('100%')
       .padding({ top: 10 })

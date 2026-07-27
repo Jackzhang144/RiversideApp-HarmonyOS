@@ -533,6 +533,7 @@ struct Index {
       (): void => this.synchronizePresenceHeartbeat()
     );
     await runStartupRequestSequence(startupTasks);
+    this.loadComposerEmojis();
   }
 
   private categoryCacheScope(repository: AuthRepository): CategoryCacheScope {
@@ -2352,6 +2353,7 @@ struct Index {
     this.profileContentState = new ProfileContentState(kind, true);
     this.pushSecondaryPath(PROFILE_CONTENT_ROUTE);
     this.loadProfileContent();
+    this.loadComposerEmojis();
   }
 
   private async loadProfileContent(): Promise<void> {
@@ -2817,6 +2819,7 @@ struct Index {
           scroller: this.categoryTopicsScroller,
           state: this.categoryTopicsState,
           categories: this.categoryState.items,
+          emojis: this.chatEmojis,
           onRefresh: (): void => {
             this.retryCategoryTopics();
           },
@@ -2841,6 +2844,7 @@ struct Index {
           state: this.searchState,
           suggestionState: this.searchSuggestionState,
           knownCategories: this.categoryState.items,
+          emojis: this.chatEmojis,
           onLoadSuggestions: (term: string): void => {
             this.loadSearchSuggestions(term);
           },
@@ -3193,6 +3197,7 @@ struct Index {
           replies: this.profileContentState.replies,
           drafts: this.profileContentState.drafts,
           bookmarks: this.profileContentState.bookmarks,
+          emojis: this.chatEmojis,
           onLoadMore: (): void => {
             this.loadMoreProfileContent();
           },
@@ -3797,6 +3802,7 @@ struct Index {
             HomeBrowsePage({
               state: this.homeState,
               categories: this.categoryState.items,
+              emojis: this.chatEmojis,
               selectedChannel: this.selectedHomeChannel,
               worldCupEntryEnabled: this.worldCupEntryEnabled,
               scroller: this.homeScroller,

@@ -5,6 +5,7 @@ import {
   SearchSuggestionStateKind
 } from '../app/BrowseModels';
 import { RIVERSIDE_URL_RESOLVER } from '../core/RiversideEnvironment';
+import { ChatEmoji } from '../models/ChatModels';
 import { SearchGroup, SearchPost, SearchTag, SearchUser } from '../models/DiscoveryModels';
 import { Category, Topic } from '../models/ForumModels';
 import { ForumCardPresentation } from './ForumCardPresentation';
@@ -17,6 +18,7 @@ export struct SearchPage {
   @Prop state: SearchState = SearchState.initial();
   @Prop suggestionState: SearchSuggestionState = SearchSuggestionState.initial();
   @Prop knownCategories: Array<Category> = [];
+  @Prop emojis: Array<ChatEmoji> = [];
   @State queryInput: string = '';
   onSearch: (query: string) => void = (_query: string): void => {};
   onLoadSuggestions: (term: string) => void = (_term: string): void => {};
@@ -488,11 +490,11 @@ export struct SearchPage {
         ForEach(this.state.result.topics, (topic: Topic) => {
           ListItem() {
             ForumContentCard({
-              presentation: ForumCardPresentation.topicPreview(topic, this.knownCategories),
+              presentation: ForumCardPresentation.topicPreview(topic, this.knownCategories, null, this.emojis),
               onOpenTopic: (): void => this.onOpenTopic(topic)
             })
           }
-        }, (topic: Topic): string => `topic-${topic.id}`)
+        }, (topic: Topic): string => `topic-${topic.id}-emoji-${this.emojis.length}`)
       }
       if (this.state.result.posts.length > 0) {
         ListItem() { this.SectionHeader($r('app.string.search_section_post'), this.state.result.posts.length) }

@@ -184,6 +184,20 @@ export default function richContentTest(): void {
       expect(fragments[2].text).assertEqual(' 以后继续阅读');
     });
 
+    it('uses the server Emoji catalog URL for custom shortcodes', 0, () => {
+      const customUrl: string =
+        'https://river-side.cc/uploads/default/original/3X/4/7/476843deba396d55105f9783c48d78daa76cae4b.gif';
+      const fragments = parsePlainTextInlineEmojis(
+        '闻得我好头晕 :s56:',
+        (name: string): string => name === 's56' ? customUrl : ''
+      );
+
+      expect(fragments.length).assertEqual(2);
+      expect(fragments[1].kind).assertEqual(RichContentInlineFragmentKind.EMOJI);
+      expect(fragments[1].text).assertEqual(':s56:');
+      expect(fragments[1].imageUrl).assertEqual(customUrl);
+    });
+
     it('recognizes Bilibili and YouTube links without exposing arbitrary iframes', 0, () => {
       const blocks: Array<RichContentBlock> = parseRichPostContent(
         '<p><iframe src="https://player.bilibili.com/player.html?bvid=BV1MKVF6jEVh"></iframe></p>' +

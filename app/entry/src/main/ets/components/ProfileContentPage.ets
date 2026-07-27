@@ -1,6 +1,12 @@
 import { ServerDraft } from '../models/AuthoringModels';
+import { ChatEmoji, chatEmojiImageUrl } from '../models/ChatModels';
 import { Topic } from '../models/ForumModels';
 import { UserBookmarkItem, UserReplyItem } from '../models/ProfileModels';
+import {
+  RichContentInlineFragment,
+  RichContentInlineFragmentKind
+} from '../models/RichContentBlocks';
+import { parsePlainTextInlineEmojis } from '../models/RichContentParser';
 import { ProfileContentKind } from '../app/ProfileContentModel';
 
 @Component
@@ -15,6 +21,7 @@ export struct ProfileContentPage {
   @Prop replies: Array<UserReplyItem> = [];
   @Prop drafts: Array<ServerDraft> = [];
   @Prop bookmarks: Array<UserBookmarkItem> = [];
+  @Prop emojis: Array<ChatEmoji> = [];
   onRetry: () => void = (): void => {};
   onOpenTopic: (topic: Topic) => void = (): void => {};
   onOpenReply: (reply: UserReplyItem) => void = (): void => {};
@@ -35,6 +42,49 @@ export struct ProfileContentPage {
     return this.bookmarks.length === 0;
   }
 
+  private emojiUrl(name: string): string {
+    return chatEmojiImageUrl(this.emojis, name);
+  }
+
+  private detailFragments(detail: string): Array<RichContentInlineFragment> {
+    return parsePlainTextInlineEmojis(
+      detail,
+      (name: string): string => this.emojiUrl(name)
+    );
+  }
+
+  @Builder
+  private DetailText(detail: string): void {
+    Text() {
+      if (this.detailFragments(detail).length > 0) {
+        ForEach(
+          this.detailFragments(detail),
+          (fragment: RichContentInlineFragment): void => {
+            if (fragment.kind === RichContentInlineFragmentKind.EMOJI) {
+              ImageSpan(fragment.imageUrl)
+                .width(16)
+                .height(16)
+                .objectFit(ImageFit.Contain)
+                .verticalAlign(ImageSpanAlignment.CENTER)
+            } else {
+              Span(fragment.text)
+            }
+          },
+          (fragment: RichContentInlineFragment, index: number): string =>
+            `${index}-${fragment.kind}-${fragment.imageUrl}-${fragment.text}`
+        )
+      } else {
+        Span(detail)
+      }
+    }
+    .fontSize(13)
+    .fontColor($r('sys.color.font_secondary'))
+    .lineHeight(20)
+    .maxLines(3)
+    .textOverflow({ overflow: TextOverflow.Ellipsis })
+    .width('100%')
+  }
+
   @Builder
   private RowCard(title: string, detail: string, onClick: () => void): void {
     Column({ space: 6 }) {
@@ -43,7 +93,7 @@ export struct ProfileContentPage {
         .fontWeight(FontWeight.Medium)
         .width('100%')
       if (detail.length > 0) {
-        Text(detail).fontSize(13).fontColor($r('sys.color.font_secondary')).maxLines(3).width('100%')
+        this.DetailText(detail)
       }
     }
     .width('100%')
@@ -92,20 +142,20 @@ export struct ProfileContentPage {
         if (this.kind === ProfileContentKind.TOPICS) {
           ForEach(this.topics, (topic: Topic): void => {
             ListItem() { this.RowCard(topic.title, topic.excerpt, (): void => this.onOpenTopic(topic)) }
-          }, (topic: Topic): string => topic.id.toString())
+          }, (topic: Topic): string => `${topic.id}-emoji-${this.emojis.length}`)
         } else if (this.kind === ProfileContentKind.REPLIES) {
           ForEach(this.replies, (reply: UserReplyItem): void => {
             ListItem() { this.RowCard(reply.topicTitle, reply.excerpt, (): void => this.onOpenReply(reply)) }
-          }, (reply: UserReplyItem): string => reply.actionId.toString())
+          }, (reply: UserReplyItem): string => `${reply.actionId}-emoji-${this.emojis.length}`)
         } else if (this.kind === ProfileContentKind.DRAFTS) {
           ForEach(this.drafts, (draft: ServerDraft): void => {
             ListItem() { this.RowCard(draft.title, draft.raw, (): void => this.onOpenDraft(draft)) }
-          }, (draft: ServerDraft): string => `${draft.draftKey}-${draft.sequence}`)
+          }, (draft: ServerDraft): string => `${draft.draftKey}-${draft.sequence}-emoji-${this.emojis.length}`)
         } else {
           ForEach(this.bookmarks, (bookmark: UserBookmarkItem): void => {
             ListItem() { this.RowCard(bookmark.title, bookmark.excerpt,
               (): void => this.onOpenBookmark(bookmark)) }
-          }, (bookmark: UserBookmarkItem): string => bookmark.bookmarkId.toString())
+          }, (bookmark: UserBookmarkItem): string => `${bookmark.bookmarkId}-emoji-${this.emojis.length}`)
         }
         ListItem() { this.PaginationFooter() }
       }

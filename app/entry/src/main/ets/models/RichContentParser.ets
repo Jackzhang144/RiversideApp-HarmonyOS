@@ -201,7 +201,11 @@ function inlineEmoji(tag: string): RichContentInlineFragment | null {
   return RichContentInlineFragment.emoji(token, url);
 }
 
-export function parsePlainTextInlineEmojis(text: string): Array<RichContentInlineFragment> {
+export function parsePlainTextInlineEmojis(
+  text: string,
+  resolveEmojiUrl: (name: string) => string =
+    (name: string): string => RIVERSIDE_URL_RESOLVER.reactionEmoji(name)
+): Array<RichContentInlineFragment> {
   if (!text.includes(':')) {
     return [];
   }
@@ -226,7 +230,11 @@ export function parsePlainTextInlineEmojis(text: string): Array<RichContentInlin
       fragments.push(RichContentInlineFragment.textFragment(text.substring(textStart, tokenStart)));
     }
     const name: string = token.substring(1, token.length - 1);
-    fragments.push(RichContentInlineFragment.emoji(token, RIVERSIDE_URL_RESOLVER.reactionEmoji(name)));
+    const resolvedUrl: string = resolveEmojiUrl(name).trim();
+    fragments.push(RichContentInlineFragment.emoji(
+      token,
+      resolvedUrl.length > 0 ? resolvedUrl : RIVERSIDE_URL_RESOLVER.reactionEmoji(name)
+    ));
     cursor = tokenEnd + 1;
     textStart = cursor;
   }

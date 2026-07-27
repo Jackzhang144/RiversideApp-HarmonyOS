@@ -1,4 +1,5 @@
 import { BrowseState, BrowseStateKind } from '../app/BrowseModels';
+import { ChatEmoji } from '../models/ChatModels';
 import { HomeChannel, homeChannelLabel } from '../models/DiscoveryModels';
 import { Category, Topic } from '../models/ForumModels';
 import { ForumCardPresentation } from './ForumCardPresentation';
@@ -8,6 +9,7 @@ import { ForumContentCard } from './ForumContentCard';
 export struct HomeBrowsePage {
   @Prop state: BrowseState<Topic> = BrowseState.initial<Topic>();
   @Prop categories: Array<Category> = [];
+  @Prop emojis: Array<ChatEmoji> = [];
   @Prop selectedChannel: HomeChannel = HomeChannel.LATEST_REPLIES;
   @Prop worldCupEntryEnabled: boolean = true;
   scroller: Scroller = new Scroller();
@@ -148,11 +150,11 @@ export struct HomeBrowsePage {
         ForEach(this.state.items, (topic: Topic) => {
           ListItem() {
             ForumContentCard({
-              presentation: ForumCardPresentation.topicPreview(topic, this.categories),
+              presentation: ForumCardPresentation.topicPreview(topic, this.categories, null, this.emojis),
               onOpenTopic: (): void => this.onOpenTopic(topic)
             })
           }
-        }, (topic: Topic): string => topic.id.toString())
+        }, (topic: Topic): string => `${topic.id}-emoji-${this.emojis.length}`)
         ListItem() {
           this.paginationFooter()
         }

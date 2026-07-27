@@ -1,4 +1,5 @@
 import { BrowseState, BrowseStateKind } from '../app/BrowseModels';
+import { ChatEmoji } from '../models/ChatModels';
 import { Category, Topic } from '../models/ForumModels';
 import { ForumCardPresentation } from './ForumCardPresentation';
 import { ForumContentCard } from './ForumContentCard';
@@ -8,6 +9,7 @@ export struct CategoryTopicsPage {
   scroller: Scroller = new Scroller();
   @Prop state: BrowseState<Topic> = BrowseState.initial<Topic>();
   @Prop categories: Array<Category> = [];
+  @Prop emojis: Array<ChatEmoji> = [];
   onRefresh: () => void = (): void => {};
   onLoadMore: () => void = (): void => {};
   onOpenTopic: (topic: Topic) => void = (_topic: Topic): void => {};
@@ -92,13 +94,13 @@ export struct CategoryTopicsPage {
         ForEach(this.state.items, (topic: Topic) => {
           ListItem() {
             ForumContentCard({
-              presentation: ForumCardPresentation.topicPreview(topic, this.categories),
+              presentation: ForumCardPresentation.topicPreview(topic, this.categories, null, this.emojis),
               onOpenTopic: (): void => {
                 this.onOpenTopic(topic);
               }
             })
           }
-        }, (topic: Topic): string => topic.id.toString())
+        }, (topic: Topic): string => `${topic.id}-emoji-${this.emojis.length}`)
         ListItem() {
           Column({ space: 8 }) {
             if (this.state.isLoadingMore) {

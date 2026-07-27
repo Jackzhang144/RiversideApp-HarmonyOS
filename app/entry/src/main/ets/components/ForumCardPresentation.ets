@@ -1,4 +1,5 @@
 import { Category, ForumPost, Topic, TopicDetail } from '../models/ForumModels';
+import { ChatEmoji, chatEmojiImageUrl } from '../models/ChatModels';
 import { formatLocalDateTime } from '../models/LocalTimeModels';
 import { RichContentInlineFragment } from '../models/RichContentBlocks';
 import { parsePlainTextInlineEmojis } from '../models/RichContentParser';
@@ -182,7 +183,8 @@ export class ForumCardPresentation {
   public static topicPreview(
     topic: Topic,
     categories: Array<Category>,
-    timezoneOffsetMinutes: number | null = null
+    timezoneOffsetMinutes: number | null = null,
+    emojis: Array<ChatEmoji> = []
   ): ForumCardPresentation {
     const categoryName: string = topicCategoryName(topic, categories);
     const authorBase: ForumCardAuthor = displayAuthor(topic.username, topic.avatarUrl);
@@ -210,7 +212,10 @@ export class ForumCardPresentation {
       '',
       `${topic.title}，作者 ${author.name}，${categoryName}${pinnedDescription}，` +
         `${replyCount} 条 Reply，${topic.viewCount} 浏览`,
-      parsePlainTextInlineEmojis(topic.excerpt)
+      parsePlainTextInlineEmojis(
+        topic.excerpt,
+        (name: string): string => chatEmojiImageUrl(emojis, name)
+      )
     );
   }
 

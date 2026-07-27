@@ -11,6 +11,7 @@ import {
   Topic,
   TopicDetail
 } from '../../../main/ets/models/ForumModels';
+import { ChatEmoji } from '../../../main/ets/models/ChatModels';
 import { RichContentInlineFragmentKind } from '../../../main/ets/models/RichContentBlocks';
 
 export default function forumCardPresentationTest(): void {
@@ -60,6 +61,35 @@ export default function forumCardPresentationTest(): void {
       expect(presentation.accessibilityText).assertEqual(
         '图书馆座位预约系统使用体验优化建议，作者 李同学，校内事务，置顶，23 条 Reply，1200 浏览'
       );
+    });
+
+    it('uses the server Emoji catalog in Topic preview excerpts', 0, () => {
+      const customUrl: string =
+        'https://river-side.cc/uploads/default/original/3X/4/7/476843deba396d55105f9783c48d78daa76cae4b.gif';
+      const topic: Topic = new Topic(
+        2726,
+        '自定义表情',
+        10,
+        1,
+        2,
+        0,
+        '感觉像上了贼山一样 :s56:',
+        '2026-07-11T14:32:00Z',
+        false,
+        '李同学',
+        ''
+      );
+
+      const presentation: ForumCardPresentation = ForumCardPresentation.topicPreview(
+        topic,
+        [],
+        480,
+        [new ChatEmoji('s56', customUrl, '洋葱头')]
+      );
+
+      expect(presentation.bodyInlineFragments.length).assertEqual(2);
+      expect(presentation.bodyInlineFragments[1].kind).assertEqual(RichContentInlineFragmentKind.EMOJI);
+      expect(presentation.bodyInlineFragments[1].imageUrl).assertEqual(customUrl);
     });
 
     it('maps a Topic starter with full text, Topic statistics, and a lightweight Topic Reply target', 0, () => {

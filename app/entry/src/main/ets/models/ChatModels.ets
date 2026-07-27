@@ -373,6 +373,13 @@ export class ChatEmoji {
   }
 }
 
+export function chatEmojiImageUrl(emojis: Array<ChatEmoji>, name: string): string {
+  const normalizedName: string = name.trim().replace(/^:+|:+$/g, '');
+  const emoji: ChatEmoji | null =
+    emojis.find((candidate: ChatEmoji): boolean => candidate.name === normalizedName) ?? null;
+  return emoji?.imageUrl() ?? '';
+}
+
 export class ChatSearchResult {
   public readonly message: ChatMessage;
   public readonly channel: ChatChannel;
