@@ -53,6 +53,7 @@ import { UserAvatar } from './UserAvatar';
 const CHAT_QUICK_REACTION_LIMIT: number = 5;
 const CHAT_MESSAGE_BUBBLE_MAX_WIDTH: number = 238;
 const CHAT_MESSAGE_CONTENT_MAX_WIDTH: number = 216;
+const CHAT_MESSAGE_TAP_MAX_DURATION_MS: number = 400;
 const CHAT_QUICK_REACTION_PREFERRED_NAMES: Array<string> = [
   'heart',
   '+1',
@@ -82,6 +83,8 @@ export struct ChatConversationPage {
   @State channelSettingsMessage: string = '';
   @State pinnedPanelActive: boolean = false;
   @State pinnedMessageSavingId: number = 0;
+  @State messageContextMenuVisible: boolean = false;
+  @State messageContextMenuId: number = 0;
   @State mentionUsers: Array<ComposerMentionUser> = [];
   @State mentionLoading: boolean = false;
   @State mentionMessage: string = '';
@@ -140,6 +143,7 @@ export struct ChatConversationPage {
   private visibleStartIndex: number = 0;
   private visibleEndIndex: number = -1;
   private viewportReady: boolean = false;
+  private messagePressStartedAt: number = 0;
   private pastBoundaryArmed: boolean = false;
   private futureBoundaryArmed: boolean = false;
   private pastLoadRequested: boolean = false;
@@ -506,6 +510,36 @@ export struct ChatConversationPage {
     const channel: ChatChannel | null = this.state.channel;
     if (channel !== null) {
       this.onCopyMessageLink(channel.id, channel.slug, message.id);
+    }
+  }
+
+  private openMessageContextMenu(messageId: number): void {
+    this.messageContextMenuId = messageId;
+    this.messageContextMenuVisible = true;
+  }
+
+  private trackMessageTouch(event: TouchEvent): void {
+    if (event.type === TouchType.Down) {
+      this.messagePressStartedAt = Date.now();
+    } else if (event.type === TouchType.Cancel) {
+      this.messagePressStartedAt = 0;
+    }
+  }
+
+  private openMessageContextMenuFromTap(messageId: number): void {
+    const pressDuration: number = this.messagePressStartedAt > 0
+      ? Date.now() - this.messagePressStartedAt
+      : 0;
+    this.messagePressStartedAt = 0;
+    if (pressDuration <= CHAT_MESSAGE_TAP_MAX_DURATION_MS) {
+      this.openMessageContextMenu(messageId);
+    }
+  }
+
+  private closeMessageContextMenu(messageId: number): void {
+    if (this.messageContextMenuId === messageId) {
+      this.messageContextMenuVisible = false;
+      this.messageContextMenuId = 0;
     }
   }
 
@@ -1325,6 +1359,9 @@ export struct ChatConversationPage {
     .fontColor(message.deleted ? $r('sys.color.font_tertiary') : $r('sys.color.font_primary'))
     .fontStyle(message.deleted ? FontStyle.Italic : FontStyle.Normal)
     .constraintSize({ maxWidth: CHAT_MESSAGE_CONTENT_MAX_WIDTH })
+    .copyOption(CopyOptions.LocalDevice)
+    .onTouch((event: TouchEvent): void => this.trackMessageTouch(event))
+    .onClick((): void => this.openMessageContextMenuFromTap(message.id), 8)
   }
 
   @Builder
@@ -1501,6 +1538,8 @@ export struct ChatConversationPage {
       width: message.username === this.currentUsername ? 0 : 1,
       color: $r('sys.color.comp_divider')
     })
+    .onTouch((event: TouchEvent): void => this.trackMessageTouch(event))
+    .onClick((): void => this.openMessageContextMenuFromTap(message.id), 8)
   }
 
   @Builder
@@ -1513,22 +1552,28 @@ export struct ChatConversationPage {
     }
     .constraintSize({ maxWidth: CHAT_MESSAGE_BUBBLE_MAX_WIDTH })
     .alignItems(message.username === this.currentUsername ? HorizontalAlign.End : HorizontalAlign.Start)
-    .accessibilityText(`${this.displayUsername(message)}：${message.displayText()}，长按显示消息操作`)
-  }
-
-  @Builder
-  private MessageContextPreview(message: ChatMessage): void {
-    Row({ space: 8 }) {
-      if (message.username !== this.currentUsername) {
-        this.AuthorAvatar(message, true)
+    .bindContextMenu(
+      this.messageContextMenuVisible && this.messageContextMenuId === message.id,
+      this.MessageContextMenu(message, this.messageContextCapabilities(message)),
+      {
+        preview: MenuPreviewMode.IMAGE,
+        previewBorderRadius: 0,
+        previewScaleMode: PreviewScaleMode.MAINTAIN,
+        previewAnimationOptions: {
+          scale: [0.98, 1.0],
+          hoverScale: [1.0, 1.02],
+          hoverScaleInterruption: true
+        },
+        placement: message.username === this.currentUsername ? Placement.TopRight : Placement.TopLeft,
+        layoutRegionMargin: { left: 12, right: 12, top: 16, bottom: 16 },
+        backgroundColor: Color.Transparent,
+        backgroundBlurStyle: BlurStyle.NONE,
+        borderRadius: 0,
+        mask: true,
+        aboutToDisappear: (): void => this.closeMessageContextMenu(message.id)
       }
-      this.MessageBubble(message, true)
-      if (message.username === this.currentUsername) {
-        this.AuthorAvatar(message, true)
-      }
-    }
-    .width('100%')
-    .alignItems(VerticalAlign.Top)
+    )
+    .accessibilityText(`${this.displayUsername(message)}：${message.displayText()}，点击显示消息操作，长按选择文本`)
   }
 
   @Builder
@@ -1545,27 +1590,7 @@ export struct ChatConversationPage {
       }
       .width('88%')
       .alignItems(VerticalAlign.Top)
-      .bindContextMenu(
-        this.MessageContextMenu(message, this.messageContextCapabilities(message)),
-        ResponseType.LongPress,
-        {
-          preview: groupStart ? MenuPreviewMode.IMAGE : this.MessageContextPreview(message),
-          previewBorderRadius: 0,
-          previewScaleMode: PreviewScaleMode.MAINTAIN,
-          previewAnimationOptions: {
-            scale: [0.98, 1.0],
-            hoverScale: [1.0, 1.02],
-            hoverScaleInterruption: true
-          },
-          placement: message.username === this.currentUsername ? Placement.TopRight : Placement.TopLeft,
-          layoutRegionMargin: { left: 12, right: 12, top: 16, bottom: 16 },
-          backgroundColor: Color.Transparent,
-          backgroundBlurStyle: BlurStyle.NONE,
-          borderRadius: 0,
-          mask: true,
-          hapticFeedbackMode: HapticFeedbackMode.ENABLED
-        }
-      )
+      .justifyContent(message.username === this.currentUsername ? FlexAlign.End : FlexAlign.Start)
     }
     .width('100%')
     .justifyContent(message.username === this.currentUsername ? FlexAlign.End : FlexAlign.Start)
