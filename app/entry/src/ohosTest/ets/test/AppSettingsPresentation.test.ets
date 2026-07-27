@@ -1,6 +1,7 @@
 import { describe, expect, it } from '@ohos/hypium';
 import {
   appThemePreferenceOptions,
+  appThemePreferenceOptionKey,
   AppThemePreferenceOption,
   appMaterialPreferenceFromIndex,
   appMaterialPreferenceIndex,
@@ -64,6 +65,18 @@ export default function appSettingsPresentationTest(): void {
         .assertEqual(ConfigurationConstant.ColorMode.COLOR_MODE_LIGHT);
       expect(appThemePlatformColorMode(AppThemeMode.DARK))
         .assertEqual(ConfigurationConstant.ColorMode.COLOR_MODE_DARK);
+    });
+
+    it('rebuilds theme rows when their selected state changes', 0, () => {
+      const lightOptions: Array<AppThemePreferenceOption> =
+        appThemePreferenceOptions(AppThemeMode.LIGHT);
+      const darkOptions: Array<AppThemePreferenceOption> =
+        appThemePreferenceOptions(AppThemeMode.DARK);
+
+      expect(appThemePreferenceOptionKey(lightOptions[1]) === appThemePreferenceOptionKey(darkOptions[1]))
+        .assertFalse();
+      expect(appThemePreferenceOptionKey(lightOptions[2]) === appThemePreferenceOptionKey(darkOptions[2]))
+        .assertFalse();
     });
 
     it('maps every official HDS material policy onto one segmented control', 0, () => {

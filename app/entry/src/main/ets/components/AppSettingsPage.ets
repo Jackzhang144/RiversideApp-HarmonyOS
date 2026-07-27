@@ -7,6 +7,7 @@ import {
   appMaterialPreferenceOptions,
   AppMaterialPreferenceOption,
   appThemePreferenceOptions,
+  appThemePreferenceOptionKey,
   AppThemePreferenceOption,
   appSettingsHomeChannelOptions,
   HomeChannelPreferenceOption
@@ -270,7 +271,7 @@ struct AppMaterialLevelPicker {
 export struct AppSettingsPage {
   scroller: Scroller = new Scroller();
   @Prop selectedHomeChannel: HomeChannel = HomeChannel.LATEST_REPLIES;
-  @StorageLink('riverside_theme_mode')
+  @State
   selectedThemeMode: AppThemeMode = AppThemeMode.SYSTEM;
   @Prop immersiveBrowsingEnabled: boolean = true;
   @Prop confirmExternalLinks: boolean = true;
@@ -454,7 +455,7 @@ export struct AppSettingsPage {
                 Divider().margin({ left: 16 }).color($r('sys.color.comp_divider'))
               }
             },
-            (option: AppThemePreferenceOption): string => option.mode
+            appThemePreferenceOptionKey
           )
         }
         .width('100%')

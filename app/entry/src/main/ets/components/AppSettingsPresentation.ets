@@ -26,6 +26,10 @@ export function appThemePreferenceOptions(selectedMode: AppThemeMode): Array<App
   ];
 }
 
+export function appThemePreferenceOptionKey(option: AppThemePreferenceOption): string {
+  return `${option.mode}:${option.selected}`;
+}
+
 export function appMaterialPreferenceLabel(preference: AppMaterialPreference): string {
   if (preference === AppMaterialPreference.SYSTEM) {
     return '自适应';

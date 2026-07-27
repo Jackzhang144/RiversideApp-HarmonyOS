@@ -736,9 +736,12 @@ struct Index {
     }
     try {
       this.appThemeMode = mode;
-      await this.appThemeSettingsStore?.write(mode);
+      await new Promise<void>((resolve: () => void): void => {
+        setTimeout(resolve, 0);
+      });
       abilityContext.getApplicationContext().setColorMode(appThemePlatformColorMode(mode));
       await this.applySystemBarTheme(abilityContext, mode);
+      await this.appThemeSettingsStore?.write(mode);
     } catch (_) {
       this.showAuthenticationMessage('无法切换外观', '系统拒绝了外观设置');
     }
@@ -2743,6 +2746,7 @@ struct Index {
         AppSettingsPage({
           scroller: this.settingsScroller,
           selectedHomeChannel: this.selectedHomeChannel,
+          selectedThemeMode: this.appThemeMode,
           immersiveBrowsingEnabled: this.immersiveBrowsingEnabled,
           confirmExternalLinks: this.confirmExternalLinks,
           materialPreference: this.materialPreference,
