@@ -21,6 +21,8 @@ import {
   systemActionLabel,
   topicProgressPreview,
   TopicProgressPreview,
+  TopicProgressRailSide,
+  topicProgressRailSideForHoldingStatus,
   topicProgressRatio,
   topicProgressTargetPostNumber,
   topicPostRenderKey,
@@ -117,6 +119,19 @@ export default function topicReadingPresentationTest(): void {
       expect(topicProgressTargetPostNumber(100, 200, 101)).assertEqual(51);
       expect(topicProgressTargetPostNumber(200, 200, 101)).assertEqual(101);
       expect(topicProgressTargetPostNumber(-20, 200, 101)).assertEqual(1);
+    });
+
+    it('moves the reading rail only for an unambiguous holding hand', 0, () => {
+      expect(topicProgressRailSideForHoldingStatus(1, TopicProgressRailSide.RIGHT))
+        .assertEqual(TopicProgressRailSide.LEFT);
+      expect(topicProgressRailSideForHoldingStatus(2, TopicProgressRailSide.LEFT))
+        .assertEqual(TopicProgressRailSide.RIGHT);
+      expect(topicProgressRailSideForHoldingStatus(0, TopicProgressRailSide.LEFT))
+        .assertEqual(TopicProgressRailSide.LEFT);
+      expect(topicProgressRailSideForHoldingStatus(3, TopicProgressRailSide.RIGHT))
+        .assertEqual(TopicProgressRailSide.RIGHT);
+      expect(topicProgressRailSideForHoldingStatus(16, TopicProgressRailSide.LEFT))
+        .assertEqual(TopicProgressRailSide.LEFT);
     });
 
     it('shows an exact loaded Post summary and an honest unloaded fallback', 0, () => {

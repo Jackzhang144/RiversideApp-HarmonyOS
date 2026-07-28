@@ -1170,6 +1170,7 @@ export struct TopicDetailPage {
     .padding({ left: 12, right: 12, top: 10 })
     .backgroundColor($r('sys.color.background_secondary'))
     .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
+    .scrollBar(BarState.Off)
     .onReachEnd(this.onLoadMore)
     .bindSheet($$this.replySheetVisible, this.ReplyComposerSheet(), {
       detents: [SheetSize.MEDIUM, SheetSize.LARGE],
@@ -1258,7 +1259,8 @@ export struct TopicDetailPage {
           this.jumpToPostNumber(this.state.postJumpState.targetPostNumber, true);
         }
       })
-        .margin({ right: 6 })
+        .width('100%')
+        .height('100%')
         .zIndex(20)
         .hitTestBehavior(HitTestMode.Transparent)
     }

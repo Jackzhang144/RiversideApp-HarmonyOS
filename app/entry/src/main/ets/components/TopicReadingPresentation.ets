@@ -111,6 +111,24 @@ export function topicProgressTargetPostNumber(
   return Math.round(1 + ratio * (highestPostNumber - 1));
 }
 
+export enum TopicProgressRailSide {
+  LEFT = 'left',
+  RIGHT = 'right'
+}
+
+export function topicProgressRailSideForHoldingStatus(
+  holdingHandStatus: number,
+  currentSide: TopicProgressRailSide
+): TopicProgressRailSide {
+  if (holdingHandStatus === 1) {
+    return TopicProgressRailSide.LEFT;
+  }
+  if (holdingHandStatus === 2) {
+    return TopicProgressRailSide.RIGHT;
+  }
+  return currentSide;
+}
+
 export class TopicProgressPreview {
   public readonly postNumber: number;
   public readonly authorLabel: string;
