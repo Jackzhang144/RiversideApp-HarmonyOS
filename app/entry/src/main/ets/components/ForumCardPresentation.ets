@@ -104,12 +104,16 @@ function displayTimestamp(timestamp: string, timezoneOffsetMinutes: number | nul
 }
 
 function topicCategoryName(topic: Topic, categories: Array<Category>): string {
+  return categoryName(topic.categoryId, categories);
+}
+
+function categoryName(categoryId: number, categories: Array<Category>): string {
   for (const category of categories) {
-    if (category.id === topic.categoryId) {
+    if (category.id === categoryId) {
       return category.name;
     }
   }
-  return topic.categoryId > 0 ? `Category #${topic.categoryId}` : 'Category';
+  return categoryId > 0 ? `Category #${categoryId}` : 'Category';
 }
 
 function postAuthor(post: ForumPost, timezoneOffsetMinutes: number | null = null): ForumCardAuthor {
@@ -224,9 +228,11 @@ export class ForumCardPresentation {
     post: ForumPost | null,
     replyDraft: string,
     canReply: boolean = detail.canReply,
-    timezoneOffsetMinutes: number | null = null
+    timezoneOffsetMinutes: number | null = null,
+    categories: Array<Category> = []
   ): ForumCardPresentation {
     let author: ForumCardAuthor | null = null;
+    const detailCategoryName: string = categoryName(detail.categoryId, categories);
     const replyCount: number = Math.max(detail.postCount - 1, 0);
     const restrictionText: string = canReply
       ? ''
@@ -239,12 +245,14 @@ export class ForumCardPresentation {
       )
       : null;
     const restrictionDescription: string = restrictionText.length > 0 ? `，${restrictionText}` : '';
-    let accessibilityText: string = `${detail.title}，${replyCount} 条 Reply，${detail.viewCount} 浏览，` +
+    let accessibilityText: string = `${detail.title}，${detailCategoryName}，${replyCount} 条 Reply，` +
+      `${detail.viewCount} 浏览，` +
       `${detail.likeCount} 赞${restrictionDescription}`;
     if (post !== null) {
       const starterAuthor: ForumCardAuthor = postAuthor(post, timezoneOffsetMinutes);
       author = starterAuthor;
-      accessibilityText = `${detail.title}，${starterAuthor.name} 的第 ${post.postNumber} 条 Post，` +
+      accessibilityText = `${detail.title}，${detailCategoryName}，` +
+        `${starterAuthor.name} 的第 ${post.postNumber} 条 Post，` +
         `${replyCount} 条 Reply，${detail.viewCount} 浏览，${detail.likeCount} 赞${restrictionDescription}`;
     }
     return new ForumCardPresentation(
@@ -252,7 +260,7 @@ export class ForumCardPresentation {
       author,
       detail.title,
       post?.displayText ?? '',
-      post === null ? null : new ForumCardBadge(ForumCardBadgeKind.FLOOR, `#${post.postNumber}`),
+      new ForumCardBadge(ForumCardBadgeKind.CATEGORY, detailCategoryName),
       null,
       [
         new ForumCardStatistic(ForumCardStatisticKind.REPLIES, replyCount),

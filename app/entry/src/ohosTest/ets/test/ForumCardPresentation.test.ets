@@ -1,6 +1,7 @@
 import { describe, expect, it } from '@ohos/hypium';
 import {
   ForumCardMode,
+  ForumCardBadgeKind,
   ForumCardPresentation,
   ForumCardStatisticKind
 } from '../../../main/ets/components/ForumCardPresentation';
@@ -9,7 +10,8 @@ import {
   ForumPost,
   ForumPostMetadata,
   Topic,
-  TopicDetail
+  TopicDetail,
+  TopicDetailMetadata
 } from '../../../main/ets/models/ForumModels';
 import { ChatEmoji } from '../../../main/ets/models/ChatModels';
 import { RichContentInlineFragmentKind } from '../../../main/ets/models/RichContentBlocks';
@@ -114,7 +116,9 @@ export default function forumCardPresentationTest(): void {
         false,
         true,
         [100],
-        [starter]
+        [starter],
+        24,
+        new TopicDetailMetadata(10)
       );
 
       const presentation: ForumCardPresentation = ForumCardPresentation.topicStarter(
@@ -122,7 +126,8 @@ export default function forumCardPresentationTest(): void {
         starter,
         '未提交草稿',
         true,
-        480
+        480,
+        [new Category(10, '校内事务', '00AA88', '', 1, null, [])]
       );
 
       expect(presentation.mode).assertEqual(ForumCardMode.TOPIC_STARTER);
@@ -131,7 +136,8 @@ export default function forumCardPresentationTest(): void {
       );
       expect(presentation.title).assertEqual('图书馆座位预约系统使用体验优化建议');
       expect(presentation.body).assertEqual('完整主楼正文');
-      expect(presentation.headerBadge?.label).assertEqual('#1');
+      expect(presentation.headerBadge?.kind).assertEqual(ForumCardBadgeKind.CATEGORY);
+      expect(presentation.headerBadge?.label).assertEqual('校内事务');
       expect(presentation.footerBadge).assertNull();
       expect(presentation.statistics.length).assertEqual(3);
       expect(presentation.statistics[0].kind).assertEqual(ForumCardStatisticKind.REPLIES);
@@ -143,7 +149,8 @@ export default function forumCardPresentationTest(): void {
       expect(presentation.replyAction?.accessibilityText).assertEqual('回复当前 Topic');
       expect(presentation.restrictionText).assertEqual('');
       expect(presentation.accessibilityText).assertEqual(
-        '图书馆座位预约系统使用体验优化建议，李同学 的第 1 条 Post，23 条 Reply，1200 浏览，8 赞'
+        '图书馆座位预约系统使用体验优化建议，校内事务，李同学 的第 1 条 Post，' +
+          '23 条 Reply，1200 浏览，8 赞'
       );
     });
 
@@ -160,7 +167,8 @@ export default function forumCardPresentationTest(): void {
       expect(presentation.replyAction).assertNull();
       expect(presentation.restrictionText).assertEqual('此 Topic 已归档，不可 Reply');
       expect(presentation.accessibilityText).assertEqual(
-        '已归档 Topic，李同学 的第 1 条 Post，0 条 Reply，10 浏览，0 赞，此 Topic 已归档，不可 Reply'
+        '已归档 Topic，Category，李同学 的第 1 条 Post，0 条 Reply，10 浏览，0 赞，' +
+          '此 Topic 已归档，不可 Reply'
       );
     });
 

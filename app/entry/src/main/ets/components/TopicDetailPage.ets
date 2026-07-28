@@ -27,7 +27,6 @@ import { RepositoryResult } from '../core/RepositoryResult';
 import { ComposerMentionUser } from '../models/ComposerMentionModels';
 import { ForumPollVote } from '../models/PollModels';
 import {
-  categoryLabel,
   PostFlagOption,
   postFlagOptions,
   reactionEmojiUrl,
@@ -500,7 +499,14 @@ export struct TopicDetailPage {
   private TopicStarter(detail: TopicDetail, post: ForumPost | null): void {
     Column({ space: 8 }) {
       ForumContentCard({
-        presentation: ForumCardPresentation.topicStarter(detail, post, this.replyState.draft, this.canReplyHere()),
+        presentation: ForumCardPresentation.topicStarter(
+          detail,
+          post,
+          this.replyState.draft,
+          this.canReplyHere(),
+          null,
+          this.categories
+        ),
         richCooked: post?.cooked ?? '',
         richRaw: post?.raw ?? '',
         authorActionAvailable: true,
@@ -536,29 +542,6 @@ export struct TopicDetailPage {
       })
     }
     .width('100%')
-  }
-
-  @Builder
-  private TopicMetadata(detail: TopicDetail): void {
-    Row({ space: 8 }) {
-      Text(categoryLabel(detail.categoryId, this.categories))
-        .fontSize(12)
-        .fontColor($r('app.color.text_link'))
-        .padding({ left: 9, right: 9, top: 5, bottom: 5 })
-        .backgroundColor($r('sys.color.background_secondary'))
-        .borderRadius($r('app.float.card_corner_radius'))
-      if (detail.authorUsername.length > 0) {
-        Text(`作者 ${detail.authorUsername}`)
-          .fontSize(12)
-          .fontColor($r('sys.color.font_secondary'))
-      }
-      Blank()
-      Text(`已读 #${this.lastReadPostNumber}`)
-        .fontSize(12)
-        .fontColor($r('sys.color.font_secondary'))
-    }
-    .width('100%')
-    .padding({ left: 4, right: 4 })
   }
 
   @Builder
@@ -1129,9 +1112,6 @@ export struct TopicDetailPage {
             }
           }
         )
-        ListItem() {
-          this.TopicMetadata(this.state.detail)
-        }
         ListItem() {
           this.ReadProgressFeedback()
         }
