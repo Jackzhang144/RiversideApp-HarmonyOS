@@ -97,11 +97,19 @@ export struct ForumContentCard {
         avatarUrl: author.avatarUrl,
         displayName: author.name,
         avatarSize: 36,
-        avatarAccessibilityText: `${author.name} 的头像`,
+        interactive: this.authorActionAvailable && author.username.length > 0,
+        avatarAccessibilityText: this.authorActionAvailable && author.username.length > 0
+          ? `查看用户 ${author.username}`
+          : `${author.name} 的头像`,
         flairUrl: author.flairUrl,
         flairName: author.flairName,
         flairBackgroundColor: author.flairBackgroundColor,
-        flairColor: author.flairColor
+        flairColor: author.flairColor,
+        onActivate: (): void => {
+          if (this.authorActionAvailable && author.username.length > 0) {
+            this.onOpenAuthor(author.username);
+          }
+        }
       })
       Column({ space: 2 }) {
         Text(author.name)
@@ -121,15 +129,6 @@ export struct ForumContentCard {
       }
     }
     .width('100%')
-    .enabled(this.authorActionAvailable && author.username.length > 0)
-    .onClick((): void => {
-      if (this.authorActionAvailable && author.username.length > 0) {
-        this.onOpenAuthor(author.username);
-      }
-    })
-    .accessibilityText(
-      this.authorActionAvailable && author.username.length > 0 ? `查看用户 ${author.username}` : author.name
-    )
   }
 
   @Builder
