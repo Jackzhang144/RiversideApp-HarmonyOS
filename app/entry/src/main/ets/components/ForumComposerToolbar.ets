@@ -247,7 +247,7 @@ export struct ForumComposerToolbar {
       }
       .width('100%')
       .height(350)
-      .scrollBar(BarState.Auto)
+      .scrollBar(BarState.Off)
       .edgeEffect(EdgeEffect.Spring)
     }
     .width(238)
@@ -307,10 +307,6 @@ export struct ForumComposerToolbar {
     }
     .width('100%')
     .height(48)
-    .padding({ left: 2 })
-    .backgroundColor($r('sys.color.comp_background_primary'))
-    .border({ width: 1, color: $r('sys.color.comp_divider') })
-    .borderRadius(24)
-    .shadow(ShadowStyle.OUTER_DEFAULT_XS)
+    .backgroundColor(Color.Transparent)
   }
 }

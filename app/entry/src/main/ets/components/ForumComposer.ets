@@ -22,6 +22,9 @@ import { ChatEmoji } from '../models/ChatModels';
 import { Category } from '../models/ForumModels';
 import { ForumComposerToolbar } from './ForumComposerToolbar';
 
+const COMPACT_REPLY_BODY_HEIGHT: number = 104;
+const EXPANDED_BODY_HEIGHT: number = 240;
+
 @Component
 export struct ForumComposer {
   scroller: Scroller = new Scroller();
@@ -39,6 +42,7 @@ export struct ForumComposer {
   @Prop emojiLoading: boolean = false;
   @State emojiPickerVisible: boolean = false;
   @State emojiQuery: string = '';
+  @State private replyBodyExpanded: boolean = false;
   onTitleChange: (title: string) => void = (_title: string): void => {};
   onCategoryChange: (categoryId: number) => void = (_categoryId: number): void => {};
   onBodyChange: (body: string) => void = (_body: string): void => {};
@@ -155,6 +159,20 @@ export struct ForumComposer {
       (category: Category): boolean => category.id === this.selectedCategoryId
     );
     return selected?.name ?? '请选择分类';
+  }
+
+  private bodyEditorHeight(): number {
+    if (this.presentation.mode !== ForumComposerMode.REPLY) {
+      return EXPANDED_BODY_HEIGHT;
+    }
+    return this.replyBodyExpanded ? EXPANDED_BODY_HEIGHT : COMPACT_REPLY_BODY_HEIGHT;
+  }
+
+  private bodyLabel(): string {
+    return this.presentation.mode === ForumComposerMode.REPLY ||
+      this.presentation.mode === ForumComposerMode.EDIT_POST
+      ? '回复内容'
+      : '正文';
   }
 
   @Builder
@@ -531,13 +549,45 @@ export struct ForumComposer {
           }
           .width('100%')
         }
-        Text(this.presentation.mode === ForumComposerMode.REPLY ||
-          this.presentation.mode === ForumComposerMode.EDIT_POST
-          ? '回复内容'
-          : '正文')
-          .fontSize(12)
-          .fontColor($r('sys.color.font_secondary'))
-          .width('100%')
+        Row({ space: 6 }) {
+          Text(this.bodyLabel())
+            .fontSize(12)
+            .fontColor($r('sys.color.font_secondary'))
+            .layoutWeight(1)
+          if (this.presentation.mode === ForumComposerMode.REPLY) {
+            Button() {
+              SymbolGlyph(this.replyBodyExpanded
+                ? $r('sys.symbol.arrow_down_right_and_arrow_up_left')
+                : $r('sys.symbol.arrow_up_left_and_arrow_down_right'))
+                .fontSize(17)
+                .fontColor([$r('sys.color.font_secondary')])
+            }
+            .width(32)
+            .height(32)
+            .borderRadius(16)
+            .backgroundColor(Color.Transparent)
+            .onClick((): void => {
+              this.replyBodyExpanded = !this.replyBodyExpanded;
+            })
+            .accessibilityText(this.replyBodyExpanded ? '收起回复编辑框' : '展开回复编辑框')
+            if (this.presentation.bodyDraft.trim().length > 0) {
+              Button(this.presentation.submitLabel(), { type: ButtonType.Normal })
+                .height(32)
+                .fontSize(12)
+                .padding({ left: 14, right: 14 })
+                .enabled(this.presentation.canSubmit())
+                .backgroundColor($r('app.color.brand_primary'))
+                .fontColor($r('app.color.on_accent'))
+                .onClick(this.onSubmit)
+                .accessibilityText(this.presentation.status === ForumComposerStatus.ERROR
+                  ? '再次确认后显式重试发布'
+                  : this.presentation.submitLabel())
+            }
+          }
+        }
+        .width('100%')
+        .height(32)
+        .alignItems(VerticalAlign.Center)
         this.ComposerTools()
         if (this.emojiPickerVisible) {
           this.EmojiPicker()
@@ -547,11 +597,12 @@ export struct ForumComposer {
           placeholder: this.presentation.bodyPlaceholder,
           controller: this.bodyController
         })
-          .height(240)
+          .height(this.bodyEditorHeight())
           .enabled(this.presentation.canEdit())
           .backgroundColor($r('sys.color.comp_background_primary'))
           .border({ width: 1, color: $r('sys.color.comp_divider') })
           .borderRadius($r('app.float.card_corner_radius'))
+          .animation({ duration: 180, curve: Curve.EaseInOut })
           .onChange((value: string): void => this.handleBodyChange(value))
           .onTextSelectionChange((selectionStart: number, selectionEnd: number): void => {
             this.selectionStart = selectionStart;
