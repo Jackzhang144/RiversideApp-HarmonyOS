@@ -559,6 +559,7 @@ export class TopicDetailMetadata {
   public readonly lastReadPostNumber: number;
   public readonly notificationLevel: TopicNotificationLevel;
   public readonly notificationReasonId: number | null;
+  public readonly messageBusLastId: number;
 
   public constructor(
     categoryId: number = 0,
@@ -568,7 +569,8 @@ export class TopicDetailMetadata {
     suggestedTopics: Array<Topic> = [],
     lastReadPostNumber: number = 0,
     notificationLevel: TopicNotificationLevel = TopicNotificationLevel.REGULAR,
-    notificationReasonId: number | null = null
+    notificationReasonId: number | null = null,
+    messageBusLastId: number = -1
   ) {
     this.categoryId = categoryId;
     this.canEdit = canEdit;
@@ -578,6 +580,7 @@ export class TopicDetailMetadata {
     this.lastReadPostNumber = Math.max(0, lastReadPostNumber);
     this.notificationLevel = notificationLevel;
     this.notificationReasonId = notificationReasonId;
+    this.messageBusLastId = Number.isSafeInteger(messageBusLastId) ? messageBusLastId : -1;
   }
 }
 
@@ -611,6 +614,7 @@ export class TopicDetail {
   public readonly lastReadPostNumber: number;
   public readonly notificationLevel: TopicNotificationLevel;
   public readonly notificationReasonId: number | null;
+  public readonly messageBusLastId: number;
 
   public constructor(
     id: number,
@@ -644,6 +648,7 @@ export class TopicDetail {
     this.lastReadPostNumber = metadata.lastReadPostNumber;
     this.notificationLevel = metadata.notificationLevel;
     this.notificationReasonId = metadata.notificationReasonId;
+    this.messageBusLastId = metadata.messageBusLastId;
     let observedHighestPostNumber: number = Math.max(postCount, highestPostNumber);
     for (const post of posts) {
       observedHighestPostNumber = Math.max(observedHighestPostNumber, post.postNumber);
@@ -672,7 +677,8 @@ export class TopicDetail {
         suggestedTopics,
         this.lastReadPostNumber,
         this.notificationLevel,
-        this.notificationReasonId
+        this.notificationReasonId,
+        this.messageBusLastId
       )
     );
   }
@@ -702,7 +708,8 @@ export class TopicDetail {
         this.suggestedTopics,
         this.lastReadPostNumber,
         this.notificationLevel,
-        this.notificationReasonId
+        this.notificationReasonId,
+        this.messageBusLastId
       )
     );
   }
@@ -728,7 +735,8 @@ export class TopicDetail {
         this.suggestedTopics,
         lastReadPostNumber,
         this.notificationLevel,
-        this.notificationReasonId
+        this.notificationReasonId,
+        this.messageBusLastId
       )
     );
   }
@@ -754,7 +762,8 @@ export class TopicDetail {
         this.suggestedTopics,
         this.lastReadPostNumber,
         notificationLevel,
-        null
+        null,
+        this.messageBusLastId
       )
     );
   }
@@ -788,7 +797,57 @@ export class TopicDetail {
         this.suggestedTopics,
         this.lastReadPostNumber,
         this.notificationLevel,
-        this.notificationReasonId
+        this.notificationReasonId,
+        this.messageBusLastId
+      )
+    );
+  }
+
+  public withMergedPosts(updatedPosts: Array<ForumPost>): TopicDetail {
+    const mergedPosts: Array<ForumPost> = this.posts.slice();
+    const mergedPostIds: Array<number> = this.postIds.slice();
+    for (const updatedPost of updatedPosts) {
+      const existingIndex: number = mergedPosts.findIndex((post: ForumPost): boolean => {
+        return post.id === updatedPost.id;
+      });
+      if (existingIndex >= 0) {
+        mergedPosts[existingIndex] = updatedPost;
+      } else {
+        mergedPosts.push(updatedPost);
+      }
+      if (!mergedPostIds.includes(updatedPost.id)) {
+        mergedPostIds.push(updatedPost.id);
+      }
+    }
+    mergedPosts.sort((left: ForumPost, right: ForumPost): number => {
+      return left.postNumber - right.postNumber;
+    });
+    let highestPostNumber: number = this.highestPostNumber;
+    for (const post of updatedPosts) {
+      highestPostNumber = Math.max(highestPostNumber, post.postNumber);
+    }
+    return new TopicDetail(
+      this.id,
+      this.title,
+      this.viewCount,
+      Math.max(this.postCount, highestPostNumber),
+      this.likeCount,
+      this.closed,
+      this.archived,
+      this.canReply,
+      mergedPostIds,
+      mergedPosts,
+      highestPostNumber,
+      new TopicDetailMetadata(
+        this.categoryId,
+        this.canEdit,
+        this.authorUsername,
+        this.validReactions,
+        this.suggestedTopics,
+        this.lastReadPostNumber,
+        this.notificationLevel,
+        this.notificationReasonId,
+        this.messageBusLastId
       )
     );
   }

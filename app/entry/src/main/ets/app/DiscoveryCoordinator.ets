@@ -152,6 +152,49 @@ export class DiscoveryCoordinator {
     this.homePage = 0;
   }
 
+  public async mergeLiveHomeTopics(topicIds: Array<number>): Promise<boolean> {
+    const state: BrowseState<Topic> = this.homeState;
+    if (state.kind !== BrowseStateKind.CONTENT && state.kind !== BrowseStateKind.EMPTY) {
+      return false;
+    }
+    const requestVersion: number = this.homeRequestVersion;
+    const channel: HomeChannel = this.selectedHomeChannel;
+    const result: RepositoryResult<Array<Topic>> =
+      await this.repository.loadHomeTopicsByIds(channel, topicIds);
+    if (requestVersion !== this.homeRequestVersion || channel !== this.selectedHomeChannel) {
+      return false;
+    }
+    if (!result.isSuccess() || result.data === null) {
+      await this.applyAuthenticationFailure(result.isUnauthorized());
+      return false;
+    }
+    const updatedIds: Set<number> = new Set<number>();
+    for (const topic of result.data) {
+      updatedIds.add(topic.id);
+    }
+    const remaining: Array<Topic> = state.items.filter((topic: Topic): boolean => {
+      return !updatedIds.has(topic.id);
+    });
+    const merged: Array<Topic> = result.data.concat(remaining);
+    this.homeState = merged.length === 0
+      ? BrowseState.empty<Topic>()
+      : BrowseState.content<Topic>(merged, false, '', state.hasMore);
+    return true;
+  }
+
+  public removeLiveHomeTopic(topicId: number): void {
+    const state: BrowseState<Topic> = this.homeState;
+    if (state.kind !== BrowseStateKind.CONTENT) {
+      return;
+    }
+    const remaining: Array<Topic> = state.items.filter((topic: Topic): boolean => {
+      return topic.id !== topicId;
+    });
+    this.homeState = remaining.length === 0
+      ? BrowseState.empty<Topic>()
+      : BrowseState.content<Topic>(remaining, false, '', state.hasMore);
+  }
+
   public async loadMoreHome(): Promise<void> {
     const state: BrowseState<Topic> = this.homeState;
     if (state.kind !== BrowseStateKind.CONTENT || !state.hasMore || state.isLoadingMore) {

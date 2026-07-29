@@ -377,7 +377,8 @@ export class TopicResponseParser {
         decodeSuggestedTopics(envelope),
         numberOrZero(envelope.number('last_read_post_number')),
         topicNotificationLevelFromId(details?.number('notification_level') ?? null),
-        details?.number('notifications_reason_id') ?? null
+        details?.number('notifications_reason_id') ?? null,
+        envelope.number('message_bus_last_id') ?? -1
       )
     );
     return RepositoryResult.success<TopicDetail>(detail);

@@ -480,6 +480,128 @@ export class AppShellModel {
     }
   }
 
+  public canAppendLiveTopicPosts(): boolean {
+    return this.topicState.detail !== null &&
+      this.nextPostIds.length === 0 &&
+      !this.topicState.isLoadingMore &&
+      !this.topicState.isLoadingPrevious &&
+      !this.topicState.isRefreshing &&
+      (this.topicState.kind === TopicReadStateKind.CONTENT ||
+        this.topicState.kind === TopicReadStateKind.EMPTY);
+  }
+
+  public async applyLiveTopicPosts(postIds: Array<number>): Promise<Array<number>> {
+    const detail: TopicDetail | null = this.topicState.detail;
+    if (detail === null || postIds.length === 0 || !this.canAppendLiveTopicPosts()) {
+      return [];
+    }
+    const normalizedPostIds: Array<number> = postIds.filter((postId: number): boolean => {
+      return Number.isSafeInteger(postId) && postId > 0;
+    });
+    if (normalizedPostIds.length === 0) {
+      return [];
+    }
+    const requestVersion: number = this.topicRequestVersion;
+    const result: RepositoryResult<TopicPostBatch> =
+      await this.repository.loadTopicPosts(detail.id, normalizedPostIds);
+    if (
+      requestVersion !== this.topicRequestVersion ||
+      this.topicState.topicId !== detail.id ||
+      !result.isSuccess() ||
+      result.data === null
+    ) {
+      return [];
+    }
+    const existingPostIds: Set<number> = new Set<number>();
+    for (const post of this.topicState.posts) {
+      existingPostIds.add(post.id);
+    }
+    const addedPostNumbers: Array<number> = [];
+    for (const post of result.data.posts) {
+      if (!existingPostIds.has(post.id)) {
+        addedPostNumbers.push(post.postNumber);
+      }
+    }
+    const updatedDetail: TopicDetail = detail.withMergedPosts(result.data.posts);
+    const updatedPosts: Array<ForumPost> = uniquePosts(this.topicState.posts.concat(result.data.posts));
+    const orderedPosts: Array<ForumPost> = updatedPosts.sort(
+      (left: ForumPost, right: ForumPost): number => left.postNumber - right.postNumber
+    );
+    this.topicState = TopicReadState.withDetailAndPosts(
+      this.topicState,
+      updatedDetail,
+      orderedPosts
+    );
+    return addedPostNumbers;
+  }
+
+  public async reconcileLiveTopicPost(postId: number): Promise<boolean> {
+    const detail: TopicDetail | null = this.topicState.detail;
+    if (detail === null || !Number.isSafeInteger(postId) || postId <= 0) {
+      return false;
+    }
+    const visible: boolean = this.topicState.posts.some((post: ForumPost): boolean => {
+      return post.id === postId;
+    });
+    if (!visible) {
+      return false;
+    }
+    const requestVersion: number = this.topicRequestVersion;
+    const result: RepositoryResult<TopicPostBatch> =
+      await this.repository.loadTopicPosts(detail.id, [postId]);
+    if (
+      requestVersion !== this.topicRequestVersion ||
+      this.topicState.topicId !== detail.id ||
+      !result.isSuccess() ||
+      result.data === null ||
+      result.data.posts.length === 0
+    ) {
+      return false;
+    }
+    const serverPost: ForumPost = result.data.posts[0];
+    const updatedDetail: TopicDetail = detail.withMergedPosts([serverPost]);
+    this.topicState = TopicReadState.withDetailAndPosts(
+      this.topicState,
+      updatedDetail,
+      replacePost(this.topicState.posts, serverPost)
+    );
+    return true;
+  }
+
+  public removeLiveTopicPost(postId: number): boolean {
+    const detail: TopicDetail | null = this.topicState.detail;
+    if (detail === null || !Number.isSafeInteger(postId) || postId <= 0) {
+      return false;
+    }
+    const remainingPosts: Array<ForumPost> = this.topicState.posts.filter(
+      (post: ForumPost): boolean => post.id !== postId
+    );
+    if (remainingPosts.length === this.topicState.posts.length) {
+      return false;
+    }
+    this.topicState = TopicReadState.withDetailAndPosts(
+      this.topicState,
+      detail.withoutPost(postId),
+      remainingPosts
+    );
+    return true;
+  }
+
+  public focusLoadedTopicPost(postNumber: number): boolean {
+    const visible: boolean = this.topicState.posts.some((post: ForumPost): boolean => {
+      return post.postNumber === postNumber;
+    });
+    if (!visible) {
+      return false;
+    }
+    this.selectedTopicPostNumber = postNumber;
+    this.topicState = TopicReadState.withPostJump(
+      this.topicState,
+      TopicPostJumpState.ready(postNumber)
+    );
+    return true;
+  }
+
   public async loadPreviousPosts(): Promise<void> {
     const detail: TopicDetail | null = this.topicState.detail;
     if (

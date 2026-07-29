@@ -13,6 +13,7 @@ import {
   BilibiliShortLinkResolver,
   RcpBilibiliRedirectReader
 } from '../network/BilibiliShortLinkResolver';
+import { DiscourseMessageBusClient } from '../network/DiscourseMessageBus';
 import { NetworkStatusMonitor, SystemNetworkStatusMonitor } from '../network/NetworkStatusMonitor';
 import { DiscourseMediaTransport } from '../network/ForumMediaTransport';
 import { DiscourseChatRepository } from '../repositories/DiscourseChatRepository';
@@ -55,6 +56,7 @@ export class AppDependencyGraph {
   public readonly cacheManager: AppCacheManager;
   public readonly presenceHeartbeat: PresenceHeartbeat;
   public readonly networkStatusMonitor: NetworkStatusMonitor;
+  public readonly messageBusClient: DiscourseMessageBusClient;
   public readonly bilibiliShortLinkResolver: BilibiliShortLinkResolver;
 
   public constructor(context: common.Context, onAuthenticationChanged: () => void) {
@@ -76,6 +78,7 @@ export class AppDependencyGraph {
       sessionProvider,
       this.networkStatusMonitor
     );
+    this.messageBusClient = new DiscourseMessageBusClient(httpClient);
     this.bilibiliShortLinkResolver = new BilibiliShortLinkResolver(
       new RcpBilibiliRedirectReader()
     );

@@ -12,10 +12,12 @@ export struct HomeBrowsePage {
   @Prop emojis: Array<ChatEmoji> = [];
   @Prop selectedChannel: HomeChannel = HomeChannel.LATEST_REPLIES;
   @Prop worldCupEntryEnabled: boolean = true;
+  @Prop pendingLiveTopicCount: number = 0;
   scroller: Scroller = new Scroller();
   onRetry: () => void = (): void => {};
   onRefresh: () => void = (): void => {};
   onLoadMore: () => void = (): void => {};
+  onShowLiveTopics: () => void = (): void => {};
   onOpenTopic: (topic: Topic) => void = (_topic: Topic): void => {};
   onWorldCupEntryChange: (enabled: boolean) => void = (_enabled: boolean): void => {};
   onBrowseScroll: (scrollOffset: number, scrollState: ScrollState) => void =
@@ -144,6 +146,21 @@ export struct HomeBrowsePage {
   private topicList(): void {
     Refresh({ refreshing: this.state.isRefreshing }) {
       List({ space: 10, scroller: this.scroller }) {
+        if (this.pendingLiveTopicCount > 0) {
+          ListItem() {
+            Button(`有 ${this.pendingLiveTopicCount} 个 Topic 更新`)
+              .height(38)
+              .padding({ left: 18, right: 18 })
+              .fontSize(14)
+              .fontWeight(FontWeight.Medium)
+              .fontColor($r('app.color.brand_primary'))
+              .backgroundColor($r('sys.color.comp_background_primary'))
+              .border({ width: 1, color: $r('app.color.brand_primary') })
+              .borderRadius(19)
+              .onClick(this.onShowLiveTopics)
+              .accessibilityText(`有 ${this.pendingLiveTopicCount} 个 Topic 更新，点击查看`)
+          }
+        }
         // ListItem() {
         //   this.worldCupPreference()
         // }

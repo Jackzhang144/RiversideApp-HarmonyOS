@@ -54,6 +54,8 @@ export struct TopicDetailPage {
   @Prop categories: Array<Category> = [];
   @Prop emojis: Array<ChatEmoji> = [];
   @Prop emojiLoading: boolean = false;
+  @Prop liveReplyCount: number = 0;
+  @Prop firstLiveReplyPostNumber: number = 0;
   @Link replySheetVisible: boolean;
   @Link topicNotificationSheetVisible: boolean;
   @State flagSheetVisible: boolean = false;
@@ -75,6 +77,8 @@ export struct TopicDetailPage {
   onRefresh: () => void = (): void => {};
   onLoadMore: () => void = (): void => {};
   onLoadPrevious: () => void = (): void => {};
+  onShowLiveReplies: (postNumber: number) => void = (_postNumber: number): void => {};
+  onVisiblePostChange: (postNumber: number) => void = (_postNumber: number): void => {};
   onOpenReply: (postNumber: number | null) => void = (_postNumber: number | null): void => {};
   onOpenEdit: (postId: number) => void = (_postId: number): void => {};
   onToggleReaction: (postId: number, reaction: string) => void = (
@@ -424,6 +428,13 @@ export struct TopicDetailPage {
 
   private highestPostNumber(): number {
     return Math.max(1, this.state.detail?.highestPostNumber ?? 1);
+  }
+
+  private recordVisiblePost(postNumber: number): void {
+    this.currentPostNumber = postNumber;
+    this.currentTopicId = this.state.topicId;
+    this.onVisiblePostChange(postNumber);
+    this.scheduleReadProgress(postNumber);
   }
 
   private listIndexForPost(postNumber: number): number {
@@ -1112,9 +1123,7 @@ export struct TopicDetailPage {
           { ratios: [0.6], expectedUpdateInterval: 500 },
           (_isExpanding: boolean, currentRatio: number): void => {
             if (currentRatio >= 0.6 && this.hasStarterPost()) {
-              this.currentPostNumber = this.state.posts[0].postNumber;
-              this.currentTopicId = this.state.topicId;
-              this.scheduleReadProgress(this.state.posts[0].postNumber);
+              this.recordVisiblePost(this.state.posts[0].postNumber);
             }
           }
         )
@@ -1145,9 +1154,7 @@ export struct TopicDetailPage {
           { ratios: [0.6], expectedUpdateInterval: 500 },
           (_isExpanding: boolean, currentRatio: number): void => {
             if (currentRatio >= 0.6) {
-              this.currentPostNumber = post.postNumber;
-              this.currentTopicId = this.state.topicId;
-              this.scheduleReadProgress(post.postNumber);
+              this.recordVisiblePost(post.postNumber);
             }
           }
         )
@@ -1269,6 +1276,36 @@ export struct TopicDetailPage {
         .height('100%')
         .zIndex(20)
         .hitTestBehavior(HitTestMode.Transparent)
+
+      if (this.liveReplyCount > 0 && this.firstLiveReplyPostNumber > 0) {
+        Row() {
+          Button(`${this.liveReplyCount} 条新回复`)
+            .height(40)
+            .padding({ left: 18, right: 18 })
+            .fontSize(14)
+            .fontWeight(FontWeight.Medium)
+            .fontColor(Color.White)
+            .backgroundColor($r('app.color.brand_primary'))
+            .borderRadius(20)
+            .shadow({
+              radius: 12,
+              color: 0x33000000,
+              offsetX: 0,
+              offsetY: 4
+            })
+            .onClick((): void => {
+              this.onShowLiveReplies(this.firstLiveReplyPostNumber);
+            })
+            .accessibilityText(`${this.liveReplyCount} 条新回复，点击查看`)
+        }
+        .width('100%')
+        .height('100%')
+        .padding({ bottom: 24 })
+        .alignItems(VerticalAlign.Bottom)
+        .justifyContent(FlexAlign.Center)
+        .zIndex(30)
+        .hitTestBehavior(HitTestMode.Transparent)
+      }
     }
     .width('100%')
     .height('100%')

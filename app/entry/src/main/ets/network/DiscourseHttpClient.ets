@@ -185,6 +185,7 @@ interface HttpHeaderValues {
   'User-Api-Key'?: string;
   'User-Api-Client-Id'?: string;
   'Content-Type'?: string;
+  'Dont-Chunk'?: string;
 }
 
 interface TopicReplyPayloadValues {
@@ -296,6 +297,26 @@ export class DiscourseHeaders {
       'Content-Type': contentType
     };
   }
+
+  public toMessageBusRcpRequestHeaders(): rcp.RequestHeaders {
+    const contentType: string = 'application/x-www-form-urlencoded';
+    if (this.userApiKey === null || this.userApiClientId === null) {
+      return {
+        'User-Agent': this.userAgent,
+        Accept: this.accept,
+        'Content-Type': contentType,
+        'Dont-Chunk': 'true'
+      };
+    }
+    return {
+      'User-Agent': this.userAgent,
+      Accept: this.accept,
+      'User-Api-Key': this.userApiKey,
+      'User-Api-Client-Id': this.userApiClientId,
+      'Content-Type': contentType,
+      'Dont-Chunk': 'true'
+    };
+  }
 }
 
 export interface AuthenticatedSessionProvider {
@@ -322,6 +343,10 @@ export interface PresenceHttpClient {
   postForm(path: string, body: string): Promise<HttpTextResult>;
 }
 
+export interface MessageBusHttpClient {
+  postMessageBus(path: string, body: string): Promise<HttpTextResult>;
+}
+
 export interface ForumHttpClient extends PresenceHttpClient {
   get(path: string): Promise<HttpTextResult>;
 
@@ -338,7 +363,7 @@ export interface ForumHttpClient extends PresenceHttpClient {
   delete(path: string): Promise<HttpTextResult>;
 }
 
-export class DiscourseHttpClient implements ForumHttpClient {
+export class DiscourseHttpClient implements ForumHttpClient, MessageBusHttpClient {
   private readonly baseUrl: string;
   private readonly headersFactory: DiscourseRequestHeadersFactory;
   private readonly requestPolicy: DiscourseRequestPolicy;
@@ -380,6 +405,16 @@ export class DiscourseHttpClient implements ForumHttpClient {
     return await this.requestText(path, 'POST', body, 'application/x-www-form-urlencoded');
   }
 
+  public async postMessageBus(path: string, body: string): Promise<HttpTextResult> {
+    return await this.requestText(
+      path,
+      'POST',
+      body,
+      'application/x-www-form-urlencoded',
+      true
+    );
+  }
+
   public async postJson(path: string, body: string): Promise<HttpTextResult> {
     return await this.requestText(path, 'POST', body, 'application/json');
   }
@@ -400,7 +435,8 @@ export class DiscourseHttpClient implements ForumHttpClient {
     path: string,
     method: rcp.HttpMethod,
     requestBody: string | null,
-    contentType: string | null
+    contentType: string | null,
+    messageBusRequest: boolean = false
   ): Promise<HttpTextResult> {
     if (!path.startsWith('/')) {
       AppLogger.warning('Network', `${method} rejected an invalid request path`);
@@ -411,8 +447,10 @@ export class DiscourseHttpClient implements ForumHttpClient {
       return HttpTextResult.failure(0, '当前没有可用网络');
     }
 
-    const requestHeaders: rcp.RequestHeaders =
-      this.headersFactory.create().toRcpRequestHeaders(contentType);
+    const headers: DiscourseHeaders = this.headersFactory.create();
+    const requestHeaders: rcp.RequestHeaders = messageBusRequest
+      ? headers.toMessageBusRcpRequestHeaders()
+      : headers.toRcpRequestHeaders(contentType);
     const configuration: rcp.Configuration = {
       transfer: {
         autoRedirect: true,

@@ -104,7 +104,12 @@ import {
   ChatConversationPollingController,
   SystemChatPollingTimer
 } from '../app/ChatConversationPollingController';
+import {
+  ForumLiveUpdateController,
+  SystemForumLiveUpdateTimer
+} from '../app/ForumLiveUpdateController';
 import { NetworkStatusMonitor } from '../network/NetworkStatusMonitor';
+import { MessageBusEvent, MessageBusSubscription } from '../network/DiscourseMessageBus';
 import { BilibiliShortLinkResolver } from '../network/BilibiliShortLinkResolver';
 import {
   NotificationCentreModel,
@@ -260,6 +265,7 @@ struct Index {
   private model: AppShellModel | null = null;
   private chatModel: ChatModel | null = null;
   private chatPollingController: ChatConversationPollingController | null = null;
+  private forumLiveUpdateController: ForumLiveUpdateController | null = null;
   private notificationModel: NotificationCentreModel | null = null;
   private accountProfileModel: ProfileManagementModel | null = null;
   private selectedProfileModel: ProfileManagementModel | null = null;
@@ -278,6 +284,8 @@ struct Index {
   private networkStatusMonitor: NetworkStatusMonitor | null = null;
   private foregroundVisible: boolean = false;
   private networkAvailable: boolean = true;
+  private readonly messageBusClientId: string =
+    `riverside-${Date.now()}-${Math.floor(Math.random() * 1000000000)}`;
 
   @Env(SystemProperties.WINDOW_AVOID_AREA) avoidAreasVp: window.UIEnvWindowAvoidAreaInfoVP;
   @State selectedRoot: RootDestination = RootDestination.HOME;
@@ -295,10 +303,16 @@ struct Index {
   @StorageLink('riverside_immersive_material_supported')
   immersiveMaterialSupported: boolean = false;
   @State worldCupEntryEnabled: boolean = true;
+  @State pendingLiveTopicIds: Array<number> = [];
   @State categoryState: BrowseState<Category> = BrowseState.initial<Category>();
   @State categoryTopicsState: BrowseState<Topic> = BrowseState.initial<Topic>();
   @State categoryTitle: string = '分类';
   @State topicState: TopicReadState = TopicReadState.initial();
+  @State richEmbedUrl: string = '';
+  @State richEmbedTitle: string = '';
+  @State richEmbedProvider: RichEmbedProvider = RichEmbedProvider.NONE;
+  @State pendingLiveReplyPostNumbers: Array<number> = [];
+  @State topicVisiblePostNumber: number = 1;
   @State topicNotificationSheetVisible: boolean = false;
   @State topicReactionUsersState: BrowseState<PostReactionUsers> = BrowseState.initial<PostReactionUsers>();
   @State reactionUsersSheetVisible: boolean = false;
@@ -334,9 +348,6 @@ struct Index {
   @State profileContentState: ProfileContentState = new ProfileContentState();
   @State profileContentUsername: string = '';
   @State profileContentOwn: boolean = true;
-  @State richEmbedUrl: string = '';
-  @State richEmbedTitle: string = '';
-  @State richEmbedProvider: RichEmbedProvider = RichEmbedProvider.NONE;
   @State imageViewerState: ImageViewerState = ImageViewerState.preparing('', '');
   @State imageViewerVisible: boolean = false;
   @State appVersion: AppMetadata = AppMetadata.current();
@@ -423,6 +434,7 @@ struct Index {
     this.synchronizePresenceHeartbeat();
     this.appForeground = true;
     this.synchronizeChatPolling();
+    this.synchronizeForumLiveUpdates();
     this.refreshForegroundData();
   }
 
@@ -432,6 +444,7 @@ struct Index {
     this.synchronizePresenceHeartbeat();
     this.appForeground = false;
     this.synchronizeChatPolling();
+    this.synchronizeForumLiveUpdates();
   }
 
   aboutToDisappear(): void {
@@ -442,6 +455,8 @@ struct Index {
     this.networkStatusMonitor = null;
     this.chatPollingController?.destroy();
     this.chatPollingController = null;
+    this.forumLiveUpdateController?.destroy();
+    this.forumLiveUpdateController = null;
   }
 
   private async initialize(context: common.Context): Promise<void> {
@@ -534,6 +549,18 @@ struct Index {
     this.worldCupEntryEnabled = model.discovery.worldCupEntryEnabled;
     model.selectRoot(this.selectedRoot);
     this.model = model;
+    this.forumLiveUpdateController = new ForumLiveUpdateController(
+      dependencies.messageBusClient,
+      new SystemForumLiveUpdateTimer(),
+      (): string => {
+        return this.messageBusClientId;
+      },
+      (): Array<MessageBusSubscription> => this.forumLiveSubscriptions(),
+      async (events: Array<MessageBusEvent>): Promise<void> => {
+        await this.handleForumLiveEvents(events);
+      }
+    );
+    this.synchronizeForumLiveUpdates();
     this.refreshAccountIdentity();
     const startupTasks: StartupRequestTasks = new StartupRequestTasks(
       (): Promise<void> => this.loadHome(),
@@ -590,6 +617,7 @@ struct Index {
       this.profileContentOwn = true;
     }
     this.synchronizeChatPolling();
+    this.forumLiveUpdateController?.subscriptionsChanged();
     this.categoryState = model.categories.state;
     if (reloadCategories && repository.state.kind !== AuthStateKind.AUTHENTICATED) {
       this.loadCategories();
@@ -605,6 +633,7 @@ struct Index {
       (): Promise<void> => this.refreshAuthenticatedChat()
     );
     await runAuthenticatedSessionRefresh(tasks);
+    this.synchronizeForumLiveUpdates();
   }
 
   private async refreshAuthenticatedChat(): Promise<void> {
@@ -710,6 +739,9 @@ struct Index {
     this.homeState = model.discovery.homeState;
     await task;
     this.homeState = model.discovery.homeState;
+    if (this.homeState.kind === BrowseStateKind.CONTENT || this.homeState.kind === BrowseStateKind.EMPTY) {
+      this.pendingLiveTopicIds = [];
+    }
   }
 
   private showFeatureSiteMenu(): void {
@@ -740,8 +772,25 @@ struct Index {
     this.homeState = model.discovery.homeState;
     await task;
     this.homeState = model.discovery.homeState;
+    if (this.homeState.kind === BrowseStateKind.CONTENT || this.homeState.kind === BrowseStateKind.EMPTY) {
+      this.pendingLiveTopicIds = [];
+    }
     if (showMessage) {
       this.showHomeRefreshMessage();
+    }
+  }
+
+  private async showLiveHomeTopics(): Promise<void> {
+    const model: AppShellModel | null = this.model;
+    if (model === null || this.pendingLiveTopicIds.length === 0) {
+      return;
+    }
+    const topicIds: Array<number> = this.pendingLiveTopicIds.slice();
+    const merged: boolean = await model.discovery.mergeLiveHomeTopics(topicIds);
+    this.homeState = model.discovery.homeState;
+    if (merged) {
+      this.pendingLiveTopicIds = [];
+      this.homeScroller.scrollToIndex(0, true, ScrollAlign.START);
     }
   }
 
@@ -751,6 +800,8 @@ struct Index {
       return;
     }
     this.selectedHomeChannel = model.discovery.selectedHomeChannel;
+    this.pendingLiveTopicIds = [];
+    this.forumLiveUpdateController?.subscriptionsChanged();
     await this.loadHome();
   }
 
@@ -979,11 +1030,169 @@ struct Index {
     );
   }
 
+  private synchronizeForumLiveUpdates(): void {
+    const controller: ForumLiveUpdateController | null = this.forumLiveUpdateController;
+    if (controller === null) {
+      return;
+    }
+    controller.setNetworkAvailable(this.networkAvailable);
+    controller.setForeground(this.appForeground);
+    controller.subscriptionsChanged();
+  }
+
+  private forumLiveSubscriptions(): Array<MessageBusSubscription> {
+    const subscriptions: Array<MessageBusSubscription> = [
+      new MessageBusSubscription('/latest'),
+      new MessageBusSubscription('/delete'),
+      new MessageBusSubscription('/recover'),
+      new MessageBusSubscription('/destroy')
+    ];
+    if (this.authState.kind === AuthStateKind.AUTHENTICATED) {
+      subscriptions.push(new MessageBusSubscription('/new'));
+      subscriptions.push(new MessageBusSubscription('/unread'));
+      const currentUserId: number = this.accountIdentity?.id ?? 0;
+      if (currentUserId > 0) {
+        subscriptions.push(new MessageBusSubscription(`/unread/${currentUserId}`));
+      }
+    }
+    const detail = this.topicState.detail;
+    if (detail !== null && this.model?.activeDestination === SecondaryDestination.TOPIC) {
+      subscriptions.push(new MessageBusSubscription(
+        `/topic/${detail.id}`,
+        detail.messageBusLastId
+      ));
+    }
+    return subscriptions;
+  }
+
+  private appendUniqueNumbers(current: Array<number>, incoming: Array<number>): Array<number> {
+    const merged: Array<number> = current.slice();
+    const seen: Set<number> = new Set<number>(current);
+    for (const value of incoming) {
+      if (Number.isSafeInteger(value) && value > 0 && !seen.has(value)) {
+        seen.add(value);
+        merged.push(value);
+      }
+    }
+    return merged;
+  }
+
+  private async handleForumLiveEvents(events: Array<MessageBusEvent>): Promise<void> {
+    const model: AppShellModel | null = this.model;
+    if (model === null) {
+      return;
+    }
+    const liveTopicIds: Array<number> = [];
+    const createdPostIds: Array<number> = [];
+    const createdPostNumbers: Array<number> = [];
+    const reconcilePostIds: Array<number> = [];
+    const destroyedPostIds: Array<number> = [];
+    const activeTopicChannel: string = `/topic/${this.topicState.topicId}`;
+    let reloadTopic: boolean = false;
+
+    for (const event of events) {
+      const topicId: number = event.data.number('topic_id') ?? 0;
+      if (
+        event.channel === '/latest' ||
+        event.channel === '/new' ||
+        event.channel === '/unread' ||
+        event.channel === '/recover'
+      ) {
+        if (topicId > 0) {
+          liveTopicIds.push(topicId);
+        }
+        continue;
+      }
+      if (event.channel === '/delete' || event.channel === '/destroy') {
+        if (topicId > 0) {
+          model.discovery.removeLiveHomeTopic(topicId);
+          this.pendingLiveTopicIds = this.pendingLiveTopicIds.filter(
+            (candidateId: number): boolean => candidateId !== topicId
+          );
+          this.homeState = model.discovery.homeState;
+        }
+        continue;
+      }
+      if (event.channel !== activeTopicChannel) {
+        continue;
+      }
+      const eventType: string = event.data.string('type') ?? '';
+      const postId: number = event.data.number('id') ?? 0;
+      const postNumber: number = event.data.number('post_number') ?? 0;
+      if (eventType === 'created') {
+        if (postId > 0) {
+          createdPostIds.push(postId);
+        }
+        if (postNumber > 0) {
+          createdPostNumbers.push(postNumber);
+        }
+      } else if (eventType === 'destroyed') {
+        if (postId > 0) {
+          destroyedPostIds.push(postId);
+        }
+      } else if (
+        eventType === 'revised' ||
+        eventType === 'rebaked' ||
+        eventType === 'recovered' ||
+        eventType === 'deleted' ||
+        eventType === 'liked' ||
+        eventType === 'unliked' ||
+        eventType === 'acted'
+      ) {
+        if (postId > 0) {
+          reconcilePostIds.push(postId);
+        }
+      }
+      reloadTopic = reloadTopic || event.data.boolean('reload_topic') === true;
+    }
+
+    if (liveTopicIds.length > 0) {
+      this.pendingLiveTopicIds = this.appendUniqueNumbers(this.pendingLiveTopicIds, liveTopicIds);
+    }
+
+    const highestBefore: number = this.topicState.detail?.highestPostNumber ?? 1;
+    const wasNearTopicEnd: boolean = this.topicVisiblePostNumber >= Math.max(1, highestBefore - 1);
+    if (createdPostIds.length > 0 && model.canAppendLiveTopicPosts()) {
+      const addedPostNumbers: Array<number> = await model.applyLiveTopicPosts(createdPostIds);
+      this.synchronizeTopicState(model);
+      if (addedPostNumbers.length > 0 && wasNearTopicEnd) {
+        const latestPostNumber: number = Math.max(...addedPostNumbers);
+        model.focusLoadedTopicPost(latestPostNumber);
+        this.synchronizeTopicState(model);
+      } else {
+        this.pendingLiveReplyPostNumbers = this.appendUniqueNumbers(
+          this.pendingLiveReplyPostNumbers,
+          addedPostNumbers
+        );
+      }
+    } else if (createdPostNumbers.length > 0) {
+      this.pendingLiveReplyPostNumbers = this.appendUniqueNumbers(
+        this.pendingLiveReplyPostNumbers,
+        createdPostNumbers
+      );
+    }
+
+    for (const postId of reconcilePostIds) {
+      await model.reconcileLiveTopicPost(postId);
+    }
+    for (const postId of destroyedPostIds) {
+      model.removeLiveTopicPost(postId);
+    }
+    if (reconcilePostIds.length > 0 || destroyedPostIds.length > 0) {
+      this.synchronizeTopicState(model);
+    }
+    if (reloadTopic) {
+      await model.refreshTopic();
+      this.synchronizeTopicState(model);
+    }
+  }
+
   private handleNetworkAvailabilityChanged(available: boolean): void {
     const changed: boolean = this.networkAvailable !== available;
     this.networkAvailable = available;
     this.synchronizePresenceHeartbeat();
     this.synchronizeChatPolling();
+    this.synchronizeForumLiveUpdates();
     if (changed && available && this.foregroundVisible) {
       this.refreshForegroundData();
     }
@@ -1508,6 +1717,8 @@ struct Index {
     }
     this.reactionUsersSheetVisible = false;
     this.topicNotificationSheetVisible = false;
+    this.pendingLiveReplyPostNumbers = [];
+    this.topicVisiblePostNumber = initialPostNumber ?? 1;
     const task: Promise<void> = model.openTopic(topic, initialPostNumber);
     this.synchronizeTopicState(model);
     this.synchronizeReplyState(model, false);
@@ -1515,6 +1726,7 @@ struct Index {
     await task;
     this.synchronizeTopicState(model);
     this.synchronizeReplyState(model);
+    this.forumLiveUpdateController?.subscriptionsChanged();
   }
 
   private handleRichLink(url: string): void {
@@ -1842,6 +2054,24 @@ struct Index {
       model.topicState.posts.some((post: ForumPost): boolean => post.postNumber === postNumber);
   }
 
+  private async showLiveTopicReplies(postNumber: number): Promise<void> {
+    const model: AppShellModel | null = this.model;
+    if (model === null || postNumber <= 0) {
+      return;
+    }
+    let focused: boolean = model.focusLoadedTopicPost(postNumber);
+    if (focused) {
+      this.synchronizeTopicState(model);
+    } else {
+      focused = await this.jumpToTopicPost(postNumber);
+    }
+    if (focused) {
+      this.pendingLiveReplyPostNumbers = this.pendingLiveReplyPostNumbers.filter(
+        (candidatePostNumber: number): boolean => candidatePostNumber > postNumber
+      );
+    }
+  }
+
   private async loadPostReplies(
     postId: number,
     afterPostNumber: number
@@ -2012,6 +2242,7 @@ struct Index {
     this.lastReadPostNumber = model.topicState.readProgressState.lastReadPostNumber;
     this.readProgressBusy = model.topicState.readProgressState.busy;
     this.readProgressMessage = model.topicState.readProgressState.message;
+    this.forumLiveUpdateController?.subscriptionsChanged();
   }
 
   private synchronizeReplyState(model: AppShellModel, sheetVisible: boolean | null = null): void {
@@ -2973,6 +3204,8 @@ struct Index {
           categories: this.categoryState.items,
           emojis: this.chatEmojis,
           emojiLoading: this.composerEmojiLoading,
+          liveReplyCount: this.pendingLiveReplyPostNumbers.length,
+          firstLiveReplyPostNumber: this.pendingLiveReplyPostNumbers[0] ?? 0,
           replySheetVisible: this.replySheetVisible,
           topicNotificationSheetVisible: this.topicNotificationSheetVisible,
           onRetry: (): void => {
@@ -2986,6 +3219,12 @@ struct Index {
           },
           onLoadPrevious: (): void => {
             this.loadPreviousPosts();
+          },
+          onShowLiveReplies: (postNumber: number): void => {
+            this.showLiveTopicReplies(postNumber);
+          },
+          onVisiblePostChange: (postNumber: number): void => {
+            this.topicVisiblePostNumber = postNumber;
           },
           onToggleReaction: (postId: number, reaction: string): void => {
             this.togglePostReaction(postId, reaction);
@@ -3847,6 +4086,7 @@ struct Index {
               emojis: this.chatEmojis,
               selectedChannel: this.selectedHomeChannel,
               worldCupEntryEnabled: this.worldCupEntryEnabled,
+              pendingLiveTopicCount: this.pendingLiveTopicIds.length,
               scroller: this.homeScroller,
               onRetry: (): void => {
                 this.loadHome();
@@ -3856,6 +4096,9 @@ struct Index {
               },
               onLoadMore: (): void => {
                 this.loadMoreHome();
+              },
+              onShowLiveTopics: (): void => {
+                this.showLiveHomeTopics();
               },
               onBrowseScroll: (scrollOffset: number, scrollState: ScrollState): void => {
                 this.handleHomeBrowseScroll(scrollOffset, scrollState);

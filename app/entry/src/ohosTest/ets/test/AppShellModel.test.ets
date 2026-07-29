@@ -82,6 +82,13 @@ class StubForumRepository implements ForumRepository {
     return this.loadLatestTopics();
   }
 
+  public async loadHomeTopicsByIds(
+    _channel: HomeChannel,
+    _topicIds: Array<number>
+  ): Promise<RepositoryResult<Array<Topic>>> {
+    return this.loadLatestTopics();
+  }
+
   public async searchForum(_query: string, page: number): Promise<RepositoryResult<ForumSearchResult>> {
     this.requestedSearchPages.push(page);
     const result: RepositoryResult<ForumSearchResult> | undefined = this.searchResults.shift();

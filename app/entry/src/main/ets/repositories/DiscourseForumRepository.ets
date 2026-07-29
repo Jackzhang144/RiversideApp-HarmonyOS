@@ -83,6 +83,30 @@ export class DiscourseForumRepository implements ForumRepository {
     return this.listingParser.parseLatestTopics(response.body);
   }
 
+  public async loadHomeTopicsByIds(
+    channel: HomeChannel,
+    topicIds: Array<number>
+  ): Promise<RepositoryResult<Array<Topic>>> {
+    const normalizedIds: Array<number> = topicIds.filter((topicId: number): boolean => {
+      return Number.isSafeInteger(topicId) && topicId > 0;
+    });
+    if (normalizedIds.length === 0) {
+      return RepositoryResult.success<Array<Topic>>([]);
+    }
+    const basePath: string = homeChannelPath(channel, 0);
+    const separator: string = basePath.includes('?') ? '&' : '?';
+    const response: HttpTextResult = await this.client.get(
+      `${basePath}${separator}topic_ids=${normalizedIds.join(',')}`
+    );
+    if (response.kind === HttpTextResultKind.UNAUTHORIZED) {
+      return RepositoryResult.unauthorized<Array<Topic>>();
+    }
+    if (!response.isSuccess()) {
+      return response.asRepositoryFailure<Array<Topic>>();
+    }
+    return this.listingParser.parseLatestTopics(response.body);
+  }
+
   public async loadCategories(): Promise<RepositoryResult<Array<Category>>> {
     const responses: Array<HttpTextResult> = await Promise.all([
       this.client.get('/site.json'),

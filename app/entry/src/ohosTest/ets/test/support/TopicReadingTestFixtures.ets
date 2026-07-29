@@ -132,6 +132,13 @@ export class TopicReadingRepository implements ForumRepository {
     return RepositoryResult.success<Array<Topic>>([]);
   }
 
+  public async loadHomeTopicsByIds(
+    _channel: HomeChannel,
+    _topicIds: Array<number>
+  ): Promise<RepositoryResult<Array<Topic>>> {
+    return RepositoryResult.success<Array<Topic>>([]);
+  }
+
   public async searchForum(_query: string, _page: number): Promise<RepositoryResult<ForumSearchResult>> {
     return RepositoryResult.unknown<ForumSearchResult>('missing search result');
   }

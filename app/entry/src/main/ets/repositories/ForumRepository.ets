@@ -32,6 +32,8 @@ export interface ForumRepository {
 
   loadHomeTopics(channel: HomeChannel, page: number): Promise<RepositoryResult<Array<Topic>>>;
 
+  loadHomeTopicsByIds(channel: HomeChannel, topicIds: Array<number>): Promise<RepositoryResult<Array<Topic>>>;
+
   loadCategories(): Promise<RepositoryResult<Array<Category>>>;
 
   loadCategoryTopics(categoryId: number, page?: number): Promise<RepositoryResult<Array<Topic>>>;
