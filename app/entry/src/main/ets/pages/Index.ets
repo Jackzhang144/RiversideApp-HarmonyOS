@@ -23,7 +23,6 @@ import {
   APP_CHAT_FALLBACK_TITLE,
   APP_CHAT_IMAGE_TITLE,
   APP_EDIT_TOPIC_TITLE,
-  APP_IMAGE_VIEWER_TITLE,
   APP_LOGIN_TITLE,
   APP_NEW_TOPIC_TITLE,
   APP_PRODUCT_TITLE,
@@ -54,7 +53,6 @@ import {
   APP_SETTINGS_ROUTE,
   CATEGORY_TOPICS_ROUTE,
   CHAT_CONVERSATION_ROUTE,
-  IMAGE_VIEWER_ROUTE,
   LOGIN_ROUTE,
   PROFILE_CONTENT_ROUTE,
   PROFILE_EDITOR_ROUTE,
@@ -333,7 +331,9 @@ struct Index {
   @State richEmbedTitle: string = '';
   @State richEmbedProvider: RichEmbedProvider = RichEmbedProvider.NONE;
   @State imageViewerState: ImageViewerState = ImageViewerState.preparing('', '');
+  @State imageViewerVisible: boolean = false;
   @State appVersion: AppMetadata = AppMetadata.current();
+  private imageViewerRequestVersion: number = 0;
   private accountIdentityRequestVersion: number = 0;
   private appForeground: boolean = false;
   private chatConversationVisible: boolean = false;
@@ -1602,13 +1602,15 @@ struct Index {
       this.showAuthenticationMessage('无法查看图片', '图片地址无效');
       return;
     }
+    const requestVersion: number = this.imageViewerRequestVersion + 1;
+    this.imageViewerRequestVersion = requestVersion;
     this.imageViewerState = ImageViewerState.preparing(normalizedUrl, title, transitionId);
     this.restoreBrowseChrome();
     this.getUIContext().animateTo({
-      duration: 280,
+      duration: 180,
       curve: Curve.EaseOut
     }, (): void => {
-      this.pathStack.pushPath({ name: IMAGE_VIEWER_ROUTE }, false);
+      this.imageViewerVisible = true;
     });
     const service: MediaGalleryService | null = this.mediaGalleryService;
     if (service === null) {
@@ -1616,7 +1618,11 @@ struct Index {
       return;
     }
     const result: RepositoryResult<CachedMedia> = await service.prepareOriginal(normalizedUrl);
-    if (this.imageViewerState.remoteUrl !== normalizedUrl) {
+    if (
+      this.imageViewerRequestVersion !== requestVersion ||
+      !this.imageViewerVisible ||
+      this.imageViewerState.remoteUrl !== normalizedUrl
+    ) {
       return;
     }
     if (result.isUnauthorized()) {
@@ -1629,13 +1635,18 @@ struct Index {
       : this.imageViewerState.failed(result.message);
   }
 
-  private closeImageViewer(): void {
+  private closeImageViewer(): boolean {
+    if (!this.imageViewerVisible) {
+      return false;
+    }
+    this.imageViewerRequestVersion += 1;
     this.getUIContext().animateTo({
-      duration: 240,
+      duration: 160,
       curve: Curve.EaseIn
     }, (): void => {
-      this.pathStack.pop(false);
+      this.imageViewerVisible = false;
     });
+    return true;
   }
 
   private async saveViewerImage(): Promise<void> {
@@ -2896,7 +2907,9 @@ struct Index {
             }
           }]
         },
-        onBackPressed: (): boolean => this.handleSecondaryBack()
+        onBackPressed: (): boolean => {
+          return this.closeImageViewer() || this.handleSecondaryBack();
+        }
       }) {
         TopicDetailPage({
           readingScroller: this.topicScroller,
@@ -3053,7 +3066,9 @@ struct Index {
           this.chatConversationVisible = false;
           this.synchronizeChatPolling();
         },
-        onBackPressed: (): boolean => this.closeChatConversation()
+        onBackPressed: (): boolean => {
+          return this.closeImageViewer() || this.closeChatConversation();
+        }
       }) {
         ChatConversationPage({
           messageScroller: this.chatConversationScroller,
@@ -3117,10 +3132,7 @@ struct Index {
         backLabel: BACK_TO_TOPIC_LABEL,
         darkMode: this.usesDarkChrome(this.appThemeMode),
         scrollables: [this.profileScroller],
-        onBackPressed: (): boolean => {
-          this.closeImageViewer();
-          return true;
-        }
+        onBackPressed: (): boolean => this.closeImageViewer()
       }) {
         UserProfileSummaryPage({
           scroller: this.profileScroller,
@@ -3231,27 +3243,6 @@ struct Index {
           provider: this.richEmbedProvider,
           controller: this.richEmbedController,
           onRequestExternalOpen: (url: string): void => this.confirmExternalNavigation(url)
-        })
-      }
-    } else if (name === IMAGE_VIEWER_ROUTE) {
-      DestinationPageShell({
-        title: this.imageViewerState.title.length > 0 ? this.imageViewerState.title : APP_IMAGE_VIEWER_TITLE,
-        backLabel: BACK_TO_TOPIC_LABEL,
-        darkMode: this.usesDarkChrome(this.appThemeMode),
-        surface: PageSurface.MEDIA,
-        onBackPressed: (): boolean => false
-      }) {
-        ImageViewerPage({
-          state: this.imageViewerState,
-          onCopyUrl: (): void => {
-            this.copyViewerImageUrl();
-          },
-          onOpenExternally: (): void => {
-            this.openExternalLink(this.imageViewerState.remoteUrl);
-          },
-          onSave: (): void => {
-            this.saveViewerImage();
-          }
         })
       }
     } else if (name === TOPIC_COMPOSER_ROUTE) {
@@ -4009,6 +4000,24 @@ struct Index {
           this.homeLinkSideBarVisible = visible;
         }
       })
+      if (this.imageViewerVisible) {
+        ImageViewerPage({
+          state: this.imageViewerState,
+          onCopyUrl: (): void => {
+            this.copyViewerImageUrl();
+          },
+          onOpenExternally: (): void => {
+            this.openExternalLink(this.imageViewerState.remoteUrl);
+          },
+          onSave: (): void => {
+            this.saveViewerImage();
+          },
+          onDismiss: (): void => {
+            this.closeImageViewer();
+          }
+        })
+          .zIndex(100)
+      }
     }
     .width('100%')
     .height('100%')

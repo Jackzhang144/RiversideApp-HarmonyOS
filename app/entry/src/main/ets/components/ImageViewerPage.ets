@@ -7,6 +7,10 @@ import {
 const IMAGE_VIEWER_MIN_SCALE: number = 1;
 const IMAGE_VIEWER_MAX_SCALE: number = 4;
 const IMAGE_VIEWER_DOUBLE_TAP_SCALE: number = 2;
+const IMAGE_VIEWER_HORIZONTAL_MARGIN: number = 18;
+const IMAGE_VIEWER_VERTICAL_MARGIN: number = 18;
+const IMAGE_VIEWER_ACTION_AREA_HEIGHT: number = 112;
+const IMAGE_VIEWER_MIN_CONTENT_WIDTH: number = 176;
 
 enum ImageViewerActionKind {
   SAVE = 'save',
@@ -22,9 +26,11 @@ export struct ImageViewerPage {
   @State imageOffsetY: number = 0;
   @State viewportWidth: number = 0;
   @State viewportHeight: number = 0;
+  @State imageAspectRatio: number = 4 / 3;
   onCopyUrl: () => void = (): void => {};
   onOpenExternally: () => void = (): void => {};
   onSave: () => void = (): void => {};
+  onDismiss: () => void = (): void => {};
   private pinchStartScale: number = IMAGE_VIEWER_MIN_SCALE;
   private panStartOffsetX: number = 0;
   private panStartOffsetY: number = 0;
@@ -100,6 +106,37 @@ export struct ImageViewerPage {
       return this.presentation().canCopyUrl();
     }
     return this.presentation().canOpenExternally();
+  }
+
+  private maximumImageWidth(): number {
+    return Math.max(
+      IMAGE_VIEWER_MIN_CONTENT_WIDTH,
+      this.viewportWidth - IMAGE_VIEWER_HORIZONTAL_MARGIN * 2
+    );
+  }
+
+  private maximumImageHeight(): number {
+    return Math.max(
+      IMAGE_VIEWER_MIN_CONTENT_WIDTH,
+      this.viewportHeight - IMAGE_VIEWER_VERTICAL_MARGIN * 2 - IMAGE_VIEWER_ACTION_AREA_HEIGHT
+    );
+  }
+
+  private focusedImageWidth(): number {
+    const maximumWidth: number = this.maximumImageWidth();
+    const maximumHeight: number = this.maximumImageHeight();
+    const ratio: number = this.imageAspectRatio;
+    return maximumWidth / maximumHeight > ratio
+      ? maximumHeight * ratio
+      : maximumWidth;
+  }
+
+  private focusedImageHeight(): number {
+    return this.focusedImageWidth() / this.imageAspectRatio;
+  }
+
+  private focusedContentWidth(): number {
+    return Math.max(IMAGE_VIEWER_MIN_CONTENT_WIDTH, this.focusedImageWidth());
   }
 
   private performAction(kind: ImageViewerActionKind): void {
@@ -199,35 +236,96 @@ export struct ImageViewerPage {
 
   build() {
     Stack({ alignContent: Alignment.Center }) {
-      Image(this.presentation().imageSource())
-        .width('100%')
-        .height('100%')
-        .objectFit(ImageFit.Contain)
-        .interpolation(ImageInterpolation.High)
-        .draggable(false)
-        .scale({ x: this.imageScale, y: this.imageScale })
-        .translate({ x: this.imageOffsetX, y: this.imageOffsetY })
-        .geometryTransition(this.state.transitionId)
-        .transition(TransitionEffect.OPACITY)
-        .accessibilityText(this.state.title.length > 0 ? this.state.title : '查看原图')
-
-      Stack({ alignContent: Alignment.Bottom }) {
-        Column({ space: 10 }) {
-          this.ViewerStatus()
-          this.ViewerToolbar()
-        }
-        .width('100%')
-        .alignItems(HorizontalAlign.Center)
-        .padding({ left: 16, right: 16, bottom: 18 })
+      Button({ type: ButtonType.Normal }) {
+        Text('关闭图片预览遮罩')
+          .fontSize(1)
+          .opacity(0)
       }
       .width('100%')
       .height('100%')
-      .hitTestBehavior(HitTestMode.Transparent)
+      .padding(0)
+      .backgroundColor($r('app.color.image_viewer_surface'))
+      .onClick((): void => this.onDismiss())
+      .accessibilityText('关闭图片预览遮罩')
+
+      Column({ space: 12 }) {
+        Stack({ alignContent: Alignment.Center }) {
+          Image(this.presentation().imageSource())
+            .width('100%')
+            .height('100%')
+            .objectFit(ImageFit.Contain)
+            .interpolation(ImageInterpolation.High)
+            .draggable(false)
+            .scale({ x: this.imageScale, y: this.imageScale })
+            .translate({ x: this.imageOffsetX, y: this.imageOffsetY })
+            .geometryTransition(this.state.transitionId)
+            .transition(TransitionEffect.OPACITY)
+            .onComplete((event): void => {
+              if (
+                event !== undefined &&
+                event.loadingStatus === 1 &&
+                event.width > 0 &&
+                event.height > 0
+              ) {
+                this.imageAspectRatio = event.width / event.height;
+              }
+            })
+            .accessibilityText(this.state.title.length > 0 ? this.state.title : '查看原图')
+        }
+        .width(this.focusedImageWidth())
+        .height(this.focusedImageHeight())
+        .clip(true)
+        .borderRadius(12)
+        .shadow(ShadowStyle.OUTER_DEFAULT_LG)
+        .gesture(
+          GestureGroup(
+            GestureMode.Parallel,
+            PinchGesture({ fingers: 2 })
+              .onActionStart((): void => {
+                this.pinchStartScale = this.imageScale;
+              })
+              .onActionUpdate((event: GestureEvent): void => {
+                this.imageScale = this.clamp(
+                  this.pinchStartScale * event.scale,
+                  IMAGE_VIEWER_MIN_SCALE,
+                  IMAGE_VIEWER_MAX_SCALE
+                );
+                this.constrainOffsets();
+              })
+              .onActionEnd((): void => {
+                if (this.imageScale <= IMAGE_VIEWER_MIN_SCALE + 0.05) {
+                  this.resetTransform(true);
+                } else {
+                  this.constrainOffsets();
+                }
+              }),
+            PanGesture({ fingers: 1, direction: PanDirection.All, distance: 2 })
+              .onActionStart((): void => {
+                this.panStartOffsetX = this.imageOffsetX;
+                this.panStartOffsetY = this.imageOffsetY;
+              })
+              .onActionUpdate((event: GestureEvent): void => {
+                if (this.imageScale <= IMAGE_VIEWER_MIN_SCALE + 0.05) {
+                  return;
+                }
+                this.imageOffsetX = this.panStartOffsetX + event.offsetX;
+                this.imageOffsetY = this.panStartOffsetY + event.offsetY;
+                this.constrainOffsets();
+              }),
+            TapGesture({ count: 2 })
+              .onAction((): void => this.toggleDoubleTapZoom())
+          )
+        )
+
+        this.ViewerStatus()
+        this.ViewerToolbar()
+      }
+      .width(this.focusedContentWidth())
+      .alignItems(HorizontalAlign.Center)
     }
     .width('100%')
     .height('100%')
     .clip(true)
-    .backgroundColor($r('app.color.image_viewer_surface'))
     .onAreaChange((_oldValue: Area, newValue: Area): void => {
       const width: number = Number(newValue.width);
       const height: number = Number(newValue.height);
@@ -238,44 +336,9 @@ export struct ImageViewerPage {
         this.viewportHeight = height;
       }
     })
-    .gesture(
-      GestureGroup(
-        GestureMode.Parallel,
-        PinchGesture({ fingers: 2 })
-          .onActionStart((): void => {
-            this.pinchStartScale = this.imageScale;
-          })
-          .onActionUpdate((event: GestureEvent): void => {
-            this.imageScale = this.clamp(
-              this.pinchStartScale * event.scale,
-              IMAGE_VIEWER_MIN_SCALE,
-              IMAGE_VIEWER_MAX_SCALE
-            );
-            this.constrainOffsets();
-          })
-          .onActionEnd((): void => {
-            if (this.imageScale <= IMAGE_VIEWER_MIN_SCALE + 0.05) {
-              this.resetTransform(true);
-            } else {
-              this.constrainOffsets();
-            }
-          }),
-        PanGesture({ fingers: 1, direction: PanDirection.All, distance: 2 })
-          .onActionStart((): void => {
-            this.panStartOffsetX = this.imageOffsetX;
-            this.panStartOffsetY = this.imageOffsetY;
-          })
-          .onActionUpdate((event: GestureEvent): void => {
-            if (this.imageScale <= IMAGE_VIEWER_MIN_SCALE + 0.05) {
-              return;
-            }
-            this.imageOffsetX = this.panStartOffsetX + event.offsetX;
-            this.imageOffsetY = this.panStartOffsetY + event.offsetY;
-            this.constrainOffsets();
-          }),
-        TapGesture({ count: 2 })
-          .onAction((): void => this.toggleDoubleTapZoom())
-      )
-    )
+    .transition(TransitionEffect.OPACITY.animation({
+      duration: 180,
+      curve: Curve.EaseOut
+    }))
   }
 }

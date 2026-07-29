@@ -9,7 +9,6 @@ export const APP_PROFILE_EDITOR_TITLE: string = '编辑个人资料';
 export const APP_LOGIN_TITLE: string = '登录 RiverSide';
 export const APP_NEW_TOPIC_TITLE: string = '发布新 Topic';
 export const APP_EDIT_TOPIC_TITLE: string = '编辑 Topic';
-export const APP_IMAGE_VIEWER_TITLE: string = '查看原图';
 export const APP_CHAT_FALLBACK_TITLE: string = 'Chat';
 export const APP_CHAT_IMAGE_TITLE: string = 'Chat 图片';
 export const APP_UNAVAILABLE_PAGE_TITLE: string = '页面不可用';
