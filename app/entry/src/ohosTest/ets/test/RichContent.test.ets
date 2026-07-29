@@ -8,6 +8,11 @@ import {
   parsePlainTextInlineEmojis,
   parseRichPostContent
 } from '../../../main/ets/models/RichContentParser';
+import { RepositoryResult } from '../../../main/ets/core/RepositoryResult';
+import {
+  BilibiliRedirectReader,
+  BilibiliShortLinkResolver
+} from '../../../main/ets/network/BilibiliShortLinkResolver';
 import {
   BILIBILI_URL_TRUST_LIST,
   classifyRichNavigation,
@@ -24,6 +29,15 @@ import {
 
 function blocksOfKind(blocks: Array<RichContentBlock>, kind: RichContentBlockKind): Array<RichContentBlock> {
   return blocks.filter((block: RichContentBlock): boolean => block.kind === kind);
+}
+
+class StubBilibiliRedirectReader implements BilibiliRedirectReader {
+  public result: RepositoryResult<string> =
+    RepositoryResult.invalidResponse<string>('missing redirect result');
+
+  public async readLocation(_shortUrl: string): Promise<RepositoryResult<string>> {
+    return this.result;
+  }
 }
 
 export default function richContentTest(): void {
@@ -216,6 +230,38 @@ export default function richContentTest(): void {
       );
       expect(blocks.some((block: RichContentBlock): boolean => block.url.includes('evil.example'))).assertFalse();
     });
+
+    it('recognizes the current b23 share link as a Bilibili video block', 0, () => {
+      const blocks: Array<RichContentBlock> = parseRichPostContent(
+        '<p><a href="https://b23.tv/oz3qoFV">https://b23.tv/oz3qoFV</a></p>',
+        'https://b23.tv/oz3qoFV'
+      );
+      const videos: Array<RichContentBlock> = blocksOfKind(blocks, RichContentBlockKind.VIDEO);
+
+      expect(videos.length).assertEqual(1);
+      expect(videos[0].embedProvider).assertEqual(RichEmbedProvider.BILIBILI);
+      expect(videos[0].url).assertEqual('https://b23.tv/oz3qoFV');
+    });
+
+    it('resolves the current b23 redirect into an isolated player and rejects foreign targets', 0,
+      async (done: Function) => {
+        const reader: StubBilibiliRedirectReader = new StubBilibiliRedirectReader();
+        const resolver: BilibiliShortLinkResolver = new BilibiliShortLinkResolver(reader);
+        reader.result = RepositoryResult.success<string>(
+          'https://www.bilibili.com/video/BV1wL3k6pE8c?from_spmid=main&p=1'
+        );
+
+        const resolved: RepositoryResult<string> = await resolver.resolve('https://b23.tv/oz3qoFV');
+        expect(resolved.data).assertEqual(
+          'https://player.bilibili.com/player.html?' +
+          'bvid=BV1wL3k6pE8c&high_quality=1&autoplay=0&page=1'
+        );
+
+        reader.result = RepositoryResult.success<string>('https://evil.example/video/BV1wL3k6pE8c');
+        const blocked: RepositoryResult<string> = await resolver.resolve('https://b23.tv/oz3qoFV');
+        expect(blocked.isSuccess()).assertFalse();
+        done();
+      });
 
     it('routes exact RiverSide Topic and Profile links natively', 0, () => {
       const topic = classifyRichNavigation('/t/topic-title/42/3');

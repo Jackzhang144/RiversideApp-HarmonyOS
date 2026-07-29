@@ -9,6 +9,10 @@ import { AbilityContextRegistry } from '../core/AbilityContextRegistry';
 import { MediaGalleryService } from '../media/MediaGalleryService';
 import { AppLogger, DiagnosticLogStore } from '../logging/DiagnosticLogStore';
 import { AuthenticatedSessionProvider, DiscourseHttpClient } from '../network/DiscourseHttpClient';
+import {
+  BilibiliShortLinkResolver,
+  RcpBilibiliRedirectReader
+} from '../network/BilibiliShortLinkResolver';
 import { NetworkStatusMonitor, SystemNetworkStatusMonitor } from '../network/NetworkStatusMonitor';
 import { DiscourseMediaTransport } from '../network/ForumMediaTransport';
 import { DiscourseChatRepository } from '../repositories/DiscourseChatRepository';
@@ -51,6 +55,7 @@ export class AppDependencyGraph {
   public readonly cacheManager: AppCacheManager;
   public readonly presenceHeartbeat: PresenceHeartbeat;
   public readonly networkStatusMonitor: NetworkStatusMonitor;
+  public readonly bilibiliShortLinkResolver: BilibiliShortLinkResolver;
 
   public constructor(context: common.Context, onAuthenticationChanged: () => void) {
     const diagnosticLogStore: DiagnosticLogStore = AppLogger.initialize(context);
@@ -70,6 +75,9 @@ export class AppDependencyGraph {
       RIVERSIDE_ORIGIN,
       sessionProvider,
       this.networkStatusMonitor
+    );
+    this.bilibiliShortLinkResolver = new BilibiliShortLinkResolver(
+      new RcpBilibiliRedirectReader()
     );
     this.forumRepository = new DiscourseForumRepository(httpClient);
     this.chatRepository = new DiscourseChatRepository(httpClient);

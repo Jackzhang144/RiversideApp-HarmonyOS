@@ -104,7 +104,12 @@ function videoStartSeconds(url: string): number {
   return Number.isFinite(total) ? total : 0;
 }
 
-function bilibiliPlayerUrl(raw: string): string {
+export function isBilibiliShortLink(raw: string): boolean {
+  const url: string = absoluteUrl(raw);
+  return urlHost(url) === 'b23.tv' && /^\/[0-9A-Za-z]{5,20}\/?$/.test(urlPath(url));
+}
+
+export function bilibiliPlayerUrl(raw: string): string {
   const url: string = absoluteUrl(raw);
   const host: string = urlHost(url);
   const path: string = urlPath(url);
@@ -170,6 +175,13 @@ function videoBlock(rawUrl: string, title: string = ''): RichContentBlock | null
   const bilibili: string = bilibiliPlayerUrl(rawUrl);
   if (bilibili.length > 0) {
     return RichContentBlock.video(bilibili, title.length > 0 ? title : 'Bilibili 视频', RichEmbedProvider.BILIBILI);
+  }
+  if (isBilibiliShortLink(rawUrl)) {
+    return RichContentBlock.video(
+      absoluteUrl(rawUrl),
+      title.length > 0 ? title : 'Bilibili 视频',
+      RichEmbedProvider.BILIBILI
+    );
   }
   const youtube: string = youtubePlayerUrl(rawUrl);
   if (youtube.length > 0) {

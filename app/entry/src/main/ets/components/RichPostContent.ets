@@ -1,3 +1,4 @@
+import { webview } from '@kit.ArkWeb';
 import {
   RichContentBlock,
   RichContentBlockKind,
@@ -14,6 +15,95 @@ import {
   updateImageAspectRatios
 } from '../models/ImageAspectRatioModels';
 import { RemoteContentImage } from './RemoteContentImage';
+import { SecureRichEmbedPage } from './SecureRichEmbedPage';
+
+@Component
+struct InlineRichEmbed {
+  @Require @Prop sourceUrl: string;
+  @Require @Prop title: string;
+  @Require @Prop provider: RichEmbedProvider;
+  @State resolvedUrl: string = '';
+  @State loading: boolean = true;
+  @State failed: boolean = false;
+  private requestVersion: number = 0;
+  private controller: webview.WebviewController = new webview.WebviewController();
+  onResolve: (url: string, provider: RichEmbedProvider, title: string) => Promise<string> = async (
+    _url: string,
+    _provider: RichEmbedProvider,
+    _title: string
+  ): Promise<string> => '';
+  onOpenLink: (url: string) => void = (_url: string): void => {};
+
+  aboutToAppear(): void {
+    this.resolve();
+  }
+
+  private async resolve(): Promise<void> {
+    if (this.loading && this.requestVersion > 0) {
+      return;
+    }
+    const requestVersion: number = this.requestVersion + 1;
+    this.requestVersion = requestVersion;
+    this.loading = true;
+    this.failed = false;
+    const url: string = await this.onResolve(this.sourceUrl, this.provider, this.title);
+    if (this.requestVersion !== requestVersion) {
+      return;
+    }
+    this.loading = false;
+    if (url.length === 0) {
+      this.failed = true;
+      return;
+    }
+    this.controller = new webview.WebviewController();
+    this.resolvedUrl = url;
+  }
+
+  build() {
+    if (this.resolvedUrl.length > 0) {
+      SecureRichEmbedPage({
+        url: this.resolvedUrl,
+        title: this.title,
+        provider: this.provider,
+        controller: this.controller,
+        onRequestExternalOpen: (url: string): void => this.onOpenLink(url)
+      })
+        .width('100%')
+        .height(260)
+        .borderRadius(8)
+    } else {
+      Column({ space: 10 }) {
+        if (this.failed) {
+          SymbolGlyph($r('sys.symbol.exclamationmark_circle'))
+            .fontSize(30)
+            .fontColor([$r('app.color.status_error')])
+          Text('视频加载失败')
+            .fontSize(13)
+            .fontColor($r('sys.color.font_secondary'))
+          Button('重新加载')
+            .height(36)
+            .onClick((): void => {
+              this.resolve();
+            })
+        } else {
+          LoadingProgress()
+            .width(36)
+            .height(36)
+            .color($r('app.color.brand_primary'))
+          Text('正在准备视频')
+            .fontSize(12)
+            .fontColor($r('sys.color.font_secondary'))
+        }
+      }
+      .width('100%')
+      .height(190)
+      .justifyContent(FlexAlign.Center)
+      .backgroundColor($r('sys.color.background_secondary'))
+      .borderRadius(8)
+      .accessibilityText(this.failed ? `${this.title}加载失败` : `正在准备${this.title}`)
+    }
+  }
+}
 
 @Component
 export struct RichPostContent {
@@ -24,11 +114,11 @@ export struct RichPostContent {
   @State failedImages: Array<string> = [];
   @State imageRatios: Array<ImageAspectRatio> = [];
   onOpenLink: (url: string) => void = (_url: string): void => {};
-  onOpenEmbed: (url: string, provider: RichEmbedProvider, title: string) => void = (
+  onResolveEmbed: (url: string, provider: RichEmbedProvider, title: string) => Promise<string> = async (
     _url: string,
     _provider: RichEmbedProvider,
     _title: string
-  ): void => {};
+  ): Promise<string> => '';
   onOpenImage: (url: string, title: string, transitionId: string) => void = (
     _url: string,
     _title: string,
@@ -338,29 +428,18 @@ export struct RichPostContent {
 
   @Builder
   private VideoBlock(block: RichContentBlock): void {
-    Button({ type: ButtonType.Normal }) {
-      Column({ space: 10 }) {
-        SymbolGlyph($r('sys.symbol.play_circle_fill'))
-          .fontSize(44)
-          .fontColor([$r('app.color.on_accent')])
-        Text(block.title)
-          .fontSize(14)
-          .fontWeight(FontWeight.Bold)
-          .fontColor($r('app.color.on_accent'))
-        Text($r('app.string.rich_post_play_isolated'))
-          .fontSize(11)
-          .fontColor($r('app.color.code_text'))
-      }
+    InlineRichEmbed({
+      sourceUrl: block.url,
+      title: block.title,
+      provider: block.embedProvider,
+      onResolve: async (
+        url: string,
+        provider: RichEmbedProvider,
+        title: string
+      ): Promise<string> => this.onResolveEmbed(url, provider, title),
+      onOpenLink: (url: string): void => this.onOpenLink(url)
+    })
       .width('100%')
-      .height('100%')
-      .justifyContent(FlexAlign.Center)
-    }
-    .width('100%')
-    .height(190)
-    .backgroundColor($r('app.color.code_surface'))
-    .borderRadius(8)
-    .onClick((): void => this.onOpenEmbed(block.url, block.embedProvider, block.title))
-    .accessibilityText(`播放${block.title}`)
   }
 
   @Builder

@@ -101,6 +101,7 @@ import {
   SystemChatPollingTimer
 } from '../app/ChatConversationPollingController';
 import { NetworkStatusMonitor } from '../network/NetworkStatusMonitor';
+import { BilibiliShortLinkResolver } from '../network/BilibiliShortLinkResolver';
 import {
   NotificationCentreModel,
   NotificationCentreState,
@@ -201,6 +202,7 @@ import {
   RichNavigationKind,
   RichNavigationTarget
 } from '../models/RichNavigationPolicy';
+import { isBilibiliShortLink } from '../models/RichContentParser';
 import { DiscourseForumRepository } from '../repositories/DiscourseForumRepository';
 import {
   MediaSelectionResult,
@@ -261,9 +263,10 @@ struct Index {
   private authRepository: AuthRepository | null = null;
   private authenticationLifecycle: RepositoryAuthenticationLifecycle | null = null;
   private snackBar: HdsSnackBar | null = null;
-  private richEmbedController: webview.WebviewController = new webview.WebviewController();
   private mediaGalleryService: MediaGalleryService | null = null;
   private forumRepository: DiscourseForumRepository | null = null;
+  private bilibiliShortLinkResolver: BilibiliShortLinkResolver | null = null;
+  private richEmbedController: webview.WebviewController = new webview.WebviewController();
   private appThemeSettingsStore: AppThemeSettingsStore | null = null;
   private appBehaviorSettingsStore: AppBehaviorSettingsStore | null = null;
   private cacheManager: AppCacheManager | null = null;
@@ -473,6 +476,7 @@ struct Index {
     this.authenticationLifecycle = authenticationLifecycle;
     const forumRepository: DiscourseForumRepository = dependencies.forumRepository;
     this.forumRepository = forumRepository;
+    this.bilibiliShortLinkResolver = dependencies.bilibiliShortLinkResolver;
     this.presenceHeartbeat = dependencies.presenceHeartbeat;
     this.chatModel = new ChatModel(
       dependencies.chatRepository,
@@ -1538,12 +1542,34 @@ struct Index {
     }
   }
 
-  private openRichEmbed(url: string, provider: RichEmbedProvider, title: string): void {
-    if (!isAllowedEmbedNavigation(provider, url)) {
+  private async resolveRichEmbed(url: string, provider: RichEmbedProvider): Promise<string> {
+    let playerUrl: string = url;
+    if (provider === RichEmbedProvider.BILIBILI && isBilibiliShortLink(url)) {
+      const resolver: BilibiliShortLinkResolver | null = this.bilibiliShortLinkResolver;
+      if (resolver === null) {
+        this.showAuthenticationMessage('无法播放视频', 'Bilibili 短链解析服务不可用');
+        return '';
+      }
+      const result: RepositoryResult<string> = await resolver.resolve(url);
+      if (!result.isSuccess() || result.data === null) {
+        this.showAuthenticationMessage('无法播放视频', result.message);
+        return '';
+      }
+      playerUrl = result.data;
+    }
+    if (!isAllowedEmbedNavigation(provider, playerUrl)) {
       this.showAuthenticationMessage('嵌入已拦截', '播放器 URL 不在已验证白名单中');
+      return '';
+    }
+    return playerUrl;
+  }
+
+  private async openRichEmbed(url: string, provider: RichEmbedProvider, title: string): Promise<void> {
+    const playerUrl: string = await this.resolveRichEmbed(url, provider);
+    if (playerUrl.length === 0) {
       return;
     }
-    this.richEmbedUrl = url;
+    this.richEmbedUrl = playerUrl;
     this.richEmbedProvider = provider;
     this.richEmbedTitle = title;
     this.richEmbedController = new webview.WebviewController();
@@ -2987,8 +3013,12 @@ struct Index {
           onOpenRichLink: (url: string): void => {
             this.handleRichLink(url);
           },
-          onOpenRichEmbed: (url: string, provider: RichEmbedProvider, title: string): void => {
-            this.openRichEmbed(url, provider, title);
+          onResolveRichEmbed: async (
+            url: string,
+            provider: RichEmbedProvider,
+            _title: string
+          ): Promise<string> => {
+            return await this.resolveRichEmbed(url, provider);
           },
           onOpenImage: (url: string, title: string, transitionId: string): void => {
             this.openImageViewer(url, title, transitionId);

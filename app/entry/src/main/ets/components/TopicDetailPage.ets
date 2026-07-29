@@ -122,11 +122,11 @@ export struct TopicDetailPage {
   ): void => {};
   onOpenSuggestedTopic: (topic: Topic) => void = (_topic: Topic): void => {};
   onOpenRichLink: (url: string) => void = (_url: string): void => {};
-  onOpenRichEmbed: (url: string, provider: RichEmbedProvider, title: string) => void = (
+  onResolveRichEmbed: (url: string, provider: RichEmbedProvider, title: string) => Promise<string> = async (
     _url: string,
     _provider: RichEmbedProvider,
     _title: string
-  ): void => {};
+  ): Promise<string> => '';
   onOpenImage: (url: string, title: string, transitionId: string) => void = (
     _url: string,
     _title: string,
@@ -518,8 +518,11 @@ export struct TopicDetailPage {
         validReactions: this.state.detail?.validReactions ?? [],
         authenticated: this.authenticated,
         onOpenRichLink: (url: string): void => this.onOpenRichLink(url),
-        onOpenRichEmbed: (url: string, provider: RichEmbedProvider, title: string): void =>
-          this.onOpenRichEmbed(url, provider, title),
+        onResolveRichEmbed: async (
+          url: string,
+          provider: RichEmbedProvider,
+          title: string
+        ): Promise<string> => this.onResolveRichEmbed(url, provider, title),
         onOpenImage: (url: string, title: string, transitionId: string): void =>
           this.onOpenImage(url, title, transitionId),
         onOpenAuthor: (username: string): void => this.onOpenAuthor(username),
@@ -684,8 +687,11 @@ export struct TopicDetailPage {
       validReactions: this.state.detail?.validReactions ?? [],
       authenticated: this.authenticated,
       onOpenRichLink: (url: string): void => this.onOpenRichLink(url),
-      onOpenRichEmbed: (url: string, provider: RichEmbedProvider, title: string): void =>
-        this.onOpenRichEmbed(url, provider, title),
+      onResolveRichEmbed: async (
+        url: string,
+        provider: RichEmbedProvider,
+        title: string
+      ): Promise<string> => this.onResolveRichEmbed(url, provider, title),
       onOpenImage: (url: string, title: string, transitionId: string): void =>
         this.onOpenImage(url, title, transitionId),
       onOpenAuthor: (username: string): void => this.onOpenAuthor(username),

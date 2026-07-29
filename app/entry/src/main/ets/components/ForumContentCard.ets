@@ -41,11 +41,11 @@ export struct ForumContentCard {
   onReply: (postNumber: number | null) => void = (_postNumber: number | null): void => {};
   onOpenReplyTarget: (postNumber: number) => void = (_postNumber: number): void => {};
   onOpenRichLink: (url: string) => void = (_url: string): void => {};
-  onOpenRichEmbed: (url: string, provider: RichEmbedProvider, title: string) => void = (
+  onResolveRichEmbed: (url: string, provider: RichEmbedProvider, title: string) => Promise<string> = async (
     _url: string,
     _provider: RichEmbedProvider,
     _title: string
-  ): void => {};
+  ): Promise<string> => '';
   onOpenImage: (url: string, title: string, transitionId: string) => void = (
     _url: string,
     _title: string,
@@ -226,8 +226,11 @@ export struct ForumContentCard {
           raw: this.richRaw,
           imageTransitionScope: `topic-${this.topicId}-post-${this.post?.id ?? 0}`,
           onOpenLink: (url: string): void => this.onOpenRichLink(url),
-          onOpenEmbed: (url: string, provider: RichEmbedProvider, title: string): void =>
-            this.onOpenRichEmbed(url, provider, title),
+          onResolveEmbed: async (
+            url: string,
+            provider: RichEmbedProvider,
+            title: string
+          ): Promise<string> => this.onResolveRichEmbed(url, provider, title),
           onOpenImage: (url: string, title: string, transitionId: string): void =>
             this.onOpenImage(url, title, transitionId)
         })
