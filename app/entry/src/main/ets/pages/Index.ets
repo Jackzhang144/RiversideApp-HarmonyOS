@@ -89,6 +89,10 @@ import {
 } from '../app/BrowseChromeScrollBehavior';
 import { runStartupRequestSequence, StartupRequestTasks } from '../app/StartupRequestSequence';
 import {
+  AuthenticatedSessionRefreshTasks,
+  runAuthenticatedSessionRefresh
+} from '../app/AuthenticatedSessionRefresh';
+import {
   ChatChannelState,
   ChatComposerState,
   ChatConversationState,
@@ -566,10 +570,7 @@ struct Index {
       this.synchronizeReplyState(model, model.replyState.kind === ReplyComposerStateKind.EDITING);
       model.topicAuthoring.resumeAfterAuthentication();
       this.topicComposerState = model.topicAuthoring.state;
-      this.refreshAccountIdentity();
-      if (this.selectedRoot === RootDestination.NOTIFICATIONS) {
-        this.loadNotificationCentre();
-      }
+      this.refreshAuthenticatedSession(reloadCategories);
     } else {
       this.accountIdentityRequestVersion += 1;
       this.accountIdentity = null;
@@ -590,9 +591,27 @@ struct Index {
     }
     this.synchronizeChatPolling();
     this.categoryState = model.categories.state;
-    if (reloadCategories) {
+    if (reloadCategories && repository.state.kind !== AuthStateKind.AUTHENTICATED) {
       this.loadCategories();
     }
+  }
+
+  private async refreshAuthenticatedSession(reloadCategories: boolean): Promise<void> {
+    const tasks: AuthenticatedSessionRefreshTasks = new AuthenticatedSessionRefreshTasks(
+      (): Promise<void> => this.refreshAccountIdentity(),
+      (): Promise<void> => this.refreshHome(false),
+      (): Promise<void> => reloadCategories ? this.loadCategories() : Promise.resolve(),
+      (): Promise<void> => this.loadNotificationCentre(true),
+      (): Promise<void> => this.refreshAuthenticatedChat()
+    );
+    await runAuthenticatedSessionRefresh(tasks);
+  }
+
+  private async refreshAuthenticatedChat(): Promise<void> {
+    if (!this.canUseChat()) {
+      return;
+    }
+    await this.refreshChatForForeground();
   }
 
   private synchronizePresenceHeartbeat(): void {
@@ -611,7 +630,7 @@ struct Index {
     heartbeat.stop();
   }
 
-  private refreshAccountIdentity(): void {
+  private async refreshAccountIdentity(): Promise<void> {
     const model: AppShellModel | null = this.model;
     if (model === null || this.authState.kind !== AuthStateKind.AUTHENTICATED) {
       return;
@@ -622,7 +641,7 @@ struct Index {
     this.accountIdentityLoading = true;
     this.accountIdentityError = '';
     this.accountProfileState = ProfileViewState.loading();
-    this.loadAccountIdentity(model, requestVersion);
+    await this.loadAccountIdentity(model, requestVersion);
   }
 
   private async loadAccountIdentity(model: AppShellModel, requestVersion: number): Promise<void> {
@@ -712,7 +731,7 @@ struct Index {
     this.homeHeaderSheetVisible = true;
   }
 
-  private async refreshHome(): Promise<void> {
+  private async refreshHome(showMessage: boolean = true): Promise<void> {
     const model: AppShellModel | null = this.model;
     if (model === null) {
       return;
@@ -721,7 +740,9 @@ struct Index {
     this.homeState = model.discovery.homeState;
     await task;
     this.homeState = model.discovery.homeState;
-    this.showHomeRefreshMessage();
+    if (showMessage) {
+      this.showHomeRefreshMessage();
+    }
   }
 
   private async applyHomeChannelPreference(channel: HomeChannel): Promise<void> {
