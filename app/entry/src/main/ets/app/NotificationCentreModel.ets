@@ -152,6 +152,17 @@ export class NotificationCentreModel {
 
   public async load(username: string, bucket: NotificationBucket = this.state.bucket): Promise<void> {
     const normalizedUsername: string = username.trim();
+    const sameCachedScope: boolean = normalizedUsername.length > 0 &&
+      normalizedUsername === this.username &&
+      bucket === this.state.bucket &&
+      this.state.kind !== NotificationCentreStateKind.INITIAL;
+    if (sameCachedScope) {
+      if (this.state.refreshing || this.state.kind === NotificationCentreStateKind.LOADING) {
+        return;
+      }
+      await this.refreshForForeground(normalizedUsername);
+      return;
+    }
     this.requestVersion += 1;
     const requestVersion: number = this.requestVersion;
     this.username = normalizedUsername;

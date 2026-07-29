@@ -43,6 +43,47 @@ class StubNotificationAuthenticationLifecycle implements NotificationAuthenticat
   }
 }
 
+class ControlledNotificationResult {
+  public readonly promise: Promise<RepositoryResult<Array<NotificationItem>>>;
+  private resolver: ((result: RepositoryResult<Array<NotificationItem>>) => void) | null = null;
+
+  public constructor() {
+    this.promise = new Promise<RepositoryResult<Array<NotificationItem>>>(
+      (resolve: (result: RepositoryResult<Array<NotificationItem>>) => void): void => {
+        this.resolver = resolve;
+      }
+    );
+  }
+
+  public complete(result: RepositoryResult<Array<NotificationItem>>): void {
+    const resolve: ((result: RepositoryResult<Array<NotificationItem>>) => void) | null = this.resolver;
+    this.resolver = null;
+    resolve?.(result);
+  }
+}
+
+class CachedRefreshNotificationRepository implements NotificationRepository {
+  public readonly refreshResult: ControlledNotificationResult = new ControlledNotificationResult();
+  private requestCount: number = 0;
+
+  public async loadNotificationItems(
+    _username: string,
+    _bucket: NotificationBucket,
+    _page: number,
+    _offset: number
+  ): Promise<RepositoryResult<Array<NotificationItem>>> {
+    this.requestCount += 1;
+    if (this.requestCount === 1) {
+      return RepositoryResult.success<Array<NotificationItem>>([activity(1, '缓存消息')]);
+    }
+    return this.refreshResult.promise;
+  }
+
+  public async markAllRead(): Promise<RepositoryResult<boolean>> {
+    return RepositoryResult.success<boolean>(true);
+  }
+}
+
 function activity(id: number, title: string): NotificationItem {
   return new NotificationItem(id, NotificationItemKind.ACTIVITY, title, {
     topicId: id + 100,
@@ -113,6 +154,47 @@ export default function notificationCentreModelTest(): void {
         expect(model.state.items.length).assertEqual(1);
         expect(model.state.items[0].title).assertEqual('前台刷新消息');
         expect(model.state.refreshing).assertFalse();
+        done();
+      });
+
+    it('keeps cached messages visible while re-entering the same bucket refreshes', 0,
+      async (done: Function) => {
+        const repository: CachedRefreshNotificationRepository = new CachedRefreshNotificationRepository();
+        const model: NotificationCentreModel = new NotificationCentreModel(repository);
+
+        await model.load('jack', NotificationBucket.REPLIES);
+        const refresh: Promise<void> = model.load('jack', NotificationBucket.REPLIES);
+
+        expect(model.state.kind).assertEqual(NotificationCentreStateKind.CONTENT);
+        expect(model.state.items.length).assertEqual(1);
+        expect(model.state.items[0].title).assertEqual('缓存消息');
+        expect(model.state.refreshing).assertTrue();
+
+        repository.refreshResult.complete(
+          RepositoryResult.success<Array<NotificationItem>>([activity(2, '刷新消息')])
+        );
+        await refresh;
+        expect(model.state.items[0].title).assertEqual('刷新消息');
+        expect(model.state.refreshing).assertFalse();
+        done();
+      });
+
+    it('does not expose cached messages after the authenticated user changes', 0,
+      async (done: Function) => {
+        const repository: CachedRefreshNotificationRepository = new CachedRefreshNotificationRepository();
+        const model: NotificationCentreModel = new NotificationCentreModel(repository);
+
+        await model.load('jack', NotificationBucket.REPLIES);
+        const reload: Promise<void> = model.load('river', NotificationBucket.REPLIES);
+
+        expect(model.state.kind).assertEqual(NotificationCentreStateKind.LOADING);
+        expect(model.state.items.length).assertEqual(0);
+
+        repository.refreshResult.complete(
+          RepositoryResult.success<Array<NotificationItem>>([activity(2, '新账号消息')])
+        );
+        await reload;
+        expect(model.state.items[0].title).assertEqual('新账号消息');
         done();
       });
 
